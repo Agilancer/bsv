@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
   const p = await b.newPage({ viewport: { width: 480, height: 270 } });
   const errs = [];
   p.on('pageerror', (e) => errs.push(e.message));
-  await p.goto(`http://localhost:${process.env.PORT || 8420}/index.html?play&new&webgl&q=low`);
+  await p.goto(`http://localhost:${process.env.PORT || 8420}/index.html?play&new&webgl&q=low&dynres=0`);
   await p.waitForTimeout(12000);
   const rows = await p.evaluate(async (levels) => {
     const g = __game, W = g.world;
