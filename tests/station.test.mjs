@@ -87,3 +87,20 @@ test('station kinds differ: trade pays more, bastions repair cheaper, shipyards 
   const cm = makeContracts(9, 5, P, 'military'), ct = makeContracts(9, 5, P, 'trade');
   assert.ok(cm[0].reward.credits > ct[0].reward.credits);
 });
+
+test('refit yard: reforge and overhaul keep identity and mastery, cost credits', async () => {
+  const { reforge, overhaul, reforgeCost, overhaulCost } = await import('../src/game/station/services.js');
+  const { makeItem } = await import('../src/game/data/items.js');
+  const P = newPlayer(); P.level = 20; P.credits = 1e6;
+  const it = makeItem('lance', 5, 'epic'); it.lvl = 7;
+  const uid = it.uid, c0 = P.credits;
+  assert.ok(reforgeCost(it) > 0 && overhaulCost(it, 20) > reforgeCost(it));
+  assert.ok(reforge(P, it).ok);
+  assert.equal(it.uid, uid); assert.equal(it.lvl, 7); assert.equal(it.ilvl, 5); assert.equal(it.rarity, 'epic');
+  assert.ok(overhaul(P, it).ok);
+  assert.equal(it.ilvl, 20); assert.equal(it.lvl, 7);
+  assert.ok(P.credits < c0);
+  assert.equal(overhaul(P, it).ok, false);   // already at rank
+  const poor = newPlayer(); poor.credits = 0; poor.level = 20;
+  assert.equal(reforge(poor, makeItem('lance', 5, 'rare')).ok, false);
+});

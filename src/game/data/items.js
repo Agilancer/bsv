@@ -36,8 +36,8 @@ export const BASES = {
   ion: { slot: 'turret', name: 'Ion Disruptor', kind: 'beam', dmgType: 'ion', dmg: 27, rof: 0.9, range: 460, barrels: 1, disrupt: 2, color: 0x58a8ff, icon: 'ion' },
   // ---- prow (forward heavy weapons) ----
   torpedo: { slot: 'prow', name: 'Torpedo Tubes', kind: 'torpedo', dmgType: 'explosive', dmg: 160, rof: 0.18, range: 900, speed: 150, barrels: 2, homing: 0.4, splash: 45, color: 0xff7030, icon: 'torpedo' },
-  nova: { slot: 'prow', name: 'Nova Cannon', kind: 'shell', dmgType: 'explosive', dmg: 260, rof: 0.08, range: 1100, speed: 340, barrels: 1, splash: 110, color: 0xfff0a0, icon: 'nova' },
-  spinal: { slot: 'prow', name: 'Spinal Lance', kind: 'beam', dmgType: 'energy', dmg: 220, rof: 0.12, range: 820, barrels: 1, color: 0xa0f0ff, icon: 'lance' },
+  nova: { slot: 'prow', name: 'Nova Cannon', kind: 'shell', dmgType: 'explosive', dmg: 380, rof: 0.1, range: 1100, speed: 340, barrels: 1, splash: 110, color: 0xfff0a0, icon: 'nova' },
+  spinal: { slot: 'prow', name: 'Spinal Lance', kind: 'beam', dmgType: 'energy', dmg: 330, rof: 0.14, range: 820, barrels: 1, color: 0xa0f0ff, icon: 'lance' },
   // ---- hangars ----
   fighters: { slot: 'hangar', name: 'Fighter Bay', kind: 'hangar', craft: 'fighter', count: 3, dmg: 8, rof: 1.8, range: 900, rebuild: 9, color: 0x9fd8ff, icon: 'hangar' },
   bombers: { slot: 'hangar', name: 'Bomber Bay', kind: 'hangar', craft: 'bomber', count: 2, dmg: 60, rof: 0.25, range: 900, rebuild: 14, color: 0xffb070, icon: 'hangar' },

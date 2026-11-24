@@ -17,7 +17,7 @@ export class PlanetPilot {
     const M = this.mode, V = M.vehicle, st = V.stats;
     this.t += dt; this.runT = (this.runT || 0) + dt;   // runT never resets: a whole surface run is capped
     if (M.state !== 'play' || !V.alive) return;
-    const late = this.runT > 330;   // ~5-6 min runs once the trip home and extraction are counted
+    const late = this.runT > 210;   // ~4-5 min runs once the trip home and extraction are counted
     // failsafes: a dungeon the pilot can't path out of, or a run that just won't end
     if (late && M.dungeon) { this.lateDungeon = (this.lateDungeon || 0) + dt; if (this.lateDungeon > 45) { this.lateDungeon = 0; M.exitDungeon(); return; } }
     if (this.runT > 600 && !this.recalled && !M.dungeon && !this.duel) { this.recalled = true; M.toast('Autopilot: emergency recall', 'warn'); M.ascend(); return; }
@@ -197,7 +197,10 @@ export function makePlanetGoal(game) {
       const since = g.data.playtime - (ex.lastRunAt || -1e9);
       if (since < 300) return 0;
       // planets share the session with space: at most ~30% of it on the ground, counting the next run
-      if ((g.planetSessionTime || 0) > 0.3 * ((g.playtime || 0) + 360)) return 0;
+      // not before the first-session objectives are done (or a quarter hour in), and only if the
+      // session stays at most ~25% ground time once the coming run (~5 min) is counted
+      if ((g.data.tutorial || 0) < 7 && (g.data.playtime || 0) < 900) return 0;
+      if ((g.planetSessionTime || 0) + 300 > 0.25 * ((g.playtime || 0) + 300)) return 0;
       // only go down when the warship can be left alone: hull healthy, no raid inbound, nothing hostile close
       const pl = g.player;
       if (pl.hull < pl.maxHull * 0.6) return 0.05;
@@ -214,6 +217,14 @@ export function makePlanetGoal(game) {
       // the space sim (and this goal) pause while the explorer is on the ground, so a run is
       // marked at deploy time and closed out on the first orbit-side tick after it
       if (G.mode === 'planet') { goal.phase = 'surface'; return false; }
+      // the orbit side of a run (fly there, scan, drop) gets 240 s in all; then it gives up
+      goal.orbitT = (goal.orbitT || 0) + dt;
+      if (goal.orbitT > 240 && goal.phase !== 'surface') {
+        if (S.state === 'panel' || S.state === 'scanning') S.close();
+        goal.phase = 'idle'; goal.target = null; goal.t = 0; goal.orbitT = 0;
+        ensureExplorer(G.data).lastRunAt = G.data.playtime;
+        return true;
+      }
       // every orbit-side phase has a timeout: a stuck scan, panel or drop gives the goal up
       if (S.state !== goal.lastState) { goal.lastState = S.state; goal.stateT = 0; }
       goal.stateT = (goal.stateT || 0) + dt;
@@ -225,7 +236,7 @@ export function makePlanetGoal(game) {
       }
       if (S.state === 'drop' || S.state === 'entering' || S.state === 'scanning') return false;
       if (goal.phase === 'surface') {
-        goal.phase = 'idle'; goal.target = null; goal.t = 0;
+        goal.phase = 'idle'; goal.target = null; goal.t = 0; goal.orbitT = 0;
         ensureExplorer(G.data).lastRunAt = G.data.playtime;
         if (S.state === 'panel') S.close();
         autoSpend(G); return true;

@@ -30,7 +30,8 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 ## Checks
 - `node --test tests/*.test.mjs` (modules that import three: `import './support/three.mjs'` first)
 - Gameplay gates (dev server running; CI runs the first two): `node tools/soak.cjs 10 --gate`
-  (autoplay pacing: kills/min, idle share, no hung goal; `--planet` keeps planet runs in),
+  (autoplay pacing in the shipped config: kills per space-minute, idle share, planet share ≤30%,
+  no hung goal; `--space` drops planet runs),
   `node tools/stalemate.cjs 2,8,20 --gate` (no silent manoeuvring duels),
   `node tools/duel.cjs 5,15,30,50 --gate` (measured time-to-kill vs `balance.TTK`, per size class)
 - `python3 tools/serve.py 8420`, then `node tools/shot.cjs "index.html?play&new&webgl" out.png 15000`

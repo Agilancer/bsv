@@ -18,7 +18,7 @@ test('expected player power grows with rank', () => {
 test('time-to-kill stays flat across levels for every size class', () => {
   for (let si = 0; si < 6; si++) {
     for (const L of LEVELS) {
-      const p = expectedPlayer(L), e = enemyTargets(si, L);
+      const E = expectedPlayer(L), p = { ...E, ...E.full }, e = enemyTargets(si, L);   // the captain with refinery + crew
       const playerKills = (e.hull + e.shield * 1.2) / (p.dps * ENGAGE_BY_SIZE[si]);   // what lands of the sheet DPS
       // what lands on the captain after armour, less his repairs, capped by the boss contract
       const landed = Math.min(e.dps, dpsCapVs(p.ehp)) * p.mit - p.regen * REGEN_SHARE_BY_SIZE[si];   // its share of his repairs
