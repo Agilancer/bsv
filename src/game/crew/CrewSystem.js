@@ -101,7 +101,8 @@ export class CrewSystem {
     st.dmgAcc = 0;
     _v.copy(d.point).sub(s.position).applyAxisAngle(THREE.Object3D.DEFAULT_UP, -s.heading);
     const plan = this.deckPlan();
-    const room = roomAt(plan, s.dims, _v.x, _v.y, _v.z);
+    // (shots strike the flanks at about the waterline: spread the hit over the decks)
+    const room = roomAt(plan, s.dims, _v.x, _v.y + (Math.random() - 0.4) * (s.dims.Ht + s.dims.Hb) * 1.1, _v.z);
     const r = casualties(st, this.chassis, room.sec, sev * 0.8);
     this.hits.push({ room: room.id, t: g.engine.realTime });
     if (this.hits.length > 20) this.hits.shift();
@@ -140,7 +141,7 @@ export class CrewSystem {
 
   // something about the crew changed: recompute bonuses and refit the ship (throttled; refit rebuilds weapon meshes)
   changed(force = false) {
-    this.dirty = true;
+    this.dirty = true; this.check = true;
     this.emit('changed');
     if (force) this.refitT = 0;
   }
@@ -155,12 +156,13 @@ export class CrewSystem {
       this.acc = 0;
       const st = this.state;
       if (tickCrew(st, this.chassis, step)) this.changed();
-      this.dirty = true;
+      this.dirty = true; this.check = true;
       st.recruitT = (st.recruitT || 0) + step;
       if (st.recruitT > RECRUIT_REFRESH || !st.recruits.length) { st.recruitT = 0; st.recruits = rollRecruits(st, this.chassis); this.emit('recruits'); }
     }
     // push new bonuses to the ship when they moved enough, at most every 4 s
-    if (this.refitT <= 0 && g.player) {
+    if (this.check && this.refitT <= 0 && g.player) {
+      this.check = false;
       const s = this.stats();
       if (!same(s, this.applied)) {
         this.applied = { ...s };

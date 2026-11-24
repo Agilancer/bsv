@@ -103,7 +103,7 @@ export function talk(post, game, bridge) {
     }
     case 'science': {
       const d = game.sector && game.sector.detail, sys = game.sector && game.sector.sys;
-      line = d ? `${sys.name}: ${d.star.name || 'the star'}, ${d.planets.length} planets${d.belts.length ? ', an asteroid belt' : ''}${d.stations.length ? `, ${d.stations.length} station${d.stations.length > 1 ? 's' : ''}` : ''}. ${sit.best ? `I read a ${RARITY[sit.best.item.rarity].name.toLowerCase()} signature in the debris.` : 'No notable salvage on sensors.'}` : 'Sensors nominal.';
+      line = d ? `${sys.name}: a ${d.star.k || 'yellow'} star, ${d.planets.length} planets${d.belts.length ? ', an asteroid belt' : ''}${d.stations.length ? `, ${d.stations.length} station${d.stations.length > 1 ? 's' : ''}` : ''}. ${sit.best ? `I read a ${RARITY[sit.best.item.rarity].name.toLowerCase()} signature in the debris.` : 'No notable salvage on sensors.'}` : 'Sensors nominal.';
       opts.push({ label: 'Scan the system', run: () => d ? d.planets.slice(0, 5).map((p) => `${p.name} — ${PLANET_WORDS[p.type] || p.type}${p.landable ? `, landable, resources ${'▮'.repeat(p.resources)}` : ''}${p.moons.length ? `, ${p.moons.length} moon${p.moons.length > 1 ? 's' : ''}` : ''}`).join('; ') + '.' : 'Nothing to scan.' });
       const tg = s && s.target && s.target.alive ? s.target : null;
       if (tg) opts.push({ label: 'Analyse the target', run: () => `${tg.name}: ${tg.chassis.fullName}, level ${tg.level}. Shields ${pct(tg.shieldTotal() / (tg.maxShield * 1.2))}, hull ${pct(tg.hull / tg.maxHull)}. ${tg.shieldsUp() ? 'Energy weapons will strip those shields; save the torpedoes for bare hull.' : 'Shields are down — kinetic and explosive rounds will tell.'}` });

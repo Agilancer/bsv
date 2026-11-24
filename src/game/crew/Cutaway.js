@@ -180,7 +180,11 @@ export class Cutaway {
     this.drawFittings(c, g, t);
     // crew
     this.drawFigures(c, g, realDt, t);
-    // hits
+    // hits (inside the hull's outline)
+    c.save();
+    const clip = new Path2D(g.hull);
+    for (const r of g.castle) clip.rect(r.x, r.y, r.w, r.h);
+    c.clip(clip);
     for (const h of this.sys.hits) {
       const age = this.sys.game.engine.realTime - h.t; if (age > 1.6) continue;
       const r = g.rooms[h.room]; if (!r) continue;
@@ -188,6 +192,7 @@ export class Cutaway {
       c.fillStyle = `rgba(255,${120 + 100 * a | 0},90,${0.45 * a})`; c.fillRect(r.x, r.y, r.w, r.h);
       c.strokeStyle = `rgba(255,220,180,${a})`; c.lineWidth = 2; c.beginPath(); c.arc(r.x + r.w / 2, r.y + r.h / 2, 6 + age * 40, 0, TAU); c.stroke();
     }
+    c.restore();
     this.drawLabels(c, g, st, rep);
   }
 

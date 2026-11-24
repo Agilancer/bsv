@@ -223,6 +223,15 @@ export class Bridge {
       else if (!this.hadWindow) { g.exitMode(); return; }
     }
     this.hadWindow = !!(g.crewUI && g.crewUI.isOpen()) || Object.keys(g.ui.windows).some((k) => g.ui.isOpen(k));
+    // with an officer listening, number keys pick a reply instead of firing abilities
+    if (this.dlg && this.dlgOpts) {
+      for (let i = 1; i <= 8; i++) {
+        if (!inp.hit('ab' + i)) continue;
+        inp.pressed.delete('Digit' + i);
+        const op = this.dlgOpts[i - 1];
+        if (op) { this.choose(this.dlg.post, op); break; }
+      }
+    }
     // the battle carries on: helm keys steer (mouse clicks belong to the bridge), the sector and world tick
     const m = inp.mouse, c0 = m.clicked[0], c2 = m.clicked[2];
     m.clicked[0] = m.clicked[2] = false;
@@ -234,8 +243,9 @@ export class Bridge {
     if (g.npcs) g.npcs.update(dt, t);
     this.steer(dt);
     if (this.restaffT > 0 && (this.restaffT -= realDt) <= 0) this.spawnOfficers();
-    const sit = situation(g);
-    this.sit = sit;
+    this.sitT = (this.sitT || 0) - realDt;
+    if (this.sitT <= 0 || !this.sit) { this.sitT = 0.2; this.sit = situation(g); }
+    const sit = this.sit;
     this.updateAlert(sit, realDt);
     this.updateOfficers(dt, realDt);
     this.updateCamera(realDt);
@@ -515,6 +525,7 @@ export class Bridge {
     el.innerHTML = `${face(m, 'big')}<div><div class="who">${P.name}${o.acting ? ' (acting)' : ''} · ${rankAbbr(m)} ${esc(m.name)}</div>
       <div class="line">${esc(reply || t.line)}</div><div class="opts"></div></div><span class="x">✕</span>`;
     const opts = el.querySelector('.opts');
+    this.dlgOpts = t.options;
     t.options.forEach((op, i) => {
       const b = h(`<button><i>${i + 1}</i>${esc(op.label)}</button>`);
       b.addEventListener('click', () => this.choose(post, op));
