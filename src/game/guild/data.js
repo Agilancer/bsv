@@ -380,7 +380,7 @@ export function botPower(rating) {
 export const MODES = {
   skirmish: { k: 'skirmish', name: 'Skirmish', sub: '3v3 deathmatch · first to 5', team: 3, time: 150, goal: 5, respawn: 5, focus: 1 },
   capture: { k: 'capture', name: 'Relay Capture', sub: '5v5 · hold three relays', team: 5, time: 165, goal: 150, respawn: 6, focus: 1 },
-  convoy: { k: 'convoy', name: 'Convoy', sub: '4v4 · raid or escort the freighters', team: 4, time: 150, goal: 3, respawn: 8, focus: 1, freighter: 65 },
+  convoy: { k: 'convoy', name: 'Convoy', sub: '4v4 · raid or escort the freighters', team: 4, time: 150, goal: 3, respawn: 8, focus: 1, freighter: 100 },
   duel: { k: 'duel', name: 'Duel', sub: '1v1 · the ladder', team: 1, time: 110, goal: 1, respawn: 0, focus: 1, tough: 1.15 },
 };
 const MODE_PAY = { skirmish: { honour: 60, glass: 4, cr: 1 }, capture: { honour: 90, glass: 6, cr: 1.3 }, convoy: { honour: 80, glass: 5, cr: 1.2 }, duel: { honour: 50, glass: 3, cr: 0.7 } };
