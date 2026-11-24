@@ -18,6 +18,9 @@ export class PlanetPilot {
     this.t += dt; this.runT = (this.runT || 0) + dt;   // runT never resets: a whole surface run is capped
     if (M.state !== 'play' || !V.alive) return;
     const late = this.runT > 330;   // ~5-6 min runs once the trip home and extraction are counted
+    // failsafes: a dungeon the pilot can't path out of, or a run that just won't end
+    if (late && M.dungeon) { this.lateDungeon = (this.lateDungeon || 0) + dt; if (this.lateDungeon > 45) { this.lateDungeon = 0; M.exitDungeon(); return; } }
+    if (this.runT > 600 && !this.recalled && !M.dungeon) { this.recalled = true; M.toast('Autopilot: emergency recall', 'warn'); M.ascend(); return; }
     const pos = V.position;
     let target = null, fight = null, stopAt = 6, wantMine = false;
     // nearest awake threat

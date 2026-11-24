@@ -140,19 +140,38 @@ export function expectedPlayer(L) {
     dps += sum / pool.length * count(t);
   }
   dps *= st.dmgMul;
-  // durability stays yard-neutral (the generic hull class), as the enemy damage budget assumes
-  const c = CLASSES[tier - 1];
-  const hull = c.hull * (1 + (L - 1) * 0.045) * 1.15, shield = c.shield * (1 + (L - 1) * 0.045) * 1.15;
-  const r = { L, tier, chassis: chassis.id, mastery, dps, effDps: dps * ENGAGEMENT, hull, shield, ehp: hull + shield * 1.2 * 0.6 };
+  // durability of the same build (mirrors Ship.refit): item + talent hull and shield bonuses,
+  // armour, hull repair. The real captain carries all of it, so the enemy budget must too.
+  const lvlMul = 1 + (L - 1) * 0.045;
+  const hull = chassis.hull * (1 + (st.hull || 0)) * lvlMul;
+  const shield = chassis.shield * (1 + (st.shield || 0)) * lvlMul;
+  const armor = (st.armor || 0) + tier * 1.5 + L * 0.3 + (chassis.yard === 'velscour' ? 5 : 0);
+  const ehp = hull + shield * 1.2 * 0.6;
+  // what a hit actually takes: the shield share at face value, the hull share at 100/(100+armour)
+  const sShare = shield * 0.72 / ehp;
+  const mit = sShare + (1 - sShare) * 100 / (100 + armor);
+  const regen = hull * (st.hullRegen || 0);
+  const r = { L, tier, chassis: chassis.id, mastery, dps, effDps: dps * ENGAGEMENT, hull, shield, ehp, armor, mit, regen };
   cache.set(L, r);
   return r;
 }
 
+// Share of sheet DPS that lands, by enemy size: small craft are hard to hit and often die before
+// a flank comes to bear; big hulls can't get out of the way (calibrated with tools/duel.cjs).
+// (above 1 for big hulls: abilities — volleys, torpedo spreads, overcharge — add burst the sheet
+// doesn't count, and nothing that big gets out of the way)
+export const ENGAGE_BY_SIZE = [0.25, 0.45, 1.2, 0.8, 0.55, 0.55];
+// share of the captain's hull repair each enemy must also cover: escorts fight in packs, bosses alone
+export const REGEN_SHARE_BY_SIZE = [0.35, 0.35, 0.5, 0.7, 1, 1];
+
 // target pools for an enemy of size index si at level L
 export function enemyTargets(si, L) {
   const P = expectedPlayer(L);
-  const pool = P.effDps * TTK.playerKills[si];       // hull + shields it must soak
-  const dps = P.ehp / TTK.enemyKills[si];            // damage it should deal per second
+  const pool = P.dps * ENGAGE_BY_SIZE[si] * TTK.playerKills[si];   // hull + shields it must soak
+  // what it must put out per second (before the captain's armour) so the captain goes down in
+  // TTK.enemyKills: his EHP over that time, plus its share of what his damage control repairs
+  // (packs split it, a boss carries it all; a full share for every escort would make packs lethal)
+  const dps = (P.ehp / TTK.enemyKills[si] + P.regen * REGEN_SHARE_BY_SIZE[si]) / P.mit;
   return { hull: pool * 0.72, shield: pool * 0.28 / 1.2, dps };
 }
 

@@ -21,7 +21,7 @@ export const TALENTS = [
   { k: 'harmonics', tree: 'defense', name: 'Shield Harmonics', max: 5, req: 3, icon: 'shield', stat: { shield: 0.05 }, desc: '+5% shield capacity per rank.' },
   { k: 'recharge', tree: 'defense', name: 'Rapid Recharge', max: 5, req: 6, icon: 'reactor', stat: { shieldRegen: 0.08 }, desc: '+8% shield regeneration per rank.' },
   { k: 'ablative', tree: 'defense', name: 'Ablative Plating', max: 5, req: 9, icon: 'armor', stat: { armor: 3 }, desc: '+3 armour per rank.' },
-  { k: 'damageCtl', tree: 'defense', name: 'Damage Control', max: 3, req: 14, icon: 'repair', stat: { hullRegen: 0.002 }, desc: 'Repair 0.2% hull per second per rank.' },
+  { k: 'damageCtl', tree: 'defense', name: 'Damage Control', max: 3, req: 14, icon: 'repair', stat: { hullRegen: 0.001 }, desc: 'Repair 0.1% hull per second per rank.' },
   { k: 'lastStand', tree: 'defense', name: 'Last Stand', max: 1, req: 25, icon: 'shield', desc: 'Below 25% hull, every shield facing refills instantly. Once a minute.' },
   // navigation
   { k: 'helm', tree: 'navigation', name: 'Helmsmanship', max: 5, req: 1, icon: 'evasive', stat: { turn: 0.04 }, desc: '+4% turn rate per rank.' },
