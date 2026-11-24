@@ -152,7 +152,10 @@ export const SPECIALS = {
     cd: 15, range: 420,
     run(W, s, tg) {
       const r = 200 + s.dims.L * 0.25;
-      const dur = tg ? dodge(tg, r - tg.position.distanceTo(s.position) + tg.dims.L * 0.4, 2.0, 7.5) : 2.5;
+      // plus the time a ship pointed at the boss needs to come about and run
+      let turn = 0;
+      if (tg) { const away = Math.atan2(tg.position.x - s.position.x, tg.position.z - s.position.z); turn = Math.abs(Math.atan2(Math.sin(away - tg.heading), Math.cos(away - tg.heading))) / Math.max(0.05, tg.turnRate || 0.3) * 0.6; }
+      const dur = tg ? Math.min(9, dodge(tg, r - tg.position.distanceTo(s.position) + tg.dims.L * 0.4, 2.0, 7.5) + turn) : 2.5;
       W.warn({ kind: 'circle', pos: s.position.clone(), r, dur, color: '#ffb040', follow: s });
       W.schedule(dur, () => {
         if (!s.alive) return;

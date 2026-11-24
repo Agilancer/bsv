@@ -100,7 +100,7 @@ export function balanceShip(s, d, level, champion = false) {
   const want = T.dps * (champion ? 1.3 : 1);
   s.balanceDps = want;
   // small strafing craft miss more; compensate so each size class delivers its budget
-  const accuracy = [2.0, 1.5, 2.0, 2.0, 6.5, 12.5][d.sizeIndex];   // measured landed/sheet, tools/duel.cjs
+  const accuracy = [2.0, 1.5, 2.0, 2.0, 8.5, 16][d.sizeIndex];   // measured landed/sheet, tools/duel.cjs
   if (raw > 0) s.stats.dmgMul = (want * 0.9 * accuracy) / raw;
 }
 

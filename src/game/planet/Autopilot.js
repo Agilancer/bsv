@@ -219,9 +219,9 @@ export function makePlanetGoal(game) {
       // the space sim (and this goal) pause while the explorer is on the ground, so a run is
       // marked at deploy time and closed out on the first orbit-side tick after it
       if (G.mode === 'planet') { goal.phase = 'surface'; return false; }
-      // the orbit side of a run (fly there, scan, drop) gets 240 s in all; then it gives up
+      // the orbit side of a run (fly there, scan, drop) gets 200 s in all; then it gives up
       goal.orbitT = (goal.orbitT || 0) + dt;
-      if (goal.orbitT > 240 && goal.phase !== 'surface') {
+      if (goal.orbitT > 200 && goal.phase !== 'surface') {
         if (S.state === 'panel' || S.state === 'scanning') S.close();
         goal.phase = 'idle'; goal.target = null; goal.t = 0; goal.orbitT = 0;
         ensureExplorer(G.data).lastRunAt = G.data.playtime;
