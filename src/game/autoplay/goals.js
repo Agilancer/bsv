@@ -2,7 +2,7 @@
 // upgrade the hull, take contracts) and push on to harder systems when this one is
 // too easy. Each goal: { name, score(game) -> number, update(dt) -> true when done }.
 import * as THREE from 'three/webgpu';
-import { shipyardStock, acquireShip, makeContracts, canFly, repairCost, overhaul, overhaulCost } from '../station/services.js';
+import { shipyardStock, acquireShip, canFly, repairCost, overhaul, overhaulCost } from '../station/services.js';
 import { CHASSIS_BY_ID } from '../data/chassis.js';
 import { RARITY } from '../data/items.js';
 import { INV_SIZE } from '../Player.js';
@@ -106,11 +106,11 @@ export function resupplyGoal(ap) {
         for (const it of fitted) { if (P.credits - overhaulCost(it, P.level) < reserve) continue; if (overhaul(P, it).ok) refits++; }
         if (refits) { g.refitPlayer(); ap.log(`Refit yard: overhauled ${refits} item${refits > 1 ? 's' : ''} to rank ${P.level}`); }
         P.contracts ||= [];
-        for (const c of makeContracts(st.seed, danger, P, st.kind)) if (P.contracts.length < 3 && !P.contracts.some((a) => a.id === c.id)) P.contracts.push({ ...c, progress: 0 });
+        if (g.quests) g.quests.autoAccept(st);   // quests module: the pick of the station board
         if (g.crewAuto) g.crewAuto();          // crew module: hire/assign
         if (g.refineryAuto) g.refineryAuto();  // planet module: spend resources
         g.equipBest();
-        ap.log(`Resupplied: sold ${sold} items, repaired, ${P.contracts.length} contracts active`);
+        ap.log(`Resupplied: sold ${sold} items, repaired, ${P.contracts.length} quests active`);
         ap.lastDock = g.playtime || 0;
         phase = 'leave'; t = 0;
         return false;

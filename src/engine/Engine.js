@@ -3,7 +3,7 @@
 // Everything game-side plugs in through `engine.add(system)`: a system is any object with
 // optional update(dt, t) / lateUpdate(dt, t) / onResize(w, h) methods.
 import * as THREE from 'three/webgpu';
-import { pass, uniform, vec2, vec3, vec4, float, uv, smoothstep, mix, length, screenUV } from 'three/tsl';
+import { pass, uniform, vec2, vec3, vec4, float, uv, smoothstep, mix, length, screenUV, fract, sin, dot } from 'three/tsl';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { fxaa } from 'three/addons/tsl/display/FXAANode.js';
 
@@ -64,11 +64,21 @@ export class Engine {
     this.bloomNode = b;
     // vignette + slight blue grade on the dark end, keeps the UI palette consistent
     this.uVignette = uniform(0.42);
+    this.uFringe = this.uFringe || uniform(0.007);
     this.uFlash = uniform(0);          // full-screen hit flash (0..1)
     this.uFlashColor = uniform(new THREE.Color(1, 0.3, 0.2));
     const d = length(screenUV.sub(0.5).mul(vec2(1.25, 1)));
     const vig = float(1).sub(smoothstep(0.35, 0.95, d).mul(this.uVignette));
-    let out = color.add(b).rgb.mul(vig);
+    // lens fringe: red and blue slide apart toward the corners (skipped on low quality: two more taps)
+    let base = color.rgb;
+    if (this.quality !== 'low') {
+      const off = screenUV.sub(0.5), k = d.mul(d).mul(this.uFringe);
+      base = vec3(color.sample(screenUV.add(off.mul(k))).r, color.g, color.sample(screenUV.sub(off.mul(k))).b);
+    }
+    let out = base.add(b.rgb).mul(vig);
+    // a breath of film grain keeps flat gradients (fog, nebulae) from banding
+    const grain = fract(sin(dot(screenUV.mul(vec2(1920, 1080)).add(this.uRealTime.mul(61.7)), vec2(12.9898, 78.233))).mul(43758.5453)).sub(0.5);
+    out = out.mul(grain.mul(0.055).add(1));
     out = out.add(vec3(0.004, 0.006, 0.016));
     out = mix(out, this.uFlashColor, this.uFlash.mul(smoothstep(0.2, 0.9, d)));
     post.outputNode = vec4(out, 1);

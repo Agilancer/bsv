@@ -87,6 +87,7 @@ export class PlanetPilot {
       const nearNode = M.level.nearestNode(pos, 400);
       const loot = M.level.drops.find((d) => d.type === 'item' && d.pos.distanceTo(pos) < 150);
       const crate = M.level.crates.find((c) => !c.opened && c.pos.distanceTo(pos) < 120);
+      const curio = M.curios ? M.curios.nearestOpen(pos, 90, (c) => (c.autoT || 0) < 25) : null;
       const mouth = M.dungeons.find((d) => !(d.dungeon && d.dungeon.cleared) && !d.tried);
       const lair = M.lairs.find((l) => !l.cleared && M.ex.level + 3 >= (l.boss.levelBand ? M.siteInfo.level : 0));
       if (cargoF >= 0.95 || runLong) {
@@ -94,6 +95,7 @@ export class PlanetPilot {
         if (M.atLander && (runLong || !nearNode)) ctl.interact = true;
       } else if (loot) target = loot.pos;
       else if (crate) target = crate.pos;
+      else if (curio) { target = curio.pos; stopAt = 10; curio.autoT = (curio.autoT || 0) + dt; }   // a short detour to scan an oddity (given up on if it can't be reached)
       else if (nearNode && (cargoF < 0.95)) {
         target = nearNode.pos; stopAt = Math.max(6, (st.tools[0] ? st.tools[0].ts.range : 12) * 0.7);
         if (Math.hypot(nearNode.pos.x - pos.x, nearNode.pos.z - pos.z) < stopAt + 4) { wantMine = true; M.aimPoint.copy(nearNode.pos); }

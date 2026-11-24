@@ -3,7 +3,7 @@
 // One merged geometry + one material per kind; vertex colour carries the paint and an
 // emissive weight lights the glowing bits (bloom picks them up).
 import * as THREE from 'three/webgpu';
-import { texture, positionWorld, normalWorld, attribute, vec3, float, abs, sin, mix, uniform, length, step, fract, screenCoordinate } from 'three/tsl';
+import { texture, positionWorld, normalWorld, attribute, vec3, float, abs, sin, mix, uniform, length, step, fract, screenCoordinate, positionLocal, instanceIndex } from 'three/tsl';
 import { tex } from './ptex.js';
 import { GeoBuilder, rockGeometry } from './geo.js';
 
@@ -12,6 +12,10 @@ export const PROP_DEFS = {
   rock: { scale: [0.5, 1.8], big: 2.2, bigChance: 0.12, maxSlope: 0.55, alignToSlope: true, sink: 0.25, tex: 'cliff' },
   boulder: { scale: [2.6, 6.5], maxSlope: 0.6, obstacle: 0.85, sink: 0.3, tex: 'cliff', clear: 14 },
   tree: { scale: [0.8, 1.5], maxSlope: 0.8, obstacle: 0.55, tex: 'alt', clear: 10, tilt: 0.08 },
+  // ground cover: no collision, no shadow, sways in the wind
+  grass: { scale: [0.7, 1.5], maxSlope: 0.72, tex: 'alt', shadow: false, clear: 3, sway: 0.16 },
+  flower: { scale: [0.7, 1.3], maxSlope: 0.75, tex: 'alt', shadow: false, clear: 3, sway: 0.1 },
+  pebbles: { scale: [0.6, 1.5], maxSlope: 0.6, tex: 'cliff', shadow: false, clear: 3, alignToSlope: true },
   bush: { scale: [0.6, 1.4], maxSlope: 0.7, tex: 'alt', shadow: false },
   cactus: { scale: [0.7, 1.6], maxSlope: 0.8, obstacle: 0.45, tex: 'alt', tilt: 0.1 },
   bones: { scale: [2.2, 4.5], maxSlope: 0.85, tex: 'cliff', sink: 0.25, clear: 16, alignToSlope: true },
@@ -54,6 +58,24 @@ function shapes(kind, B) {
       for (let i = 0; i < 5; i++) { const a = i * 1.26; b.sphere(0.22, Math.cos(a) * 2.1, 6.9, Math.sin(a) * 2.1, { color: glow, emit: 2.2 }, 1, 1.6, 1, 0); }
       break;
     }
+    case 'grass': {
+      const cols = [0xb4e070, 0xd0f088, 0x9ccc5c, 0xe4f8a0];
+      for (let i = 0; i < 10; i++) { const a = i * 2.4, r = 0.12 + (i % 4) * 0.2; b.cone(0.13, 0.75 + (i % 4) * 0.25, Math.cos(a) * r, 0, Math.sin(a) * r, { color: cols[i % 4] }, 3, Math.sin(a) * 0.3, a, Math.cos(a) * 0.3); }
+      break;
+    }
+    case 'flower': {
+      const heads = [0xfff2a0, 0xff8ac0, 0xa0c8ff, glow];
+      for (let i = 0; i < 5; i++) {
+        const a = i * 1.7 + 0.4, r = 0.3 + i * 0.2, x = Math.cos(a) * r, z = Math.sin(a) * r, hgt = 0.6 + (i % 3) * 0.22;
+        b.cyl(0.03, 0.04, hgt, x, hgt / 2, z, { color: 0x9ccc5c }, 'y', 3);
+        b.sphere(0.2, x, hgt + 0.06, z, { color: heads[i % 4], emit: i % 4 === 3 ? 1.8 : 0.9 }, 1, 0.55, 1, 0);
+        b.sphere(0.08, x, hgt + 0.14, z, { color: 0xffe060, emit: 1.2 }, 1, 0.6, 1, 0);
+      }
+      break;
+    }
+    case 'pebbles':
+      for (let i = 0; i < 4; i++) { const a = i * 1.9; b.add(rockGeo.clone(), { color: 0xffffff }, b.xf(Math.cos(a) * (0.3 + i * 0.22), 0.05, Math.sin(a) * (0.3 + i * 0.22), i, a, 0, 0.16 + (i % 2) * 0.1, 0.11, 0.18)); }
+      break;
     case 'bush':
       b.sphere(1.0, 0, 0.6, 0, { color: 0x6a9a40 }, 1.2, 0.7, 1, 0);
       b.sphere(0.8, 0.8, 0.5, 0.3, { color: 0x7aaa48 }, 1, 0.7, 1, 0);
@@ -174,7 +196,7 @@ export function buildProp(kind, B, engine) {
     const tri = texture(t, p.yz.mul(s)).rgb.mul(bf.x).add(texture(t, p.zx.mul(s)).rgb.mul(bf.y)).add(texture(t, p.xy.mul(s)).rgb.mul(bf.z));
     const vc = attribute('color', 'vec3');
     const emit = attribute('emit', 'float');
-    const isRock = kind === 'rock' || kind === 'boulder';
+    const isRock = kind === 'rock' || kind === 'boulder' || kind === 'pebbles';
     const ct = new THREE.Color(B.cliffTint);
     const base = isRock ? tri.mul(vec3(ct.r, ct.g, ct.b)) : tri.mul(1.5).mul(vc);
     mat.colorNode = mix(base, vc, emit.min(1).mul(0.7));
@@ -182,6 +204,11 @@ export function buildProp(kind, B, engine) {
     mat.emissiveNode = vc.mul(emit).mul(pulse);
     if (kind === 'icespike' || kind === 'crystal' || kind === 'spire') { mat.roughnessNode = float(0.2); mat.metalnessNode = float(0.3); }
     if (['tree', 'shroomcap', 'spire', 'hoodoo', 'basalt', 'boulder', 'icespike', 'cactus', 'wreck'].includes(kind)) mat.maskNode = seeThroughMask();
+    if (def.sway) {
+      // wind: blades lean with height, each instance on its own phase
+      const ph = float(instanceIndex).mul(2.39), t = engine.uTime, h = positionLocal.y.max(0);
+      mat.positionNode = positionLocal.add(vec3(sin(t.mul(1.9).add(ph)).mul(h).mul(def.sway), 0, sin(t.mul(1.3).add(ph.mul(1.7))).mul(h).mul(def.sway * 0.7)));
+    }
     matCache.set(key, mat);
   }
   return { geo, mat };

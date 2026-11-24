@@ -113,6 +113,11 @@ export class PlanetHUD {
     if (this.numbers.length > 80) this.numbers.shift();
     this.numbers.push({ pos: pos.clone(), v: Math.max(1, Math.round(amount)), crit, kind, t: 0, dx: (Math.random() - 0.5) * 30 });
   }
+  // free text that floats up from a world position (punt distances and the like)
+  floatText(pos, text, color = '#ffffff') {
+    if (this.numbers.length > 80) this.numbers.shift();
+    this.numbers.push({ pos: pos.clone(), text, color, t: 0, dx: 0, kind: 'text' });
+  }
   cargoPop(res, k) { this.popT = 0.4; this.popRes = res; }
   death(on) { this.el.pDeath.classList.toggle('show', on); }
   flashOverlay(text, fn) {
@@ -182,6 +187,10 @@ export class PlanetHUD {
     if (!M.dungeon) {
       for (const d of M.dungeons) { c.strokeStyle = '#c080ff'; c.lineWidth = 3 / k; c.beginPath(); c.arc(d.x, d.z, 9 / k, Math.PI, 0); c.stroke(); dot(d.x, d.z, 3, '#e0b0ff'); }
       for (const l of M.lairs) if (!l.cleared) { dot(l.x, l.z, 8, 'rgba(255,90,60,0.35)'); dot(l.x, l.z, 4, '#ff9a2e'); }
+      if (M.curios) for (const q of M.curios.list) {
+        if (q.scanned) { dot(q.x, q.z, 3, 'rgba(180,140,255,0.35)'); continue; }
+        dot(q.x, q.z, 7, 'rgba(180,140,255,0.3)'); dot(q.x, q.z, 3.5, '#d8b8ff');
+      }
       const lp = M.lander.position; c.strokeStyle = '#58c8ff'; c.lineWidth = 3 / k; c.beginPath(); c.arc(lp.x, lp.z, 10 / k, 0, Math.PI * 2); c.stroke(); dot(lp.x, lp.z, 4, '#58c8ff');
     } else for (const x of M.dungeon.exits) { c.strokeStyle = '#' + new THREE.Color(x.hex).getHexString(); c.lineWidth = 3 / k; c.beginPath(); c.arc(x.pos.x, x.pos.z, 9 / k, 0, Math.PI * 2); c.stroke(); }
     for (const e of M.creatures.list) {
@@ -270,6 +279,8 @@ export class PlanetHUD {
     else if (M.dungeon) { if (M.dungeon.exits.some((x) => x.pos.distanceTo(_p.copy(V.position).setY(0)) < 14)) { prompt = `${key}Leave the dungeon`; ctx = 'Exit dungeon'; } }
     else if (M.nearMouth) { prompt = `${key}Enter ${M.nearMouth.name} — ${M.nearMouth.depth > 2 ? 'deep' : 'shallow'} ${M.nearMouth.theme}`; ctx = 'Enter dungeon'; }
     else if (M.atLander) prompt = `${key}Launch to orbit · cargo banked, hull repairing`;   // the orbit button already says Launch
+    const sc = !M.dungeon && M.curios && M.curios.active;
+    if (sc) prompt = `Scanning ${sc.def.name} · ${Math.round(sc.progress * 100)}%`;
     if (M.mining && M.mineNode) prompt = `Mining ${RESOURCES[M.mineNode.res].name} · ${M.mineNode.amount} left`;
     if (el.pPrompt.textContent !== prompt) el.pPrompt.textContent = prompt;
     el.pPrompt.style.display = prompt ? '' : 'none';
@@ -304,6 +315,7 @@ export class PlanetHUD {
       out.push(tot >= cap ? '◈ Cargo full — return to the lander to bank it' : `◈ Mine deposits · cargo ${tot}/${cap}`);
       for (const l of M.lairs) out.push(l.cleared ? `✓ Apex slain: ${l.boss.name}` : `◈ Hunt the apex: ${l.boss.name} (${l.boss.sizeClass})`);
       const nd = M.dungeons.filter((d) => !(d.dungeon && d.dungeon.cleared)).length;
+      if (M.curios) out.push(M.curios.done >= M.curios.total ? '✓ Every curiosity on site scanned' : `◈ Scan curiosities · ${M.curios.done}/${M.curios.total} <span class="label">(drive up to the violet beacons)</span>`);
       if (nd) out.push(`◈ ${nd} dungeon${nd > 1 ? 's' : ''} detected: ${M.dungeons.map((d) => d.name).join(', ')}`);
       out.push(`<span class="label">${M.siteInfo.features.map(featureName).join(' · ')}</span>`);
     }
@@ -383,6 +395,7 @@ export class PlanetHUD {
       ctx.fillStyle = d.kind === 'player' ? `rgba(255,90,90,${a})` : d.kind === 'pshield' ? `rgba(120,200,255,${a})` : d.kind === 'weak' ? `rgba(255,150,60,${a})` : d.kind === 'shield' ? `rgba(120,200,255,${a})` : d.crit ? `rgba(255,220,90,${a})` : `rgba(255,255,255,${a})`;
       ctx.strokeStyle = `rgba(0,0,0,${a * 0.8})`; ctx.lineWidth = 3;
       const y = sp.y - 16 - d.t * 40, x = sp.x + d.dx * d.t;
+      if (d.kind === 'text') { ctx.font = '800 17px Orbitron, Rajdhani, sans-serif'; ctx.globalAlpha = a; ctx.fillStyle = d.color; ctx.strokeText(d.text, x, y); ctx.fillText(d.text, x, y); ctx.globalAlpha = 1; continue; }
       const txt = d.kind === 'weak' ? `${d.v} WEAK` : d.crit ? d.v + '!' : (d.kind === 'player' || d.kind === 'pshield' ? '-' : '') + d.v;
       ctx.strokeText(txt, x, y); ctx.fillText(txt, x, y);
     }
