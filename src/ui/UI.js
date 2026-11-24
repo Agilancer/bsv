@@ -96,6 +96,12 @@ export class UI {
     this.abEls = Object.fromEntries([...document.querySelectorAll('#abilities .ab')].map((e) => [e.dataset.k, e]));
   }
 
+  // hide the space HUD while another mode (planet, bridge) owns the screen
+  setHud(on) {
+    for (const id of ['status', 'target', 'abilities', 'weapons', 'helm', 'radar']) { const el = document.getElementById(id); if (el) el.style.visibility = on ? '' : 'hidden'; }
+    this.canvas.style.display = on ? '' : 'none';
+  }
+
   addWindow(id, title) {
     const w = h(`<div id="${id}" class="win holo scan"><div class="wtitle"><span>${title}</span><span class="close">✕</span></div><div class="wbody"></div></div>`);
     w.querySelector('.close').addEventListener('click', () => this.toggle(id, false));

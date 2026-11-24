@@ -23,10 +23,31 @@ export class Game {
     this.saveT = 20;
     this.moveTarget = null;
     this.mode = 'space';
+    this.activeMode = null;      // {update(dt,t,realDt), exit()} for non-space modes (planet, bridge...)
+    this.statProviders = [];     // fns(game) -> {stat: value}, merged into the player's ship
+  }
+
+  // Enter a full-screen mode with its own scene (planet surface, bridge). Space sim pauses.
+  enterMode(name, mode) {
+    if (this.activeMode && this.activeMode.exit) this.activeMode.exit();
+    this.mode = name; this.activeMode = mode;
+    this.ui.setHud(name === 'space');
+  }
+  exitMode() {
+    if (this.activeMode && this.activeMode.exit) this.activeMode.exit();
+    this.activeMode = null; this.mode = 'space';
+    this.engine.setView(this.spaceScene, this.spaceCamera);
+    this.ui.setHud(true);
+  }
+  extraStats() {
+    const out = {};
+    for (const f of this.statProviders) for (const [k, v] of Object.entries(f(this) || {})) out[k] = (out[k] || 0) + v;
+    return out;
   }
 
   start(fresh = false) {
     this.data = (!fresh && load()) || newPlayer();
+    this.spaceScene = this.engine.scene; this.spaceCamera = this.engine.camera;
     this.world = new World(this.engine, this.cam);
     this.world.game = this;
     this.ui = new UI(this);
@@ -54,6 +75,7 @@ export class Game {
     const s = this.world.addShip({ chassis: CHASSIS_BY_ID[P.ship.chassis], loadout: P.ship.loadout, team: 1, isPlayer: true, name: P.ship.name, level: P.ship.level, faction: 'player' }, false);
     s.position.copy(pos);
     s.persistent = true;
+    s.extraStats = this.extraStats(); s.refit(); s.hull = s.maxHull;
     this.player = s; this.world.player = s;
     this.cam.follow = s;
     this.cam.focus.copy(pos);
@@ -212,7 +234,7 @@ export class Game {
     this.ui.refresh();
   }
   refitPlayer() {
-    if (this.player) { this.player.loadout = this.data.ship.loadout; this.player.refit(); }
+    if (this.player) { this.player.loadout = this.data.ship.loadout; this.player.extraStats = this.extraStats(); this.player.refit(); }
     this.ui.refresh();
   }
 
@@ -336,6 +358,7 @@ export class Game {
       this.world.update(dt, t);
       if (this.npcs) this.npcs.update(dt, t);
     }
+    else if (this.activeMode) this.activeMode.update(dt, t, realDt);
     if (this.mode === 'space') this.cam.update(dt, t, realDt);
     this.ui.update(dt, realDt);
     this.data.playtime += realDt;

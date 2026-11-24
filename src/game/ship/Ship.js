@@ -77,6 +77,8 @@ export class Ship {
     const c = this.chassis;
     const st = {};
     for (const it of Object.values(this.loadout)) if (it) itemShipStats(it, st);
+    // bonuses from outside the loadout (crew, captain talents, explorer finds): {stat: value}
+    if (this.extraStats) for (const [k, v] of Object.entries(this.extraStats)) st[k] = (st[k] || 0) + v;
     const lvl = this.level;
     const lvlMul = 1 + (lvl - 1) * 0.045;
     const eliteMul = [1, 2.4, 6][this.elite];
