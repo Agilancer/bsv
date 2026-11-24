@@ -8,6 +8,11 @@ import { Game } from './game/Game.js';
 import { load } from './game/Player.js';
 import { Audio } from './engine/Audio.js';
 import { TitleScene } from './fx/TitleScene.js';
+import { startLogoSparks } from './ui/logoSparks.js';
+
+// the logo is being welded back together from the first frame, loading bar and all
+const titleLogo = document.querySelector('#title .logo');
+const stopLogoSparks = titleLogo ? startLogoSparks(titleLogo) : () => {};
 
 export const VERSION = '0.1.0';
 const $ = (s) => document.querySelector(s);
@@ -42,7 +47,7 @@ async function boot() {
     title.dispose();
     game.start(fresh);
     engine.start();
-    setTimeout(() => $('#title').remove(), 900);
+    setTimeout(() => { stopLogoSparks(); $('#title').remove(); }, 900);
   };
   $('#btnContinue').onclick = () => go(false);
   $('#btnNew').onclick = () => go(true);
