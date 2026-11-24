@@ -21,9 +21,7 @@ const { chromium } = require('playwright');
     const { standardTalents } = await import('./src/game/data/talents.js');
     const { SHIP_UPGRADES } = await import('./src/game/planet/economy.js');
     g.sector.director.update = () => {}; if (g.npcs) g.npcs.update = () => {};
-    // the contract is sustained gunnery: abilities (opening alpha strikes) are burst on top of it in
-    // real play, so they are off here — a fresh duel would otherwise start with every cooldown ready
-    g.useAbility = () => false;
+    const { ABILITIES } = await import('./src/game/data/abilities.js');
     const out = [];
     for (const L of levels) {
       const E = expectedPlayer(L);
@@ -41,6 +39,10 @@ const { chromium } = require('playwright');
         // deterministic: every duel draws from its own seeded stream (crits, AI choices, specials),
         // so the gate gives the same answer for the same code
         { let a = (L * 7919 + si * 104729 + sample * 1299709) >>> 0; Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+        // warm start: abilities mid-cycle (seeded), as in the middle of real play — a fresh duel would
+        // otherwise open with every cooldown ready and delete mid-size ships before they fire
+        g.cooldowns = {};
+        for (const a of ABILITIES) g.cooldowns[a.key] = __engine.time + Math.random() * g.abilityCd(a);
         // samples: the brawler, then other pirate designs of the size (different roles)
         const pool = ENEMIES.filter((e) => e.faction === 'pirate' && e.sizeIndex === si).sort((a, b) => (b.ai === 'brawler') - (a.ai === 'brawler'));
         const d = pool[sample % pool.length];
