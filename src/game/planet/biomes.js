@@ -13,6 +13,7 @@ export const BIOMES = {
     snowLine: 30,
     props: [['tree', 22], ['bush', 20], ['rock', 10], ['boulder', 3]],
     enemies: [['swarmer', 5], ['spitter', 3], ['drone', 1.5], ['trooper', 1.5]], boss: 'queen',
+    clouds: 0.3,
     ambient: 'pollen', glow: 0x80ffb0,
   },
   desert: {
@@ -25,6 +26,7 @@ export const BIOMES = {
     shape: { amp: 16, freq: 0.004, ridge: 0.15, detail: 0.5, dunes: 7 },
     props: [['rock', 12], ['boulder', 3], ['bones', 2.2], ['cactus', 10]],
     enemies: [['worm', 3], ['swarmer', 4], ['trooper', 2.5], ['turret', 1]], boss: 'wyrm',
+    clouds: 0.2,
     ambient: 'dust', glow: 0xffb060,
   },
   arid: {
@@ -36,6 +38,7 @@ export const BIOMES = {
     shape: { amp: 26, freq: 0.0045, ridge: 0.55, detail: 0.8, terrace: 6 },
     props: [['rock', 14], ['boulder', 4], ['hoodoo', 4], ['cactus', 5]],
     enemies: [['golem', 2.5], ['trooper', 3], ['spitter', 2], ['turret', 1.5]], boss: 'warlord',
+    clouds: 0.22,
     ambient: 'dust', glow: 0xff9060,
   },
   ice: {
@@ -51,6 +54,7 @@ export const BIOMES = {
     padRocks: 2.6,   // extra dark rock and boulders around the landing pad
     props: [['icespike', 12], ['rock', 10], ['boulder', 4], ['crystal', 4]],
     enemies: [['sentinel', 3], ['golem', 2.5], ['drone', 2], ['swarmer', 1]], boss: 'colossus',
+    clouds: 0.26,
     ambient: 'snow', glow: 0x80d8ff,
   },
   lava: {
@@ -84,6 +88,7 @@ export const BIOMES = {
     shape: { amp: 15, freq: 0.005, ridge: 0.2, detail: 1.1 },
     props: [['mushroom', 20], ['shroomcap', 6], ['rock', 8], ['boulder', 2]],
     enemies: [['swarmer', 5], ['spitter', 3.5], ['worm', 1.5]], boss: 'queen',
+    clouds: 0.3,
     ambient: 'spores', glow: 0xa0ff40,
   },
   crystal: {
@@ -96,6 +101,7 @@ export const BIOMES = {
     shape: { amp: 20, freq: 0.0045, ridge: 0.7, detail: 0.8 },
     props: [['crystal', 16], ['spire', 4], ['rock', 8], ['boulder', 2]],
     enemies: [['sentinel', 4], ['swarmer', 2.5], ['golem', 1.5], ['drone', 1]], boss: 'colossus',
+    clouds: 0.2,
     ambient: 'glints', glow: 0xd080ff,
   },
 };
