@@ -218,6 +218,7 @@ export class Ship {
       }
     }
 
+    if (this.mods) for (const m of this.mods) { const M = this.world.eliteMods && this.world.eliteMods[m]; if (M && M.tick) M.tick(this, dt, W); }
     this.updateWeapons(dt, t);
   }
 

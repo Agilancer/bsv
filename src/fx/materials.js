@@ -108,7 +108,7 @@ export function shieldMaterial(hex) {
   const hex6 = fract(q.x.add(q.z.mul(0.577))).mul(fract(q.z.mul(1.155))).mul(fract(q.y.add(q.x.mul(0.5))));
   const pattern = smoothstep(0.03, 0.0, hex6).mul(0.6).add(0.4);
   const c = new THREE.Color(hex);
-  const base = fres.mul(0.12).mul(level);
+  const base = fres.pow(1.5).mul(0.05).mul(level);
   const hit = ring.mul(1.6).add(core.mul(2.5)).mul(pattern);
   m.colorNode = vec3(c.r, c.g, c.b).mul(base.add(hit).mul(1.6));
   m.opacityNode = float(1);

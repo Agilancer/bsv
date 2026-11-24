@@ -8,6 +8,7 @@ import { starterLoadout } from './Player.js';
 import { RNG, rng as R } from '../engine/rng.js';
 import { PIRATE_FIRST, PIRATE_SHIP, COVENANT_SHIP, RIVAL_CORPS } from './data/names.js';
 import { rollRarity } from './data/items.js';
+import { ELITE_MODS, rollEliteMods } from './data/eliteMods.js';
 
 export const FACTIONS = {
   pirate: { name: 'Corsair Pirates', team: 2, yards: [['corsair', 6], ['tidewright', 1], ['ironhold', 1]] },
@@ -81,6 +82,10 @@ export class Sector {
     s.factionName = F.name;
     s.dmgScale = 0.4 + Math.min(0.5, level * 0.014); // NPC weapons hit a little softer than gear would suggest
     s.refit();
+    if (elite) {
+      s.mods = rollEliteMods(rng, elite);
+      for (const m of s.mods) if (ELITE_MODS[m].apply) ELITE_MODS[m].apply(s);
+    }
     s.position.copy(pos);
     s.ai.home.copy(pos);
     return s;

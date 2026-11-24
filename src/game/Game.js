@@ -6,12 +6,13 @@ import { UI } from '../ui/UI.js';
 import { CHASSIS_BY_ID } from './data/chassis.js';
 import { ABILITIES, ABILITY_BY_KEY } from './data/abilities.js';
 import { RARITY, rollItem, grantItemXp, BASES } from './data/items.js';
-import { newPlayer, load, save, xpForLevel, shipXpForLevel, MAX_LEVEL, INV_SIZE, slotKeys, slotType, itemScore } from './Player.js';
+import { newPlayer, load, save, wipe, xpForLevel, shipXpForLevel, MAX_LEVEL, INV_SIZE, slotKeys, slotType, itemScore } from './Player.js';
 import { THROTTLE_STEPS } from './ship/Ship.js';
 import { galaxy } from './galaxy.js';
 import { talentStats, talentWeaponMod, rank, canLearn, TALENT_BY_KEY } from './data/talents.js';
 import { RNG, clamp } from '../engine/rng.js';
 import { PLAYER_NAMES, CHAT } from './data/names.js';
+import { Audio } from '../engine/Audio.js';
 
 const _v = new THREE.Vector3();
 
@@ -52,6 +53,8 @@ export class Game {
     this.spaceScene = this.engine.scene; this.spaceCamera = this.engine.camera;
     this.world = new World(this.engine, this.cam);
     this.world.game = this;
+    this.audio = this.audio || new Audio();
+    this.world.audio = this.audio;
     this.ui = new UI(this);
     this.wireEvents();
     this.enterSystem(this.data.system || 0);
@@ -112,6 +115,8 @@ export class Game {
       if (ship.team !== 1 && (ship.playerTagged || (killer && killer.isPlayer))) this.reward(ship);
     });
     ev.on('collect', (d) => this.collect(d));
+    ev.on('destroyed', ({ ship }) => this.audio.play('explosion', ship.position, Math.min(1.5, 0.6 + ship.dims.L / 120)));
+    ev.on('damage', (d) => { if (d.ship === this.player || d.source === this.player) this.audio.play(d.shield ? 'shield' : 'hit', d.point, 0.7); });
     ev.on('toast', ({ msg, kind }) => this.ui.toast(msg, kind));
     ev.on('legendaryDrop', (d) => this.ui.toast(`${RARITY[d.item.rarity].name} drop: ${d.item.name}`, 'legend'));
   }
@@ -149,6 +154,7 @@ export class Game {
       while (P.level < MAX_LEVEL && P.xp >= xpForLevel(P.level)) {
         P.xp -= xpForLevel(P.level); P.level++;
         const ab = ABILITIES.find((a) => a.unlock === P.level);
+        this.audio.play('levelup', null);
         this.ui.levelUp(P.level, 'COMMANDER RANK', ab ? `NEW ABILITY · ${ab.name.toUpperCase()}` : 'ALL SYSTEMS STRENGTHENED');
         this.ui.chat('SYS', null, `Promoted to rank ${P.level}${ab ? ' — ' + ab.name + ' unlocked' : ''}`, 'sys');
         if (this.player) { this.world.fx.column(this.player.position, 0x9a6bff, 200, 80); this.world.fx.ring(this.player.position, 200, 0x9a6bff, 80); }
@@ -166,7 +172,7 @@ export class Game {
     }
     // gear mastery
     for (const it of Object.values(sh.loadout)) if (it && grantItemXp(it, Math.round(xp * 0.5))) {
-      this.ui.chat('LOOT', null, `${it.name} mastery ${it.lvl}`, 'loot', 'loot');
+      if (it.lvl % 5 === 0) this.ui.chat('LOOT', null, `${it.name} reached mastery ${it.lvl}`, 'loot', 'loot');
       if (this.player) this.player.refit();
     }
     this.ui.refresh();
@@ -182,6 +188,7 @@ export class Game {
     const r = RARITY[d.item.rarity];
     this.ui.chat('LOOT', null, `Recovered ${d.item.name}`, 'loot', 'loot');
     if (r.i >= 3) this.ui.toast(`${r.name}: ${d.item.name}`, r.i >= 4 ? 'legend' : 'epic');
+    if (r.i >= 2) this.audio.play('loot', null, 0.5 + r.i * 0.15);
     if (this.autoplay) this.autoplay.onLoot(d.item);
     this.ui.refresh();
   }
@@ -295,6 +302,8 @@ export class Game {
     document.querySelector('#menubar .auto').classList.toggle('on', !!this.autoplay);
     this.ui.toast(this.autoplay ? 'Autoplay engaged' : 'Autoplay disengaged', this.autoplay ? 'epic' : '');
   }
+  saveNow() { save(this.data); }
+  wipeSave() { this.saveT = 1e9; wipe(); }
   playerChat(text) {
     this.ui.chat('LOCAL', this.data.name, text, 'guild');
     if (this.npcChat) this.npcChat.reply(text);
@@ -413,6 +422,12 @@ export class Game {
     }
     else if (this.activeMode) this.activeMode.update(dt, t, realDt);
     if (this.mode === 'space') this.cam.update(dt, t, realDt);
+    if (this.audio) {
+      this.audio.setListener(this.cam.focus);
+      const s = this.player;
+      const hot = s && s.alive && this.world.ships.some((o) => o.alive && this.world.hostile(s, o) && o.position.distanceTo(s.position) < 1300);
+      this.audio.intensity += ((hot ? 1 : 0) - this.audio.intensity) * Math.min(1, realDt * (hot ? 0.8 : 0.15));
+    }
     this.ui.update(dt, realDt);
     this.data.playtime += realDt;
     this.playtime = (this.playtime || 0) + dt;

@@ -49,7 +49,7 @@ export class UI {
     R.append(h(`<div id="menubar">
       <button data-w="character">SHIP [C]</button><button data-w="inventory">CARGO [I]</button><button data-w="skills">SKILLS [T]</button>
       <button data-w="crew">CREW [K]</button><button data-w="bridge">BRIDGE [B]</button><button data-w="galaxy">GALAXY [M]</button>
-      <button class="auto" data-w="auto">AUTO [P]</button></div>`));
+      <button class="auto" data-w="auto">AUTO [P]</button><button data-w="options">⚙</button></div>`));
     R.querySelectorAll('#menubar button').forEach((b) => b.addEventListener('click', () => this.game.command(b.dataset.w)));
     R.append(h(`<div id="target" class="holo"><div class="tname" id="tName"></div><div class="tsub" id="tSub"></div>
       <div class="bar shield" id="tShield"><i></i><span></span></div><div class="bar hull" id="tHull"><i></i><span></span></div></div>`));
@@ -87,6 +87,7 @@ export class UI {
     });
     addEventListener('keydown', (e) => { if (e.key === 'Enter' && document.activeElement !== ci && !this.game.input.blocked) { ci.focus(); e.preventDefault(); } });
     R.append(h(`<div id="toasts"></div>`));
+    R.append(h(`<div id="autoStatus"></div>`));
     R.append(h(`<div id="levelup"><div class="small" id="luSmall">COMMANDER RANK</div><div class="big" id="luBig">2</div><div class="small" id="luSub"></div></div>`));
     R.append(h(`<div id="tooltip" class="holo"></div>`));
     R.append(h(`<div id="death"><div class="big">HULL LOST</div><div class="label" style="margin-top:14px">The crew made it to the escape pods. Respawning at the nearest station…</div></div>`));
@@ -94,6 +95,8 @@ export class UI {
     this.windows.inventory = this.addWindow('inventory', 'Cargo & Loadout');
     this.windows.character = this.addWindow('character', 'Ship');
     this.windows.skills = this.addWindow('skills', 'Captain Abilities');
+    this.windows.options = this.addWindow('options', 'Options');
+    this.renderers.options = () => this.renderOptions();
     this.hud = { hull: $('#hHull'), shield: $('#hShield'), xp: $('#hXp'), lvl: $('#hLvl'), name: $('#hName'), cls: $('#hClass'), cred: $('#hCred'), rose: $('#shieldRose').getContext('2d'), thr: [...document.querySelectorAll('#thr i')], spd: $('#spd'), alt: $('#alt'), afire: $('#afire'), target: $('#target'), radar: $('#radar canvas').getContext('2d') };
     this.abEls = Object.fromEntries([...document.querySelectorAll('#abilities .ab')].map((e) => [e.dataset.k, e]));
   }
@@ -290,6 +293,29 @@ export class UI {
     });
   }
 
+  renderOptions() {
+    const g = this.game, a = g.audio, e = g.engine;
+    const body = this.windows.options.querySelector('.wbody');
+    const sl = (id, label, v) => `<label class="opt"><span>${label}</span><input type="range" id="${id}" min="0" max="100" value="${Math.round(v * 100)}"></label>`;
+    body.innerHTML = `${sl('oMaster', 'Master volume', a ? a.volume : 0.7)}${sl('oMusic', 'Music', a ? a.musicVolume : 0.45)}${sl('oBloom', 'Bloom', e.bloomStrength.value / 1.6)}
+      <label class="opt"><span>Broadside arcs</span><input type="checkbox" id="oArcs" ${g.showArcs ? 'checked' : ''}></label>
+      <label class="opt"><span>Autoplay ambition</span><select id="oAuto"><option value="full">Full campaign</option><option value="hold">Hold this system</option><option value="combat">Combat &amp; loot only</option></select></label>
+      <label class="opt"><span>Autoplay keeps</span><select id="oKeep"><option value="uncommon">Uncommon+</option><option value="rare">Rare+</option><option value="epic">Epic+</option><option value="legendary">Legendary+</option></select></label>
+      <div class="label" style="margin:10px 0">Renderer: ${e.backend} · quality ${e.quality} · ${e.fps.toFixed(0)} fps</div>
+      <div style="display:flex;gap:8px"><button class="btn" id="oSave">Save now</button><button class="btn bad" id="oWipe">Delete save &amp; restart</button></div>`;
+    const q = (id) => body.querySelector('#' + id);
+    q('oMaster').oninput = (ev) => { if (a) { a.volume = ev.target.value / 100; if (a.master) a.master.gain.value = a.volume; } };
+    q('oMusic').oninput = (ev) => { if (a) { a.musicVolume = ev.target.value / 100; if (a.music) a.music.gain.value = a.musicVolume; } };
+    q('oBloom').oninput = (ev) => { e.bloomStrength.value = ev.target.value / 100 * 1.6; };
+    q('oArcs').onchange = (ev) => { g.showArcs = ev.target.checked; };
+    const AP = (g.data.autoplay ||= {});
+    q('oAuto').value = AP.mode || 'full'; q('oKeep').value = AP.keep || 'rare';
+    q('oAuto').onchange = (ev) => { AP.mode = ev.target.value; };
+    q('oKeep').onchange = (ev) => { AP.keep = ev.target.value; };
+    q('oSave').onclick = () => { g.saveNow(); this.toast('Saved'); };
+    q('oWipe').onclick = () => { if (confirm('Delete your captain and start over?')) { g.wipeSave(); location.reload(); } };
+  }
+
   // ---------------- per-frame ----------------
   damageNumber(pos, amount, crit, shield) {
     if (this.numbers.length > 120) this.numbers.shift();
@@ -324,7 +350,7 @@ export class UI {
     if (t) {
       const tn = $('#tName'); tn.textContent = (t.elite === 2 ? '☠ ' : t.elite ? '★ ' : '') + t.name;
       tn.style.color = t.team === 1 ? 'var(--cyan)' : t.elite === 2 ? '#ff9a2e' : t.elite ? '#ffd66a' : '#ff8a9a';
-      $('#tSub').textContent = `Lv ${t.level} ${t.chassis.cls} · ${t.factionName || t.faction}`;
+      $('#tSub').innerHTML = `Lv ${t.level} ${t.chassis.cls} · ${t.factionName || t.faction}` + (t.mods ? '<br>' + t.mods.map((m) => `<span style="color:${this.game.world.eliteMods[m].color}">${this.game.world.eliteMods[m].name}</span>`).join(' · ') : '');
       this.setBar($('#tShield'), t.shieldTotal() / (t.maxShield * 1.2), fmt(t.shieldTotal()));
       this.setBar($('#tHull'), t.hull / t.maxHull, `${fmt(Math.max(0, t.hull))} / ${fmt(t.maxHull)}`);
     }
@@ -341,6 +367,14 @@ export class UI {
       if (rem <= 0 && el._wasCd) el.classList.remove('ready'), void el.offsetWidth, el.classList.add('ready');
       el._wasCd = rem > 0;
     }
+    const as = document.getElementById('autoStatus');
+    const ap = g.autoplay;
+    if (ap) {
+      const what = !ap.active ? `manual override ${Math.ceil(ap.yieldT)}s` : ap.goal ? ap.goal.name : ap.state === 'combat' && s && s.target ? `engaging ${s.target.name}` : ap.state;
+      const txt = `AUTOPLAY · ${what}`;
+      if (as.textContent !== txt) as.textContent = txt;
+      as.style.display = 'block';
+    } else as.style.display = 'none';
     this.drawRadar(s);
     this.drawOverlay(realDt);
   }
@@ -430,6 +464,15 @@ export class UI {
       if (d.type !== 'item') continue;
       const [x, y] = map(d.pos); c.fillStyle = RARITY[d.item.rarity].color; c.fillRect(x - 2, y - 2, 4, 4);
     }
+    if (g.raidMarker) {
+      let [x, y] = map(g.raidMarker);
+      const dx = x - cx, dy = y - cy, dd = Math.hypot(dx, dy);
+      if (dd > R - 12) { x = cx + dx / dd * (R - 12); y = cy + dy / dd * (R - 12); }
+      c.strokeStyle = '#ff9a2e'; c.lineWidth = 3; c.shadowColor = '#ff9a2e'; c.shadowBlur = 12;
+      const pr = 10 + Math.sin(g.engine.realTime * 5) * 3;
+      c.beginPath(); c.arc(x, y, pr, 0, Math.PI * 2); c.stroke(); c.shadowBlur = 0;
+      c.fillStyle = '#ff9a2e'; c.font = '700 18px Orbitron, sans-serif'; c.textAlign = 'center'; c.fillText('☠', x, y + 6);
+    }
     for (const o of world.ships) {
       if (!o.alive || o === s) continue;
       const [x, y] = map(o.position);
@@ -510,6 +553,7 @@ export class UI {
         ctx.fillStyle = !hostile ? '#9fdcff' : o.elite === 2 ? '#ff9a2e' : o.elite ? '#ffd66a' : 'rgba(255,170,180,0.9)';
         const label = (o.guild ? `<${o.guild}> ` : '') + o.name + (hostile ? ` · ${o.level}` : '');
         if (isT || o.elite || !hostile || recent) ctx.fillText(label, sp.x, by - 4);
+        if (o.mods && (isT || recent)) { ctx.font = '600 10px Rajdhani, sans-serif'; ctx.fillStyle = 'rgba(255,214,106,0.85)'; ctx.fillText(o.mods.map((m) => world.eliteMods[m].name).join(' · '), sp.x, by - 16); }
       }
     }
     // loot labels

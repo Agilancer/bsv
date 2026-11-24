@@ -6,6 +6,8 @@ import { preload, progress } from './engine/Assets.js';
 import { initMaterials } from './fx/materials.js';
 import { Game } from './game/Game.js';
 import { load } from './game/Player.js';
+import { Audio } from './engine/Audio.js';
+import { TitleScene } from './fx/TitleScene.js';
 
 export const VERSION = '0.1.0';
 const $ = (s) => document.querySelector(s);
@@ -25,6 +27,7 @@ async function boot() {
   const input = engine.add(new Input(engine.renderer.domElement));
   const cam = new IsoCamera(engine.camera, input);
   const game = new Game(engine, input, cam);
+  game.audio = new Audio();
   window.__game = game;
   // optional modules register themselves on the game (autoplay, stations, crew, planets...)
   await import('./game/modules.js').then((m) => m.install(game)).catch((e) => console.warn('modules', e));
@@ -33,8 +36,10 @@ async function boot() {
   $('#titleMenu').style.display = 'flex';
   const hasSave = !!load();
   $('#btnContinue').style.display = hasSave ? '' : 'none';
+  const title = new TitleScene(engine);
   const go = (fresh) => {
     $('#title').classList.add('gone');
+    title.dispose();
     game.start(fresh);
     engine.start();
     setTimeout(() => $('#title').remove(), 900);

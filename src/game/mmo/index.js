@@ -11,7 +11,7 @@ import { PLAYER_NAMES, GUILDS, CHAT, WEAPON_WORDS, PIRATE_FIRST, PIRATE_SHIP } f
 const fill = (s, game) => s.replace('{sys}', R.pick(galaxy().systems.slice(0, 20)).name).replace('{station}', game.stations && game.stations[0] ? game.stations[0].name : 'Port Velscour').replace('{weapon}', R.pick(WEAPON_WORDS));
 
 export function installMMO(game) {
-  const pop = { ships: [], chatT: 4, eventT: 40, inviteT: 90, online: 1100 + Math.floor(Math.random() * 600), party: [] };
+  const pop = { ships: [], chatT: 4, eventT: 40, inviteT: 90, raidT: 420, raid: null, online: 1100 + Math.floor(Math.random() * 600), party: [] };
   game.mmo = pop;
 
   function say(channel, who, text, cls = '', c = 'all') { game.ui.chat(channel, who, text, cls, c); }
@@ -101,7 +101,7 @@ export function installMMO(game) {
     const enter = game.enterSystem;
     game.enterSystem = (id) => {
       const party = pop.party.filter((s) => s.alive).map((s) => ({ name: s.name, guild: s.guild, level: s.level, chassis: s.chassis.id, loadout: s.loadout }));
-      pop.ships = []; pop.party = [];
+      pop.ships = []; pop.party = []; pop.raid = null; game.raidMarker = null;
       enter(id);
       for (const p of party) {
         const s = game.world.addShip({ chassis: CHASSIS_BY_ID[p.chassis], loadout: p.loadout, team: 1, faction: 'player', name: p.name, level: p.level }, { aggro: 1500, flee: 0.18 });
@@ -126,6 +126,55 @@ export function installMMO(game) {
       if (line) game.world.schedule(1 + Math.random() * 2.5, () => say('LOCAL', handle(), fill(line, game)));
     },
   };
+
+  // world event: a Dread Armada warps into one of the system's battle zones
+  function startRaid() {
+    const W = game.world, sec = game.sector, P = game.player;
+    const z = sec.detail.zones.reduce((b, z) => (!b || Math.hypot(z.x - P.position.x, z.z - P.position.z) < Math.hypot(b.x - P.position.x, b.z - P.position.z) ? z : b), null);
+    const at = new THREE.Vector3(z.x, 0, z.z);
+    const faction = sec.sys.danger >= 12 && Math.random() < 0.5 ? 'covenant' : 'pirate';
+    const lvl = sec.sys.danger + 4;
+    const boss = sec.makeEnemy(faction, lvl, at.clone(), Math.random() * 6.28, 2);
+    boss.name = faction === 'covenant' ? `The Hollow Choir, Hive-Dreadnought` : `${boss.name.split(',')[0]}, Armada Lord`;
+    boss.maxHull *= 1.6; boss.hull = boss.maxHull; boss.raidBoss = true; boss.persistent = true;
+    boss.ai.aggro = 1600;
+    const escorts = [];
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      const e = sec.makeEnemy(faction, lvl, at.clone().add(new THREE.Vector3(Math.sin(a) * 280, 0, Math.cos(a) * 280)), a, i === 0 ? 1 : 0);
+      e.persistent = true; escorts.push(e);
+    }
+    for (const s of [boss, ...escorts]) { W.fx.column(s.position, s.yard.glow, 260, 80); W.fx.ring(s.position, s.dims.L * 1.4, s.yard.glow, 60); }
+    pop.raid = { boss, escorts, at, t: 0 };
+    say('WORLD', null, `A Dread Armada has warped into ${sec.sys.name}! ${boss.name} leads ${escorts.length} warships. All captains respond!`, 'sys');
+    game.ui.toast(`World event: ${boss.name}`, 'legend');
+    if (game.audio) game.audio.play('jump', null, 1);
+    // the population answers the call
+    for (const s of pop.ships) if (!s.partyMember) { s.ai.home.copy(at); s.ai.aggro = 2200; }
+    for (let i = 0; i < 3; i++) spawnCaptain(at);
+    game.raidMarker = at;
+  }
+  function raidTick(dt) {
+    const r = pop.raid; if (!r) return;
+    r.t += dt;
+    if (!r.boss.alive) {
+      say('WORLD', null, `${r.boss.name} has fallen in ${game.sector.sys.name}! Glory to the captains who fought.`, 'sys');
+      if (r.boss.playerTagged) {
+        const rng = new RNG(Math.random() * 1e9);
+        game.world.loot.dropCredits(2000 * game.sector.sys.danger, r.boss.position);
+        game.gainXp(800 * game.sector.sys.danger);
+        game.ui.toast('Raid victory! The Armada\'s treasury spills into space', 'legend');
+      }
+      for (const e of r.escorts) e.persistent = false;
+      pop.raid = null; game.raidMarker = null;
+      for (let i = 0; i < 4; i++) game.world.schedule(1 + i, () => say('GLOBAL', handle(), R.pick(['GG!!', 'that was epic', 'grats all', 'who got the mythic?', 'gg wp', 'o7 o7'])));
+    } else if (r.t > 600) {
+      say('WORLD', null, `${r.boss.name} has jumped away.`, 'sys');
+      for (const s of [r.boss, ...r.escorts]) if (s.alive) game.world.removeShip(s);
+      pop.raid = null; game.raidMarker = null;
+    }
+  }
+  game.startRaid = startRaid;
 
   pop.spawnT = 2;
   game.npcs = {
@@ -173,6 +222,9 @@ export function installMMO(game) {
         ])();
         say('WORLD', null, ev, 'sys');
       }
+      pop.raidT -= dt;
+      if (pop.raidT <= 0 && !pop.raid && !game.docked) { pop.raidT = 480 + Math.random() * 300; startRaid(); }
+      raidTick(dt);
       pop.inviteT -= dt;
       if (pop.inviteT <= 0) {
         pop.inviteT = 120 + Math.random() * 180;

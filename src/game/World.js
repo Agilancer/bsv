@@ -7,6 +7,8 @@ import { Projectiles, Beams } from './combat/Projectiles.js';
 import { Combat } from './combat/Combat.js';
 import { Hangars } from './combat/Hangars.js';
 import { Loot } from './Loot.js';
+import { Debris } from '../fx/Debris.js';
+import { ELITE_MODS } from './data/eliteMods.js';
 import { Ship } from './ship/Ship.js';
 import { ShipAI } from './ai/ShipAI.js';
 import { ABILITY_BY_KEY } from './data/abilities.js';
@@ -35,8 +37,10 @@ export class World {
     this.beams = new Beams(this);
     this.hangars = new Hangars(this);
     this.loot = new Loot(this);
+    this.debris = new Debris(this);
     this.combat = new Combat(this);
     this.player = null;
+    this.eliteMods = ELITE_MODS;
     this.sunPos = new THREE.Vector3(-8000, 0, -6000);
     this._camPos = new THREE.Vector3();
   }
@@ -74,6 +78,7 @@ export class World {
     ship.alive = false;
     ship.hull = 0;
     this.events.emit('kill', { ship, killer });
+    if (ship.mods) for (const m of ship.mods) if (ELITE_MODS[m].onDeath) ELITE_MODS[m].onDeath(ship, this);
     // death throes: a chain of blasts along the hull, then the magazine goes
     const L = ship.dims.L, n = 4 + Math.floor(L / 30);
     const p = new THREE.Vector3();
@@ -91,6 +96,7 @@ export class World {
       this.fx.explosion(ship.position, big * 0.6, 0x9fd8ff);
       if (this.camNear(ship.position, 300)) this.cam.addShake(2 + big * 2);
       this.engine.flash(0.08 * big, 0xffc080);
+      this.debris.burst(ship);
       this.events.emit('destroyed', { ship, killer });
       this.removeShip(ship);
     });
@@ -118,6 +124,7 @@ export class World {
     this.beams.update(dt);
     this.hangars.update(dt, t);
     this.loot.update(dt, t);
+    this.debris.update(dt);
     this.updateFields(dt, t);
     for (const b of this.bodies) {
       if (b.userData.spin && b.userData.body) b.userData.body.rotation.y += b.userData.spin * dt;
@@ -177,7 +184,7 @@ export class World {
 
   clearAll(keepPlayer = true) {
     for (const s of this.ships.slice()) if (!(keepPlayer && s === this.player)) this.removeShip(s);
-    this.projectiles.clear(); this.beams.clear(); this.hangars.clear(); this.loot.clear();
+    this.projectiles.clear(); this.beams.clear(); this.hangars.clear(); this.loot.clear(); this.debris.clear();
     this.timers.length = 0; this.fields.length = 0;
     for (const b of this.bodies) this.engine.scene.remove(b);
     this.bodies.length = 0;
