@@ -8,6 +8,7 @@ import { Game } from './game/Game.js';
 import { load } from './game/Player.js';
 import { Audio } from './engine/Audio.js';
 import { TitleScene } from './fx/TitleScene.js';
+import { captainName, shipName, cleanName, randomCaptain, randomShip, CAPTAIN_MAX, SHIP_MAX } from './game/data/naming.js';
 import { startLogoSparks } from './ui/logoSparks.js';
 
 // the logo is being welded back together from the first frame, loading bar and all
@@ -50,7 +51,21 @@ async function boot() {
     setTimeout(() => { stopLogoSparks(); $('#title').remove(); }, 900);
   };
   $('#btnContinue').onclick = () => go(false);
-  $('#btnNew').onclick = () => go(true);
+  // New Captain: name the captain and the flagship first (typed text is cleaned, and only ever shown as text)
+  const form = $('#titleCreate'), inC = $('#tcCaptain'), inS = $('#tcShip');
+  const showCreate = (on) => { form.style.display = on ? 'flex' : 'none'; $('#titleMenu').style.display = on ? 'none' : 'flex'; const k = document.querySelector('#title .keys'); if (k) k.style.display = on ? 'none' : ''; };
+  $('#btnNew').onclick = () => { inC.value = randomCaptain(); inS.value = randomShip(); showCreate(true); inC.focus(); inC.select(); };
+  $('#tcBack').onclick = () => showCreate(false);
+  $('#tcCaptainDice').onclick = () => { inC.value = randomCaptain(); };
+  $('#tcShipDice').onclick = () => { inS.value = randomShip(); };
+  const note = () => { const c = cleanName(inC.value, CAPTAIN_MAX), s = cleanName(inS.value, SHIP_MAX); $('#tcNote').textContent = `Captain ${captainName(c)} of the ${shipName(s)}.`; };
+  inC.oninput = inS.oninput = note;
+  for (const i of [inC, inS]) i.addEventListener('keydown', (e) => e.stopPropagation());
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    game.newCaptain = { name: captainName(inC.value), ship: shipName(inS.value) };
+    go(true);
+  };
   // render the title backdrop while waiting
   engine.start();
   const auto = new URLSearchParams(location.search);

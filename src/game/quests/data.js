@@ -37,12 +37,15 @@ export const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 
 //   sell    { rarity (index) }                                         an item sold at a station
 //   earn    { n }                                                      credits earned (quest pay excluded)
 //   salvage { n }                                                      salvage units recovered
+//   bridge  { }                                                        the captain walked onto the bridge
+//   crew    { }                                                        a hand signed on
+// Story steps (story.js) also use: kill { tag } — a ship staged for that step — and scan { kind }.
 export const EVENTS = {
-  kill: ['faction', 'elite', 'size', 'minSize', 'boss', 'system'],
+  kill: ['faction', 'elite', 'size', 'minSize', 'boss', 'system', 'tag'],
   visit: ['system'],
   dock: ['system', 'station'],
   bank: ['res'],
-  scan: [],
+  scan: ['kind'],
   gkill: ['boss'],
   dungeon: [],
   land: ['ptype'],
@@ -51,6 +54,8 @@ export const EVENTS = {
   sell: ['rarity'],
   earn: [],
   salvage: [],
+  bridge: [],
+  crew: [],
 };
 // does event e (of kind ev) count for quest q?
 export function matches(q, ev, e) {
@@ -68,6 +73,8 @@ export function matches(q, ev, e) {
   if (c.res != null && e.res !== c.res) return false;
   if (c.ptype != null && e.ptype !== c.ptype) return false;
   if (c.rarity != null && !(e.rarity >= c.rarity)) return false;
+  if (c.tag != null && e.tag !== c.tag) return false;
+  if (c.kind != null && e.kind !== c.kind) return false;
   return true;
 }
 // count an event toward a quest; returns how much progress it added (0 = not relevant / already done)
@@ -91,6 +98,8 @@ export function sampleEvent(q) {
   if (c.res != null) e.res = c.res;
   if (c.ptype != null) e.ptype = c.ptype;
   if (c.rarity != null) e.rarity = c.rarity;
+  if (c.tag != null) e.tag = c.tag;
+  if (c.kind != null) e.kind = c.kind;
   return e;
 }
 

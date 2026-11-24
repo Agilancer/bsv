@@ -74,7 +74,7 @@ export function installStations(game) {
     game.ui.toggle('station', true);
     if (game.quests) game.quests.onDock(st);   // courier jobs land here
     game.world.fx.ring(s.position, 120, 0x58ffd8, 64);
-    game.ui.chat('STATION', null, `Docked at ${st.name}. Welcome, Captain.`, 'sys');
+    game.ui.chat('STATION', null, `Docked at ${st.name}. Welcome, Captain${game.data.name && game.data.name !== 'Captain' ? ' ' + game.data.name : ''}.`, 'sys');
     save(game.data);
   }
   function undock() {
@@ -86,7 +86,7 @@ export function installStations(game) {
   }
   game.undock = undock;
   game.dockNow = dockNow;
-  game.openStationTab = (name) => { if (!game.docked) return; tab = name; game.ui.toggle('station', true); };
+  game.openStationTab = (name) => { if (!game.docked) return; tab = name; if (game.onStationTab) game.onStationTab(tab); game.ui.toggle('station', true); };
 
   // station window
   game.start = ((start) => (fresh) => {
@@ -173,9 +173,9 @@ export function installStations(game) {
     } else if (tab === 'fleet') {
       const c = CHASSIS_BY_ID[P.ship.chassis];
       h += `<div class="label">Flagship</div><div class="hull"><div class="hn">${esc(P.ship.name)}</div><div class="label">${c.fullName} · ship level ${P.ship.level}</div>
-        <div style="display:flex;gap:6px;margin-top:6px"><input id="shipName" value="${esc(P.ship.name)}" maxlength="28" style="flex:1;background:rgba(4,10,24,0.8);border:1px solid var(--edge);color:var(--white);font-family:var(--font);padding:4px 8px"><button class="btn" id="rename">Rename</button></div></div>
+        <div style="display:flex;gap:6px;margin-top:6px"><input id="shipName" class="name-in" value="${esc(P.ship.name)}" maxlength="28"><button class="btn" id="rename">Rename</button></div></div>
         <div class="label" style="margin:12px 0 6px">Hangar · ${P.fleet.length} ships</div><div class="yard">`;
-      P.fleet.forEach((f, i) => { const fc = CHASSIS_BY_ID[f.chassis]; h += `<div class="hull"><div class="hn">${esc(f.name)}</div><div class="label">${fc.fullName} · level ${f.level}</div><button class="btn" data-fleet="${i}" ${canFly(P, fc) ? '' : 'disabled'}>Make flagship</button> <button class="btn bad" data-scrap="${i}">Sell ${fmt(Math.round(fc.price * 0.35))} ¢</button></div>`; });
+      P.fleet.forEach((f, i) => { const fc = CHASSIS_BY_ID[f.chassis]; h += `<div class="hull"><div class="hn">${esc(f.name)}</div><div class="label">${fc.fullName} · level ${f.level}</div><div style="display:flex;gap:6px;margin:6px 0"><input class="name-in" data-fname="${i}" value="${esc(f.name)}" maxlength="28"><button class="btn violet" data-frename="${i}">Rename</button></div><button class="btn" data-fleet="${i}" ${canFly(P, fc) ? '' : 'disabled'}>Make flagship</button> <button class="btn bad" data-scrap="${i}">Sell ${fmt(Math.round(fc.price * 0.35))} ¢</button></div>`; });
       h += `</div>`;
     } else if (tab === 'services') {
       const s = game.player, cost = s ? repairCost(s, st.kind) : 0;
@@ -197,7 +197,7 @@ export function installStations(game) {
     }
     body.innerHTML = h;
     const $ = (s) => body.querySelector(s);
-    body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
+    body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; if (game.onStationTab) game.onStationTab(tab); render(); });
     $('#stUndock').onclick = undock;
     body.querySelectorAll('.item').forEach((el) => {
       const it = [...stock, ...P.inventory].find((x) => x.uid === el.dataset.uid);
@@ -224,8 +224,9 @@ export function installStations(game) {
     });
     body.querySelectorAll('[data-fleet]').forEach((b) => b.onclick = () => { const r = switchShip(P, +b.dataset.fleet); if (r.msg) game.ui.toast(r.msg, r.ok ? 'epic' : 'warn'); if (r.ok) game.swapPlayerShip(); render(); });
     body.querySelectorAll('[data-scrap]').forEach((b) => b.onclick = () => { const f = P.fleet[+b.dataset.scrap]; P.credits += Math.round(CHASSIS_BY_ID[f.chassis].price * 0.35); P.fleet.splice(+b.dataset.scrap, 1); render(); });
-    if ($('#rename')) $('#rename').onclick = () => { const v = $('#shipName').value.trim(); if (v) { P.ship.name = v; if (game.player) game.player.name = v; } render(); };
-    if ($('#shipName')) { $('#shipName').onfocus = () => { game.input.blocked = true; }; $('#shipName').onblur = () => { game.input.blocked = false; }; $('#shipName').onkeydown = (e) => e.stopPropagation(); }
+    if ($('#rename')) $('#rename').onclick = () => { game.renameShip($('#shipName').value); render(); };
+    body.querySelectorAll('[data-frename]').forEach((b) => b.onclick = () => { game.renameShip(body.querySelector(`[data-fname="${b.dataset.frename}"]`).value, +b.dataset.frename); render(); });
+    body.querySelectorAll('.name-in').forEach((inp) => { inp.onfocus = () => { game.input.blocked = true; }; inp.onblur = () => { game.input.blocked = false; }; inp.onkeydown = (e) => e.stopPropagation(); });
     if ($('#repair')) $('#repair').onclick = () => { const s = game.player, c = repairCost(s, game.docked && game.docked.kind); if (P.credits >= c) { P.credits -= c; s.hull = s.maxHull; } render(); };
     if ($('#hire')) $('#hire').onclick = () => game.modes.crew && game.modes.crew();
     if ($('#refine')) $('#refine').onclick = () => game.modes.refinery && game.modes.refinery();

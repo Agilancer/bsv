@@ -3,7 +3,9 @@
 //   autoAccept(game, st)  while docked: drop stale jobs, take the best of the board
 //   questGoal(ap)         a long-horizon goal: put in at a board when the log runs low, and run
 //                         cheap errands (courier / scout). Every phase is on a clock: it gives up
-//                         rather than hang.
+//                         rather than hang. The live story step (quests/story.js) is run as an errand
+//                         too when its destination is cheap and safe to reach; a step the autopilot
+//                         cannot do is left alone for ten minutes and then tried again.
 import * as THREE from 'three/webgpu';
 import { MAX_ACTIVE } from './data.js';
 import { galaxy, systemDetail, systemFactions } from '../galaxy.js';
@@ -105,10 +107,12 @@ const _off = new THREE.Vector3(500, 0, 400);
 const ERRAND_LIMIT = 170;      // seconds one errand may run (the soak gate fails a goal at 240)
 const ERRAND_REST = 300;       // playtime between errands
 const BOARD_REST = 420;        // playtime between unprompted board visits
+const STORY_REST = 120;        // playtime between story errands
+const STORY_RETRY = 600;       // playtime before a story errand that failed is tried again
 export function questGoal(ap) {
   const g = ap.game;
   let job = null, phase = null, t = 0, total = 0, fired = false, tries = 0;
-  let restUntil = 0, boardAt = -1e9;
+  let restUntil = 0, boardAt = -1e9, storyRetry = 0, storyAt = -1e9;
   const skip = new Set();
   const playtime = () => g.data.playtime || 0;
   const holdMode = () => ((g.data.autoplay && g.data.autoplay.mode) || 'full') === 'hold';
@@ -116,6 +120,9 @@ export function questGoal(ap) {
   // the cheapest errand on the books that is worth the trip right now
   function pickErrand() {
     const P = g.data, Q = g.quests, S = galaxy().systems, here = g.sector.sys;
+    const sq = storyErrand();
+    if (sq) return sq;
+    if (playtime() < restUntil) return null;
     let best = null, bh = Infinity;
     for (const q of Q.active()) {
       if (!isErrand(q) || skip.has(q.id)) continue;
@@ -131,6 +138,20 @@ export function questGoal(ap) {
     }
     return best;
   }
+  // the story step, when following it means a trip the captain can afford and survive
+  function storyErrand() {
+    const P = g.data, Q = g.quests, S = galaxy().systems;
+    const q = Q.story && Q.story.quest();
+    if (!q || !q.travel || playtime() < storyRetry || playtime() - storyAt < STORY_REST) return null;
+    const to = q.travel.sys;
+    if (to === P.system) return q.ev === 'dock' && q.travel.st != null ? q : null;   // already here: only a berth is left to reach
+    if (holdMode() || S[to].danger > P.level + 2) return null;
+    const r = route(P.system, to, P);
+    if (!r || r.length - 1 > 8 || jumpCost(r, P) > P.credits * 0.5) return null;
+    return q;
+  }
+  const giveUp = (j) => { if (j.story) storyRetry = playtime() + STORY_RETRY; else if (j.id) skip.add(j.id); };
+  const live = (id) => g.quests.active().some((q) => q.id === id) || !!(g.quests.story && g.quests.story.quest() && g.quests.story.quest().id === id);
   const wantBoard = () => g.stations && g.stations.length && g.quests.active().length <= MAX_ACTIVE - 4 && playtime() - boardAt > BOARD_REST;
   const finish = () => { if (g.docked) g.undock(); job = null; phase = null; restUntil = playtime() + ERRAND_REST; return true; };   // never leave the ship parked
 
@@ -142,7 +163,6 @@ export function questGoal(ap) {
       if (job) return 4.5;
       if (s.hull / s.maxHull < 0.5) return 0;
       if (wantBoard()) return 1.3;
-      if (playtime() < restUntil) return 0;
       return pickErrand() ? 1.2 : 0;
     },
     update(dt) {
@@ -158,28 +178,29 @@ export function questGoal(ap) {
         } else {
           const q = pickErrand();
           if (!q) return finish();
-          job = { id: q.id, sys: q.travel.sys, st: q.ev === 'dock' ? q.travel.st : null };
+          job = { id: q.id, sys: q.travel.sys, st: q.ev === 'dock' ? q.travel.st : null, story: !!q.story };
+          if (job.story) storyAt = playtime();
           phase = P.system === job.sys ? 'dock' : 'jump';
-          ap.log(`Errand: ${q.obj}`);
+          ap.log(`${job.story ? 'Story' : 'Errand'}: ${q.obj}`);
         }
       }
       t += dt; total += dt;
-      if (total > ERRAND_LIMIT) { if (job.id) skip.add(job.id); if (g.docked) g.undock(); ap.log(job.board ? 'Gave up on the quest board (taking too long)' : 'Errand abandoned (taking too long)'); return finish(); }
+      if (total > ERRAND_LIMIT) { giveUp(job); if (g.docked) g.undock(); ap.log(job.board ? 'Gave up on the quest board (taking too long)' : 'Errand abandoned (taking too long)'); return finish(); }
       // the quest went away under us (abandoned, or finished some other way): stop travelling for it
       // (never while docked or on approach: docking is what completes a courier job, and we still have to leave)
-      if (job.id && !g.docked && !g.dockingTarget && (phase === 'jump' || phase === 'dock') && !Q.active().some((q) => q.id === job.id) && !g.isWarping()) return finish();
+      if (job.id && !g.docked && !g.dockingTarget && (phase === 'jump' || phase === 'dock') && !live(job.id) && !g.isWarping()) return finish();
 
       if (phase === 'jump') {
         if (P.system === job.sys) { if (job.st == null) return finish(); phase = 'dock'; t = 0; return false; }
         if (!fired && !g.isWarping()) {
           fired = g.jumpTo(job.sys);
-          if (!fired && ++tries > 20) { skip.add(job.id); return finish(); }   // ~5 s of refusals (combat, fuel, no route)
+          if (!fired && ++tries > 20) { giveUp(job); return finish(); }   // ~5 s of refusals (combat, fuel, no route)
         }
         return false;
       }
       if (phase === 'dock') {
         const st = g.stations[job.st];
-        if (!st) { if (job.id) skip.add(job.id); return finish(); }
+        if (!st) { giveUp(job); return finish(); }
         if (g.docked === st) { phase = 'services'; t = 0; return false; }
         if (g.docked) { g.undock(); return false; }
         const d = st.position.distanceTo(s.position);
