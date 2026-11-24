@@ -42,7 +42,7 @@ const { chromium } = require('playwright');
         // warm start: abilities mid-cycle (seeded), as in the middle of real play — a fresh duel would
         // otherwise open with every cooldown ready and delete mid-size ships before they fire
         g.cooldowns = {};
-        for (const a of ABILITIES) g.cooldowns[a.key] = __engine.time + Math.random() * g.abilityCd(a);
+        for (const a of ABILITIES) g.cooldowns[a.k] = __engine.time + Math.random() * g.abilityCd(a);
         // samples: the brawler, then other pirate designs of the size (different roles)
         const pool = ENEMIES.filter((e) => e.faction === 'pirate' && e.sizeIndex === si).sort((a, b) => (b.ai === 'brawler') - (a.ai === 'brawler'));
         const d = pool[sample % pool.length];
