@@ -115,6 +115,19 @@ export class Game {
     return s;
   }
 
+  // the battle zone furthest from anything hostile (respawns without a station)
+  safePoint() {
+    const hostiles = this.world.ships.filter((o) => o.alive && o.team !== 1);
+    let best = null, bd = -1;
+    for (const z of this.sector.detail.zones) {
+      let d = 1e9;
+      for (const o of hostiles) d = Math.min(d, Math.hypot(o.position.x - z.x, o.position.z - z.z));
+      if (this.mmo && this.mmo.raid) d = Math.min(d, this.mmo.raid.at.distanceTo(new THREE.Vector3(z.x, 0, z.z)) * 0.5);
+      if (d > bd) { bd = d; best = z; }
+    }
+    return best ? new THREE.Vector3(best.x, 0, best.z) : this.sector.entryPoint();
+  }
+
   wireEvents() {
     const W = this.world, ev = W.events;
     ev.on('damage', (d) => {
@@ -341,7 +354,10 @@ export class Game {
       this.ui.death(false);
       // hostiles near the wreck lose interest
       for (const o of this.world.ships.slice()) if (o.team !== 1 && !o.persistent) this.world.removeShip(o);
-      this.spawnPlayer((this.respawnPoint && this.respawnPoint()) || this.sector.entryPoint());
+      const p = this.spawnPlayer((this.respawnPoint && this.respawnPoint()) || this.safePoint());
+      p.invuln = true;
+      this.world.schedule(8, () => { if (p.alive && !this.docked) p.invuln = false; });
+      this.ui.toast('Repair crews have patched the hull · 8s grace', '');
       save(this.data);
     });
   }

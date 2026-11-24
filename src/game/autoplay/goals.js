@@ -37,6 +37,7 @@ export function resupplyGoal(ap) {
         return false;
       }
       if (phase === 'docking') {
+        if (g.dockingTarget) s.steerTo(g.dockingTarget.point, 40, 0.7);
         if (g.docked) { phase = 'services'; t = 0; }
         else if (t > 40) { phase = null; return true; }
         return false;

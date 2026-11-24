@@ -24,7 +24,7 @@ export const SPECIALS = {
   },
   spot: {
     cd: 1.5, range: 1100, aura: true,
-    run(W, s, tg, t) { tg.spottedUntil = t + 2; return true; },
+    run(W, s, tg, t) { if (!tg || tg.position.distanceTo(s.position) > 1100) return false; tg.spottedUntil = t + 2; return true; },
   },
   ionDrain: {
     cd: 6, range: 520,

@@ -56,6 +56,7 @@ export function installStations(game) {
     if (!n || n.dist > 900) { game.ui.toast(n ? `Too far from ${n.station.name}` : 'No station in this system', 'warn'); return; }
     if (game.world.ships.some((o) => o.alive && game.world.hostile(game.player, o) && o.position.distanceTo(game.player.position) < 500)) { game.ui.toast('Cannot dock under fire', 'bad'); return; }
     docking = { station: n.station, point: n.station.dockPoint(game.player.position) };
+    game.dockingTarget = docking;
     game.ui.toast(`Docking clearance granted · ${n.station.name}`);
   };
 
@@ -119,7 +120,8 @@ export function installStations(game) {
       if (!s || !s.alive) return;
       if (docking) {
         game.moveTarget = docking.point;   // the helm sails us in
-        if (s.position.distanceTo(docking.point) < s.dims.L * 0.6 + 60) { game.moveTarget = null; dockNow(docking.station); }
+        if (game.autoplay && game.autoplay.active) s.steerTo(docking.point, 40, 0.7);
+        if (s.position.distanceTo(docking.point) < s.dims.L * 0.6 + 60) { game.moveTarget = null; game.dockingTarget = null; dockNow(docking.station); }
       }
       if (game.docked) {
         s.throttle = 0; s.rudder = 0; s.invuln = true;

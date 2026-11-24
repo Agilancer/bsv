@@ -131,7 +131,8 @@ export function installMMO(game) {
   // world event: a Dread Armada warps into one of the system's battle zones
   function startRaid() {
     const W = game.world, sec = game.sector, P = game.player;
-    const z = sec.detail.zones.reduce((b, z) => (!b || Math.hypot(z.x - P.position.x, z.z - P.position.z) < Math.hypot(b.x - P.position.x, b.z - P.position.z) ? z : b), null);
+    // never on top of the captain: the zone furthest away
+    const z = sec.detail.zones.reduce((b, z) => (!b || Math.hypot(z.x - P.position.x, z.z - P.position.z) > Math.hypot(b.x - P.position.x, b.z - P.position.z) ? z : b), null);
     const at = new THREE.Vector3(z.x, 0, z.z);
     const danger = sec.sys.danger;
     const size = danger >= 26 ? 'gargantuan' : danger >= 18 ? 'legendary' : danger >= 10 ? 'epic' : 'large';

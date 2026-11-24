@@ -166,7 +166,9 @@ export class ShipAI {
       sp.cd -= dt;
       if (sp.cd > 0) continue;
       if (!sp.def.aura && (!tg || tg.position.distanceTo(s.position) > sp.def.range)) continue;
-      if (sp.def.run(world, s, tg, t)) sp.cd = sp.def.cd * (0.85 + Math.random() * 0.3) * (s.enraged ? 0.7 : 1);
+      let fired = false;
+      try { fired = sp.def.run(world, s, tg, t); } catch (e) { console.warn('special', sp.k, e); sp.def = null; continue; }
+      if (fired) sp.cd = sp.def.cd * (0.85 + Math.random() * 0.3) * (s.enraged ? 0.7 : 1);
       else sp.cd = 1;
     }
   }
