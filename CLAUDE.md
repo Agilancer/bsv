@@ -95,6 +95,10 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   seconds, `pvpEngage(L)`, per-mode `focus`); `node tools/pvp.cjs 4 --fixed` measures the autoplay
   captain's win rate at equal rating (target ~50%). Guild perks are capped at +8% XP, +8% credits,
   +1.5% hull per kill (`guildPerks`).
+- `duel.cjs 5,15,30,50 --gate` passes for all six sizes with the current tables. Gargantuans only count at
+  ranks 30 and 50 (`rel`), and their rank-30 pool sits on a cliff (0.4x below ~1.4, 2.9x above): move it in
+  hundredths. Boss damage at rank 50 does not answer its multiplier (salvoes are clipped by the per-second
+  `MIN_TTK` window), so it reads ~1.9x there by design.
 - Epic-and-up pools and damage are tabulated per rank (`BOSS_POOL_SCALE`, `BOSS_DMG_SCALE` at ranks 5/15/30/50,
   interpolated). Boss time-to-kill is not smooth in the pool (escorts and phases make cliffs), so correct a
   column with a damped step and re-measure; `duel.cjs` results still move ~10% with which duels ran before.
