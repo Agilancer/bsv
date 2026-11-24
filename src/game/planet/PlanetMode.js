@@ -20,12 +20,13 @@ import { Dungeon, portalMaterial } from './Dungeon.js';
 import { DUNGEON_THEMES } from './dungeonGen.js';
 import { landerGroup, beaconMaterial, texturedMat } from './siteModels.js';
 import { GeoBuilder, rockGeometry } from './geo.js';
-import { RESOURCES, bankCargo, loseCargo, cargoTotal, addResources, planetKey } from './economy.js';
+import { RESOURCES, bankCargo, loseCargo, cargoTotal, addResources, planetKey, groundKillReward } from './economy.js';
 import { ensureExplorer, explorerStats, grantExplorerXp, EX_INV_SIZE, scrapYield, rollExItem } from './explorerItems.js';
 import { pickPack } from './enemies.js';
 import { PlanetHUD } from './PlanetHUD.js';
 import { PLANET_ABILITIES } from './abilities.js';
-import { buildGun } from './vehicleModels.js';
+import { buildGun, uRoverRim } from './vehicleModels.js';
+import { uCreatureRim } from './creatureModels.js';
 import { uSeeThrough } from './props.js';
 import { PlanetPilot } from './Autopilot.js';
 import { TouchControls } from './Touch.js';
@@ -83,7 +84,7 @@ export class PlanetMode {
     this.timers = []; this.cargo = {};
     this.runStats = { kills: 0, xp: 0, items: 0, credits: 0, banked: 0, bosses: 0, probe: 0, dungeons: 0, gathered: {} };
     this.threat = 0; this.waveT = 70; this.state = 'descent'; this.stateT = 0; this.dmgBuff = 1;
-    this.cooldowns = {}; this.turrets = []; this.strikes = []; this.mining = false; this.dungeon = null;
+    this.cooldowns = {}; this.turrets = []; this.strikes = []; this.mining = false; this.dungeon = null; this.warnings = [];
     this.aimPoint = new THREE.Vector3(); this.aimEnemy = null; this.toastT = 0;
     this.plan = planSurface(this.survey, this.siteInfo);
     this.hasOutpost = this.plan.outposts.length > 0;
@@ -161,7 +162,31 @@ export class PlanetMode {
     const g = mul * Math.max(0, 1 - d / 260);
     if (g > 0.03) A.play(kind, null, g);
   }
-  telegraph(p, r, hex, time) { this.ground.telegraph(p, r, hex, time); }
+  // every telegraphed attack registers a warning: drawn on the ground, read by the autopilot to dodge
+  telegraph(p, r, hex, time, follow = null) {
+    this.ground.telegraph(p, r, hex, time, follow);
+    this.warnings.push({ kind: 'circle', pos: new THREE.Vector3(p.x, p.y || 0, p.z), r, t0: this.engine.time, dur: time, follow, n: this.warnSeq = (this.warnSeq || 0) + 1 });
+  }
+  // a straight danger lane (charges, sniper locks, the opening line of a beam sweep)
+  warnLine(from, dir, len, width, time, hex = 0xff3020) {
+    this.warnings.push({ kind: 'line', pos: new THREE.Vector3(from.x, 0, from.z), dir: new THREE.Vector3(dir.x, 0, dir.z).normalize(), len, width, t0: this.engine.time, dur: time, hex, n: this.warnSeq = (this.warnSeq || 0) + 1 });
+  }
+  updateWarnings() {
+    const now = this.engine.time, fx = this.pfx;
+    for (let i = this.warnings.length - 1; i >= 0; i--) {
+      const w = this.warnings[i];
+      const f = (now - w.t0) / w.dur;
+      if (f >= 1) { this.warnings.splice(i, 1); continue; }
+      if (w.kind !== 'line') continue;
+      // a pulsing lane on the ground: edges plus a brightening core
+      const y = this.S.ground(w.pos.x, w.pos.z) + 0.35;
+      _a.set(w.pos.x, y, w.pos.z); _w.copy(_a).addScaledVector(w.dir, w.len); _w.y = this.S.ground(_w.x, _w.z) + 0.35;
+      const px = -w.dir.z * w.width, pz = w.dir.x * w.width, I = 0.8 + f * 1.6 + Math.sin(now * 18) * 0.3;
+      fx.beam(_a, _w, 0.12 + f * 0.25, w.hex, I);
+      _a.x += px; _a.z += pz; _w.x += px; _w.z += pz; fx.beam(_a, _w, 0.08, w.hex, I * 0.7);
+      _a.x -= 2 * px; _a.z -= 2 * pz; _w.x -= 2 * px; _w.z -= 2 * pz; fx.beam(_a, _w, 0.08, w.hex, I * 0.7);
+    }
+  }
   toast(msg, kind = '') { this.game.ui.toast(msg, kind); }
   itemLevel() { return Math.max(1, this.siteInfo.level + (this.dungeon ? 2 + this.dungeon.entrance.depth : 0) + Math.floor(Math.random() * 3)); }
   noise(n) { this.threat = Math.min(1, this.threat + n); }
@@ -248,7 +273,15 @@ export class PlanetMode {
     const st = this.vehicle.stats;
     const xp = Math.round(def.xp * (1 + 0.12 * (e.level - 1)) * (e.elite ? 2.5 : 1) * st.xpMul);
     this.gainXp(xp);
+    // the commander's share: ~70% of a comparable space kill, at the commander's own rank
+    const G = this.game, sst = (G.player && G.player.stats) || {};
+    const cr = groundKillReward(def.size, this.data.level, !!e.elite);
+    G.gainXp(Math.round(cr.xp * (1 + (sst.xp || 0))));
     this.runStats.kills++; this.ex.kills = (this.ex.kills || 0) + 1;
+    // ground bestiary (Codex · Ground): first kill of a creature catalogues it
+    const gc = (this.data.groundCodex ||= {});
+    if (!gc[def.id]) this.toast(`Codex: ${def.name} catalogued`, def.boss ? 'legend' : '');
+    gc[def.id] = (gc[def.id] || 0) + 1;
     const rng = new RNG(Math.random() * 1e9);
     const sizeMul = [1, 2, 5, 12, 30, 60][def.size] * (e.elite ? 2.5 : 1);
     for (const [res, ev] of Object.entries(def.drops)) {
@@ -263,7 +296,7 @@ export class PlanetMode {
       const rar = def.size >= 4 && i === 0 ? rng.pick(['legendary', 'epic', 'legendary', 'mythic']) : null;
       this.level.dropItem(rollExItem(this.itemLevel(), rng, { luck: st.lootFind + def.size * 0.4 + (e.elite ? 0.8 : 0), rarity: rar }), p);
     }
-    if (def.size >= 1 || rng.chance(0.2)) this.level.dropCredits(Math.round((4 + e.level * 2) * sizeMul), p);
+    this.level.dropCredits(Math.round(cr.credits * (1 + (sst.credits || 0))), p);
     if (e.boss) {
       this.runStats.bosses++;
       this.toast(`${e.name} has fallen!`, 'legend');
@@ -286,7 +319,6 @@ export class PlanetMode {
       this.refreshStats();
       this.vehicle.hp = this.vehicle.stats.maxHp;
     }
-    this.game.gainXp(Math.max(1, Math.round(xp * 0.35)));
   }
   refreshStats() {
     const V = this.vehicle;
@@ -411,6 +443,10 @@ export class PlanetMode {
       this.scene.fog.color.set(T.fog); this.scene.background.set(T.fog);
       this.sun.intensity = 1.3; this.sun.color.set(T.hemi[0]); this.hemi.color.set(T.hemi[0]); this.hemi.groundColor.set(T.hemi[1]); this.hemi.intensity = T.hemi[2] * 3;
       this.headlightSave = this.headlightI; this.headlightI = 120;
+      // tighter framing and rim-lit silhouettes: corridors are dark and busy
+      this.camSave = { d: this.cam.distTarget, min: this.cam.minDist };
+      this.cam.minDist = 30; this.cam.distTarget = 52;
+      uRoverRim.value = 2.4; uCreatureRim.value = 1.5;
       this.engine.renderer.toneMappingExposure = 1.15;
       this.game.ui.chat('SYS', null, `${d.name} — ${T.name}, depth ${d.depth}. Apex lurks at the far end.`, 'sys');
       this.transition = false;
@@ -433,6 +469,8 @@ export class PlanetMode {
       this.torchLights = [];
       this.applyAtmosphere();
       this.headlightI = this.headlightSave || 30;
+      if (this.camSave) { this.cam.minDist = this.camSave.min; this.cam.distTarget = this.camSave.d; }
+      uRoverRim.value = 0.5; uCreatureRim.value = 0.35;
       const out = _v.set(d.x, 0, d.z).add(_w.set(-d.x, 0, -d.z).normalize().multiplyScalar(16));
       this.vehicle.place(out.x, out.z, Math.atan2(-d.x, -d.z));
       this.cam.focus.copy(this.vehicle.position);
@@ -456,6 +494,7 @@ export class PlanetMode {
     G.enterMode('planet', this);
     E.setView(this.scene, this.cam.camera);
     document.body.classList.add('planet-mode');
+    document.body.classList.toggle('planet-touch', !!this.touch);   // no keyboard hints on touch
     this.applyAtmosphere();
     this.hud.show();
     // descent: the lander drops from orbit on retro-thrusters
@@ -475,7 +514,8 @@ export class PlanetMode {
     const E = this.engine;
     this.probes.recallAll(true);
     this.hud.destroy();
-    document.body.classList.remove('planet-mode');
+    document.body.classList.remove('planet-mode', 'planet-touch');
+    uRoverRim.value = 0.5; uCreatureRim.value = 0.35;
     for (const l of [this.pfx.G, this.pfx.S, this.pfx.K]) E.remove(l);
     E.renderer.toneMappingExposure = this.savedExposure || 1.05;
     E.renderer.shadowMap.enabled = !!this.savedShadows;
@@ -565,6 +605,7 @@ export class PlanetMode {
     }
     this.ambient(dt);
     this.ground.update(dt);
+    this.updateWarnings();
     // aim reticle on the ground
     if (V.alive && this.state === 'play') this.ground.set(0, this.aimPoint.x, this.aimPoint.z, this.aimEnemy ? this.aimEnemy.radius + 1 : 1.6, this.aimEnemy ? 1.4 : 0.8, this.aimEnemy ? 0xff5a6a : 0x58c8ff);
     else this.ground.set(0, 0, 0, 1, 0);
@@ -608,6 +649,7 @@ export class PlanetMode {
       this.pickAim(m.nx, m.ny);
     }
     if (auto) { this.pilot.control(ctl, dt); }
+    if (this.driver) this.driver(ctl, dt);   // tools (groundduel) take the controls
     return ctl;
   }
 

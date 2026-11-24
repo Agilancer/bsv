@@ -11,7 +11,7 @@ import {
 } from './explorerItems.js';
 import {
   RESOURCES, RES_KEYS, SHIP_UPGRADES, upgradeCost, buyShipUpgrade, refineryShipStats, reforgeCost, empowerCost, overchargeCost, imbueCost,
-  workshop, canImbue, chassisCost, buyChassis, fabricateCost, fabricate, addResources, affordable, PROBE_UPGRADES, buyProbeUpgrade, probeStats, EMPOWER_MAX,
+  workshop, canImbue, chassisCost, buyChassis, fabricateCost, fabricate, addResources, affordable, PROBE_UPGRADES, buyProbeUpgrade, probeStats, EMPOWER_MAX, empowerCap, fmtShipStat, SHIP_STAT_LABELS,
 } from './economy.js';
 import { ITEM_MAX_LVL, AFFIXES, BASES } from '../data/items.js';
 
@@ -190,12 +190,14 @@ export class PlanetWindows {
     let html = `${this.bankHtml()}<div class="ptabs">${tabs.map(([k, n]) => `<b class="${this.tab === k ? 'on' : ''}" data-tab="${k}">${n}</b>`).join('')}</div>`;
     if (this.tab === 'ship') {
       const st = refineryShipStats(D);
-      html += `<div class="label" style="margin:4px 0 8px">Planet resources refined into permanent upgrades for your warship. Current bonus: ${Object.entries(st).map(([k, v]) => `${k} +${v < 1 ? (v * 100).toFixed(1) + '%' : v.toFixed(0)}`).join(' · ') || 'none yet'}</div>`;
+      html += `<div class="label" style="margin:4px 0 8px">Planet resources refined into permanent upgrades for your warship. Current bonus: ${Object.entries(st).map(([k, v]) => fmtShipStat(k, v)).join(' · ') || 'none yet'}</div>`;
+      // the value part of a formatted stat ('+0.08% of hull / s'), after its label
+      const val = (stat, v) => fmtShipStat(stat, v).slice((SHIP_STAT_LABELS[stat] || stat).length + 1);
       for (const up of SHIP_UPGRADES) {
         const r = D.refinery.ranks[up.k] || 0, max = r >= up.max;
         const cost = upgradeCost(up, r);
-        const eff = (x) => up.stat === 'armor' ? `+${(up.per * x).toFixed(0)}` : `+${(up.per * x * 100).toFixed(1)}%`;
-        html += `<div class="uprow"><div><div class="un">${up.name} <span class="label">rank ${r}/${up.max}</span></div><div class="ud">${up.desc} <span style="color:var(--good)">${eff(r)} → ${eff(Math.min(up.max, r + 1))} ${up.stat}</span></div></div>
+        const now = `${SHIP_STAT_LABELS[up.stat] || up.stat} ${val(up.stat, up.per * r)}`;
+        html += `<div class="uprow"><div><div class="un">${up.name} <span class="label">rank ${r}/${up.max}</span></div><div class="ud">${up.desc} <span style="color:var(--good)">${max ? now : `${now} → ${val(up.stat, up.per * (r + 1))}`}</span></div></div>
           <div class="costs">${max ? '<span class="label">MAX</span>' : this.costHtml(cost)}</div><button class="btn" data-up="${up.k}" ${max || !affordable(D, cost) ? 'disabled' : ''}>Refine</button></div>`;
       }
     } else if (this.tab === 'probes') {
@@ -218,7 +220,9 @@ export class PlanetWindows {
         const act = (kind, label, cost, ok, extra = '') => `<div class="uprow"><div><div class="un">${label}</div>${extra}</div><div class="costs">${ok ? this.costHtml(cost) : '<span class="label">—</span>'}</div><button class="btn" data-wk="${kind}" ${!ok || !affordable(D, cost) ? 'disabled' : ''}>${kind}</button></div>`;
         html += `<div style="margin-top:10px">`;
         it.affixes.forEach((a, i) => { html += `<div class="uprow"><div><div class="un">Reforge</div><div class="ud">${AFFIXES[a.k].fmt(a.v)}</div></div><div class="costs">${this.costHtml(reforgeCost(it))}</div><button class="btn violet" data-reforge="${i}" ${!affordable(D, reforgeCost(it)) ? 'disabled' : ''}>Reroll</button></div>`; });
-        html += act('empower', `Empower <span class="label">item level ${it.ilvl} → ${it.ilvl + 1}</span>`, empowerCost(it), it.ilvl < EMPOWER_MAX);
+        const cap = empowerCap(D);
+        html += act('empower', `Empower <span class="label">${it.ilvl < cap ? `item level ${it.ilvl} → ${it.ilvl + 1}` : `item level ${it.ilvl}`} · limit ${cap}</span>`, empowerCost(it), it.ilvl < cap,
+          `<div class="ud">${it.ilvl < cap ? `Up to commander rank + 3 (rank ${D.level || 1}).` : it.ilvl >= EMPOWER_MAX ? 'Fully empowered.' : `At the limit: rank up (commander rank ${D.level || 1} + 3) to empower further.`}</div>`);
         html += act('overcharge', `Overcharge <span class="label">mastery ${it.lvl}/${ITEM_MAX_LVL}</span>`, overchargeCost(it), it.lvl < ITEM_MAX_LVL);
         html += act('imbue', `Imbue <span class="label">add an affix (${it.affixes.length} now)</span>`, imbueCost(it), canImbue(it));
         html += '</div>';

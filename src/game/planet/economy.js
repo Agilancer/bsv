@@ -6,6 +6,7 @@ import { RNG, hashStr } from '../../engine/rng.js';
 import { AFFIXES, BASES, RARITY, grantItemXp, ITEM_MAX_LVL } from '../data/items.js';
 import { EXPLORERS, EXPLORER_BY_ID } from '../data/chassis.js';
 import { rollExItem, EX_INV_SIZE } from './explorerItems.js';
+import { SIZES } from '../data/enemies.js';
 
 export const RESOURCES = {
   ore: { name: 'Ferrite Ore', short: 'ORE', color: '#ff9a50', hex: 0xff9a50, blurb: 'Iron-rich ore veins. Armour, hulls, everything.' },
@@ -110,13 +111,27 @@ export const SHIP_UPGRADES = [
   { k: 'dmg', name: 'Weapon Calibration', stat: 'dmg', per: 0.02, max: 25, cost: { isotope: 25, ore: 30 }, desc: 'Isotope-doped charges and rebored barrels.' },
   { k: 'crit', name: 'Precursor Targeting', stat: 'crit', per: 0.006, max: 20, cost: { datacore: 4, crystal: 20 }, desc: 'Ancient fire-control algorithms.' },
   { k: 'speed', name: 'Drive Tuning', stat: 'speed', per: 0.02, max: 15, cost: { isotope: 20, biomass: 15 }, desc: 'Cleaner burn, more thrust. Also improves turn rate.', also: { turn: 0.02 } },
-  { k: 'regen', name: 'Living Plating', stat: 'hullRegen', per: 0.0008, max: 15, cost: { biomass: 40, ore: 20 }, desc: 'Xeno-tissue that knits hull breaches shut.' },
+  { k: 'regen', name: 'Living Plating', stat: 'hullRegen', per: 0.0002, max: 15, cost: { biomass: 40, ore: 20 }, desc: 'Xeno-tissue that knits hull breaches shut.' },
   { k: 'shieldRegen', name: 'Capacitor Banks', stat: 'shieldRegen', per: 0.04, max: 20, cost: { crystal: 25, biomass: 10 }, desc: 'Faster shield recovery.' },
   { k: 'loot', name: 'Salvage Algorithms', stat: 'lootFind', per: 0.03, max: 15, cost: { datacore: 3, relic: 1 }, desc: 'Find better loot; also more credits.', also: { credits: 0.03 } },
   { k: 'cdr', name: 'Command Uplink', stat: 'cdr', per: 0.015, max: 15, cost: { relic: 2, datacore: 2 }, desc: 'Captain abilities recharge faster.' },
   { k: 'armor', name: 'Ablative Layers', stat: 'armor', per: 1.5, max: 20, cost: { ore: 60, isotope: 6 }, desc: 'Flat armour against every hit.' },
 ];
 export const SHIP_UPGRADE_BY_K = Object.fromEntries(SHIP_UPGRADES.map((u) => [u.k, u]));
+// human labels for the warship stats the refinery feeds (fmtShipStat: '+0.08% hull / s', '+3 armour')
+export const SHIP_STAT_LABELS = {
+  hull: 'Hull integrity', shield: 'Shield capacity', dmg: 'Weapon damage', crit: 'Critical chance', speed: 'Speed',
+  turn: 'Turn rate', hullRegen: 'Hull repair', shieldRegen: 'Shield recharge', lootFind: 'Loot quality',
+  credits: 'Credits found', cdr: 'Ability cooldowns', armor: 'Armour',
+};
+export function fmtShipStat(stat, v) {
+  const pct = (x, d = 1) => `${(x * 100).toFixed(d).replace(/\.0+$/, '')}%`;
+  const name = SHIP_STAT_LABELS[stat] || stat;
+  if (stat === 'armor') return `${name} +${v.toFixed(0)}`;
+  if (stat === 'hullRegen') return `${name} +${pct(v, 2)} of hull / s`;
+  if (stat === 'cdr') return `${name} −${pct(v)}`;
+  return `${name} +${pct(v)}`;
+}
 
 export function upgradeCost(up, rank) {
   const m = Math.pow(1.32, rank);
@@ -175,13 +190,15 @@ export function reforgeAffix(item, idx, rng = new RNG(Math.random() * 1e9)) {
   return true;
 }
 export const EMPOWER_MAX = 80;
+// empowering stops at the commander's rank + 3 (and never past EMPOWER_MAX)
+export function empowerCap(data) { return Math.min(EMPOWER_MAX, ((data && data.level) || 1) + 3); }
 export function empowerCost(item) { const r = rarI(item); return { ore: Math.round(20 + item.ilvl * 4), isotope: Math.round(4 + item.ilvl * 0.8 + r * 2), credits: Math.round(30 + item.ilvl * 10) }; }
 export function shipItemValue(item) {
   const r = RARITY[item.rarity];
   return Math.round((20 + item.ilvl * 8) * Math.pow(2.2, r.i) * (BASES[item.base].kind === 'module' ? 0.8 : 1));
 }
-export function empowerItem(item) {
-  if (item.ilvl >= EMPOWER_MAX) return false;
+export function empowerItem(item, cap = EMPOWER_MAX) {
+  if (item.ilvl >= Math.min(cap, EMPOWER_MAX)) return false;
   item.ilvl += 1;
   if (item.value !== undefined) item.value = shipItemValue(item);
   return true;
@@ -210,12 +227,13 @@ export function imbueItem(item, rng = new RNG(Math.random() * 1e9)) {
 export function workshop(data, item, kind, arg, rng) {
   const costFn = { reforge: reforgeCost, empower: empowerCost, overcharge: overchargeCost, imbue: imbueCost }[kind];
   if (!costFn) return { ok: false, why: 'Unknown action' };
-  const can = { reforge: () => item.affixes.length > 0, empower: () => item.ilvl < EMPOWER_MAX, overcharge: () => item.lvl < ITEM_MAX_LVL, imbue: () => canImbue(item) }[kind]();
-  if (!can) return { ok: false, why: 'Cannot improve this item further' };
+  const cap = empowerCap(data);
+  const can = { reforge: () => item.affixes.length > 0, empower: () => item.ilvl < cap, overcharge: () => item.lvl < ITEM_MAX_LVL, imbue: () => canImbue(item) }[kind]();
+  if (!can) return { ok: false, why: kind === 'empower' && item.ilvl < EMPOWER_MAX ? `Item level is capped at commander rank + 3 (${cap})` : 'Cannot improve this item further' };
   const cost = costFn(item);
   if (!affordable(data, cost)) return { ok: false, why: 'Not enough resources' };
   pay(data, cost);
-  const ok = kind === 'reforge' ? reforgeAffix(item, arg | 0, rng) : kind === 'empower' ? empowerItem(item) : kind === 'overcharge' ? overchargeItem(item) : imbueItem(item, rng);
+  const ok = kind === 'reforge' ? reforgeAffix(item, arg | 0, rng) : kind === 'empower' ? empowerItem(item, cap) : kind === 'overcharge' ? overchargeItem(item) : imbueItem(item, rng);
   return { ok, cost };
 }
 
@@ -318,3 +336,15 @@ export function loseCargo(cargo, frac = 0.5) {
 export const cargoTotal = (cargo) => Object.values(cargo).reduce((a, b) => a + b, 0);
 
 export { EXPLORERS };
+
+// ---------------- commander rewards for ground kills ----------------
+// A creature of size class si pays the commander ~70% of a comparable space kill (Game.reward):
+// xp 20 * L * (1 + tier * 0.3) * size.xp, credits (4 + L * 1.6) * min(tier, 6) * size.xp, with
+// L = the commander's rank and tier ~ size + 1. Elites pay 2.5x, as in space.
+export const GROUND_REWARD_SHARE = 0.7;
+export function groundKillReward(si, L, elite = false) {
+  const size = SIZES[Math.max(0, Math.min(SIZES.length - 1, si | 0))];
+  L = Math.max(1, L || 1);
+  const tier = (si | 0) + 1, mul = size.xp * (elite ? 2.5 : 1) * GROUND_REWARD_SHARE;
+  return { xp: Math.max(1, Math.round(20 * L * (1 + tier * 0.3) * mul)), credits: Math.max(1, Math.round((4 + L * 1.6) * Math.min(tier, 6) * mul)) };
+}

@@ -49,7 +49,7 @@ export class PlanetHUD {
     ab.append(pr);
     root.append(ab);
     root.append(h(`<div id="pGear" class="holo"><div class="title">Systems</div><div id="pGuns"></div><div id="pProbes"></div></div>`));
-    const btns = h(`<div id="pButtons"><button class="btn" data-a="bay">Explorer bay [L]</button><button class="btn violet" data-a="refinery">Refinery [U]</button><button class="btn" data-a="context" id="pCtx" style="display:none"></button><button class="btn bad" data-a="orbit" id="pOrbit">Return to orbit</button></div>`);
+    const btns = h(`<div id="pButtons"><button class="btn" data-a="bay">Explorer bay<kbd> L</kbd></button><button class="btn violet" data-a="refinery">Refinery<kbd> U</kbd></button><button class="btn" data-a="context" id="pCtx" style="display:none"></button><button class="btn bad" data-a="orbit" id="pOrbit">Return to orbit</button></div>`);
     btns.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       const a = b.dataset.a;
       if (a === 'bay') mode.game.planet.windows.toggle('explorer');
@@ -234,8 +234,8 @@ export class PlanetHUD {
     this.setBar(el.pXp, ex.xp / xpN, `${fmt(ex.xp)} / ${fmt(xpN)}`);
     this.setBar(el.pThreat, M.threat);
     el.pLvl.textContent = ex.level;
-    el.pName.textContent = st.chassis.fullName;
-    el.pSub.textContent = `${st.chassis.cls} · Mk ${st.tier} · Commander rank ${M.data.level}`;
+    if (el.pName.textContent !== st.chassis.fullName) { el.pName.textContent = st.chassis.fullName; el.pName.title = st.chassis.fullName; }
+    el.pSub.textContent = `Rank ${M.data.level}`;   // commander rank (class and mark are in the name)
     el.pCred.textContent = fmt(M.data.credits) + ' ¢';
     const tot = cargoTotal(M.cargo);
     this.setBar(el.pCargoBar, tot / st.cargo, `${tot} / ${st.cargo}`);
@@ -263,18 +263,20 @@ export class PlanetHUD {
       const wk = b.weak ? b.weak.filter((w) => w.alive).length : 0;
       el.pBossSub.textContent = `${b.def.sizeClass.toUpperCase()} ${b.def.familyName} · Lv ${b.level} · Phase ${b.phase}/${b.def.phases}${b.weak ? ` · Weak points ${wk}/${b.weak.length}` : ''}`;
     }
-    // context prompt
+    // context prompt (keyboard hints only where there is a keyboard; the buttons say what they do)
     let prompt = '', ctx = '';
+    const key = M.touch ? '' : '[R] ';
     if (M.state === 'extract') prompt = `Dropship inbound · ${Math.max(0, M.stateT).toFixed(1)}s — survive!`;
-    else if (M.dungeon) { if (M.dungeon.exits.some((x) => x.pos.distanceTo(_p.copy(V.position).setY(0)) < 14)) { prompt = '[R] Leave the dungeon'; ctx = 'Exit dungeon'; } }
-    else if (M.nearMouth) { prompt = `[R] Enter ${M.nearMouth.name} — ${M.nearMouth.depth > 2 ? 'deep' : 'shallow'} ${M.nearMouth.theme}`; ctx = 'Enter dungeon'; }
-    else if (M.atLander) { prompt = '[R] Launch to orbit · cargo banked, hull repairing'; ctx = 'Launch'; }
+    else if (M.dungeon) { if (M.dungeon.exits.some((x) => x.pos.distanceTo(_p.copy(V.position).setY(0)) < 14)) { prompt = `${key}Leave the dungeon`; ctx = 'Exit dungeon'; } }
+    else if (M.nearMouth) { prompt = `${key}Enter ${M.nearMouth.name} — ${M.nearMouth.depth > 2 ? 'deep' : 'shallow'} ${M.nearMouth.theme}`; ctx = 'Enter dungeon'; }
+    else if (M.atLander) prompt = `${key}Launch to orbit · cargo banked, hull repairing`;   // the orbit button already says Launch
     if (M.mining && M.mineNode) prompt = `Mining ${RESOURCES[M.mineNode.res].name} · ${M.mineNode.amount} left`;
     if (el.pPrompt.textContent !== prompt) el.pPrompt.textContent = prompt;
     el.pPrompt.style.display = prompt ? '' : 'none';
     el.pCtx.style.display = ctx ? '' : 'none';
     if (ctx && el.pCtx.textContent !== ctx) el.pCtx.textContent = ctx;
     el.pOrbit.textContent = M.atLander ? 'Launch to orbit' : 'Call extraction';
+    el.pOrbit.style.display = M.dungeon ? 'none' : '';
     // slower panels
     this.slow -= realDt;
     if (this.slow <= 0) {

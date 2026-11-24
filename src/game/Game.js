@@ -496,6 +496,8 @@ export class Game {
       this.fitMul = this.fitMul || 1;
       this.cam.distFloor = framing ? Math.min(this.cam.maxDist, Math.max(tg.dims.L > 200 ? tg.dims.L * 1.5 + 250 : 0, sep * 1.3 + 220) * this.fitMul) : 0;
       if (innerHeight > innerWidth) this.cam.distFloor = Math.max(this.cam.distFloor || 0, 720);   // portrait: see abeam
+      // phones: never zoom out so far that your own hull is a speck — the threat arrows cover the rest
+      if (document.body.classList.contains('mobile')) this.cam.distFloor = Math.min(this.cam.distFloor || 0, 1150);
       this.cam.update(dt, t, realDt);
       if (framing) {
         const sf = this.cam.safe || { x: 0, y: 0, w: innerWidth, h: innerHeight };

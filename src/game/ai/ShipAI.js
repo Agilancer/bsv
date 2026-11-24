@@ -55,7 +55,8 @@ export class ShipAI {
     const longest = s.maxRange || 400;
     const a = this.archetype;
     if (a === 'sniper') { this.range = longest * 0.92; return 'sniper'; }
-    if (a === 'artillery') { this.range = Math.max(longest * 0.9, 1000); return 'sniper'; }
+    // artillery stands off, but inside the reach of its own guns (it was parking beyond them and only lobbing shells)
+    if (a === 'artillery') { this.range = longest * 0.85; return 'sniper'; }
     if (a === 'orbit') { this.range = Math.max(140, (rangeOf('turret') || rangeOf('broadside') || 300) * 0.55); return 'orbit'; }
     if (a === 'kamikaze' || a === 'boarder') { this.range = 0; return a; }
     if (a === 'support') { this.range = longest * 0.8; return 'support'; }

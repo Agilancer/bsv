@@ -62,11 +62,20 @@ export function galaxy() {
     const near = systems.filter((o) => o !== s).sort((a, b) => dist(s, a) - dist(s, b)).slice(0, 3);
     for (const n of near) if (!s.links.includes(n.id) && dist(s, n) < 260) { s.links.push(n.id); n.links.push(s.id); }
   }
-  // make sure the graph is connected: link each system to the nearest one with a lower id
-  for (let i = 1; i < systems.length; i++) {
-    const s = systems[i];
-    const lower = systems.slice(0, i).sort((a, b) => dist(s, a) - dist(s, b))[0];
-    if (!s.links.includes(lower.id)) { s.links.push(lower.id); lower.links.push(s.id); }
+  // make sure the graph is connected with the SHORTEST possible bridges: grow the component holding
+  // home by the nearest outside system each time (Prim-style), so no lane crosses the galaxy
+  const comp = new Set([0]);
+  const flood = () => { const st = [...comp]; while (st.length) { const s = systems[st.pop()]; for (const l of s.links) if (!comp.has(l)) { comp.add(l); st.push(l); } } };
+  flood();
+  while (comp.size < systems.length) {
+    let best = null, bd = Infinity;
+    for (const i of comp) for (const o of systems) {
+      if (comp.has(o.id)) continue;
+      const d = dist(systems[i], o);
+      if (d < bd) { bd = d; best = [systems[i], o]; }
+    }
+    best[0].links.push(best[1].id); best[1].links.push(best[0].id);
+    comp.add(best[1].id); flood();
   }
   cached = { systems };
   return cached;

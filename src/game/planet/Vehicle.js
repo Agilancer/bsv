@@ -7,7 +7,7 @@ import { explorerStats } from './explorerItems.js';
 import { shieldMaterial } from '../../fx/materials.js';
 import { damp, clamp, wrapAngle } from '../../engine/rng.js';
 import { EXPLORER_BY_ID } from '../data/chassis.js';
-import { MAX_HIT_SHARE } from './groundBalance.js';
+import { capGroundHit, armorMul } from './groundBalance.js';
 
 export const FRAME_PHYS = {
   skiff: { hover: true, accel: 3.0, turn: 6.0, face: 'move', bob: 0.22, bank: 0.25 },
@@ -321,19 +321,26 @@ export class Vehicle {
   toolPoint(out) { out.copy(this.v.toolMount || _v.set(0, 1, 2)); return this.v.body.localToWorld(out); }
 
   // returns hull damage actually taken
-  damage(amount, point, src) {
+  // o.telegraph: the strike was announced (ground warning) — its own per-hit budget, outside
+  // the per-source window that keeps any one creature from killing faster than GROUND_MIN_TTK
+  damage(amount, point, src, o) {
     if (!this.alive || this.invuln > 0) return 0;
     const t = this.engine.time;
     this.lastHit = t;
     if (this.bubble > 0) { this.flashShield(point); return 0; }
-    let a = Math.min(amount, (this.stats.maxHp + this.stats.maxShield * 0.8) * MAX_HIT_SHARE);
+    const ehp = this.stats.maxHp + this.stats.maxShield * 0.8;
+    // per-hit caps, and a per-creature 1 s window (kin it summoned count against it)
+    let win = null;
+    if (src && src.def && !(o && o.telegraph)) { const root = src.capRoot && src.capRoot.alive ? src.capRoot : src; win = root._dmgWin || (root._dmgWin = { t, sum: 0 }); }
+    let a = capGroundHit(amount, ehp, o, win, t);
+    if (a <= 0) return 0;
     if (this.shield > 0) {
       const s = Math.min(this.shield, a);
       this.shield -= s; a -= s;
       this.flashShield(point);
       if (a <= 0) { this.mode.onPlayerHit(s, point, true); return 0; }
     }
-    a = Math.max(a * 0.2, a - this.stats.armor);
+    a *= armorMul(this.stats.armor);   // percentage armour, as in space
     this.hp -= a;
     this.mode.onPlayerHit(a, point, false);
     if (this.hp <= 0) { this.hp = 0; this.mode.onVehicleDestroyed(); }

@@ -20,23 +20,23 @@ export const SIZE_KEYS = Object.keys(SIZE_CLASSES);
 
 // AI archetypes: how a design behaves and attacks (stat multipliers on top of family x size)
 export const ARCHETYPES = {
-  swarm: { ai: 'melee', hp: 0.8, dmg: 0.8, speed: 1.25, cd: 0.8, range: 2.2, leap: true, role: 'Swarms in packs and leaps onto the hull' },
+  swarm: { ai: 'melee', hp: 1.1, dmg: 0.8, speed: 1.25, cd: 0.8, range: 2.2, leap: true, role: 'Swarms in packs and leaps onto the hull' },
   charger: { ai: 'charger', hp: 1.3, dmg: 1.5, speed: 1.0, cd: 3.4, range: 3, role: 'Lowers its head and charges along a telegraphed line' },
   brute: { ai: 'brute', attack: 'boulder', hp: 1.6, dmg: 1.4, speed: 0.7, cd: 3, range: 7, far: 60, role: 'Slams the ground and hurls boulders' },
-  spitter: { ai: 'ranged', attack: 'spit', hp: 0.9, dmg: 1.1, speed: 0.85, cd: 2.4, range: 40, keep: 24, role: 'Lobs corrosive globs from range' },
-  gunner: { ai: 'ranged', attack: 'bolt', burst: 3, hp: 1.0, dmg: 0.55, speed: 0.9, cd: 1.6, range: 48, keep: 28, role: 'Rakes the explorer with bolt bursts' },
+  spitter: { ai: 'ranged', attack: 'spit', hp: 0.9, dmg: 1.1, speed: 0.85, cd: 2.4, range: 54, keep: 26, role: 'Lobs corrosive globs from range' },
+  gunner: { ai: 'ranged', attack: 'bolt', burst: 3, hp: 1.0, dmg: 0.55, speed: 0.9, cd: 1.6, range: 58, keep: 30, role: 'Rakes the explorer with bolt bursts' },
   sniper: { ai: 'sniper', attack: 'beam', hp: 0.8, dmg: 2.4, speed: 0.7, cd: 4.6, range: 85, keep: 60, role: 'Charges a long lance shot along a visible line' },
   artillery: { ai: 'artillery', attack: 'mortar', hp: 0.9, dmg: 1.7, speed: 0.6, cd: 4, range: 95, keep: 55, role: 'Shells your position from afar' },
   burrower: { ai: 'burrow', hp: 1.4, dmg: 1.5, speed: 1.0, cd: 1.1, range: 4, role: 'Tunnels beneath and erupts under you' },
-  flyer: { ai: 'strafe', attack: 'bolt', float: 7.5, hp: 0.8, dmg: 0.7, speed: 1.35, cd: 1.0, range: 44, keep: 22, role: 'Circles overhead, strafing' },
+  flyer: { ai: 'strafe', attack: 'bolt', float: 7.5, hp: 0.8, dmg: 0.7, speed: 1.35, cd: 1.0, range: 54, keep: 26, role: 'Circles overhead, strafing' },
   bomber: { ai: 'strafe', attack: 'bomb', float: 9, hp: 1.0, dmg: 1.5, speed: 1.1, cd: 2.2, range: 26, keep: 8, role: 'Passes overhead dropping bombs' },
-  kamikaze: { ai: 'kamikaze', hp: 0.5, dmg: 3.2, speed: 1.5, cd: 0, range: 3, role: 'Sprints straight at you and detonates' },
-  shielder: { ai: 'support', support: 'shield', attack: 'bolt', hp: 1.5, dmg: 0.45, speed: 0.8, cd: 2.2, range: 36, keep: 26, role: 'Projects shields over nearby allies' },
-  healer: { ai: 'support', support: 'heal', attack: 'bolt', hp: 1.0, dmg: 0.4, speed: 0.85, cd: 2.2, range: 36, keep: 30, role: 'Mends wounded allies with a tether' },
-  summoner: { ai: 'summoner', attack: 'spit', hp: 1.2, dmg: 0.7, speed: 0.75, cd: 2.6, range: 40, keep: 30, spawnCd: 8, role: 'Calls reinforcements of its kind' },
+  kamikaze: { ai: 'kamikaze', hp: 0.9, dmg: 3.2, speed: 1.5, cd: 0, range: 3, role: 'Sprints straight at you and detonates' },
+  shielder: { ai: 'support', support: 'shield', attack: 'bolt', hp: 1.5, dmg: 0.45, speed: 0.8, cd: 2.2, range: 48, keep: 28, role: 'Projects shields over nearby allies' },
+  healer: { ai: 'support', support: 'heal', attack: 'bolt', hp: 1.0, dmg: 0.4, speed: 0.85, cd: 2.2, range: 48, keep: 32, role: 'Mends wounded allies with a tether' },
+  summoner: { ai: 'summoner', attack: 'spit', hp: 1.2, dmg: 0.7, speed: 0.75, cd: 2.6, range: 52, keep: 32, spawnCd: 8, role: 'Calls reinforcements of its kind' },
   turret: { ai: 'static', attack: 'bolt', hp: 2.2, dmg: 0.85, speed: 0, cd: 0.5, range: 66, role: 'Fixed gun emplacement' },
   emplacement: { ai: 'static', attack: 'mortar', hp: 2.4, dmg: 1.6, speed: 0, cd: 3.4, range: 100, role: 'Fortified mortar pit' },
-  nova: { ai: 'ranged', attack: 'nova', hp: 1.2, dmg: 0.9, speed: 0.8, cd: 3.5, range: 30, keep: 16, role: 'Pulses rings of shards around itself' },
+  nova: { ai: 'ranged', attack: 'nova', hp: 1.2, dmg: 0.9, speed: 0.8, cd: 3.5, range: 38, keep: 18, role: 'Pulses rings of shards around itself' },
 };
 
 // families: body plan, home worlds, palette, base stats, drops, attack colour, boss specials

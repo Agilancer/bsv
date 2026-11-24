@@ -12,11 +12,14 @@ import {
 } from '../src/game/planet/explorerItems.js';
 import {
   RESOURCES, RES_KEYS, PLANET_RES, surveyPlanet, SHIP_UPGRADES, upgradeCost, buyShipUpgrade, refineryShipStats,
-  reforgeAffix, shipAffixPool, workshop, empowerItem, overchargeItem, imbueItem, canImbue, chassisCost, buyChassis,
+  reforgeAffix, shipAffixPool, workshop, empowerItem, empowerCap, overchargeItem, imbueItem, canImbue, chassisCost, buyChassis,
   fabricate, bankCargo, loseCargo, cargoTotal, addResources, affordable, pay,
 } from '../src/game/planet/economy.js';
 import { heightSampler } from '../src/game/planet/terrainHeight.js';
-import { expectedExplorer, groundTargets, creatureHp, hitDamage, GROUND_TTK, MAX_HIT_SHARE } from '../src/game/planet/groundBalance.js';
+import {
+  expectedExplorer, groundTargets, creatureHp, hitDamage, GROUND_TTK, MAX_HIT_SHARE, GROUND_MIN_TTK, TELEGRAPH_HIT,
+  LANDED, EXPOSED, HP_BY_SIZE, armorMul, dpsCapGround, capGroundHit, expectedBuild,
+} from '../src/game/planet/groundBalance.js';
 import { ENEMIES, ENEMY_BY_ID, SIZE_KEYS, ARCHETYPES, FAMILIES, spawnTable, pickPack, pickBoss, pickEpic } from '../src/game/planet/enemies.js';
 import { generateDungeon, DungeonNav, DUNGEON_THEMES, bfs, CELL } from '../src/game/planet/dungeonGen.js';
 import { probeStats, buyProbeUpgrade, PROBE_UPGRADES, orbitalProbeYield } from '../src/game/planet/economy.js';
@@ -175,6 +178,12 @@ test('workshop actions pay costs and improve gear', () => {
   const rng = new RNG(5);
   const it = makeItem('lance', 5, 'rare', rng);
   const ore0 = p.resources.ore;
+  // empowering stops at the commander's rank + 3
+  p.level = 2;
+  assert.equal(empowerCap(p), 5);
+  assert.equal(workshop(p, it, 'empower', 0, rng).ok, false);
+  assert.equal(it.ilvl, 5);
+  p.level = 10;
   assert.equal(workshop(p, it, 'empower', 0, rng).ok, true);
   assert.equal(it.ilvl, 6);
   assert.ok(p.resources.ore < ore0);
@@ -378,7 +387,8 @@ test('ground balance: time-to-kill stays flat across levels, per size class', ()
     assert.ok(P.dps > 0 && P.ehp > 0);
     for (let si = 0; si < 6; si++) {
       const designs = ENEMIES.filter((e) => e.size === si);
-      const avgHp = designs.reduce((a, e) => a + creatureHp(e, L), 0) / designs.length;
+      // on paper: the size-class pool before the measured exposure / per-size engagement factors
+      const avgHp = designs.reduce((a, e) => a + creatureHp(e, L) / (HP_BY_SIZE[si] * (EXPOSED[e.ai] ? EXPOSED[e.ai][si] : 1)), 0) / designs.length;
       const ttk = avgHp / P.dps;
       assert.ok(ttk > GROUND_TTK.playerKills[si] * 0.75 && ttk < GROUND_TTK.playerKills[si] * 1.35, `L${L} size ${si}: ${ttk.toFixed(1)}s to kill`);
       for (const e of designs) {
@@ -393,4 +403,50 @@ test('ground balance: time-to-kill stays flat across levels, per size class', ()
     assert.ok(groundTargets(si, L).dps > groundTargets(si - 1, L).dps);
   }
   assert.ok(expectedExplorer(30).dps > expectedExplorer(5).dps * 3, 'the explorer grows with its level');
+});
+
+test('ground contract: hit caps, damage window, percentage armour', () => {
+  const ehp = 1000;
+  // untelegraphed: a quarter of hull + shield per hit at most, and no more than ehp / GROUND_MIN_TTK per second per source
+  assert.equal(capGroundHit(1e9, ehp, null, null, 0), ehp * MAX_HIT_SHARE);
+  const win = { t: 0, sum: 0 };
+  let sum = 0;
+  for (let i = 0; i < 50; i++) sum += capGroundHit(1e9, ehp, null, win, i * 0.01);
+  assert.ok(Math.abs(sum - dpsCapGround(ehp)) < 1e-6, 'one source deals at most the dps cap inside a second');
+  assert.ok(capGroundHit(1e9, ehp, null, win, 1.2) > 0, 'the window rolls over');
+  // telegraphed: its own (smaller) per-hit budget, outside the window
+  assert.equal(capGroundHit(1e9, ehp, { telegraph: true }, win, 1.3), ehp * TELEGRAPH_HIT);
+  assert.ok(TELEGRAPH_HIT <= MAX_HIT_SHARE);
+  // the floor: nothing kills an explorer faster than GROUND_MIN_TTK through one source's plain fire
+  assert.ok(GROUND_MIN_TTK < Math.min(...GROUND_TTK.enemyKills));
+  // percentage armour, as in space
+  assert.equal(armorMul(0), 1);
+  assert.equal(armorMul(100), 0.5);
+  assert.equal(armorMul(-20), 1);
+  for (const L of [1, 15, 40]) {
+    const P = expectedExplorer(L);
+    const sShare = P.shield * 0.8 / P.ehp;
+    assert.ok(Math.abs(P.mit - (sShare + (1 - sShare) * armorMul(P.armor))) < 1e-9);
+    assert.ok(P.mit > 0 && P.mit <= 1);
+  }
+});
+
+test('ground contract: landed shares and exposure are applied per archetype', () => {
+  const ais = new Set(ENEMIES.map((e) => e.ai));
+  for (const ai of ais) assert.ok(LANDED[ai] > 0 && Number.isFinite(LANDED[ai]), `landed share for ${ai}`);
+  for (const a of Object.keys(ARCHETYPES)) assert.ok(LANDED[a] > 0 && Number.isFinite(LANDED[a]), `landed share for ${a}`);
+  for (const [ai, v] of Object.entries(EXPOSED)) assert.ok(ais.has(ai) && v.length === 6 && v.every((x) => x > 0 && x <= 1));
+  assert.equal(HP_BY_SIZE.length, 6);
+  for (const L of [5, 30]) {
+    for (const e of ENEMIES.filter((x) => x.ai !== 'kamikaze').slice(0, 80)) {
+      const T = groundTargets(e.size, L);
+      const want = Math.min(T.maxHit, T.dps * e.dmgRel * Math.max(0.6, e.cd || 1) / Math.max(1, e.burst || 1) / (LANDED[e.archetype] || LANDED[e.ai]));
+      assert.ok(Math.abs(hitDamage(e, L) - want) < 1e-6 * want, `${e.name}: per-hit damage divides by the landed share`);
+      const ex = EXPOSED[e.ai] ? EXPOSED[e.ai][e.size] : 1;
+      assert.ok(Math.abs(creatureHp(e, L) - T.hp * e.hpRel * HP_BY_SIZE[e.size] * ex) < 1e-6 * T.hp);
+    }
+  }
+  // the build the duel harness fields is the one the contract assumes
+  const B = expectedBuild(20);
+  assert.ok(B.loadout['gun:0'] && B.loadout['tool:0'] && B.chassis.startsWith('ex_rover_'));
 });

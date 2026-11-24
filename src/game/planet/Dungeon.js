@@ -46,7 +46,8 @@ export class Dungeon {
     this.S = { height: () => 0, ground: () => 0, fluidLevel: -1e9, biome: B, base: () => 0 };
     this.group = new THREE.Group();
     mode.scene.add(this.group);
-    this.level = Math.max(1, mode.siteInfo.level + 2 + entrance.depth + Math.floor(mode.survey.hazard / 2));
+    // deeper is harder, but gently: depth 3+ at full steps was lethal to a level-appropriate explorer
+    this.level = Math.max(1, mode.siteInfo.level + 1 + Math.ceil(entrance.depth / 2) + Math.floor(mode.survey.hazard / 2));
     this.build();
   }
 

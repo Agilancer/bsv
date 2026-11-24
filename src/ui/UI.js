@@ -13,6 +13,7 @@ import { sheetDps } from '../game/data/balance.js';
 import { THROTTLE_STEPS } from '../game/ship/Ship.js';
 import { TREES, TALENTS, talentPoints, spentPoints, canLearn, treePoints } from '../game/data/talents.js';
 import { ENEMIES, SIZES, ENEMY_FACTIONS } from '../game/data/enemies.js';
+import { ENEMIES as GROUND, SIZE_CLASSES as GSIZES, FAMILIES as GFAM } from '../game/planet/enemies.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -325,9 +326,12 @@ export class UI {
   renderCodex() {
     const g = this.game, P = g.data, codex = P.codex || {};
     const body = this.windows.codex.querySelector('.wbody');
-    this.codexSize ??= 'small'; this.codexFaction ??= 'all';
+    this.codexSize ??= 'small'; this.codexFaction ??= 'all'; this.codexWorld ??= 'space';
+    const gcount = Object.keys(P.groundCodex || {}).length;
+    const top = `<div class="ctabs"><button class="btn ${this.codexWorld === 'space' ? '' : 'violet'}" data-world="space">Space · ${Object.keys(codex).length}/${ENEMIES.length}</button><button class="btn ${this.codexWorld === 'ground' ? '' : 'violet'}" data-world="ground">Ground · ${gcount}/${GROUND.length}</button></div>`;
+    if (this.codexWorld === 'ground') return this.renderGroundCodex(body, top);
     const known = Object.keys(codex).length;
-    let h = `<div class="label" style="margin-bottom:8px">${known} / ${ENEMIES.length} designs catalogued · first kill of a design grants bonus XP</div>
+    let h = top + `<div class="label" style="margin-bottom:8px">${known} / ${ENEMIES.length} designs catalogued · first kill of a design grants bonus XP</div>
       <div class="ctabs">${SIZES.map((s) => `<button class="btn ${s.k === this.codexSize ? '' : 'violet'}" data-size="${s.k}" style="border-color:${s.color}">${s.name} ${ENEMIES.filter((e) => e.size === s.k && codex[e.id]).length}/60</button>`).join('')}</div>
       <div class="ctabs">${['all', ...Object.keys(ENEMY_FACTIONS)].map((f) => `<button class="btn ${f === this.codexFaction ? '' : 'violet'}" data-fac="${f}">${f === 'all' ? 'All' : ENEMY_FACTIONS[f].name}</button>`).join('')}</div><div class="clist">`;
     for (const e of ENEMIES) {
@@ -340,6 +344,27 @@ export class UI {
     body.innerHTML = h + '</div>';
     body.querySelectorAll('[data-size]').forEach((b) => b.onclick = () => { this.codexSize = b.dataset.size; this.renderCodex(); });
     body.querySelectorAll('[data-fac]').forEach((b) => b.onclick = () => { this.codexFaction = b.dataset.fac; this.renderCodex(); });
+    body.querySelectorAll('[data-world]').forEach((b) => b.onclick = () => { this.codexWorld = b.dataset.world; this.renderCodex(); });
+  }
+
+  // the planetary bestiary: 12 families x 6 sizes x 5 roles, catalogued by the explorer's kills
+  renderGroundCodex(body, top) {
+    const P = this.game.data, gc = P.groundCodex || {};
+    const sizes = Object.keys(GSIZES);
+    this.gSize ??= 'small'; this.gFam ??= 'all';
+    let h = top + `<div class="label" style="margin-bottom:8px">Creatures and war machines your explorer has met on the surface</div>
+      <div class="ctabs">${sizes.map((k) => `<button class="btn ${k === this.gSize ? '' : 'violet'}" data-gsize="${k}">${GSIZES[k].name} ${GROUND.filter((e) => e.sizeClass === k && gc[e.id]).length}/${GROUND.filter((e) => e.sizeClass === k).length}</button>`).join('')}</div>
+      <div class="ctabs">${['all', ...Object.keys(GFAM)].map((f) => `<button class="btn ${f === this.gFam ? '' : 'violet'}" data-gfam="${f}">${f === 'all' ? 'All' : GFAM[f].name}</button>`).join('')}</div><div class="clist">`;
+    for (const e of GROUND) {
+      if (e.sizeClass !== this.gSize || (this.gFam !== 'all' && e.family !== this.gFam)) continue;
+      const n = gc[e.id] || 0;
+      h += n ? `<div class="centry"><div class="cn" style="color:#${(e.vis.glow >>> 0).toString(16).padStart(6, '0')}">${e.name}</div><div class="label">${e.familyName} · ${e.archetype}${e.boss ? ' · boss' : ''}</div><div class="cd">${e.role}.</div><div class="label">Killed ${n} · worlds: ${e.planets.join(', ')}</div></div>`
+        : `<div class="centry unknown"><div class="cn">???</div><div class="label">${e.familyName}</div><div class="cd">Uncatalogued. Found on ${e.planets.join(', ')} worlds.</div></div>`;
+    }
+    body.innerHTML = h + '</div>';
+    body.querySelectorAll('[data-world]').forEach((b) => b.onclick = () => { this.codexWorld = b.dataset.world; this.renderCodex(); });
+    body.querySelectorAll('[data-gsize]').forEach((b) => b.onclick = () => { this.gSize = b.dataset.gsize; this.renderCodex(); });
+    body.querySelectorAll('[data-gfam]').forEach((b) => b.onclick = () => { this.gFam = b.dataset.gfam; this.renderCodex(); });
   }
 
   renderOptions() {

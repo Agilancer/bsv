@@ -3,9 +3,11 @@
 // instanced. Legs/arms/roots carry an animation weight + phase so the vertex shader walks them;
 // a per-instance state vec4 (anim clock, hit flash, glow surge, size) drives gaits and flashes.
 import * as THREE from 'three/webgpu';
-import { texture, positionWorld, normalWorld, attribute, instancedBufferAttribute, vec3, abs, sin, max, positionLocal } from 'three/tsl';
+import { texture, positionWorld, normalWorld, attribute, instancedBufferAttribute, vec3, abs, sin, max, positionLocal, uniform, float, dot, normalView, positionView } from 'three/tsl';
 import { tex } from './ptex.js';
 import { GeoBuilder, rockGeometry } from './geo.js';
+// rim light on creature silhouettes, in each design's glow colour (raised in dungeons)
+export const uCreatureRim = uniform(0.35);
 
 const TAU = Math.PI * 2;
 const ROCK = rockGeometry(1, 1.3);
@@ -255,8 +257,10 @@ export class CreatureBatch {
     }
     mat.colorNode = base;
     const g = new THREE.Color(v.glow);
+    const rim = float(1).sub(dot(normalView, positionView.normalize().negate()).clamp(0, 1)).pow(2.2);
     mat.emissiveNode = vc.mul(em).mul(sin(engine.uTime.mul(3).add(st.x.mul(0.7))).mul(0.2).add(0.9).add(st.z.mul(1.5)))
-      .add(vec3(3, 2.6, 2.2).mul(st.y)).add(vec3(g.r, g.g, g.b).mul(st.z).mul(2.5).mul(em.min(1)));
+      .add(vec3(3, 2.6, 2.2).mul(st.y)).add(vec3(g.r, g.g, g.b).mul(st.z).mul(2.5).mul(em.min(1)))
+      .add(vec3(g.r, g.g, g.b).mul(rim).mul(uCreatureRim));
     const L = LEG[plan];
     if (L) {
       const lift = max(0, sin(st.x.mul(L[1] * 9).add(an.y.mul(TAU)))).mul(an.x).mul(L[0]).mul(st.w);

@@ -15,6 +15,7 @@ import { makeItem, weaponStats, itemShipStats, grantItemXp, BASES } from './item
 import { talentStats, talentWeaponMod, standardTalents } from './talents.js';
 import { xpForLevel, starterMix } from '../Player.js';
 import { RNG } from '../../engine/rng.js';
+import { SHIP_UPGRADES } from '../planet/economy.js';
 
 // time for an expected player to kill one enemy of each size (s), and the
 // reverse: for one enemy of each size to kill the player
@@ -151,22 +152,42 @@ export function expectedPlayer(L) {
   const sShare = shield * 0.72 / ehp;
   const mit = sShare + (1 - sShare) * 100 / (100 + armor);
   const regen = hull * (st.hullRegen || 0);
-  const r = { L, tier, chassis: chassis.id, mastery, dps, effDps: dps * ENGAGEMENT, hull, shield, ehp, armor, mit, regen };
+  // what an expected captain also carries beyond gear and talents: refinery ranks bought with
+  // planet resources (a steady share of the ~25% of play spent on the ground) and the crew
+  const x = expectedExtras(L);
+  const full = {
+    dps: dps * (1 + x.dmg) / 1,
+    hull: hull * (1 + x.hull), shield: shield * (1 + x.shield),
+  };
+  full.ehp = full.hull + full.shield * 1.2 * 0.6;
+  full.regen = regen * (1 + x.hull) + full.hull * x.hullRegen;
+  const r = { L, tier, chassis: chassis.id, mastery, dps, effDps: dps * ENGAGEMENT, hull, shield, ehp, armor, mit, regen, full, extras: x };
   cache.set(L, r);
   return r;
 }
 
-// Share of sheet DPS that lands, by enemy size: small craft are hard to hit and often die before
-// a flank comes to bear; big hulls can't get out of the way (calibrated with tools/duel.cjs).
-// (above 1 for big hulls: abilities — volleys, torpedo spreads, overcharge — add burst the sheet
-// doesn't count, and nothing that big gets out of the way)
-export const ENGAGE_BY_SIZE = [0.25, 0.45, 1.2, 0.8, 0.42, 0.35];
+// Share of sheet DPS that lands, by enemy size, in a fight joined mid-cooldown-cycle: small craft
+// are hard to hit; big hulls can't get out of the way and eat ability bursts — volleys, torpedo
+// spreads, overcharge — so their factor exceeds 1 (calibrated with tools/duel.cjs).
+export const ENGAGE_BY_SIZE = [0.6, 0.45, 1.2, 0.8, 0.21, 0.12];
 // share of the captain's hull repair each enemy must also cover: escorts fight in packs, bosses alone
 export const REGEN_SHARE_BY_SIZE = [0.35, 0.35, 0.5, 0.7, 1, 1];
 
-// target pools for an enemy of size index si at level L
+// Refinery ranks an expected captain has bought by rank L (each permanent warship upgrade about a
+// fifth of a rank per commander rank, capped at its max) plus a typical crew's contribution.
+export function expectedExtras(L) {
+  const ranks = (max) => Math.min(max, Math.floor(L * 0.2));
+  const x = { dmg: 0.02, hull: 0.03, shield: 0.02, hullRegen: 0 };    // crew: a few percent
+  for (const up of SHIP_UPGRADES) {
+    const v = up.per * ranks(up.max);
+    if (up.stat === 'dmg') x.dmg += v; else if (up.stat === 'hull') x.hull += v; else if (up.stat === 'shield') x.shield += v; else if (up.stat === 'hullRegen') x.hullRegen += v;
+  }
+  return x;
+}
+
+// target pools for an enemy of size index si at level L (from the captain with his extras)
 export function enemyTargets(si, L) {
-  const P = expectedPlayer(L);
+  const E = expectedPlayer(L), P = { ...E, ...E.full };
   const pool = P.dps * ENGAGE_BY_SIZE[si] * TTK.playerKills[si];   // hull + shields it must soak
   // what it must put out per second (before the captain's armour) so the captain goes down in
   // TTK.enemyKills: his EHP over that time, plus its share of what his damage control repairs

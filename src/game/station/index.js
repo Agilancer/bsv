@@ -2,7 +2,7 @@
 // services, contracts). Installs onto the game through modules.js.
 import * as THREE from 'three/webgpu';
 import { Station } from './Station.js';
-import { marketStock, shipyardStock, buyPrice, sellPrice, acquireShip, switchShip, repairCost, makeContracts, progressContracts, makeBlueprint, canFly, kindOf } from './services.js';
+import { marketStock, shipyardStock, buyPrice, sellPrice, acquireShip, switchShip, repairCost, makeContracts, progressContracts, makeBlueprint, canFly, kindOf, reforge, overhaul, reforgeCost, overhaulCost } from './services.js';
 import { CHASSIS_BY_ID, CHASSIS, YARDS } from '../data/chassis.js';
 import { RARITY, rollItem, describe } from '../data/items.js';
 import { INV_SIZE, itemScore, save } from '../Player.js';
@@ -159,12 +159,12 @@ export function installStations(game) {
     if (!st) { body.innerHTML = '<div class="label">Not docked.</div>'; return; }
     const K = kindOf(st.kind);
     W.querySelector('.wtitle span').textContent = `${st.name} · ${K.name || st.kind}`;
-    const tabs = ['market', 'shipyard', 'fleet', 'services', 'contracts'];
+    const tabs = ['market', 'shipyard', 'refit', 'fleet', 'services', 'contracts'];
     let h = K.blurb ? `<div class="label" style="margin:-4px 0 10px;color:var(--cyan)">${K.name} — ${K.blurb}</div>` : '';
     h += `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">${tabs.map((t) => `<button class="btn ${t === tab ? '' : 'violet'}" data-tab="${t}">${t}</button>`).join('')}<span style="flex:1"></span><span class="val" style="color:#ffd66a;align-self:center">${fmt(P.credits)} ¢</span><button class="btn bad" id="stUndock">Undock</button></div>`;
     if (tab === 'market') {
-      h += `<div class="label" style="margin-bottom:6px">For sale</div><div class="grid">${stock.map((it, i) => `<div class="cell" data-buy="${i}">${itemEl(it)}<span class="price">${fmt(buyPrice(P, it, st.kind))}</span></div>`).join('')}</div>`;
-      h += `<div class="label" style="margin:12px 0 6px">Your hold · click to sell</div><div class="grid">${P.inventory.map((it, i) => `<div class="cell" data-sell="${i}">${itemEl(it)}<span class="price">${fmt(sellPrice(P, it, st.kind))}</span></div>`).join('')}</div>
+      h += `<div class="label" style="margin-bottom:6px">For sale</div><div class="grid">${stock.map((it, i) => `<div class="cell named" data-buy="${i}">${itemEl(it)}<span class="nm" style="color:${RARITY[it.rarity].color}">${esc(it.name)}</span><span class="price">${fmt(buyPrice(P, it, st.kind))}</span></div>`).join('')}</div>`;
+      h += `<div class="label" style="margin:12px 0 6px">Your hold · click to sell</div><div class="grid">${P.inventory.map((it, i) => `<div class="cell named" data-sell="${i}">${itemEl(it)}<span class="nm" style="color:${RARITY[it.rarity].color}">${esc(it.name)}</span><span class="price">${fmt(sellPrice(P, it, st.kind))}</span></div>`).join('')}</div>
         <div style="margin-top:10px;display:flex;gap:8px"><button class="btn violet" id="sellJunk">Sell all below rare</button><button class="btn violet" id="sellNonUp">Sell everything that is not an upgrade</button></div>`;
     } else if (tab === 'shipyard') {
       const bps = P.inventory.filter((i) => i.slot === 'blueprint');
@@ -192,6 +192,15 @@ export function installStations(game) {
         <div class="svc"><div><div class="title">Crew quarters</div><div class="label">Hire officers and ratings</div></div><button class="btn" id="hire" ${game.modes.crew ? '' : 'disabled'}>Open crew</button></div>
         <div class="svc"><div><div class="title">Refinery</div><div class="label">Turn planet resources into upgrades</div></div><button class="btn" id="refine" ${game.modes.refinery ? '' : 'disabled'}>Open refinery</button></div>
         <div class="svc"><div><div class="title">Cartography</div><div class="label">Star charts of nearby systems</div></div><button class="btn" id="charts">Galaxy map</button></div>`;
+    } else if (tab === 'refit') {
+      // the refit yard: reforge (reroll affixes) or overhaul (rebuild at your rank) — gear keeps its mastery
+      const gear = [...Object.entries(P.ship.loadout).filter(([, it]) => it).map(([k, it]) => ({ it, where: k })), ...P.inventory.filter((it) => it && it.slot !== 'blueprint' && RARITY[it.rarity].i >= 2).map((it) => ({ it, where: 'hold' }))];
+      h += `<div class="label" style="margin-bottom:8px">Reforge rerolls an item's affixes (named legendaries keep their powers). Overhaul rebuilds it at your rank ${P.level}. Mastery is kept.</div>`;
+      h += gear.map(({ it, where }) => {
+        const rc = reforgeCost(it), oc = it.ilvl < P.level ? overhaulCost(it, P.level) : 0;
+        return `<div class="svc"><div style="display:flex;gap:10px;align-items:center">${itemEl(it)}<div><div class="title" style="color:${RARITY[it.rarity].color}">${esc(it.name)}</div><div class="label">${where === 'hold' ? 'In the hold' : 'Fitted · ' + where.replace(':', ' ')} · item level ${it.ilvl} · mastery ${it.lvl || 1}</div></div></div>
+          <div style="display:flex;gap:6px"><button class="btn violet" data-reforge="${it.uid}" ${P.credits >= rc ? '' : 'disabled'}>Reforge ${fmt(rc)} ¢</button>${oc ? `<button class="btn" data-overhaul="${it.uid}" ${P.credits >= oc ? '' : 'disabled'}>Overhaul → ${P.level} · ${fmt(oc)} ¢</button>` : ''}</div></div>`;
+      }).join('') || '<div class="label">Nothing fitted or rare+ in the hold.</div>';
     } else if (tab === 'contracts') {
       P.contracts ||= [];
       h += `<div class="label" style="margin-bottom:6px">Active (${P.contracts.length}/3)</div>`;
@@ -234,6 +243,9 @@ export function installStations(game) {
     if ($('#hire')) $('#hire').onclick = () => game.modes.crew && game.modes.crew();
     if ($('#refine')) $('#refine').onclick = () => game.modes.refinery && game.modes.refinery();
     if ($('#charts')) $('#charts').onclick = () => game.command('galaxy');
+    const findGear = (uid) => Object.values(P.ship.loadout).find((x) => x && x.uid === uid) || P.inventory.find((x) => x && x.uid === uid);
+    body.querySelectorAll('[data-reforge]').forEach((b) => b.onclick = () => { const it = findGear(b.dataset.reforge); const r = reforge(P, it); game.ui.toast(r.ok ? `Reforged: ${it.name}` : r.msg, r.ok ? 'epic' : 'warn'); if (r.ok) { game.refitPlayer(); if (game.audio) game.audio.play('loot', null, 0.6); } render(); });
+    body.querySelectorAll('[data-overhaul]').forEach((b) => b.onclick = () => { const it = findGear(b.dataset.overhaul); const r = overhaul(P, it); game.ui.toast(r.ok ? `Overhauled: ${it.name} (item level ${it.ilvl})` : r.msg, r.ok ? 'epic' : 'warn'); if (r.ok) { game.refitPlayer(); if (game.audio) game.audio.play('loot', null, 0.6); } render(); });
     body.querySelectorAll('[data-accept]').forEach((b) => b.onclick = () => { const c = contracts.find((x) => x.id === b.dataset.accept); if (c && P.contracts.length < 3) P.contracts.push({ ...c, progress: 0 }); render(); });
   }
 
@@ -255,6 +267,11 @@ export function installStations(game) {
     return n;
   };
 
-  function itemEl(it) { return `<div class="item r-${it.rarity}" data-uid="${it.uid}">${icon(it.slot === 'blueprint' ? 'hangar' : (describeIcon(it)))}<span class="il">${it.ilvl}</span></div>`; }
+  // ▲ marks an upgrade over what's fitted (same rule as the cargo window)
+  function itemEl(it) {
+    let up = '';
+    if (it.slot !== 'blueprint') { const cur = game.worstEquipped(it.slot); if (!cur || itemScore(it) > itemScore(cur)) up = '<span class="up">▲</span>'; }
+    return `<div class="item r-${it.rarity}" data-uid="${it.uid}">${icon(it.slot === 'blueprint' ? 'hangar' : (describeIcon(it)))}<span class="il">${it.ilvl}</span>${up}</div>`;
+  }
   function describeIcon(it) { return { macrocannon: 'cannon', lance: 'lance', plasma: 'plasma', railgun: 'rail', carronade: 'cannon', autocannon: 'turret', laser: 'laser', missile: 'missile', flak: 'flak', ion: 'ion', torpedo: 'torpedo', nova: 'nova', spinal: 'lance', fighters: 'hangar', bombers: 'hangar', drones: 'drone', shieldgen: 'shield', armor: 'armor', reactor: 'reactor', thrusters: 'engine', targeting: 'sensor', tractor: 'tractor', repair: 'repair' }[it.base]; }
 }

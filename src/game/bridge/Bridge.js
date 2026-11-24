@@ -324,11 +324,20 @@ export class Bridge {
           if (o.stn.sit) p.layer('talk', { from: 'Spine1', weight: 0.85 }); else p.play('talk', { fade: 0.4 });
         }
       } else if (o.state === 'talk') {
-        o.state = 'idle'; o.next = 2 + Math.random() * 4;
+        o.state = 'idle'; o.next = 2 + Math.random() * 4; o.yawT = o.stn.face;
         if (o.stn.sit) p.layer(null); else p.play('idle', { fade: 0.5 });
       } else {
         o.next -= realDt;
-        if (o.state === 'work' && (o.stn.sit ? o.next < 0 : p.done)) {
+        if (o.state === 'report' && o.next <= 0) {
+          // back to the console
+          o.state = 'idle'; o.next = 3 + Math.random() * 6; o.yawT = o.stn.face;
+          p.play('idle', { fade: 0.5 });
+        } else if (o.state === 'idle' && o.next <= 0 && !o.stn.sit && Math.random() < 0.35) {
+          // wall stations: now and then turn to report toward the command chair (so you see faces)
+          o.state = 'report'; o.next = 3 + Math.random() * 3;
+          o.yawT = Math.atan2(0 - o.root.position.x, 0.6 - o.root.position.z);
+          p.play(Math.random() < 0.5 ? 'talk' : 'nod', { fade: 0.5, restart: true });
+        } else if (o.state === 'work' && (o.stn.sit ? o.next < 0 : p.done)) {
           o.state = 'idle'; o.next = 4 + Math.random() * 8;
           if (o.stn.sit) p.layer(null); else p.play(Math.random() < 0.7 ? 'idle' : 'look_around', { fade: 0.5 });
         } else if (o.state === 'idle' && o.next <= 0) {

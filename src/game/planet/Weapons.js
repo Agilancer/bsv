@@ -8,6 +8,7 @@ import { tex } from './ptex.js';
 
 const _d = new THREE.Vector3(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _s = new THREE.Vector3(), _c = new THREE.Color(), _z = new THREE.Vector3(0, 0, 1), _a = new THREE.Vector3(), _b = new THREE.Vector3();
 const _e = new THREE.Euler();
+const TELE_HIT = { telegraph: true };
 
 // closest distance from point c to segment ab (squared), t on segment written to out
 function segPointD2(a, b, c, out) {
@@ -56,7 +57,7 @@ export class Shots {
     p.life = o.life || 2; p.age = 0; p.splash = o.splash || 0; p.homing = o.homing || 0; p.target = o.target || null;
     p.grav = o.grav || 0; p.pierce = o.pierce || 0; p.burn = o.burn || 0; p.crit = o.crit || 0; p.critMul = o.critMul || 1.5;
     p.src = o.src || null; p.speed = o.vel.length(); p.spin = Math.random() * 6; p.trail = o.trail || 0;
-    p.hitSet.clear(); p.leech = o.leech || 0; p.chainreact = !!o.chainreact; p.twin = false;
+    p.hitSet.clear(); p.leech = o.leech || 0; p.chainreact = !!o.chainreact; p.twin = false; p.tele = o.tele ? TELE_HIT : null;
     this.list.push(p);
     return p;
   }
@@ -103,7 +104,7 @@ export class Shots {
           const r = V.radius + p.size + (V.bubble > 0 ? 2 : 0);
           if (segPointD2(p.prev, p.pos, _b, _a) < r * r) {
             if (p.splash) this.splash(p, _a, null);
-            else { V.damage(p.dmg, _a, p.src); fx.impact(_a, p.color.getHex(), 1); }
+            else { V.damage(p.dmg, _a, p.src, p.tele); fx.impact(_a, p.color.getHex(), 1); }
             dead = true;
           }
         }
@@ -142,13 +143,14 @@ export class Shots {
     }
     if (p.team === 0) {
       M.creatures.forInRadius(at, r, (e, d) => {
+        if (e === direct) return;   // the direct hit already landed in full
         const f = 1 - 0.5 * (d / r);
-        M.hitEnemy(e, p.dmg * (e === direct ? 1 : f), _p.copy(e.pos).setY(e.pos.y + 1), { crit: p.crit, burn: p.burn, color: p.color.getHex(), leech: p.leech, chainreact: p.chainreact, quiet: e !== direct && d > r * 0.8 });
+        M.hitEnemy(e, p.dmg * f, _p.copy(e.pos).setY(e.pos.y + 1), { crit: p.crit, burn: p.burn, color: p.color.getHex(), leech: p.leech, chainreact: p.chainreact, quiet: e !== direct && d > r * 0.8 });
       });
     } else {
       const V = M.vehicle;
       const d = Math.hypot(V.position.x - at.x, V.position.z - at.z);
-      if (d < r + V.radius && Math.abs(V.position.y - at.y) < r + 4) V.damage(p.dmg * (1 - 0.4 * d / (r + V.radius)), at, p.src);
+      if (d < r + V.radius && Math.abs(V.position.y - at.y) < r + 4) V.damage(p.dmg * (1 - 0.4 * d / (r + V.radius)), at, p.src, p.tele);
     }
   }
 
@@ -207,8 +209,15 @@ export class Arsenal {
       if (!firing || !V.alive) continue;
       V.muzzle(i, _mz);
       _tgt.copy(aimEnemy ? aimEnemy.pos : aim);
-      if (aimEnemy) _tgt.y += Math.min(aimEnemy.height * 0.5, aimEnemy.radius);
-      else _tgt.y += 0.8;
+      if (aimEnemy) {
+        _tgt.y += Math.min(aimEnemy.height * 0.5, aimEnemy.radius);
+        // lead a moving creature by the projectile's flight time (leaping ones by their arc too)
+        if (ws.speed > 0) {
+          const tf = Math.min(1.2, _tmp.subVectors(_tgt, _mz).length() / ws.speed);
+          _tgt.x += aimEnemy.vel.x * tf; _tgt.z += aimEnemy.vel.z * tf;
+          if (aimEnemy.air) _tgt.y += (aimEnemy.vy || 0) * tf - 20 * tf * tf;
+        }
+      } else _tgt.y += 0.8;
       const dist = _tmp.subVectors(_tgt, _mz).length();
       // keep shots within range along the aim line
       _dir.copy(_tmp).normalize();
