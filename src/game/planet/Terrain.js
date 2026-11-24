@@ -69,6 +69,15 @@ export class Terrain {
     const slope = smoothstep(0.6, 0.84, n.y);
     let col = mix(cliff, flat, slope).mul(macro2.mul(0.3).add(0.82));
     let emis = vec3(0);
+    if (B.contrast) {
+      const K = B.contrast;
+      // broad darker exposures (bare rock / old ice) breaking up the bright plain
+      const pn = texture(NZ, p.xz.mul(0.0061).add(vec2(0.53, 0.17))).g;
+      col = mix(col, col.mul(C(K.patch)), smoothstep(0.4, 0.62, pn).mul(K.amount));
+      // hollows a shade darker than crests (cheap height AO), cliffs as dark rock
+      col = col.mul(mix(float(1 - K.ao), float(1), smoothstep(-4, 14, p.y)));
+      col = mix(col.mul(K.cliff), col, slope);
+    }
     if (B.snowLine !== undefined) {
       const snow = smoothstep(B.snowLine, B.snowLine + 7, p.y.add(macro.mul(9))).mul(smoothstep(0.45, 0.75, n.y));
       col = mix(col, vec3(0.8, 0.86, 0.95), snow);
@@ -185,7 +194,9 @@ export class Terrain {
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), nrm = new THREE.Vector3();
     for (const pk of this.propKinds) {
       const def = pk.def;
-      const n = Math.floor(pk.density * this.density * rng.float(0.6, 1.4));
+      // pale worlds: extra dark rock around the landing pad so the first screen has contrast
+      const nearPad = this.B.padRocks && (pk.kind === 'rock' || pk.kind === 'boulder') && Math.hypot(x0 + CHUNK / 2, z0 + CHUNK / 2) < CHUNK * 1.6;
+      const n = Math.floor(pk.density * this.density * rng.float(0.6, 1.4) * (nearPad ? this.B.padRocks : 1));
       const arr = [];
       for (let i = 0; i < n; i++) {
         const x = x0 + rng.float(0, CHUNK), z = z0 + rng.float(0, CHUNK);

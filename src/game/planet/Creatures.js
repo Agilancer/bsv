@@ -7,11 +7,14 @@ import * as THREE from 'three/webgpu';
 import { vec3 } from 'three/tsl';
 import { CreatureBatch, PLAN_HEIGHT } from './creatureModels.js';
 import { ENEMY_BY_ID, ENEMIES } from './enemies.js';
-import { creatureHp, hitDamage } from './groundBalance.js';
+import { creatureHp, hitDamage, groundTargets } from './groundBalance.js';
 import { damp, clamp, wrapAngle } from '../../engine/rng.js';
 
+const _w2 = { x: 0, z: 0 };
+const NOVA_V = 52;   // nova shards outrun a boosting explorer: get out of the ring early, or slip between shards
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Euler(), _a = new THREE.Vector3(), _c = new THREE.Vector3(), _w = new THREE.Vector3();
 const CAPS = [64, 40, 16, 6, 3, 2];
+const TELE = { telegraph: true };   // hits that followed a drawn warning (their own per-hit budget)
 
 function segD2(a, b, c, out) {
   const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
@@ -141,6 +144,8 @@ export class Creatures {
   // ---------------- AI ----------------
   update(dt) {
     const M = this.mode, V = M.vehicle, fx = M.pfx;
+    // hunters pace themselves against the explorer: what it can sustain, not what it can outrun
+    this.vs = V.stats.speed * 0.85;
     for (const e of this.list) {
       if (!e.alive) { e.dying += dt; continue; }
       const def = e.def;
@@ -227,19 +232,22 @@ export class Creatures {
     if (!kin.length) return;
     const k = kin[(Math.random() * kin.length) | 0];
     const n = Math.round((k.size === 0 ? 4 : 2) * mul);
+    const kinMul = clamp(0.5 * groundTargets(def.size, e.level).dps / (n * groundTargets(k.size, e.level).dps), 0.1, 1);
     for (let i = 0; i < n; i++) {
       const a = Math.random() * 6.28, r = e.radius + 4 + Math.random() * 4;
       const s = this.spawn(k, e.pos.x + Math.cos(a) * r, e.pos.z + Math.sin(a) * r, e.level - 1, { awake: true });
+      if (s) { s.capRoot = e; s.dmg *= kinMul; }
       if (s) { M.pfx.ichor(s.pos, def.ichor, 6); M.pfx.dust(s.pos, 2, M.dustHex, 3, 4); M.pfx.pillar(s.pos, def.vis.glow, 10, 1, 8); }
     }
     e.glow = 1;
   }
 
-  move(e, dt, tx, tz, speedMul = 1, face = true) {
+  // abs: an absolute speed (chases keyed to the explorer's pace) instead of def.speed * speedMul
+  move(e, dt, tx, tz, speedMul = 1, face = true, abs = 0) {
     const def = e.def, M = this.mode;
-    if (M.dungeon) { const w = M.dungeon.steer(e.pos, tx, tz, _w); tx = w.x; tz = w.z; }
+    if (M.dungeon) { const w = M.dungeon.steer(e.pos, tx, tz, _w2); tx = w.x; tz = w.z; }
     const dx = tx - e.pos.x, dz = tz - e.pos.z, d = Math.hypot(dx, dz);
-    const sp = def.speed * speedMul * (e.phase > 1 ? 1.15 : 1);
+    const sp = (abs || def.speed * speedMul) * (e.phase > 1 ? 1.15 : 1);
     const k = 1 - Math.exp(-4 * dt);
     if (d > 0.3) { e.vel.x += (dx / d * sp - e.vel.x) * k; e.vel.z += (dz / d * sp - e.vel.z) * k; }
     else { e.vel.x *= 1 - k; e.vel.z *= 1 - k; }
@@ -265,70 +273,124 @@ export class Creatures {
     if (head.distanceToSquared(e.pos) < (0.5 * e.scale) ** 2) return;
     const tail = e.trail.pop(); tail.copy(e.pos); e.trail.unshift(tail);
   }
-  hitTarget(e, tgt, dmg, point) {
+  // o: { telegraph } — telegraphed strikes (a warning was drawn) use their own per-hit budget
+  hitTarget(e, tgt, dmg, point, o) {
     if (!tgt) return;
-    if (tgt === this.mode.vehicle) tgt.damage(dmg, point || tgt.position, e);
+    if (tgt === this.mode.vehicle) tgt.damage(dmg, point || tgt.position, e, o);
     else tgt.damage(dmg);
   }
+  // chase speed keyed to the explorer's pace (k x its cruise), never slower than the design's own
+  pace(e, k) { return Math.max(e.def.speed, this.vs * k * (e.def.size >= 4 ? 0.75 : 1)); }
+  // where the target will be in t seconds
+  lead(tgt, t, out) {
+    const tp = tgt.position || tgt.pos;
+    out.copy(tp);
+    if (tgt.velocity) { out.x += tgt.velocity.x * t; out.z += tgt.velocity.z * t; }
+    return out;
+  }
+  // steer to cut a moving target off instead of chasing its tail
+  intercept(e, tgt, speed, out) {
+    const tp = tgt.position || tgt.pos;
+    const d = Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z);
+    return this.lead(tgt, Math.min(1.6, d / Math.max(4, speed)) * 0.85, out);
+  }
 
+  // swarms: flank in on an intercept course, sprint when close, leap onto where the target will be
   aiMelee(e, dt, d, dx, dz, hunting, tgt) {
     const M = this.mode, def = e.def;
     if (!hunting) return this.wanderStep(e, dt);
-    const off = Math.sin(e.id * 40) * 0.9;
-    const a = Math.atan2(dx, dz) + off * clamp(d / 30, 0, 1);
-    this.move(e, dt, e.pos.x + Math.sin(a) * 10, e.pos.z + Math.cos(a) * 10, d < 4 ? 0.3 : 1);
-    if (def.leap && d < 11 && d > 4 && e.leapCd <= 0 && !e.air) { e.leapCd = 3 + Math.random() * 2; e.air = true; e.vy = 11; e.vel.x = dx / d * 24; e.vel.z = dz / d * 24; }
+    e.sprintCd = (e.sprintCd || 0) - dt; e.sprintT = Math.max(0, (e.sprintT || 0) - dt);
+    if (d < 60 && d > 7 && e.sprintCd <= 0) { e.sprintT = d > 24 ? 2.4 : 1.5; e.sprintCd = e.sprintT + 2.5 + Math.random(); }
+    const sp = e.sprintT > 0 ? Math.max(def.speed * 1.9, this.pace(e, 1.5)) : this.pace(e, 0.95);
+    if (e.sprintT > 0) e.glow = Math.max(e.glow, 0.6);
+    const ip = this.intercept(e, tgt, sp, _w);
+    const off = Math.sin(e.id * 40) * 0.6 * clamp(d / 30, 0, 1);
+    const a = Math.atan2(ip.x - e.pos.x, ip.z - e.pos.z) + off;
+    if (!e.air) this.move(e, dt, e.pos.x + Math.sin(a) * 10, e.pos.z + Math.cos(a) * 10, 1, true, d < 4 ? sp * 0.3 : sp);
+    const ss = Math.sqrt(e.scale);
+    if (def.leap && d < 16 + 4 * ss && d > 4 && e.leapCd <= 0 && !e.air) {
+      // ballistic hop that lands on the target's predicted position
+      const T = clamp(0.45 + d / 60, 0.5, 0.8);
+      const lp = this.lead(tgt, T, _w);
+      e.leapCd = 2.6 + Math.random() * 1.5; e.air = true; e.vy = 20 * T;
+      e.vel.x = (lp.x - e.pos.x) / T; e.vel.z = (lp.z - e.pos.z) / T;
+    }
+    if (e.air) { e.pos.x += e.vel.x * dt; e.pos.z += e.vel.z * dt; }
     const reach = def.range * Math.sqrt(e.scale) + (tgt.radius || 1.5) + e.radius * 0.5;
     if (d < reach && e.cd <= 0) { e.cd = def.cd; this.hitTarget(e, tgt, e.dmg, _p.copy(e.pos).lerp(tgt.position || tgt.pos, 0.6).setY(e.pos.y + 1)); M.pfx.ichor(_p, def.ichor, 3); }
   }
 
+  // runs you down on an intercept course, primes (warning ring), then detonates
   aiKamikaze(e, dt, d, dx, dz, hunting, tgt) {
-    const M = this.mode;
-    if (!hunting) return this.wanderStep(e, dt);
-    this.move(e, dt, e.pos.x + dx, e.pos.z + dz, 1.1);
-    e.glow = clamp(1 - d / 25, 0, 1) * (0.6 + 0.4 * Math.sin(M.engine.time * 20));
-    if (d < e.def.range + e.radius + (tgt.radius || 1.5)) {
-      const R = 5 * Math.sqrt(e.scale) + 2;
-      M.pfx.explode(e.pos, 0.5 + e.scale * 0.3, e.def.vis.glow);
+    const M = this.mode, def = e.def;
+    const R = 5 * Math.sqrt(e.scale) + 2;
+    if (e.state === 'prime') {
+      e.t -= dt; e.glow = 1;
+      if (tgt) { const sp = Math.max(e.def.speed * 1.6, this.pace(e, 1.75)); const ip = this.intercept(e, tgt, sp, _w); this.move(e, dt, ip.x, ip.z, 1, true, sp); }
+      if (e.t > 0) return;
+      M.pfx.explode(e.pos, 0.5 + e.scale * 0.3, def.vis.glow);
       M.cam.addShake(0.8);
-      const vd = Math.hypot((tgt.position || tgt.pos).x - e.pos.x, (tgt.position || tgt.pos).z - e.pos.z);
-      if (vd < R + 2) this.hitTarget(e, tgt, e.dmg);
-      M.hitEnemy(e, e.hp + 1, null, { quiet: true, noReward: false, selfDestruct: true });
+      if (tgt) { const tp = tgt.position || tgt.pos, vd = Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z); if (vd < R + (tgt.radius || 1.5)) this.hitTarget(e, tgt, e.dmg, tp, TELE); }
+      M.hitEnemy(e, e.hp + 1, null, { quiet: true, selfDestruct: true });
+      return;
+    }
+    if (!hunting) return this.wanderStep(e, dt);
+    const sp = this.pace(e, 1.2);
+    const ip = this.intercept(e, tgt, sp, _w);
+    this.move(e, dt, ip.x, ip.z, 1, true, sp);
+    e.glow = clamp(1 - d / 25, 0, 1) * (0.6 + 0.4 * Math.sin(M.engine.time * 20));
+    if (d < def.range + e.radius + (tgt.radius || 1.5) + 2.5) {
+      e.state = 'prime'; e.t = 0.5;
+      M.telegraph(e.pos, R, def.vis.glow, 0.5, e);
     }
   }
 
+  // lines up on where you'll be, draws the line, then charges it
   aiCharger(e, dt, d, dx, dz, hunting, tgt) {
     const M = this.mode, def = e.def;
+    const cs = Math.max(def.speed * 3.2, this.vs * 2.6, 40);
     if (e.state === 'windup') {
       e.t -= dt; e.glow = 1; e.vel.multiplyScalar(0.85);
-      _p.copy(e.pos).setY(e.pos.y + 0.6); _a.copy(_p).addScaledVector(e.dir, 34 * Math.sqrt(e.scale));
-      M.pfx.beam(_p, _a, 0.12 + 0.2 * (1 - e.t / 0.8), 0xff3020, 1.2);
-      if (e.t <= 0) { e.state = 'charge'; e.t = 0.8; e.hitDone = false; }
+      if (e.t <= 0) { e.state = 'charge'; e.t = e.chargeT; e.hitDone = false; }
       return;
     }
     if (e.state === 'charge') {
       e.t -= dt;
-      const sp = def.speed * 3.2;
-      e.pos.addScaledVector(e.dir, sp * dt);
+      // a charging beast can still swing its line a little toward the target
+      if (tgt) {
+        const tp = tgt.position || tgt.pos;
+        const want = Math.atan2(tp.x - e.pos.x, tp.z - e.pos.z), cur = Math.atan2(e.dir.x, e.dir.z);
+        const na = cur + clamp(wrapAngle(want - cur), -1.2 * dt, 1.2 * dt);
+        e.dir.set(Math.sin(na), 0, Math.cos(na)); e.heading = na;
+      }
+      e.pos.addScaledVector(e.dir, cs * dt);
       if (M.dungeon) M.dungeon.collide(e.pos, e.radius * 0.6);
       e.anim += dt * 4;
       if (Math.random() < 0.6) M.pfx.dust(e.pos, 2 * Math.sqrt(e.scale), M.dustHex, 2, 4);
       if (tgt && !e.hitDone) {
         const tp = tgt.position || tgt.pos;
-        if (Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z) < e.radius + (tgt.radius || 1.5) + 1) {
-          e.hitDone = true; this.hitTarget(e, tgt, e.dmg * 1.6, tp);
+        if (Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z) < e.radius + (tgt.radius || 1.5) + 2.5) {
+          e.hitDone = true; this.hitTarget(e, tgt, e.dmg, tp, TELE);
           if (tgt === M.vehicle) { M.vehicle.velocity.addScaledVector(e.dir, 25); M.cam.addShake(1.2); }
           M.pfx.impact(tp, 0xffa050, 2);
         }
       }
-      if (e.t <= 0) { e.state = 'recover'; e.t = 1.0; }
+      if (e.t <= 0) { e.state = 'recover'; e.t = 0.8; }
       return;
     }
     if (e.state === 'recover') { e.t -= dt; e.vel.multiplyScalar(0.9); if (e.t <= 0) e.state = 'idle'; return; }
     if (!hunting) return this.wanderStep(e, dt);
-    this.move(e, dt, e.pos.x + dx, e.pos.z + dz, d < 8 ? 0.5 : 0.8);
-    if (d < 34 && d > 5 && e.cd <= 0) { e.state = 'windup'; e.t = 0.8; e.cd = def.cd; e.dir.set(dx / d, 0, dz / d); e.heading = Math.atan2(dx, dz); }
-    else if (d < e.radius + 3 && e.cd <= def.cd - 1) { e.cd = def.cd; this.hitTarget(e, tgt, e.dmg); }
+    const sp = this.pace(e, 0.85);
+    const ip = this.intercept(e, tgt, sp, _w);
+    this.move(e, dt, ip.x, ip.z, 1, true, d < 8 ? sp * 0.5 : sp);
+    if (d < 50 && d > 5 && e.cd <= 0) {
+      const wind = 0.65;
+      e.chargeT = clamp((d + 14) / cs, 0.45, 1.4);
+      const lp = this.lead(tgt, wind + d / cs * 0.8, _w);
+      const ax = lp.x - e.pos.x, az = lp.z - e.pos.z, al = Math.hypot(ax, az) || 1;
+      e.state = 'windup'; e.t = wind; e.cd = def.cd; e.dir.set(ax / al, 0, az / al); e.heading = Math.atan2(ax, az);
+      M.warnLine(e.pos, e.dir, cs * e.chargeT + 4, e.radius + 2.6, wind + e.chargeT * 0.5, 0xff3020);
+    } else if (d < e.radius + 3 && e.cd <= def.cd - 1) { e.cd = def.cd; this.hitTarget(e, tgt, e.dmg * 0.35); }
   }
 
   aiRanged(e, dt, d, dx, dz, hunting, tgt) {
@@ -336,7 +398,8 @@ export class Creatures {
     if (!hunting) return this.wanderStep(e, dt);
     const keep = def.keep || 20;
     if (def.speed > 0) {
-      if (d > def.range * 0.85) this.move(e, dt, e.pos.x + dx, e.pos.z + dz, 1);
+      // out of range: press in (a little faster than the stroll), cutting the target off
+      if (d > def.range * 0.8) { const sp = Math.max(def.speed * 1.35, this.pace(e, 0.9)); const ip = this.intercept(e, tgt, sp, _w); this.move(e, dt, ip.x, ip.z, 1, true, sp); }
       else if (d < keep * 0.7) this.move(e, dt, e.pos.x - dx, e.pos.z - dz, 0.8);
       else { const s = Math.sin(e.id * 31) > 0 ? 1 : -1; this.move(e, dt, e.pos.x + dz / d * 10 * s, e.pos.z - dx / d * 10 * s, 0.45, false); }
     }
@@ -369,24 +432,31 @@ export class Creatures {
     const src = _p.copy(e.pos).setY(e.pos.y + e.height * 0.75);
     if (e.state === 'aim') {
       e.t -= dt; e.glow = 1;
-      if (tgt && e.t > 0.3) e.aimAt = (e.aimAt || new THREE.Vector3()).copy(tgt.position || tgt.pos).setY((tgt.position || tgt.pos).y + 1);
+      // tracks (with lead) until it locks 0.45 s before firing; the lock is the warning
+      if (tgt && e.t > 0.45) e.aimAt = this.lead(tgt, 0.45, e.aimAt || (e.aimAt = new THREE.Vector3())).setY((tgt.position || tgt.pos).y + 1);
       _a.copy(e.aimAt).sub(src).normalize().multiplyScalar(def.range * 1.2).add(src);
-      M.pfx.beam(src, _a, 0.05 + 0.1 * (1 - Math.max(0, e.t) / 1.3), 0xff2030, e.t < 0.3 ? 2.2 : 0.9);
+      M.pfx.beam(src, _a, 0.05 + 0.1 * (1 - Math.max(0, e.t) / 1.3), 0xff2030, e.t < 0.45 ? 2.2 : 0.9);
+      if (e.t <= 0.45 && !e.locked) {
+        e.locked = true;
+        _d.subVectors(_a, src).setY(0); const len = _d.length() || 1;
+        M.warnLine(src, _d.multiplyScalar(1 / len), len, 1.6, 0.45, 0xff2030, true);
+      }
       if (e.t <= 0) {
-        e.state = 'idle';
+        e.state = 'idle'; e.locked = false;
         M.pfx.timedBeam(src, _a, 0.6 * Math.sqrt(e.scale), def.bolt || 0xff4040, 3, 0.25);
         M.pfx.timedBeam(src, _a, 0.2, 0xffffff, 3, 0.15);
         M.pfx.flash(src, def.bolt || 0xff4040, 30, 0.2, 30);
+        M.sfx('beam', src, 0.6);
         if (tgt) {
           const tp = tgt.position || tgt.pos;
           _c.copy(tp).setY(tp.y + 1);
-          if (segD2(src, _a, _c, null).d2 < ((tgt.radius || 1.5) + 1.2) ** 2) { this.hitTarget(e, tgt, e.dmg, _c); M.pfx.impact(_c, 0xff4040, 2.5); }
+          if (segD2(src, _a, _c, null).d2 < ((tgt.radius || 1.5) + 1.2) ** 2) { this.hitTarget(e, tgt, e.dmg, _c, TELE); M.pfx.impact(_c, 0xff4040, 2.5); }
         }
       }
       return;
     }
     this.aiRanged(e, dt, d, dx, dz, hunting, tgt);
-    if (hunting && d < def.range && e.cd <= 0) { e.cd = def.cd; e.state = 'aim'; e.t = 1.3; }
+    if (hunting && d < def.range && e.cd <= 0) { e.cd = def.cd; e.state = 'aim'; e.t = 1.3; e.locked = false; }
   }
 
   aiStrafe(e, dt, d, dx, dz, hunting, tgt) {
@@ -395,7 +465,7 @@ export class Creatures {
     const tp = tgt.position || tgt.pos;
     const a = Math.atan2(-dx, -dz) + dt * 1.6 * (Math.sin(e.id * 17) > 0 ? 1 : -1);
     const r = (def.keep || 20) * (e.boss ? 1.1 : 1);
-    this.move(e, dt, tp.x + Math.sin(a) * r, tp.z + Math.cos(a) * r, 1, false);
+    this.move(e, dt, tp.x + Math.sin(a) * r, tp.z + Math.cos(a) * r, 1, false, this.pace(e, d > def.range ? 1.25 : 1.05));
     this.face(e, dx, dz, dt, 8);
     if (d < def.range && e.cd <= 0) this.attack(e, d, tgt);
   }
@@ -406,28 +476,39 @@ export class Creatures {
     if (d < e.def.range && e.cd <= 0) this.attack(e, d, tgt);
   }
 
+  // slams up close; from mid range it leaps onto where you'll be (landing ring drawn first)
   aiBrute(e, dt, d, dx, dz, hunting, tgt) {
     const M = this.mode, def = e.def;
-    if (e.state === 'slam') {
+    const R = 6 + 3 * e.scale;
+    const slam = () => {
+      M.pfx.explode(e.pos, 0.5 + 0.35 * e.scale, def.vis.glow);
+      M.pfx.rocks(e.pos, 20, 0x4a3a30, 22); M.pfx.ring(e.pos, R, def.vis.glow, 48);
+      for (let i = 0; i < 3; i++) M.pfx.dust(e.pos, 5, M.dustHex, 4, 12);
+      M.cam.addShake(1.2 + e.scale * 0.2);
+      if (tgt) { const tp = tgt.position || tgt.pos, vd = Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z); if (vd < R + (tgt.radius || 1.5)) this.hitTarget(e, tgt, e.dmg * 1.6 * (1 - 0.4 * vd / (R + 2)), tp, TELE); }
+      e.cd = def.cd;
+    };
+    if (e.state === 'slam') { e.t -= dt; e.glow = 1; if (e.t <= 0) { e.state = 'idle'; slam(); } return; }
+    if (e.state === 'leap') {
       e.t -= dt; e.glow = 1;
-      if (e.t <= 0) {
-        e.state = 'idle';
-        const R = 6 + 3 * e.scale;
-        M.pfx.explode(e.pos, 0.5 + 0.35 * e.scale, def.vis.glow);
-        M.pfx.rocks(e.pos, 20, 0x4a3a30, 22); M.pfx.ring(e.pos, R, def.vis.glow, 48);
-        for (let i = 0; i < 3; i++) M.pfx.dust(e.pos, 5, M.dustHex, 4, 12);
-        M.cam.addShake(1.2 + e.scale * 0.2);
-        if (tgt) { const tp = tgt.position || tgt.pos, vd = Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z); if (vd < R + (tgt.radius || 1.5)) this.hitTarget(e, tgt, e.dmg * 1.6 * (1 - 0.5 * vd / (R + 2))); }
-        e.cd = def.cd;
-      }
+      e.pos.x += e.vel.x * dt; e.pos.z += e.vel.z * dt;
+      if (M.dungeon) M.dungeon.collide(e.pos, e.radius * 0.6);
+      e.vy -= 40 * dt; e.pos.y += e.vy * dt;
+      if (e.t <= 0) { e.state = 'idle'; e.air = false; e.vel.set(0, 0, 0); e.pos.y = M.S.ground(e.pos.x, e.pos.z); slam(); }
       return;
     }
     if (!hunting) return this.wanderStep(e, dt);
     const reach = def.range * Math.sqrt(e.scale) + (tgt.radius || 1.5) + e.radius * 0.4;
-    if (d > reach * 0.8) this.move(e, dt, e.pos.x + dx, e.pos.z + dz, 1); else e.vel.multiplyScalar(0.9);
+    if (d > reach * 0.8) { const sp = this.pace(e, 0.7); const ip = this.intercept(e, tgt, sp, _w); this.move(e, dt, ip.x, ip.z, 1, true, sp); } else e.vel.multiplyScalar(0.9);
     this.face(e, dx, dz, dt, 3);
-    if (d < reach && e.cd <= 0) { e.state = 'slam'; e.t = 0.9; e.glow = 1; M.telegraph(e.pos, 6 + 3 * e.scale, 0xff7030, 0.9); }
-    else if (d > reach * 1.5 && d < (def.far || 60) && e.cd <= 0) this.attack(e, d, tgt, 'boulder');
+    if (d < reach && e.cd <= 0) { e.state = 'slam'; e.t = 0.9; e.glow = 1; M.telegraph(e.pos, R, 0xff7030, 0.9); }
+    else if (d > reach * 1.3 && d < 46 && e.leapCd <= 0 && e.cd <= 0.5) {
+      const T = 1.0;
+      const lp = this.lead(tgt, T, _w);
+      e.state = 'leap'; e.t = T; e.leapCd = (e.boss ? 3.5 : 6) + Math.random() * 2; e.air = true;
+      e.vel.set((lp.x - e.pos.x) / T, 0, (lp.z - e.pos.z) / T); e.vy = 20 * T;
+      M.telegraph(lp, R, 0xff7030, T);
+    } else if (d > reach * 1.5 && d < (def.far || 60) && e.cd <= 0) this.attack(e, d, tgt, 'boulder');
   }
 
   aiBurrow(e, dt, d, dx, dz, hunting, tgt) {
@@ -437,32 +518,33 @@ export class Creatures {
     if (e.trail) this.pushTrail(e);
     if (e.state === 'under') {
       e.under = true;
-      if (hunting) this.move(e, dt, e.pos.x + dx, e.pos.z + dz, 1.15); else this.wanderStep(e, dt);
+      if (hunting) { const sp = this.pace(e, 1.15); const ip = this.intercept(e, tgt, sp, _w); this.move(e, dt, ip.x, ip.z, 1, true, sp); } else this.wanderStep(e, dt);
       e.pos.y = damp(e.pos.y, g - 4 - 3 * e.scale, 4, dt);
       if (Math.random() < 0.55) { _p.set(e.pos.x, g, e.pos.z); fx.dust(_p, 1.4 + e.scale * 0.5, M.dustHex, 2.5, 3); if (Math.random() < 0.3) fx.rocks(_p, 1, 0x4a3a30, 6); }
-      if (hunting && d < 8 + e.scale * 2) { e.state = 'emerge'; e.t = 0.7; M.telegraph(e.pos, 4 + 2 * e.scale, 0xff5020, 0.7); }
+      if (hunting && (d < 9 + e.scale * 2 || (e.t <= -2.5 && d < 45))) { e.state = 'emerge'; e.t = 0.6; M.telegraph(e.pos, 4 + 2 * e.scale, 0xff5020, 0.6, e); }
       return;
     }
     if (e.state === 'emerge') {
       e.pos.y = damp(e.pos.y, g - 2, 6, dt);
+      if (tgt) { const sp = this.pace(e, 1.05); const ip = this.intercept(e, tgt, sp, _w); this.move(e, dt, ip.x, ip.z, 1, true, sp); }
       if (Math.random() < 0.8) fx.dust(_p.set(e.pos.x, g, e.pos.z), 2 + e.scale, M.dustHex, 6, 6);
       if (e.t <= 0) {
         e.state = 'surface'; e.under = false; e.t = 4 + Math.random() * 2 + (e.boss ? 3 : 0); e.vel.set(0, 0, 0);
         e.air = true; e.vy = 14 * Math.sqrt(e.scale); e.pos.y = g;
         fx.rocks(e.pos, 22, 0x4a3a30, 26); fx.explode(e.pos, 0.4 + 0.3 * e.scale, 0xffa050); fx.ring(e.pos, 6 * e.scale, M.dustHex, 40);
         M.cam.addShake(1 + e.scale * 0.3);
-        if (tgt) { const tp = tgt.position || tgt.pos, vd = Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z); if (vd < 4 + 2 * e.scale + (tgt.radius || 1.5)) this.hitTarget(e, tgt, e.dmg * 1.4); }
+        if (tgt) { const tp = tgt.position || tgt.pos, vd = Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z); if (vd < 4 + 2 * e.scale + (tgt.radius || 1.5)) this.hitTarget(e, tgt, e.dmg * 1.4, tp, TELE); }
       }
       return;
     }
     if (e.state === 'surface') {
       e.under = false;
-      if (hunting) this.move(e, dt, e.pos.x + dx, e.pos.z + dz, 0.7); else this.wanderStep(e, dt);
+      if (hunting) { const sp = this.pace(e, 0.8); const ip = this.intercept(e, tgt, sp, _w); this.move(e, dt, ip.x, ip.z, 1, true, sp); } else this.wanderStep(e, dt);
       if (e.air) { e.vy -= 40 * dt; e.pos.y += e.vy * dt; if (e.pos.y < g) { e.pos.y = g; e.air = false; fx.dust(e.pos, 3, M.dustHex, 3, 6); } }
       else e.pos.y = damp(e.pos.y, g + 0.6 * e.scale, 8, dt);
       const reach = def.range * Math.sqrt(e.scale) + (tgt ? tgt.radius || 1.5 : 0) + e.radius * 0.5;
       if (hunting && d < reach && e.cd <= 0) { e.cd = def.cd; this.hitTarget(e, tgt, e.dmg); fx.ichor(tgt.position || tgt.pos, def.ichor, 4); }
-      if (e.boss && hunting && e.cd <= 0 && d > reach) { e.cd = def.cd * 2; this.attack(e, d, tgt, 'spit'); }
+      if (hunting && e.cd <= 0 && d > reach && d < 50) { e.cd = def.cd * (e.boss ? 2 : 2.5); this.attack(e, d, tgt, 'spit'); }
       if (e.t <= 0) { e.state = 'dive'; e.t = 0.8; }
       return;
     }
@@ -470,7 +552,7 @@ export class Creatures {
       e.pos.y = damp(e.pos.y, g - 6 * e.scale, 3, dt);
       this.move(e, dt, e.pos.x + Math.sin(e.heading) * 5, e.pos.z + Math.cos(e.heading) * 5, 0.6);
       if (Math.random() < 0.6) fx.dust(_p.set(e.pos.x, g, e.pos.z), 2 * e.scale, M.dustHex, 4, 4);
-      if (e.t <= 0) { e.state = 'under'; e.t = 2 + Math.random() * 2; }
+      if (e.t <= 0) { e.state = 'under'; e.t = 1 + Math.random() * 1.5; }
     }
   }
 
@@ -478,50 +560,84 @@ export class Creatures {
     const M = this.mode, def = e.def, fx = M.pfx;
     kind = kind || def.attack || 'bolt';
     e.cd = def.cd * (0.85 + Math.random() * 0.3) * (e.phase > 1 ? 0.75 : 1);
-    const tp = tgt.position || tgt.pos;
     const src = _a.copy(e.pos); src.y += def.float ? 0 : e.height * 0.7;
-    const tgtP = _c.copy(tp); tgtP.y += 0.8;
-    if (tgt.velocity) tgtP.addScaledVector(tgt.velocity, Math.min(1, d / 70) * 0.5);
     const team = 1, col = def.bolt || 0xff4a3a, ss = Math.sqrt(e.scale);
     if (kind === 'spit' || kind === 'mortar' || kind === 'boulder') {
-      const n = e.boss || def.size >= 3 ? 3 + e.phase : 1;
+      const n = e.boss || def.size >= 3 ? 3 + e.phase : kind === 'spit' ? 2 : 1;
+      const T = kind === 'mortar' ? clamp(d / 45, 0.7, 2.2) : kind === 'spit' ? clamp(d / 40, 0.6, 1.3) : clamp(d / 30, 0.7, 1.6), G = -40;
+      const lp = this.lead(tgt, T, _c);   // lobbed: aim where the target will be when it lands
       for (let i = 0; i < n; i++) {
-        const tx = tgtP.x + (i ? (Math.random() - 0.5) * 18 : 0), tz = tgtP.z + (i ? (Math.random() - 0.5) * 18 : 0);
+        const tx = lp.x + (i ? (Math.random() - 0.5) * 18 : 0), tz = lp.z + (i ? (Math.random() - 0.5) * 18 : 0);
         const ty = M.S.ground(tx, tz);
-        const T = clamp(d / (kind === 'mortar' ? 45 : 30), 0.7, kind === 'mortar' ? 2.2 : 1.6), G = -40;
         _d.set((tx - src.x) / T, (ty - src.y) / T - 0.5 * G * T, (tz - src.z) / T);
         const spec = kind === 'spit' ? { kind: 'spit', color: col, size: 0.6 * ss, len: 1.2, splash: 3 + ss, trail: 3 }
           : kind === 'mortar' ? { kind: 'mortar', color: 0xffa040, size: 0.5 * ss, len: 1.2, splash: 4 + ss, trail: 2 }
             : { kind: 'boulder', color: 0xffa050, size: 0.9 * ss, splash: 4 + ss };
-        M.shots.spawn({ pos: src, vel: _d, team, dmg: e.dmg, life: T + 0.5, grav: G, src: e, ...spec });
-        if (kind !== 'spit' || i) M.telegraph(_p.set(tx, ty, tz), spec.splash, kind === 'spit' ? col : 0xff7030, T);
+        M.shots.spawn({ pos: src, vel: _d, team, dmg: e.dmg * (i ? 0.5 : 1), life: T + 0.5, grav: G, src: e, tele: true, ...spec });
+        M.telegraph(_p.set(tx, ty, tz), spec.splash, kind === 'spit' ? col : 0xff7030, T);
       }
       if (kind === 'spit') fx.ichor(src, col, 6); else fx.muzzle(src, _d.set(0, 1, 0), 0xffa050, 1.5 * ss);
       e.glow = 0.8;
     } else if (kind === 'nova') {
-      const n = 10 + 4 * e.phase + def.size * 2;
-      for (let i = 0; i < n; i++) {
-        const a = i / n * Math.PI * 2 + e.anim;
-        _d.set(Math.cos(a) * 32, 0, Math.sin(a) * 32);
-        M.shots.spawn({ pos: _p.copy(e.pos).setY(e.pos.y + Math.max(1, e.height * 0.4)), vel: _d, team, dmg: e.dmg * 0.7, kind: 'bolt', color: def.vis.glow, size: 0.35 * ss, len: 3, life: (def.range + 10) / 32, src: e });
-      }
-      fx.ring(e.pos, 14 * ss, def.vis.glow, 48); fx.glowBurst(_p.copy(e.pos).setY(e.pos.y + e.height * 0.5), def.vis.glow, 6 * ss, 0.3, 2);
+      // charge-up ring first (the warning), then the shards
+      const R = def.range + 12;
       e.glow = 1;
-    } else if (kind === 'bomb') {
-      for (let i = 0; i < 2 + def.size; i++) M.later(i * 0.18, () => {
+      M.telegraph(e.pos, R, def.vis.glow, 0.55, e);
+      M.later(0.55, () => {
         if (!e.alive) return;
-        _d.set(e.vel.x * 0.6, -6, e.vel.z * 0.6);
-        M.shots.spawn({ pos: e.pos.clone(), vel: _d, team, dmg: e.dmg, kind: 'mortar', color: 0xffa040, size: 0.45 * ss, len: 1, life: 3, splash: 4 + ss, grav: -30, trail: 2, src: e });
+        const n = 10 + 4 * e.phase + def.size * 2;
+        let a0 = e.anim;
+        if (tgt) { const tp = tgt.position || tgt.pos, dd = Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z); const lp = this.lead(tgt, dd / NOVA_V, _c);
+          // full lead for a kiting target, but a dash doesn't drag the aim off into space
+          const ox = lp.x - tp.x, oz = lp.z - tp.z, ol = Math.hypot(ox, oz), k = ol > 18 ? 18 / ol : 1;
+          a0 = Math.atan2(tp.z + oz * k - e.pos.z, tp.x + ox * k - e.pos.x); }
+        const sy = e.pos.y + Math.max(1, e.height * 0.4);
+        let vy = 0;
+        if (tgt) { const tp = tgt.position || tgt.pos, dd = Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z); vy = clamp((tp.y + 1 - sy) / Math.max(0.25, dd / NOVA_V), -30, 10); }
+        // the ring...
+        for (let i = 0; i < n; i++) {
+          const a = (i + 0.5) / n * Math.PI * 2 + a0;
+          _d.set(Math.cos(a) * NOVA_V, vy, Math.sin(a) * NOVA_V);
+          M.shots.spawn({ pos: _p.copy(e.pos).setY(sy), vel: _d, team, dmg: e.dmg * 0.7, kind: 'bolt', color: def.vis.glow, size: 0.45 * ss, len: 3, life: (R + 14) / NOVA_V, src: e, tele: true });
+        }
+        // ...and its heart: three fast shards led onto the target (side-step them, or be out of reach)
+        if (tgt) for (let i = -1; i <= 1; i++) {
+          const s2 = _p.copy(e.pos).setY(sy), tp = tgt.position || tgt.pos;
+          const t2 = this.lead(tgt, Math.hypot(tp.x - s2.x, tp.z - s2.z) / 80, _c); t2.y = tp.y + 0.8;
+          const vx = t2.x - s2.x, vz = t2.z - s2.z, vl = Math.hypot(vx, vz) || 1;
+          t2.x += -vz / vl * i * 3.4; t2.z += vx / vl * i * 3.4;
+          _d.subVectors(t2, s2).normalize().multiplyScalar(80);
+          M.shots.spawn({ pos: s2, vel: _d, team, dmg: e.dmg * 0.6, kind: 'bolt', color: def.vis.glow, size: 0.5 * ss, len: 3.5, life: 1.2, src: e, tele: true });
+        }
+        fx.ring(e.pos, 14 * ss, def.vis.glow, 48); fx.glowBurst(_p.copy(e.pos).setY(e.pos.y + e.height * 0.5), def.vis.glow, 6 * ss, 0.3, 2);
       });
+    } else if (kind === 'bomb') {
+      // a stick of bombs walked across where the target is heading, every impact drawn first
+      const n = 2 + def.size, T = 0.8, G = -30, splash = 4 + ss;
+      const lp = this.lead(tgt, T, new THREE.Vector3());
+      const bx = lp.x - e.pos.x, bz = lp.z - e.pos.z, bl = Math.hypot(bx, bz) || 1;
+      for (let i = 0; i < n; i++) {
+        const f = (i - Math.floor((n - 1) / 2)) * splash * 2.1;
+        const tx = lp.x + bx / bl * f, tz = lp.z + bz / bl * f, ty = M.S.ground(tx, tz);
+        M.telegraph(_p.set(tx, ty, tz), splash, 0xff7030, T + i * 0.12);
+        M.later(i * 0.12, () => {
+          if (!e.alive) return;
+          const s0 = e.pos.clone();
+          _d.set((tx - s0.x) / T, (ty - s0.y) / T - 0.5 * G * T, (tz - s0.z) / T);
+          M.shots.spawn({ pos: s0, vel: _d, team, dmg: e.dmg, kind: 'mortar', color: 0xffa040, size: 0.45 * ss, len: 1, life: T + 0.5, splash, grav: G, trail: 2, src: e, tele: true });
+        });
+      }
     } else if (kind === 'beam') {
-      e.state = 'idle'; this.aiSniperFire(e, tgt);
-    } else { // bolt bursts
+      e.state = 'aim'; e.t = 1.0; e.locked = false;
+    } else { // bolt bursts, led onto a moving target
       const n = def.burst || 1 + Math.floor(def.size / 2);
       for (let i = 0; i < n; i++) {
         M.later(i * 0.1, () => {
           if (!e.alive || !tgt) return;
           const s2 = e.pos.clone(); s2.y += def.float ? 0 : e.height * 0.65;
-          const t2 = (tgt.position || tgt.pos).clone(); t2.y += 0.8; t2.x += (Math.random() - 0.5) * 2; t2.z += (Math.random() - 0.5) * 2;
+          const tp = tgt.position || tgt.pos;
+          const t2 = this.lead(tgt, Math.hypot(tp.x - s2.x, tp.z - s2.z) / 75, new THREE.Vector3()); t2.y = tp.y + 0.8;
+          t2.x += (Math.random() - 0.5) * 2; t2.z += (Math.random() - 0.5) * 2;
           const v = t2.sub(s2).normalize().multiplyScalar(75);
           M.shots.spawn({ pos: s2, vel: v, team, dmg: e.dmg, kind: 'bolt', color: col, size: 0.24 * ss, len: 3.5, life: 1.4, src: e });
           fx.muzzle(s2, v.normalize(), col, ss);
@@ -529,9 +645,8 @@ export class Creatures {
       }
     }
   }
-  aiSniperFire(e, tgt) { e.state = 'aim'; e.t = 1.0; }
 
-  // apex specials, by family
+  // apex specials, by family — every one is announced on the ground before it lands
   bossSpecial(e, d, tgt) {
     const M = this.mode, def = e.def, fx = M.pfx;
     if (e.special > 0) return;
@@ -540,11 +655,14 @@ export class Creatures {
     const tp = tgt.position || tgt.pos;
     const sp = def.special;
     if (sp === 'missiles') {
-      for (let i = 0; i < 6 + e.phase * 2; i++) M.later(i * 0.12, () => {
+      // lock-on ring follows the explorer, then a slow homing salvo — break away or dash
+      M.telegraph(tp, 7, 0xff4030, 1.2, tgt);
+      M.toast(`${e.name}: missile lock!`, 'warn');
+      for (let i = 0; i < 6 + e.phase * 2; i++) M.later(1.2 + i * 0.12, () => {
         if (!e.alive) return;
         const a = Math.random() * 6.28;
         _d.set(Math.cos(a) * 20, 30, Math.sin(a) * 20);
-        M.shots.spawn({ pos: e.pos.clone().setY(e.pos.y + e.height * 0.6), vel: _d, team: 1, dmg: e.dmg * 1.2, kind: 'rocket', color: 0xff6040, size: 0.4, len: 2, life: 4, splash: 4, homing: 0.7, trail: 1, src: e });
+        M.shots.spawn({ pos: e.pos.clone().setY(e.pos.y + e.height * 0.6), vel: _d, team: 1, dmg: e.dmg * 0.8, kind: 'rocket', color: 0xff6040, size: 0.4, len: 2, life: 4, splash: 4, homing: 0.5, trail: 1, src: e, tele: true });
       });
     } else if (sp === 'quake') {
       for (let k = 0; k < 3; k++) {
@@ -554,23 +672,26 @@ export class Creatures {
           if (!e.alive) return;
           fx.ring(e.pos, R, M.dustHex, 64); fx.rocks(e.pos, 12, 0x4a3a30, 20); M.cam.addShake(1.4);
           const vd = Math.hypot(M.vehicle.position.x - e.pos.x, M.vehicle.position.z - e.pos.z);
-          if (Math.abs(vd - R) < 5 + M.vehicle.radius) M.vehicle.damage(e.dmg * 1.3, M.vehicle.position, e);
+          if (vd < R + M.vehicle.radius) M.vehicle.damage(e.dmg, M.vehicle.position, e, TELE);
         });
       }
     } else if (sp === 'nova') {
       this.attack(e, d, tgt, 'nova');
-      M.later(0.6, () => { if (e.alive) this.attack(e, d, tgt, 'nova'); });
+      M.later(0.9, () => { if (e.alive) this.attack(e, d, tgt, 'nova'); });
     } else if (sp === 'beam') {
-      // sweeping lance: a rotating beam from the boss for 2.5s
-      const start = Math.atan2(tp.x - e.pos.x, tp.z - e.pos.z) - 1.2;
-      for (let i = 0; i < 25; i++) M.later(i * 0.1, () => {
+      // sweeping lance: the danger zone and the opening line show for a second, then it sweeps
+      const start = Math.atan2(tp.x - e.pos.x, tp.z - e.pos.z) - 1.2, Rb = 70;
+      M.telegraph(e.pos, Rb, def.vis.glow, 1.0 + 2.5, e);
+      M.warnLine(e.pos, new THREE.Vector3(Math.sin(start), 0, Math.cos(start)), Rb, 2, 1.0, def.vis.glow);
+      let last = -1;
+      for (let i = 0; i < 25; i++) M.later(1.0 + i * 0.1, () => {
         if (!e.alive) return;
         const a = start + i * 0.1;
         const s = e.pos.clone().setY(e.pos.y + e.height * 0.7);
-        const end = s.clone().add(_d.set(Math.sin(a) * 70, -s.y + M.S.ground(e.pos.x + Math.sin(a) * 70, e.pos.z + Math.cos(a) * 70), Math.cos(a) * 70));
+        const end = s.clone().add(_d.set(Math.sin(a) * Rb, -s.y + M.S.ground(e.pos.x + Math.sin(a) * Rb, e.pos.z + Math.cos(a) * Rb), Math.cos(a) * Rb));
         fx.timedBeam(s, end, 0.6, def.vis.glow, 2.6, 0.12);
         const V = M.vehicle; _c.copy(V.position).setY(V.position.y + 1);
-        if (segD2(s, end, _c, null).d2 < (V.radius + 1.5) ** 2 && i % 2 === 0) V.damage(e.dmg * 0.5, _c, e);
+        if (segD2(s, end, _c, null).d2 < (V.radius + 1.5) ** 2 && i - last > 3) { last = i; V.damage(e.dmg * 0.6, _c, e, TELE); }
       });
     } else { // barrage: telegraphed strikes around the explorer
       for (let i = 0; i < 5 + e.phase * 2; i++) {
@@ -582,7 +703,7 @@ export class Creatures {
           if (def.family === 'hive' || def.family === 'fungal') { fx.ichor(pos, def.ichor, 18); fx.glowBurst(pos, def.ichor, 8, 0.3, 1.5); }
           else fx.explode(pos, 0.7, 0xff7030);
           const vd = Math.hypot(M.vehicle.position.x - pos.x, M.vehicle.position.z - pos.z);
-          if (vd < 5 + M.vehicle.radius) M.vehicle.damage(e.dmg * 1.5, pos, e);
+          if (vd < 5 + M.vehicle.radius) M.vehicle.damage(e.dmg * 1.1, pos, e, TELE);
           M.cam.addShake(0.5);
         });
       }

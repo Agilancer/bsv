@@ -4,7 +4,7 @@
 // triplanar hull plating from the VECTORCLAD sheets, HDR glow strips for bloom.
 // Moving parts (wheels, legs, fans, turret, drill) are separate objects the controller animates.
 import * as THREE from 'three/webgpu';
-import { texture, positionLocal, normalLocal, float, vec3, abs, sin, attribute, smoothstep, length } from 'three/tsl';
+import { texture, positionLocal, normalLocal, float, vec3, abs, sin, attribute, smoothstep, length, uniform, normalView, positionView, dot } from 'three/tsl';
 import { tex } from './ptex.js';
 import { GeoBuilder } from './geo.js';
 import { EX_BASES } from './explorerItems.js';
@@ -20,6 +20,10 @@ export const FRAME_STYLE = {
 const HULL_BY_TIER = (t) => (t <= 3 ? 'hull_apc' : t <= 6 ? 'hull_dropship' : t <= 8 ? 'hull_naval' : 'hull_glacier');
 
 const matCache = new Map();
+// rim light strength on the explorer's hull (PlanetMode raises it in dungeons so the rover reads
+// against dark floors and busy torchlight)
+export const uRoverRim = uniform(0.5);
+const fresnel = () => float(1).sub(dot(normalView, positionView.normalize().negate()).clamp(0, 1)).pow(2.5);
 function hdr(hex, m) { const c = new THREE.Color(hex); return vec3(c.r * m, c.g * m, c.b * m); }
 function tri(t, s) {
   let bf = abs(normalLocal).pow(vec3(4)); bf = bf.div(bf.x.add(bf.y).add(bf.z));
@@ -35,7 +39,7 @@ export function vehicleMats(frame, tier, engine) {
     const m = new THREE.MeshStandardNodeMaterial();
     m.colorNode = tri(tex(t), s).mul(vc).mul(1.25);
     m.roughnessNode = float(rough); m.metalnessNode = float(metal);
-    m.emissiveNode = vc.mul(em).mul(2.5);
+    m.emissiveNode = vc.mul(em).mul(2.5).add(hdr(st.glow, 1.6).mul(fresnel()).mul(uRoverRim));
     return m;
   };
   const glow = new THREE.MeshBasicNodeMaterial();
