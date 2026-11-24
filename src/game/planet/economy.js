@@ -110,7 +110,7 @@ export const SHIP_UPGRADES = [
   { k: 'dmg', name: 'Weapon Calibration', stat: 'dmg', per: 0.02, max: 25, cost: { isotope: 25, ore: 30 }, desc: 'Isotope-doped charges and rebored barrels.' },
   { k: 'crit', name: 'Precursor Targeting', stat: 'crit', per: 0.006, max: 20, cost: { datacore: 4, crystal: 20 }, desc: 'Ancient fire-control algorithms.' },
   { k: 'speed', name: 'Drive Tuning', stat: 'speed', per: 0.02, max: 15, cost: { isotope: 20, biomass: 15 }, desc: 'Cleaner burn, more thrust. Also improves turn rate.', also: { turn: 0.02 } },
-  { k: 'regen', name: 'Living Plating', stat: 'hullRegen', per: 0.0008, max: 15, cost: { biomass: 40, ore: 20 }, desc: 'Xeno-tissue that knits hull breaches shut.' },
+  { k: 'regen', name: 'Living Plating', stat: 'hullRegen', per: 0.0002, max: 15, cost: { biomass: 40, ore: 20 }, desc: 'Xeno-tissue that knits hull breaches shut.' },
   { k: 'shieldRegen', name: 'Capacitor Banks', stat: 'shieldRegen', per: 0.04, max: 20, cost: { crystal: 25, biomass: 10 }, desc: 'Faster shield recovery.' },
   { k: 'loot', name: 'Salvage Algorithms', stat: 'lootFind', per: 0.03, max: 15, cost: { datacore: 3, relic: 1 }, desc: 'Find better loot; also more credits.', also: { credits: 0.03 } },
   { k: 'cdr', name: 'Command Uplink', stat: 'cdr', per: 0.015, max: 15, cost: { relic: 2, datacore: 2 }, desc: 'Captain abilities recharge faster.' },

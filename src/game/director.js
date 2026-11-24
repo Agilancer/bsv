@@ -48,9 +48,11 @@ export class Director {
     const leadKey = R.weighted(this.sector.encounterSizes());
     const out = [];
     const add = (k, n, b = 0) => { for (let i = 0; i < n; i++) out.push(this.spawnAt(faction, k, at, spread, b)); };
-    if (leadKey === 'small') add('small', this.pick(faction, 'small').pack > 1 ? R.int(3, 5) : R.int(2, 3));
+    // small craft are swarm pressure: deeper space fields bigger swarms (a lone one is fodder by mid-game)
+    const swarm = Math.floor(this.danger / 8);
+    if (leadKey === 'small') add('small', (this.pick(faction, 'small').pack > 1 ? R.int(3, 5) : R.int(2, 3)) + swarm);
     else if (leadKey === 'mid') { add('mid', R.int(1, 2)); add('small', R.int(1, 2)); }
-    else if (leadKey === 'large') { add('large', 1, 1); add('mid', R.int(1, 2)); add('small', R.int(0, 2)); }
+    else if (leadKey === 'large') { add('large', 1, 1); add('mid', R.int(1, 2)); add('small', R.int(0, 2) + Math.floor(swarm / 2)); }
     else if (leadKey === 'epic') { add('epic', 1, 2); add('large', R.int(0, 1)); add('mid', R.int(1, 2)); }
     else { add('legendary', 1, 3); add('large', R.int(1, 2)); add('mid', 2); }
     if (Math.random() < 0.1 && out[0] && out[0].design.sizeIndex <= 2) out[0].name += ' Champion';

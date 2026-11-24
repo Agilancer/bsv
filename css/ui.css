@@ -301,7 +301,8 @@ body.mobile #status .lvl { font-size: 16px; min-width: 26px; }
 body.mobile #status .name { font-size: 11px; }
 body.mobile #radar { width: 118px; height: 118px; top: 8px; right: 8px; }
 body.mobile #radar .sys { display: none; }
-body.mobile #target { top: 64px; width: min(300px, 70vw); padding: 6px 10px; }
+body.mobile #target { top: 60px; width: min(220px, 56vw); padding: 4px 8px; }
+body.mobile #target .title { font-size: 12px; } body.mobile #target .label { font-size: 9px; } body.mobile #target .bar { height: 8px; }
 body.mobile #abilities { left: auto; right: 8px; bottom: 8px; transform: none; display: grid; grid-template-columns: repeat(4, 46px); gap: 6px; padding: 6px; }
 body.mobile .ab { width: 46px; height: 46px; } body.mobile .ab svg { inset: 7px; width: 32px; height: 32px; }
 body.mobile #menubar { display: none; position: fixed; left: 10px; top: 64px; flex-direction: column; z-index: 8; background: rgba(6, 12, 30, 0.95); padding: 8px; border: 1px solid var(--edge); }

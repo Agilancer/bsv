@@ -6,7 +6,7 @@ const { chromium } = require('playwright');
 (async () => {
   const levels = (process.argv[2] || '5,15,30,50').split(',').map(Number);
   const stat = process.argv.includes('--static');   // player holds position, guns only (sustained output)
-  const SAMPLES_ARG = +((process.argv.find((a) => a.startsWith('--samples=')) || '--samples=3').split('=')[1]);
+  const SAMPLES_ARG = +((process.argv.find((a) => a.startsWith('--samples=')) || '--samples=5').split('=')[1]);
   const SIZES_ARG = ((process.argv.find((a) => a.startsWith('--sizes=')) || '--sizes=0,1,2,3,4,5').split('=')[1]).split(',').map(Number);   // e.g. --sizes=4,5 for bosses only
   const b = await chromium.launch({ args: ['--use-angle=swiftshader'] });
   const p = await b.newPage({ viewport: { width: 480, height: 270 } });
@@ -19,6 +19,7 @@ const { chromium } = require('playwright');
     const { starterLoadout } = await import('./src/game/Player.js');
     const { RNG } = await import('./src/engine/rng.js');
     const { standardTalents } = await import('./src/game/data/talents.js');
+    const { SHIP_UPGRADES } = await import('./src/game/planet/economy.js');
     g.sector.director.update = () => {}; if (g.npcs) g.npcs.update = () => {};
     const out = [];
     for (const L of levels) {
@@ -29,8 +30,14 @@ const { chromium } = require('playwright');
         g.data.level = L; g.data.ship.level = L; g.data.ship.chassis = `velscour_${E.tier}`;
         g.data.ship.loadout = starterLoadout({ ...(await import('./src/game/data/chassis.js')).CHASSIS_BY_ID[`velscour_${E.tier}`] }, L, new RNG(L + si + sample * 101), 'rare');
         g.data.talents = standardTalents(L).talents;     // the contract's captain has the standard build
+        // ...and the refinery ranks balance.expectedExtras assumes (crew comes from the live crew)
+        g.data.refinery = g.data.refinery || { ranks: {}, probe: {} };
+        g.data.refinery.ranks = Object.fromEntries(SHIP_UPGRADES.map((u) => [u.k, Math.min(u.max, Math.floor(L * 0.2))]));
         if (g.autoplay) g.toggleAutoplay(); if (g.cancelWarp) g.cancelWarp(); g.moveTarget = null;
         const P = g.swapPlayerShip(); P.invuln = false; P.position.set(40000, 0, 40000); P.heading = 0; P.speed = 0; P.velocity.set(0, 0, 0);
+        // deterministic: every duel draws from its own seeded stream (crits, AI choices, specials),
+        // so the gate gives the same answer for the same code
+        { let a = (L * 7919 + si * 104729 + sample * 1299709) >>> 0; Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
         // samples: the brawler, then other pirate designs of the size (different roles)
         const pool = ENEMIES.filter((e) => e.faction === 'pirate' && e.sizeIndex === si).sort((a, b) => (b.ai === 'brawler') - (a.ai === 'brawler'));
         const d = pool[sample % pool.length];

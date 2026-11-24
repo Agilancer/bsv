@@ -69,7 +69,7 @@ const { chromium } = require('playwright');
     if (patrol > 0.25) bad.push(`idle patrol ${(100 * patrol).toFixed(0)}% of space time > 25%`);
     if (between > 0.4) bad.push(`patrol+travel ${(100 * between).toFixed(0)}% of space time > 40%`);
     if (ground > 0.3) bad.push(`planet share ${(100 * ground).toFixed(0)}% > 30%`);
-    for (const [k, v] of Object.entries(r.goalMax)) if (v > 240 && !k.startsWith('Explore')) bad.push(`goal "${k}" ran ${Math.round(v)} s > 240`);
+    for (const [k, v] of Object.entries(r.goalMax)) if (v > 240) bad.push(`goal "${k}" ran ${Math.round(v)} s > 240`);
     if (errs.length) bad.push(`${errs.length} page errors`);
     if (bad.length) { console.log('GATE FAIL: ' + bad.join('; ')); process.exit(1); }
     console.log('GATE PASS');
