@@ -1,0 +1,31 @@
+// Line-art icons, drawn in currentColor so rarity/state colours flow through CSS.
+const S = (body) => `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+export const ICONS = {
+  cannon: S('<rect x="4" y="11" width="10" height="10" rx="1"/><path d="M14 13h14M14 19h14M14 16h11"/><circle cx="9" cy="16" r="2"/>'),
+  lance: S('<path d="M4 16h6l3-4v8l-3-4"/><path d="M13 16h15" stroke-width="2.4"/><circle cx="28" cy="16" r="1.5" fill="currentColor"/>'),
+  plasma: S('<rect x="3" y="12" width="9" height="8"/><path d="M12 14h6M12 18h6"/><circle cx="24" cy="16" r="5"/><circle cx="24" cy="16" r="2" fill="currentColor"/>'),
+  rail: S('<path d="M3 12h26M3 20h26"/><path d="M8 12v8M14 12v8M20 12v8"/><path d="M29 16h-4" stroke-width="2.4"/>'),
+  turret: S('<path d="M6 24h20"/><path d="M9 24v-5a7 7 0 0 1 14 0v5"/><path d="M16 15l8-9M19 17l8-8"/>'),
+  laser: S('<path d="M6 24h20"/><path d="M10 24v-6h12v6"/><path d="M16 18V6" stroke-width="2.4"/><path d="M12 6l4-3 4 3"/>'),
+  missile: S('<path d="M16 3l4 6v14l-4 3-4-3V9z"/><path d="M12 19l-4 5M20 19l4 5"/><path d="M16 26v3"/>'),
+  flak: S('<circle cx="16" cy="16" r="3"/><path d="M16 4v5M16 23v5M4 16h5M23 16h5M7.5 7.5l3.5 3.5M21 21l3.5 3.5M24.5 7.5L21 11M11 21l-3.5 3.5"/>'),
+  ion: S('<path d="M18 3l-8 14h7l-3 12 9-16h-7z"/>'),
+  torpedo: S('<path d="M4 16c4-5 14-5 20-2l4 2-4 2c-6 3-16 3-20-2z"/><path d="M8 12l-4-4M8 20l-4 4"/>'),
+  nova: S('<circle cx="16" cy="16" r="5"/><path d="M16 2v6M16 24v6M2 16h6M24 16h6M6 6l4 4M22 22l4 4M26 6l-4 4M10 22l-4 4"/>'),
+  hangar: S('<path d="M4 26V12l12-7 12 7v14"/><path d="M10 26v-8h12v8"/><path d="M13 14h6"/>'),
+  drone: S('<circle cx="16" cy="16" r="4"/><circle cx="7" cy="7" r="3"/><circle cx="25" cy="7" r="3"/><circle cx="7" cy="25" r="3"/><circle cx="25" cy="25" r="3"/><path d="M13 13l-4-4M19 13l4-4M13 19l-4 4M19 19l4 4"/>'),
+  shield: S('<path d="M16 3l11 4v8c0 7-5 12-11 14C10 27 5 22 5 15V7z"/><path d="M16 9v14M10 13h12"/>'),
+  armor: S('<path d="M5 8l11-5 11 5v8c0 6-5 11-11 13C10 27 5 22 5 16z"/><path d="M5 14h22M16 3v26"/>'),
+  reactor: S('<circle cx="16" cy="16" r="11"/><circle cx="16" cy="16" r="4" fill="currentColor"/><path d="M16 5v4M16 23v4M5 16h4M23 16h4"/>'),
+  engine: S('<path d="M6 10h12l6 3v6l-6 3H6z"/><path d="M24 14h4M24 18h4M2 13h4M2 19h4"/>'),
+  sensor: S('<circle cx="16" cy="16" r="11"/><circle cx="16" cy="16" r="6"/><path d="M16 16l8-8"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/>'),
+  tractor: S('<path d="M16 4v8"/><path d="M8 12h16l-3 14H11z"/><path d="M12 18h8M13 22h6"/>'),
+  repair: S('<path d="M21 4a6 6 0 0 0-6 8L5 22l5 5 10-10a6 6 0 0 0 8-6l-4 4-4-1-1-4z"/>'),
+  broadside: S('<path d="M4 20h24l-3 5H7z"/><path d="M8 20v-5h16v5"/><path d="M8 17H3M24 17h5M11 15v-4M21 15v-4"/>'),
+  evasive: S('<path d="M4 24c6 0 6-16 12-16s6 16 12 16"/><path d="M24 20l4 4-5 1"/>'),
+  gravity: S('<circle cx="16" cy="16" r="3" fill="currentColor"/><path d="M16 5a11 11 0 0 1 11 11M27 16a11 11 0 0 1-11 11M16 27A11 11 0 0 1 5 16M5 16A11 11 0 0 1 16 5"/><path d="M16 9a7 7 0 0 1 7 7M9 16a7 7 0 0 1 7-7"/>'),
+  crew: S('<circle cx="16" cy="10" r="5"/><path d="M6 28c0-6 4-10 10-10s10 4 10 10"/>'),
+  map: S('<circle cx="16" cy="16" r="12"/><path d="M4 16h24M16 4c4 4 4 20 0 24M16 4c-4 4-4 20 0 24"/>'),
+  auto: S('<circle cx="16" cy="16" r="11"/><path d="M13 11l8 5-8 5z" fill="currentColor"/>'),
+};
+export const icon = (k) => ICONS[k] || ICONS.reactor;
