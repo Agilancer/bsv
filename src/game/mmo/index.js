@@ -6,6 +6,7 @@ import { starterLoadout } from '../Player.js';
 import { RARITY, BASES } from '../data/items.js';
 import { galaxy } from '../galaxy.js';
 import { RNG, rng as R } from '../../engine/rng.js';
+import { ENEMIES } from '../data/enemies.js';
 import { PLAYER_NAMES, GUILDS, CHAT, WEAPON_WORDS, PIRATE_FIRST, PIRATE_SHIP } from '../data/names.js';
 
 const fill = (s, game) => s.replace('{sys}', R.pick(galaxy().systems.slice(0, 20)).name).replace('{station}', game.stations && game.stations[0] ? game.stations[0].name : 'Port Velscour').replace('{weapon}', R.pick(WEAPON_WORDS));
@@ -132,21 +133,28 @@ export function installMMO(game) {
     const W = game.world, sec = game.sector, P = game.player;
     const z = sec.detail.zones.reduce((b, z) => (!b || Math.hypot(z.x - P.position.x, z.z - P.position.z) < Math.hypot(b.x - P.position.x, b.z - P.position.z) ? z : b), null);
     const at = new THREE.Vector3(z.x, 0, z.z);
-    const faction = sec.sys.danger >= 12 && Math.random() < 0.5 ? 'covenant' : 'pirate';
-    const lvl = sec.sys.danger + 4;
-    const boss = sec.makeEnemy(faction, lvl, at.clone(), Math.random() * 6.28, 2);
-    boss.name = faction === 'covenant' ? `The Hollow Choir, Hive-Dreadnought` : `${boss.name.split(',')[0]}, Armada Lord`;
-    boss.maxHull *= 1.6; boss.hull = boss.maxHull; boss.raidBoss = true; boss.persistent = true;
-    boss.ai.aggro = 1600;
+    const danger = sec.sys.danger;
+    const size = danger >= 26 ? 'gargantuan' : danger >= 18 ? 'legendary' : danger >= 10 ? 'epic' : 'large';
+    const factions = ['pirate', 'rustborn', danger >= 6 ? 'brood' : 'pirate', danger >= 8 ? 'covenant' : 'rustborn', danger >= 12 ? 'silent' : 'pirate'];
+    const faction = factions[Math.floor(Math.random() * factions.length)];
+    const pool = ENEMIES.filter((e) => e.faction === faction && e.size === size);
+    const d = pool[Math.floor(Math.random() * pool.length)];
+    const lvl = danger + 4;
+    const boss = W.spawnDesign(d, lvl, at.clone(), Math.random() * 6.28);
+    if (size === 'large' || size === 'epic') { boss.maxHull *= 2; boss.hull = boss.maxHull; }
+    boss.raidBoss = true; boss.persistent = true;
+    boss.ai.aggro = 1800;
     const escorts = [];
+    const escortSize = size === 'gargantuan' ? 'epic' : size === 'legendary' ? 'large' : 'mid';
+    const epool = ENEMIES.filter((e) => e.faction === faction && e.size === escortSize);
     for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * Math.PI * 2;
-      const e = sec.makeEnemy(faction, lvl, at.clone().add(new THREE.Vector3(Math.sin(a) * 280, 0, Math.cos(a) * 280)), a, i === 0 ? 1 : 0);
+      const a = (i / 4) * Math.PI * 2, r = d.len * 0.7 + 200;
+      const e = W.spawnDesign(epool[Math.floor(Math.random() * epool.length)], lvl - 1, at.clone().add(new THREE.Vector3(Math.sin(a) * r, 0, Math.cos(a) * r)), a);
       e.persistent = true; escorts.push(e);
     }
     for (const s of [boss, ...escorts]) { W.fx.column(s.position, s.yard.glow, 260, 80); W.fx.ring(s.position, s.dims.L * 1.4, s.yard.glow, 60); }
     pop.raid = { boss, escorts, at, t: 0 };
-    say('WORLD', null, `A Dread Armada has warped into ${sec.sys.name}! ${boss.name} leads ${escorts.length} warships. All captains respond!`, 'sys');
+    say('WORLD', null, `A Dread Armada has warped into ${sec.sys.name}! The ${d.fullName} ${boss.name} leads ${escorts.length} warships. All captains respond!`, 'sys');
     game.ui.toast(`World event: ${boss.name}`, 'legend');
     if (game.audio) game.audio.play('jump', null, 1);
     // the population answers the call

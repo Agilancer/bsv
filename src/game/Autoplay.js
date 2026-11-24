@@ -48,7 +48,7 @@ export class Autoplay {
   hostiles(r = 2400) {
     const s = this.game.player;
     const W = this.game.world;
-    return W.ships.filter((o) => o.alive && W.hostile(s, o) && o.position.distanceTo(s.position) < r);
+    return W.ships.filter((o) => o.alive && !o.cloaked && W.hostile(s, o) && o.position.distanceTo(s.position) < r);
   }
 
   // threat-weighted target choice: finish the weak, prefer what is shooting us, kill bosses last unless alone

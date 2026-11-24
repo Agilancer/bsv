@@ -8,6 +8,7 @@ import { ABILITIES, ABILITY_BY_KEY } from './data/abilities.js';
 import { RARITY, rollItem, grantItemXp, BASES } from './data/items.js';
 import { newPlayer, load, save, wipe, xpForLevel, shipXpForLevel, MAX_LEVEL, INV_SIZE, slotKeys, slotType, itemScore } from './Player.js';
 import { THROTTLE_STEPS } from './ship/Ship.js';
+import { SIZES } from './data/enemies.js';
 import { galaxy } from './galaxy.js';
 import { talentStats, talentWeaponMod, rank, canLearn, TALENT_BY_KEY } from './data/talents.js';
 import { RNG, clamp } from '../engine/rng.js';
@@ -137,7 +138,15 @@ export class Game {
   // ---------------- rewards ----------------
   reward(ship) {
     const P = this.data, W = this.world, s = this.player;
-    const eliteMul = [1, 3.5, 12][ship.elite];
+    const size = ship.design ? SIZES[ship.design.sizeIndex] : null;
+    const eliteMul = size ? size.xp * (ship.elite ? 2.5 : 1) : [1, 3.5, 12][ship.elite];
+    if (ship.design) {
+      P.codex ||= {};
+      const first = !P.codex[ship.design.id];
+      P.codex[ship.design.id] = (P.codex[ship.design.id] || 0) + 1;
+      if (first) { this.ui.toast(`Codex: ${ship.design.fullName} catalogued`, size.boss ? 'legend' : ''); this.gainXp(Math.round(50 * ship.level * size.xp)); }
+    }
+    if (ship.noLoot) { this.gainXp(Math.round(10 * ship.level * eliteMul)); return; }
     const st = s ? s.stats : {};
     const xp = Math.round(28 * ship.level * (1 + ship.chassis.tier * 0.3) * eliteMul * (1 + (st.xp || 0)));
     P.kills++;
@@ -147,15 +156,15 @@ export class Game {
     // loot
     const rng = new RNG(Math.random() * 1e9);
     const luck = (st.lootFind || 0) + ship.elite * 0.6;
-    let n = rng.chance(0.45 + ship.chassis.tier * 0.03) ? 1 : 0;
-    if (ship.elite === 1) n += rng.int(2, 3);
-    if (ship.elite === 2) n += rng.int(4, 6);
-    if (ship.faction === 'covenant') n += 1;
+    let n;
+    if (size) { n = Math.floor(size.loot) + (rng.chance(size.loot % 1) ? 1 : 0) + (ship.elite ? rng.int(2, 3) : 0); }
+    else { n = rng.chance(0.45 + ship.chassis.tier * 0.03) ? 1 : 0; if (ship.elite === 1) n += rng.int(2, 3); if (ship.elite === 2) n += rng.int(4, 6); }
+    const guaranteed = size ? Math.max(0, size.i - 3) * (size.i === 5 ? 2 : 1) : (ship.elite === 2 ? 1 : 0);
     for (let i = 0; i < n; i++) {
-      const it = rollItem(ship.level, rng, { luck, rarity: ship.elite === 2 && i === 0 ? rng.pick(['legendary', 'legendary', 'mythic']) : null });
+      const it = rollItem(ship.level, rng, { luck, rarity: i < guaranteed ? rng.pick(size && size.i === 5 ? ['legendary', 'mythic'] : ['legendary', 'legendary', 'mythic']) : null });
       W.loot.dropItem(it, ship.position);
     }
-    W.loot.dropCredits(Math.round((12 + ship.level * 6) * ship.chassis.tier * eliteMul * (1 + (st.credits || 0))), ship.position);
+    W.loot.dropCredits(Math.round((12 + ship.level * 6) * Math.min(ship.chassis.tier, 6) * eliteMul * (1 + (st.credits || 0))), ship.position);
     if (rng.chance(0.5)) W.loot.dropSalvage(ship.chassis.tier * (1 + ship.elite), ship.position);
     this.ui.chat('COMBAT', null, `${ship.name} destroyed (+${xp} XP)`, 'sys', 'combat');
   }
@@ -384,7 +393,7 @@ export class Game {
   clickTarget(x, y) {
     let best = null, bd = 60 * 60;
     for (const o of this.world.ships) {
-      if (!o.alive || o === this.player) continue;
+      if (!o.alive || o === this.player || o.cloaked) continue;
       this.cam.project(o.position, _v);
       const d = (_v.x - x) ** 2 + (_v.y - y) ** 2;
       const r = Math.max(30, o.dims.L * 0.4 * innerHeight / (2 * Math.tan(this.engine.camera.fov * Math.PI / 360) * this.cam.distance));
@@ -395,7 +404,7 @@ export class Game {
   }
   cycleTarget() {
     const s = this.player;
-    const list = this.world.ships.filter((o) => o.alive && this.world.hostile(s, o) && o.position.distanceTo(s.position) < 2000).sort((a, b) => a.position.distanceTo(s.position) - b.position.distanceTo(s.position));
+    const list = this.world.ships.filter((o) => o.alive && !o.cloaked && this.world.hostile(s, o) && o.position.distanceTo(s.position) < 2000).sort((a, b) => a.position.distanceTo(s.position) - b.position.distanceTo(s.position));
     if (!list.length) return;
     const i = list.indexOf(s.target);
     s.target = list[(i + 1) % list.length];
@@ -442,7 +451,12 @@ export class Game {
       if (this.npcs) this.npcs.update(dt, t);
     }
     else if (this.activeMode) this.activeMode.update(dt, t, realDt);
-    if (this.mode === 'space') this.cam.update(dt, t, realDt);
+    if (this.mode === 'space') {
+      // pull the camera back for things that dwarf us
+      const tg = this.player && this.player.target && this.player.target.alive ? this.player.target : null;
+      this.cam.distFloor = tg && tg.dims.L > 200 ? Math.min(this.cam.maxDist, tg.dims.L * 1.5 + 250) : 0;
+      this.cam.update(dt, t, realDt);
+    }
     if (this.audio) {
       this.audio.setListener(this.cam.focus);
       const s = this.player;

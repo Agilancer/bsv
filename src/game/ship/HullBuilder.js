@@ -89,6 +89,20 @@ function loft(sections, round) {
 }
 function avg(pts) { let x = 0, y = 0, z = 0; for (const p of pts) { x += p[0]; y += p[1]; z += p[2]; } return [x / pts.length, y / pts.length, z / pts.length]; }
 
+// curved membrane wing (UVs normalised 0..1 so the sail shader's veins and rim work)
+function finGeometry(len, span, sweep = 0.3) {
+  const sh = new THREE.Shape();
+  sh.moveTo(0, 0);
+  sh.quadraticCurveTo(len * sweep, span * 1.15, len * 0.92, span);
+  sh.quadraticCurveTo(len * 1.02, span * 0.55, len * 0.8, span * 0.12);
+  sh.quadraticCurveTo(len * 0.45, -span * 0.08, 0, 0);
+  const g = new THREE.ShapeGeometry(sh, 10);
+  g.computeBoundingBox();
+  const b = g.boundingBox, uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) - b.min.x) / (b.max.x - b.min.x), (uv.getY(i) - b.min.y) / (b.max.y - b.min.y));
+  return g;
+}
+
 const shipCache = new Map();
 
 export function buildHull(chassis) {
@@ -138,14 +152,16 @@ export function buildHull(chassis) {
   }
 
   // dorsal spine and ventral keel
-  P.box('trim', W * 0.18, Ht * 0.22, L * 0.62, 0, Ht * 1.02, Z(0.52));
+  if (y.organic) { for (let i = 0; i < 6 + tier; i++) P.cone('hull', W * 0.12, Ht * rng.float(0.5, 1.2), 0, Ht * 0.9, Z(0.2 + i / (6 + tier) * 0.65), 5, -0.5, 0); }
+  else P.box('trim', W * 0.18, Ht * 0.22, L * 0.62, 0, Ht * 1.02, Z(0.52));
   if (y.keel > 0) {
     const kd = Hb * 0.9 * y.keel;
     P.box('dark', W * 0.14, kd, L * 0.5, 0, -Hb - kd * 0.4, Z(0.5));
     P.box('glow', W * 0.06, kd * 0.08, L * 0.48, 0, -Hb - kd * 0.88, Z(0.5));
   }
-  // gun-deck band and glow strip along both flanks
-  for (const sx of [1, -1]) {
+  // gun-deck band and glow strip along both flanks (organic hulls get bioluminescent lines instead)
+  if (y.organic) for (const sx of [1, -1]) for (let i = 0; i < 7 + tier; i++) { const u = 0.15 + i / (7 + tier) * 0.7; P.add('glow', new THREE.SphereGeometry(W * (0.05 + (i % 3) * 0.02), 6, 4).translate(sx * W * 0.96, Ht * (0.1 - (i % 2) * 0.45), Z(u))); }
+  else for (const sx of [1, -1]) {
     P.box('dark', W * 0.12, Ht * 0.42, L * 0.62, sx * W * 0.99, -Ht * 0.02, Z(0.47));
     P.box('glow', W * 0.02, Ht * 0.05, L * 0.6, sx * W * 1.06, Ht * 0.24, Z(0.47));
     // armour ribs
@@ -193,9 +209,11 @@ export function buildHull(chassis) {
   }
   // bridge
   const bw = Math.max(cw, W * 0.4), bh = Ht * 0.35;
-  P.box('dark', bw * 1.2, bh, cl * 0.5, 0, top + bh / 2, cz + cl * 0.15);
-  P.box('glow', bw * 1.22, bh * 0.22, cl * 0.08, 0, top + bh * 0.62, cz + cl * 0.4);
-  top += bh;
+  if (!y.organic) {
+    P.box('dark', bw * 1.2, bh, cl * 0.5, 0, top + bh / 2, cz + cl * 0.15);
+    P.box('glow', bw * 1.22, bh * 0.22, cl * 0.08, 0, top + bh * 0.62, cz + cl * 0.4);
+    top += bh;
+  }
   // flying buttresses from hull flanks up to the first tier
   if (y.buttress) {
     const t0 = towerTops[0];
@@ -222,7 +240,7 @@ export function buildHull(chassis) {
     }
   }
   // central master spire / antenna mast
-  if (y.castle !== 'swept') {
+  if (y.castle !== 'swept' && !y.organic) {
     P.cone('trim', W * 0.08, spireH * 1.5, 0, top, cz, 8);
     P.box('glow', W * 0.06, W * 0.06, W * 0.06, 0, top + spireH * 1.1, cz);
   }
@@ -239,9 +257,48 @@ export function buildHull(chassis) {
     }
   }
 
-  // ---- sails (solar sails on masts) ----
+  // ---- sails (solar sails on masts; membrane fins on void fauna) ----
   const sailEmit = [];
-  if (y.sails) {
+  if (y.organic) {
+    // dorsal and lateral membrane fins, no masts or spars
+    const nf = 2 + Math.floor(tier / 3);
+    for (let i = 0; i < nf; i++) {
+      const u = 0.25 + i * (0.5 / Math.max(1, nf - 1));
+      const fh = Ht * (2.2 + tier * 0.2) * (1 - Math.abs(i - (nf - 1) / 2) * 0.25);
+      // dorsal fin: wing shape stood upright along the keel line, sweeping aft
+      const g = finGeometry(L * 0.2, fh, 0.15);
+      g.rotateY(Math.PI / 2);
+      g.translate(0, Ht * 0.8, Z(u) + L * 0.1);
+      P.add('sail', g);
+    }
+    for (const sx of [1, -1]) {
+      // manta wings: root along the flank, tip swept back and out
+      const g = finGeometry(L * 0.5, W * 2.6, 0.35);
+      g.rotateZ(-Math.PI / 2);           // span along -Y -> rotate so span points outward
+      g.rotateX(Math.PI / 2);
+      if (sx < 0) g.scale(-1, 1, 1);
+      g.rotateY(Math.PI);
+      g.translate(sx * W * 0.85, -Ht * 0.15, Z(0.72));
+      P.add('sail', g);
+    }
+    // trailing tentacles: lofted tubes that taper and curl behind the body
+    const nt = 4 + Math.floor(tier / 2);
+    for (let i = 0; i < nt; i++) {
+      const a = (i / nt) * Math.PI * 2;
+      const ox = Math.cos(a) * W * 0.55, oy = Math.sin(a) * Ht * 0.5;
+      const T = [];
+      const segs = 6, tl = L * (0.45 + rng.float(0, 0.35));
+      for (let k = 0; k <= segs; k++) {
+        const f = k / segs;
+        const curl = Math.sin(f * 3 + i) * W * 0.6 * f;
+        T.push({ z: Z(0.02) - f * tl, w: W * 0.16 * (1 - f * 0.85), ht: W * 0.16 * (1 - f * 0.85), hb: W * 0.16 * (1 - f * 0.85), xo: ox * (1 + f * 0.8) + curl, yo: oy * (1 + f * 0.6) });
+      }
+      P.add('hull', loft(T, 1));
+      P.box('glow', W * 0.08, W * 0.08, W * 0.08, ox * 1.8 + Math.sin(3 + i) * W * 0.6, oy * 1.6, Z(0.02) - tl);
+    }
+    // eyes
+    for (const sx of [1, -1]) P.add('engine', new THREE.SphereGeometry(W * 0.12, 8, 6).translate(sx * W * 0.45, Ht * 0.35, Z(0.84)));
+  } else if (y.sails) {
     const n = y.sails + (tier >= 6 ? 1 : 0);
     for (let i = 0; i < n; i++) {
       const u = 0.42 + i * (0.4 / Math.max(1, n - 1 || 1));
@@ -278,6 +335,11 @@ export function buildHull(chassis) {
   else layout.push([-0.75, -0.3], [0, -0.35], [0.75, -0.3], [-0.4, 0.5], [0.4, 0.5]);
   for (const [ex, ey] of layout) {
     const x = ex * W * 0.95, yy = ey * Ht * 0.9, z = Z(0) - er * 0.6;
+    if (y.organic) {
+      P.add('glow', new THREE.SphereGeometry(er * 0.45, 10, 8).translate(x * 0.6, yy * 0.6, Z(0.04)));
+      engines.push({ pos: V(x * 0.6, yy * 0.6, Z(0.02)), r: er * 0.5 });
+      continue;
+    }
     P.cyl('dark', er * 0.95, er * 0.8, er * 2.4, x, yy, z + er * 0.4, 'z', 12);
     P.cyl('trim', er * 1.05, er * 1.05, er * 0.25, x, yy, z - er * 0.6, 'z', 12);
     P.cyl('engine', er * 0.7, er * 0.7, er * 0.1, x, yy, z - er * 0.82, 'z', 12);
@@ -322,7 +384,7 @@ export function buildHull(chassis) {
     hp.push({ type: 'hangar', index: i, side: sx > 0 ? 'port' : 'starboard', pos: V(sx * W * 1.15, -Ht * 0.25, Z(u)), dir: V(sx, 0, 0) });
   }
 
-  const mats = hullMaterials(chassis.yard);
+  const mats = hullMaterials(chassis.yard, chassis.glow ?? null);
   const group = P.build(mats);
   group.userData = { len: L, W, Ht, Hb, top };
   return { group, hardpoints: hp, engines, dims: { L, W, Ht, Hb, top } };

@@ -23,7 +23,7 @@ export class Ship {
     this.world = world;
     this.id = SHIP_ID++;
     this.chassis = opts.chassis;
-    this.yard = YARDS[this.chassis.yard];
+    this.yard = this.chassis.glow != null ? { ...YARDS[this.chassis.yard], glow: this.chassis.glow, engine: this.chassis.glow } : YARDS[this.chassis.yard];
     this.team = opts.team ?? 1;
     this.name = opts.name || this.chassis.fullName;
     this.faction = opts.faction || 'pirate';
@@ -136,6 +136,15 @@ export class Ship {
     u.hitTime.value = this.world.engine.time;
   }
 
+  // cloaking: hull and guns vanish (only a faint shimmer of the bubble), untargetable
+  setCloak(on, until = 0) {
+    this.cloaked = on;
+    this.cloakUntil = until;
+    this.hullGroup.visible = !on;
+    this.weaponGroup.visible = !on;
+    if (on && this.world.player && this.world.player.target === this) this.world.player.target = null;
+  }
+
   repair(amount) { if (this.alive) this.hull = Math.min(this.maxHull, this.hull + amount); }
   ignite(total, dur, source) { this.burning.push({ dps: total / dur, t: dur, source }); }
 
@@ -160,7 +169,8 @@ export class Ship {
   update(dt, t) {
     if (!this.alive) return;
     const W = this.world;
-    const boost = this.buffs.evasive > t ? 1.6 : 1;
+    const boost = (this.buffs.evasive > t ? 1.6 : 1) * (this.buffs.slowed > t ? 0.55 : 1);
+    if (this.cloaked && t > this.cloakUntil) this.setCloak(false);
     // physics
     const targetSpeed = this.throttle * this.maxSpeed * boost;
     const acc = this.maxSpeed * (targetSpeed > this.speed ? 0.32 : 0.55) * boost;
@@ -174,7 +184,7 @@ export class Ship {
     this.velocity.z = damp(this.velocity.z, _w.z, 1.3, dt);
     const climb = clamp(this.altTarget - this.position.y, -1, 1) * 18;
     this.velocity.y = damp(this.velocity.y, climb * Math.abs(clamp((this.altTarget - this.position.y) / 10, -1, 1)), 2, dt);
-    this.position.addScaledVector(this.velocity, dt);
+    if (!this.latched) this.position.addScaledVector(this.velocity, dt);
     this.root.rotation.y = this.heading;
     this.bank = damp(this.bank, -this.yawRate * 0.9 * clamp(this.speed / this.maxSpeed, 0.2, 1), 3, dt);
     this.pitch = damp(this.pitch, -this.velocity.y * 0.008, 3, dt);
@@ -278,6 +288,7 @@ export class Ship {
   // fire a volley from weapon w at target. mul scales damage (abilities)
   fire(w, target, mul = 1, instant = false) {
     const W = this.world;
+    if (this.cloaked) this.setCloak(false);
     const ws = w.ws;
     w.cd = 1 / ws.rof;
     const n = Math.max(1, ws.barrels);

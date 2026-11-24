@@ -32,7 +32,7 @@ export class IsoCamera {
       if (inp.held('camRight')) this.yawTarget -= realDt * 1.6;
     }
     this.yaw = damp(this.yaw, this.yawTarget, 8, realDt);
-    this.distance = damp(this.distance, this.distTarget, 6, realDt);
+    this.distance = damp(this.distance, Math.max(this.distTarget, this.distFloor || 0), this.distFloor > this.distTarget ? 2 : 6, realDt);
     if (this.follow) {
       this.target.copy(this.follow.position);
       if (this.follow.velocity) this.lead.lerp(this._off.copy(this.follow.velocity).multiplyScalar(0.9), 1 - Math.exp(-2 * realDt));

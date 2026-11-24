@@ -41,10 +41,32 @@ export const YARDS = {
   },
   hollow: {
     name: 'Hollow Star Covenant', short: 'HSC', blurb: 'Grown, not built. Chitinous hulls lit from within by something red.',
-    hull: 'hull_alien', trim: 'hull_graphite', dark: 'hull_alien', tint: 0xb0a0a8, trimTint: 0x904050,
+    hull: 'hull_alien', trim: 'hull_graphite', dark: 'hull_alien', tint: 0xb0a0a8, trimTint: 0x904050, tintMul: 1.35,
     glow: 0xff2040, window: 0xff3050, engine: 0xff1050, alienGlow: true,
     prow: 'fork', castle: 'organic', spires: 6, sails: 0, buttress: true, keel: 1.1, sponsons: 0.4, hullRound: 0.6,
     names: ['Thornmaw', 'Hive Lantern', 'Choir of Teeth', 'Marrowbloom', 'Hollowheart', 'Carrion Psalm', 'Starveling', 'Nest Eternal', 'Void Cantor', 'The Unmaking'],
+  },
+  // ---- enemy-only design languages (not sold at shipyards) ----
+  rustborn: {
+    name: 'Rustborn Scavengers', short: 'RST', enemyOnly: true, blurb: 'Welded from wrecks.',
+    hull: 'hull_apc', trim: 'hull_mech', dark: 'hull_dropship', tint: 0xd8a070, trimTint: 0xd09060, tintMul: 1.7,
+    glow: 0xffa040, window: 0xffc070, engine: 0xff8030,
+    prow: 'blunt', castle: 'scrap', spires: 1, sails: 0, buttress: true, keel: 0.6, sponsons: 1.2, hullRound: 0.05,
+    names: [],
+  },
+  silent: {
+    name: 'The Silent Choir', short: 'SIL', enemyOnly: true, blurb: 'Black glass and white light.',
+    hull: 'hull_graphite', trim: 'hull_glacier', dark: 'hull_graphite', tint: 0x50586e, trimTint: 0xe0f0ff, tintMul: 1.2,
+    glow: 0x9ff0ff, window: 0xbff8ff, engine: 0x9ff0ff,
+    prow: 'needle', castle: 'swept', spires: 3, sails: 0, buttress: false, keel: 0.3, sponsons: 0, hullRound: 0.0,
+    names: [],
+  },
+  brood: {
+    name: 'Leviathan Brood', short: 'BRD', enemyOnly: true, blurb: 'Void fauna.',
+    hull: 'hull_alien', trim: 'hull_alien', dark: 'hull_alien', tint: 0x88b8c0, trimTint: 0x6a90a0, alienGlow: true,
+    glow: 0x40ffd0, window: 0x40ffd0, engine: 0x60fff0,
+    prow: 'fork', castle: 'organic', spires: 5, sails: 2, buttress: false, keel: 1.4, sponsons: 0, hullRound: 0.9, organic: true, tintMul: 1.6,
+    names: [],
   },
 };
 
@@ -74,6 +96,7 @@ const YARD_MOD = {
 
 export const CHASSIS = [];
 for (const [yk, yard] of Object.entries(YARDS)) {
+  if (yard.enemyOnly) continue;
   const mod = YARD_MOD[yk];
   CLASSES.forEach((c, i) => {
     const slots = { ...c.slots };

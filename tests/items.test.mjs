@@ -12,7 +12,7 @@ test('sixty ship chassis and sixty explorer chassis, unique ids', () => {
   assert.equal(EXPLORERS.length, 60);
   assert.equal(new Set(CHASSIS.map((c) => c.id)).size, 60);
   assert.equal(new Set(EXPLORERS.map((c) => c.id)).size, 60);
-  assert.equal(Object.keys(YARDS).length * CLASSES.length, 60);
+  assert.equal(Object.values(YARDS).filter((y) => !y.enemyOnly).length * CLASSES.length, 60);
 });
 
 test('crew complements stay within 5-200', () => {
@@ -20,7 +20,7 @@ test('crew complements stay within 5-200', () => {
 });
 
 test('bigger hulls have more slots and are slower', () => {
-  for (const yard of Object.keys(YARDS)) {
+  for (const yard of Object.keys(YARDS).filter((k) => !YARDS[k].enemyOnly)) {
     const list = CHASSIS.filter((c) => c.yard === yard).sort((a, b) => a.tier - b.tier);
     const slots = (c) => Object.values(c.slots).reduce((a, b) => a + b, 0);
     assert.ok(slots(list[9]) > slots(list[0]));

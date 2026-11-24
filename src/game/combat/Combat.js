@@ -119,6 +119,9 @@ export class Combat {
       if (Math.random() < critChance) { crit = true; dmg *= 1.6 + (ws.critDmg || 0) + (srcStats ? srcStats.critDmg || 0 : 0); }
     }
     if (srcStats) dmg *= srcStats.dmgMul || 1;
+    const now = W.engine.time;
+    if (source && source.buffs && source.buffs.command > now) dmg *= 1.25;     // command aura
+    if (ship.spottedUntil > now) dmg *= 1.2;                                     // painted by a spotter
     const fi = this.facingFor(ship, point);
     let shieldDealt = 0, hullDealt = 0;
     const ignoreShield = ws && ws.unique && ws.unique.includes('shieldbreak') ? 0.4 : 0;

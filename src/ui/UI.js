@@ -8,6 +8,7 @@ import { slotKeys, slotType, xpForLevel, shipXpForLevel, itemScore, INV_SIZE } f
 import { CHASSIS_BY_ID, YARDS } from '../game/data/chassis.js';
 import { THROTTLE_STEPS } from '../game/ship/Ship.js';
 import { TREES, TALENTS, talentPoints, spentPoints, canLearn } from '../game/data/talents.js';
+import { ENEMIES, SIZES, ENEMY_FACTIONS } from '../game/data/enemies.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -49,7 +50,7 @@ export class UI {
     R.append(h(`<div id="menubar">
       <button data-w="character">SHIP [C]</button><button data-w="inventory">CARGO [I]</button><button data-w="skills">SKILLS [T]</button>
       <button data-w="crew">CREW [K]</button><button data-w="bridge">BRIDGE [B]</button><button data-w="galaxy">GALAXY [M]</button>
-      <button class="auto" data-w="auto">AUTO [P]</button><button data-w="options">⚙</button></div>`));
+      <button data-w="codex">CODEX</button><button class="auto" data-w="auto">AUTO [P]</button><button data-w="options">⚙</button></div>`));
     R.querySelectorAll('#menubar button').forEach((b) => b.addEventListener('click', () => this.game.command(b.dataset.w)));
     R.append(h(`<div id="target" class="holo"><div class="tname" id="tName"></div><div class="tsub" id="tSub"></div>
       <div class="bar shield" id="tShield"><i></i><span></span></div><div class="bar hull" id="tHull"><i></i><span></span></div></div>`));
@@ -96,6 +97,8 @@ export class UI {
     this.windows.character = this.addWindow('character', 'Ship');
     this.windows.skills = this.addWindow('skills', 'Captain Abilities');
     this.windows.options = this.addWindow('options', 'Options');
+    this.windows.codex = this.addWindow('codex', 'Codex · Known Hostiles');
+    this.renderers.codex = () => this.renderCodex();
     this.renderers.options = () => this.renderOptions();
     this.hud = { hull: $('#hHull'), shield: $('#hShield'), xp: $('#hXp'), lvl: $('#hLvl'), name: $('#hName'), cls: $('#hClass'), cred: $('#hCred'), rose: $('#shieldRose').getContext('2d'), thr: [...document.querySelectorAll('#thr i')], spd: $('#spd'), alt: $('#alt'), afire: $('#afire'), target: $('#target'), radar: $('#radar canvas').getContext('2d') };
     this.abEls = Object.fromEntries([...document.querySelectorAll('#abilities .ab')].map((e) => [e.dataset.k, e]));
@@ -293,6 +296,26 @@ export class UI {
     });
   }
 
+  renderCodex() {
+    const g = this.game, P = g.data, codex = P.codex || {};
+    const body = this.windows.codex.querySelector('.wbody');
+    this.codexSize ??= 'small'; this.codexFaction ??= 'all';
+    const known = Object.keys(codex).length;
+    let h = `<div class="label" style="margin-bottom:8px">${known} / ${ENEMIES.length} designs catalogued · first kill of a design grants bonus XP</div>
+      <div class="ctabs">${SIZES.map((s) => `<button class="btn ${s.k === this.codexSize ? '' : 'violet'}" data-size="${s.k}" style="border-color:${s.color}">${s.name} ${ENEMIES.filter((e) => e.size === s.k && codex[e.id]).length}/60</button>`).join('')}</div>
+      <div class="ctabs">${['all', ...Object.keys(ENEMY_FACTIONS)].map((f) => `<button class="btn ${f === this.codexFaction ? '' : 'violet'}" data-fac="${f}">${f === 'all' ? 'All' : ENEMY_FACTIONS[f].name}</button>`).join('')}</div><div class="clist">`;
+    for (const e of ENEMIES) {
+      if (e.size !== this.codexSize || (this.codexFaction !== 'all' && e.faction !== this.codexFaction)) continue;
+      const n = codex[e.id] || 0;
+      const sz = SIZES[e.sizeIndex];
+      h += n ? `<div class="centry"><div class="cn" style="color:${sz.color}">${e.name}</div><div class="label">${e.roleName} · ${ENEMY_FACTIONS[e.faction].name} · ${e.len * 10} m</div><div class="cd">${e.desc}</div><div class="label">Destroyed ${n} · seen from danger ${e.minDanger}</div></div>`
+        : `<div class="centry unknown"><div class="cn">???</div><div class="label">${e.roleName} · ${ENEMY_FACTIONS[e.faction].name}</div><div class="cd">Uncatalogued. Appears from danger ${e.minDanger}.</div></div>`;
+    }
+    body.innerHTML = h + '</div>';
+    body.querySelectorAll('[data-size]').forEach((b) => b.onclick = () => { this.codexSize = b.dataset.size; this.renderCodex(); });
+    body.querySelectorAll('[data-fac]').forEach((b) => b.onclick = () => { this.codexFaction = b.dataset.fac; this.renderCodex(); });
+  }
+
   renderOptions() {
     const g = this.game, a = g.audio, e = g.engine;
     const body = this.windows.options.querySelector('.wbody');
@@ -351,8 +374,8 @@ export class UI {
     this.hud.target.style.display = t ? 'block' : 'none';
     if (t) {
       const tn = $('#tName'); tn.textContent = (t.elite === 2 ? '☠ ' : t.elite ? '★ ' : '') + t.name;
-      tn.style.color = t.team === 1 ? 'var(--cyan)' : t.elite === 2 ? '#ff9a2e' : t.elite ? '#ffd66a' : '#ff8a9a';
-      $('#tSub').innerHTML = `Lv ${t.level} ${t.chassis.cls} · ${t.factionName || t.faction}` + (t.mods ? '<br>' + t.mods.map((m) => `<span style="color:${this.game.world.eliteMods[m].color}">${this.game.world.eliteMods[m].name}</span>`).join(' · ') : '');
+      tn.style.color = t.team === 1 ? 'var(--cyan)' : t.elite ? '#ffd66a' : t.design && t.design.sizeIndex >= 2 ? SIZES[t.design.sizeIndex].color : '#ff8a9a';
+      $('#tSub').innerHTML = `Lv ${t.level} ${t.design ? SIZES[t.design.sizeIndex].name + ' ' : ''}${t.chassis.cls} · ${t.factionName || t.faction}` + (t.mods ? '<br>' + t.mods.map((m) => `<span style="color:${this.game.world.eliteMods[m].color}">${this.game.world.eliteMods[m].name}</span>`).join(' · ') : '');
       this.setBar($('#tShield'), t.shieldTotal() / (t.maxShield * 1.2), fmt(t.shieldTotal()));
       this.setBar($('#tHull'), t.hull / t.maxHull, `${fmt(Math.max(0, t.hull))} / ${fmt(t.maxHull)}`);
     }
@@ -476,7 +499,7 @@ export class UI {
       c.fillStyle = '#ff9a2e'; c.font = '700 18px Orbitron, sans-serif'; c.textAlign = 'center'; c.fillText('☠', x, y + 6);
     }
     for (const o of world.ships) {
-      if (!o.alive || o === s) continue;
+      if (!o.alive || o === s || o.cloaked) continue;
       const [x, y] = map(o.position);
       c.fillStyle = o.team === 1 ? '#58c8ff' : o.elite === 2 ? '#ff9a2e' : o.elite ? '#ffd66a' : '#ff4a6a';
       const r = 2.5 + Math.min(5, o.dims.L / 40);
@@ -528,10 +551,34 @@ export class UI {
         ctx.fillStyle = grd; ctx.fill();
       }
     }
+    // telegraphed attacks
+    const now = g.engine.time;
+    for (const w of world.warnings) {
+      const k = Math.min(1, (now - w.t0) / w.dur);
+      const pulse = 0.35 + 0.35 * Math.sin(g.engine.realTime * 18);
+      ctx.strokeStyle = w.color; ctx.fillStyle = w.color; ctx.lineWidth = 2;
+      if (w.kind === 'circle') {
+        const c = w.follow ? w.follow.position : w.pos;
+        ctx.beginPath();
+        for (let i = 0; i <= 40; i++) { const a = (i / 40) * Math.PI * 2; const pt = proj(_q.set(c.x + Math.sin(a) * w.r, c.y, c.z + Math.cos(a) * w.r)); if (pt) i ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y); }
+        ctx.globalAlpha = 0.9; ctx.stroke();
+        ctx.globalAlpha = 0.12 + k * 0.25 * pulse; ctx.fill();
+        ctx.globalAlpha = 0.5; ctx.beginPath();
+        for (let i = 0; i <= 40; i++) { const a = (i / 40) * Math.PI * 2; const pt = proj(_q.set(c.x + Math.sin(a) * w.r * k, c.y, c.z + Math.cos(a) * w.r * k)); if (pt) i ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y); }
+        ctx.stroke(); ctx.globalAlpha = 1;
+      } else if (w.kind === 'line') {
+        const side = _p.set(-w.dir.z, 0, w.dir.x);
+        const pts = [[0, -1], [w.len, -1], [w.len, 1], [0, 1]].map(([a, b]) => proj(_q.copy(w.pos).addScaledVector(w.dir, a).addScaledVector(side, b * w.width)));
+        if (pts.every(Boolean)) {
+          ctx.beginPath(); pts.forEach((pt, i) => (i ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y))); ctx.closePath();
+          ctx.globalAlpha = 0.12 + k * 0.3 * pulse; ctx.fill(); ctx.globalAlpha = 0.8; ctx.stroke(); ctx.globalAlpha = 1;
+        }
+      }
+    }
     // ships: health bars + brackets + names
     ctx.textAlign = 'center';
     for (const o of world.ships) {
-      if (!o.alive || o === s) continue;
+      if (!o.alive || o === s || o.cloaked) continue;
       const sp = proj(o.position); if (!sp) continue;
       if (sp.x < -100 || sp.x > innerWidth + 100 || sp.y < -100 || sp.y > innerHeight + 100) continue;
       const rad = Math.max(16, o.dims.L * 0.55 * pxPerUnit);
@@ -552,9 +599,9 @@ export class UI {
         ctx.fillStyle = '#58b8ff'; ctx.fillRect(sp.x - bw / 2, by, bw * Math.min(1, o.shieldTotal() / (o.maxShield * 1.2)), 2.5);
         ctx.fillStyle = hostile ? '#ff7a50' : '#7affb0'; ctx.fillRect(sp.x - bw / 2, by + 3.5, bw * Math.max(0, o.hull / o.maxHull), 2.5);
         ctx.font = '600 11px Rajdhani, sans-serif';
-        ctx.fillStyle = !hostile ? '#9fdcff' : o.elite === 2 ? '#ff9a2e' : o.elite ? '#ffd66a' : 'rgba(255,170,180,0.9)';
+        ctx.fillStyle = !hostile ? '#9fdcff' : o.elite ? '#ffd66a' : o.design && o.design.sizeIndex >= 2 ? SIZES[o.design.sizeIndex].color : 'rgba(255,170,180,0.9)';
         const label = (o.guild ? `<${o.guild}> ` : '') + o.name + (hostile ? ` · ${o.level}` : '');
-        if (isT || o.elite || !hostile || recent) ctx.fillText(label, sp.x, by - 4);
+        if (isT || o.elite || !hostile || recent || (o.design && o.design.sizeIndex >= 3)) ctx.fillText(label, sp.x, by - 4);
         if (o.mods && (isT || recent)) { ctx.font = '600 10px Rajdhani, sans-serif'; ctx.fillStyle = 'rgba(255,214,106,0.85)'; ctx.fillText(o.mods.map((m) => world.eliteMods[m].name).join(' · '), sp.x, by - 16); }
       }
     }
