@@ -116,12 +116,16 @@ export class Ship {
       if (this.yardTrait === 'corsair' && ws.kind === 'hangar') ws.count += 1;
       const w = { hp, item, ws, key, cd: Math.random() * 1.5, arc: ARC[hp.type], head: null, muzzles: [], object: null, burst: 0 };
       if (hp.type !== 'hangar') {
-        const m = buildWeapon(item, hp, s * (hp.type === 'prow' ? 1.2 : 1));
+        const gs = s * (hp.type === 'prow' ? 1.2 : 1);
+        const m = buildWeapon(item, hp, gs);
         m.object.position.copy(hp.pos);
-        if (hp.type === 'broadside' && hp.dir.x < 0) m.object.rotation.y = Math.PI;
-        if (hp.side === 'ventral') m.object.rotation.z = Math.PI;
+        w.mirror = hp.type === 'broadside' && hp.dir.x < 0;   // starboard mounts are the port mount turned round
+        w.flip = hp.side === 'ventral';                         // ventral turrets hang upside down
+        if (w.mirror) m.object.rotation.y = Math.PI;
+        if (w.flip) m.object.rotation.z = Math.PI;
         this.weaponGroup.add(m.object);
-        w.object = m.object; w.head = m.head; w.muzzles = m.muzzles;
+        w.object = m.object; w.head = m.head; w.mount = m; w.muzzles = m.barrels; w.recoil = gs * 0.32;
+        w.aimYaw = 0; w.aimPitch = 0; w.onTarget = false;
       }
       this.weapons.push(w);
     }
@@ -266,12 +270,11 @@ export class Ship {
 
   // world position + direction of a weapon's muzzle i
   muzzleWorld(w, i, outP, outD) {
-    const m = w.muzzles[i % Math.max(1, w.muzzles.length)];
-    if (w.object && m) {
-      (w.head || w.object).updateWorldMatrix(true, false);
-      outP.copy(m);
-      if (w.head) outP.y -= w.head.position.y; // muzzles of turrets are given relative to the base
-      (w.head || w.object).localToWorld(outP);
+    const b = w.mount && w.mount.barrels.length ? w.mount.barrels[i % w.mount.barrels.length] : null;
+    if (b) {
+      b.g.updateWorldMatrix(true, false);
+      outP.copy(b.muzzle);
+      b.g.localToWorld(outP);
     } else outP.copy(w.hp.pos).applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.heading).add(this.position);
     if (outD) outD.copy(w.hp.dir).applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.heading);
     return outP;
@@ -296,17 +299,51 @@ export class Ship {
     for (const w of this.weapons) {
       w.cd -= dt * rofMul;
       if (w.hp.type === 'hangar') { W.hangars.tick(this, w, dt, t); continue; }
-      // turrets track
-      if (w.head && tg) {
-        _w.copy(tg.position);
-        w.object.updateWorldMatrix(true, false);
-        w.object.worldToLocal(_w);
-        const yaw = Math.atan2(_w.x, _w.z);
-        w.head.rotation.y = damp(w.head.rotation.y, yaw, 6, dt);
-      }
-      if (w.cd <= 0 && tg && (this.autoFire || this.isPlayer === false) && this.inArc(w, tg)) {
+      const bears = tg && this.inArc(w, tg);
+      if (w.mount) this.aim(w, bears ? tg : null, dt);
+      if (w.cd <= 0 && bears && (this.autoFire || this.isPlayer === false) && (w.onTarget || !w.mount)) {
         this.fire(w, tg, 1);
       }
+    }
+  }
+
+  // Train a mount on its target: traverse and elevate at the gun's own rate, report when
+  // it's on target, and let the barrels run back out after recoil. No target: return to rest.
+  aim(w, tg, dt) {
+    const M = w.mount;
+    let wantYaw = 0, wantPitch = 0;
+    if (tg) {
+      // target relative to the mount, in the ship's frame (heading only; cheap, no matrix inverse)
+      const lead = Math.min(2.5, tg.position.distanceTo(this.position) / 600);
+      const dx = tg.position.x + tg.velocity.x * lead - this.position.x, dz = tg.position.z + tg.velocity.z * lead - this.position.z;
+      const ch = Math.cos(this.heading), sh = Math.sin(this.heading);
+      let lx = dx * ch - dz * sh - w.hp.pos.x, lz = dx * sh + dz * ch - w.hp.pos.z;
+      let ly = tg.position.y - this.position.y - w.hp.pos.y;
+      if (w.mirror) { lx = -lx; lz = -lz; }
+      if (w.flip) { lx = -lx; ly = -ly; }
+      const horiz = Math.hypot(lx, lz);
+      if (M.axis === 'x') { wantYaw = Math.atan2(-lz, lx); wantPitch = Math.atan2(ly, horiz); }
+      else { wantYaw = Math.atan2(lx, lz); wantPitch = -Math.atan2(ly, horiz); }
+      wantYaw = clamp(wantYaw, -M.yawLimit, M.yawLimit);
+      wantPitch = clamp(wantPitch, -M.pitchLimit, M.pitchLimit);
+    }
+    // rate-limited traverse (turrets the long way round when needed)
+    let dy = wantYaw - w.aimYaw;
+    if (M.yawLimit >= Math.PI) dy = wrapAngle(dy);
+    const step = M.traverse * dt;
+    w.aimYaw += clamp(dy, -step, step);
+    if (M.yawLimit >= Math.PI) w.aimYaw = wrapAngle(w.aimYaw);
+    w.aimPitch += clamp(wantPitch - w.aimPitch, -step * 0.6, step * 0.6);
+    M.head.rotation.y = w.aimYaw;
+    if (M.axis === 'x') M.pitch.rotation.z = w.aimPitch; else M.pitch.rotation.x = w.aimPitch;
+    w.onTarget = !!tg && Math.abs(M.yawLimit >= Math.PI ? wrapAngle(wantYaw - w.aimYaw) : wantYaw - w.aimYaw) < 0.12;
+    // recoil: barrels slam back and run out again
+    for (const b of M.barrels) {
+      if (b.kick <= 0) continue;
+      b.kick = Math.max(0, b.kick - dt * 3.2);
+      const k = b.kick * b.kick * w.recoil;
+      if (b.axis === 'x') b.g.position.set(b.rest.x - k, b.rest.y, b.rest.z);
+      else b.g.position.set(b.rest.x, b.rest.y, b.rest.z - k);
     }
   }
 
@@ -325,6 +362,7 @@ export class Ship {
         W.schedule(delay, () => {
           if (!this.alive) return;
           const mp = this.muzzleWorld(w, i, new THREE.Vector3(), new THREE.Vector3());
+          if (w.mount && w.mount.barrels.length) w.mount.barrels[i % w.mount.barrels.length].kick = 1;
           W.fx.muzzle(mp, _v.copy(target.position).sub(mp).normalize(), ws.color, this.dims.W * 0.12 * (ws.kind === 'beam' ? 1.5 : 1));
           if (ws.kind === 'beam') {
             if (!target.alive) return;
