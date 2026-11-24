@@ -68,7 +68,7 @@ export function installZones(game, G) {
     const held = C.pts.slice().sort((a, b) => (b.owner === sd.side) - (a.owner === sd.side) || b.pos.distanceToSquared(P.position) - a.pos.distanceToSquared(P.position));
     const a = rng.float(0, 6.28), r = sd.ally ? 320 : 140;
     const pos = (sd.ally ? P.position.clone() : held[sd.spawned % 2].pos.clone()).add(_v.set(Math.sin(a) * r, 0, Math.cos(a) * r));
-    const s = spawnBot(game, { name, guild, level, yard: rng.pick(YARDS), tier: D.tierForLevel(level), team: sd.team, pos, heading: rng.float(0, 6.28), seed: rng.int(1, 1e9), rarity: ZONE_RARITY, dmg: 1, contract: D.pvpTargets(level, D.ZONE_BOT), aggro: 1300, side: sd.side });
+    const s = spawnBot(game, { name, guild, level, yard: rng.pick(YARDS), tier: D.tierForLevel(level), team: sd.team, pos, heading: rng.float(0, 6.28), seed: rng.int(1, 1e9), rarity: ZONE_RARITY, dmg: 1, contract: D.pvpTargets(level, D.ZONE_BOT, sd.ally ? 1 : D.earlyHandicap(level)), aggro: 1300, side: sd.side });
     if (!sd.ally) s.capRoot = sd;                                    // a squad shares one MIN_TTK window against the captain
     s.zoneBot = sd; s.ownGuild = own;
     s.ai.follow = C.pts[(sd.spawned + (sd.ally ? 1 : 0)) % 3].hold;   // they take station on an extractor

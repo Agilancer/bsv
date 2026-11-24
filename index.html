@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/ui.css">
+<link rel="stylesheet" href="css/story.css" data-story="1">
 <script type="importmap">
 {
   "imports": {
@@ -33,6 +34,16 @@
     <button class="btn" id="btnContinue">Continue</button>
     <button class="btn violet" id="btnNew">New Captain</button>
   </div>
+  <form id="titleCreate" autocomplete="off">
+    <div class="tc-h">New Captain</div>
+    <div class="tc-sub">Two names for the Dominion registry. Both can be changed later.</div>
+    <div><label for="tcCaptain">Captain's name</label>
+      <div class="tc-row"><input id="tcCaptain" maxlength="20" spellcheck="false" placeholder="Captain"><button type="button" class="btn violet tc-dice" id="tcCaptainDice" title="Random name">&#9860;</button></div></div>
+    <div><label for="tcShip">Flagship</label>
+      <div class="tc-row"><span class="tc-pre">DSV</span><input id="tcShip" maxlength="24" spellcheck="false" placeholder="Velscour"><button type="button" class="btn violet tc-dice" id="tcShipDice" title="Random name">&#9860;</button></div></div>
+    <div class="tc-note" id="tcNote">Letters, numbers and ordinary punctuation. Leave either blank for the default.</div>
+    <div class="tc-foot"><button type="button" class="btn violet" id="tcBack">Back</button><button type="submit" class="btn" id="tcGo">Take command</button></div>
+  </form>
   <div class="load" id="titleLoad"><div class="bar xp"><i style="width:0%"></i></div><div class="ltxt">Initialising renderer…</div></div>
   <div class="keys">W/S throttle · A/D rudder · R/F altitude · Right-click sail · Left-click / Tab target · Space broadside · 1–8 abilities · I cargo · C ship · T skills · P autoplay · Wheel zoom · Q/E or middle-drag rotate</div>
   <div class="ver" id="ver"></div>

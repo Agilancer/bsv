@@ -169,7 +169,7 @@ export function expectedPlayer(L) {
 // Share of sheet DPS that lands, by enemy size, in a fight joined mid-cooldown-cycle: small craft
 // are hard to hit; big hulls can't get out of the way and eat ability bursts — volleys, torpedo
 // spreads, overcharge — so their factor exceeds 1 (calibrated with tools/duel.cjs).
-export const ENGAGE_BY_SIZE = [0.6, 0.45, 1.2, 0.8, 0.21, 0.12];
+export const ENGAGE_BY_SIZE = [0.46, 0.45, 1.2, 0.8, 0.21, 0.12];
 // share of the captain's hull repair each enemy must also cover: escorts fight in packs, bosses alone
 export const REGEN_SHARE_BY_SIZE = [0.35, 0.35, 0.5, 0.7, 1, 1];
 
@@ -185,15 +185,24 @@ export function expectedExtras(L) {
   return x;
 }
 
-// Boss pools across ranks: the captain's damage against single huge targets outgrows his sheet as
-// he ranks up (ability bursts, crit, reactive gear powers all compound), so epic-and-up pools scale
-// with rank around an L30 anchor (measured: L15 epics took ~3.8x too long, L50 legendaries and
-// gargantuans died 3-15x too fast with one constant per size).
-export const BOSS_RANK_EXP = [0, 0, 0, 1.5, 2.0, 2.5];
-export function bossRankScale(si, L) {
-  const k = BOSS_RANK_EXP[si] || 0;
-  return k ? Math.min(4, Math.max(0.3, Math.pow(Math.max(1, L) / 30, k))) : 1;
+// Boss pools and damage across ranks. One constant per size does not hold: the captain's damage
+// against a single huge target outgrows his sheet as he ranks up (ability bursts, crits and reactive
+// gear powers compound) while a boss's own repair eats a rank-dependent share of it, so the measured
+// time-to-kill is far from linear in the pool. Epic-and-up pools and damage are therefore tabulated at
+// the ranks tools/duel.cjs measures (5, 15, 30, 50) and interpolated between. Recalibrate a column by
+// dividing the pool entry by the measured `rP` (and multiplying the damage entry by `rE`), damped.
+export const BOSS_LEVELS = [5, 15, 30, 50];
+export const BOSS_POOL_SCALE = { 3: [0.78, 0.87, 1.13, 1.87], 4: [1.05, 1.92, 1.5, 2.88], 5: [0.62, 0.8, 1.3, 4.2] };
+export const BOSS_DMG_SCALE = { 3: [1.0, 0.85, 1.45, 1.9], 4: [0.55, 1.35, 2.2, 2.2], 5: [0.75, 1.0, 2.2, 2.2] };
+function byRank(table, L) {
+  if (!table) return 1;
+  const X = BOSS_LEVELS;
+  if (L <= X[0]) return table[0];
+  for (let i = 1; i < X.length; i++) if (L <= X[i]) return table[i - 1] + (table[i] - table[i - 1]) * (L - X[i - 1]) / (X[i] - X[i - 1]);
+  return table[X.length - 1];
 }
+export function bossRankScale(si, L) { return byRank(BOSS_POOL_SCALE[si], L); }
+export function bossDmgScale(si, L) { return byRank(BOSS_DMG_SCALE[si], L); }
 
 // target pools for an enemy of size index si at level L (from the captain with his extras)
 export function enemyTargets(si, L) {

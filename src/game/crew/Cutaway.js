@@ -385,13 +385,12 @@ export class Cutaway {
     }
     for (const l of prof.lines) {
       const ax = g.XZ(l.z0), ay = g.Y(l.y0), bx = g.XZ(l.z1), by = g.Y(l.y1);
-      if (l.kind === 'sail') {
-        // a solar sail on its mast: a faint panel aft of the mast, three yards across it
-        const sw = g.XZ(l.z0) - g.XZ(l.z0 - l.sw), s0 = ay + (by - ay) * 0.15, s1 = ay + (by - ay) * 0.95;
-        c.fillStyle = 'rgba(88,200,255,0.07)'; c.fillRect(ax - sw * 0.6, s1, sw, s0 - s1);
-        c.strokeStyle = 'rgba(88,200,255,0.3)'; c.strokeRect(ax - sw * 0.6, s1, sw, s0 - s1);
-        for (let k = 0; k < 3; k++) { const yy = ay + (by - ay) * (0.2 + k * 0.33); c.beginPath(); c.moveTo(ax - sw * 0.62, yy); c.lineTo(ax + sw * 0.42, yy); c.stroke(); }
-        c.strokeStyle = 'rgba(160,220,255,0.75)';
+      if (l.kind === 'fin') {
+        // a solid dorsal blade: swept, highest a third of the way along
+        const sw = g.XZ(l.z0) - g.XZ(l.z0 - l.sw), x0 = ax - sw * 0.6;
+        c.beginPath(); c.moveTo(x0, ay); c.lineTo(x0 + sw * 0.3, by); c.lineTo(x0 + sw * 0.75, ay + (by - ay) * 0.72); c.lineTo(x0 + sw, ay); c.closePath();
+        c.fillStyle = 'rgba(88,200,255,0.12)'; c.fill(); c.strokeStyle = 'rgba(160,220,255,0.75)'; c.stroke();
+        continue;
       }
       c.lineWidth = l.kind === 'bowsprit' ? 2 : 1.2;
       c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();

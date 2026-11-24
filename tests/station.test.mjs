@@ -121,3 +121,11 @@ test('refit yard keeps a legendary\'s name and unique powers (overhaul keeps its
   }
   assert.equal(lost, 0);
 });
+
+test('the jump lanes form a web: every system has a choice of ways on, and home has two reachable neighbours', async () => {
+  const { galaxy } = await import('../src/game/galaxy.js');
+  const S = galaxy().systems;
+  for (const s of S) { assert.ok(s.links.length >= 2 && s.links.length <= 5, `${s.name} has ${s.links.length} lanes`); for (const l of s.links) assert.ok(S[l].links.includes(s.id), 'lanes run both ways'); }
+  assert.ok(S[0].links.filter((l) => S[l].danger <= 8).length >= 2, 'two lanes a new captain can take');
+  assert.ok(S.reduce((a, s) => a + s.links.length, 0) / 2 >= 100);
+});

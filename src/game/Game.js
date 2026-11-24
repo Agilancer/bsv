@@ -63,7 +63,11 @@ export class Game {
   }
 
   start(fresh = false) {
-    this.data = (!fresh && load()) || newPlayer();
+    // a captain made on the title screen brings their own names (main.js sets game.newCaptain)
+    const nc = fresh && this.newCaptain;
+    this.data = (!fresh && load()) || newPlayer(nc && nc.name ? nc.name : undefined);
+    if (nc && nc.ship) this.data.ship.name = nc.ship;
+    this.newCaptain = null;
     this.statProviders.push((g) => talentStats(g.data));
     this.spaceScene = this.engine.scene; this.spaceCamera = this.engine.camera;
     this.world = new World(this.engine, this.cam);
@@ -75,7 +79,7 @@ export class Game {
     this.wireEvents();
     this.enterSystem(this.data.system || 0);
     this.engine.add(this);
-    this.ui.chat('SYS', null, `Welcome aboard, Captain. ${this.engine.backend} renderer online.`, 'sys');
+    this.ui.chat('SYS', null, `Welcome aboard the ${this.data.ship.name}, Captain${this.data.name && this.data.name !== 'Captain' ? ' ' + this.data.name : ''}. ${this.engine.backend} renderer online.`, 'sys');
     this.ui.chat('SYS', null, document.body.classList.contains('mobile') ? 'Left stick steers · tap a ship to target · tap space to sail · pinch to zoom, twist or drag to turn the camera · hold anything for details' : 'W/S throttle · A/D rudder · R/F altitude · Right-click sail · Tab target · 1-8 abilities · I cargo', 'sys');
   }
 
@@ -364,6 +368,7 @@ export class Game {
     // guild module: an arena handles its own deaths (true); a PvP loss in open space costs nothing ('waive')
     const pvp = this.pvpDeath ? this.pvpDeath(killer) : false;
     if (pvp === true) return;
+    this.data.deaths = (this.data.deaths || 0) + 1;   // hulls lost in open space (arena respawns are not counted)
     this.ui.death(true);
     this.autoplayWasOn = !!this.autoplay;
     const lost = pvp ? 0 : Math.min(Math.round(this.data.credits * 0.04), 500 + this.data.level * 150);

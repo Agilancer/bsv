@@ -8,7 +8,7 @@
 // the hull's existing per-material meshes (no extra draw calls). Its own RNG keeps the hull's dice
 // (and so every seeded placement that predates it) where they were.
 import * as THREE from 'three/webgpu';
-import { sectionAt } from './hullPlan.js';
+import { sectionAt, MAST_K } from './hullPlan.js';
 import { RNG } from '../../engine/rng.js';
 
 const _v = new THREE.Vector3();
@@ -80,16 +80,8 @@ export function addDetail(P, T, { chassis, y, plan, G, outX }) {
     vfin('trim', br.l * 1.1, Ht * 0.9, br.x, br.y1 - br.h * 0.1, br.z + br.l * 0.2, 0.5);
     lamp('engine', Math.max(W * 0.045, 0.22), br.x, br.y1 + Ht * 0.86, br.z - br.l * 0.8);
   }
-  // master mast: crossyards with tip lights and a hot masthead beacon
-  if (plan.mast) {
-    const mh = plan.spireH * 1.5;
-    for (let k = 0; k < 2; k++) {
-      const yy = plan.top + mh * (0.36 + k * 0.22), w = W * (0.75 - k * 0.28);
-      P.box('trim', w, W * 0.04, W * 0.04, cx, yy, castle.crownZ);
-      for (const sx of [1, -1]) spark('glow', Math.max(W * 0.05, 0.2), cx + sx * w / 2, yy, castle.crownZ);
-    }
-    lamp('engine', Math.max(W * 0.06, 0.26), cx, plan.top + mh * 0.99, castle.crownZ);
-  }
+  // sensor pylon: a hot beacon at its tip (no crossyards: there is nothing to hang from them)
+  if (plan.mast) lamp('engine', Math.max(W * 0.06, 0.26), cx, plan.top + plan.spireH * 1.5 * MAST_K * 0.99, castle.crownZ);
   if (!organic) {
     // running lights: stem, both quarters
     lamp('engine', Math.max(W * 0.05, 0.22), 0, plan.stem.yo + plan.stem.ht + W * 0.06, plan.stem.z - L * 0.004);
@@ -156,7 +148,7 @@ const YARD_DRESS = {
     }
     // gilded crest over the ram
     if (!plan.spine && y_prow(D) === 'ram') {
-      const hs = [0.03, 0.55, 0.45, 0.1];
+      const hs = [0.03, 0.28, 0.24, 0.08];   // a low armoured ridge down the bow, not a helmet crest
       P.add('trim', T.loft([0.78, 0.88, 0.95, 1.0].map((u, i) => {
         const s = sectionAt(plan, Z(plan.bowU(u))), h = Ht * hs[i] / 2;
         return { z: s.z, w: W * 0.055, ht: h, hb: h, yo: s.yo + s.ht + h * 0.85 };
@@ -213,25 +205,7 @@ const YARD_DRESS = {
   tidewright(D) {
     const { P, plan, towers, t0, cx, at, lamp, vfin } = D;
     const { L, W, Ht, Hb, Z, castle, taperStart } = plan;
-    const masts = plan.sailMasts, w = Math.max(W * 0.022, 0.1);
-    if (masts.length) {
-      const top = (m) => Ht + m.h * 0.98;
-      P.seg('dark', 0, top(masts[0]), masts[0].z, cx, plan.top - Ht * 0.1, castle.crownZ, w, w);
-      for (let i = 0; i < masts.length - 1; i++) {
-        P.seg('dark', 0, top(masts[i]), masts[i].z, 0, Ht * 1.1, masts[i + 1].z, w, w);
-        P.seg('dark', 0, top(masts[i + 1]), masts[i + 1].z, 0, Ht * 1.1, masts[i].z, w, w);
-      }
-      const last = masts[masts.length - 1], sp = plan.bowsprit;
-      if (sp) P.seg('dark', 0, top(last), last.z, 0, sp.y, sp.z1 - L * 0.02, w, w);
-      // shrouds to both rails
-      for (const m of masts) {
-        const p = at(m.u, 2);
-        for (const sx of [1, -1]) P.seg('dark', 0, Ht + m.h * 0.7, m.z, sx * p.x, p.y, p.z - L * 0.02, w, w);
-      }
-      const tall = masts.reduce((a, b) => (b.h > a.h ? b : a));
-      P.cyl('trim', W * 0.16, W * 0.11, W * 0.14, 0, Ht + tall.h * 0.88, tall.z, 'y', 8);
-      lamp('engine', Math.max(W * 0.06, 0.26), 0, Ht + tall.h * 1.02, tall.z);
-    }
+    // (no standing rigging and no crow's nest: the dorsal blades stand on their own)
     for (const t of towers) mullions(D, t, cx);
     // stern lanterns and the transom gallery
     for (const sx of [1, -1]) {

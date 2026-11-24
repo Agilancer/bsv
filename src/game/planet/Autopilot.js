@@ -12,6 +12,17 @@ const _v = new THREE.Vector3(), _w = { x: 0, z: 0 };
 // creatures that bite up close: when one is on top of us it takes the guns before the apex
 const CLOSE_AI = { melee: 1, kamikaze: 1, charger: 1, brute: 1, burrow: 1 };
 
+// is an active quest (or the story's live step) counting curiosity scans?
+export function scansOwed(P) {
+  const sq = P.story && P.story.q;
+  if (sq && sq.ev === 'scan' && (sq.progress || 0) < sq.n) return true;
+  for (const q of P.contracts || []) if (q.ev === 'scan' && (q.progress || 0) < q.n) return true;
+  return false;
+}
+// ...or anything else that only happens on the ground (the landing goal goes sooner for these)
+const GROUND_EVS = new Set(['scan', 'bank', 'gkill', 'dungeon', 'land', 'punt']);
+export function storyNeedsGround(P) { const sq = P.story && P.story.q; return !!(sq && GROUND_EVS.has(sq.ev) && (sq.progress || 0) < sq.n); }
+
 export class PlanetPilot {
   constructor(mode) { this.mode = mode; this.t = 0; this.goal = null; this.stuck = 0; this.last = new THREE.Vector3(); this.wiggle = 0; }
 
@@ -102,7 +113,9 @@ export class PlanetPilot {
       const dig = this.duel ? nearNode : this.bestNode(pos, 400);
       // curiosities: a short detour while there is digging to do, a real trip when there is not,
       // and the last one of a site is always worth it (a fully surveyed site drops a bonus cache)
-      const curio = M.curios ? M.curios.nearestOpen(pos, this.duel ? 90 : !dig ? 400 : M.curios.total - M.curios.done <= 1 ? 250 : 90, (c) => (c.autoT || 0) < 25) : null;
+      // ...and when a quest or the story is waiting on scans, they are what the run is for
+      const owed = !this.duel && scansOwed(M.data);
+      const curio = M.curios ? M.curios.nearestOpen(pos, this.duel ? 90 : owed ? 1500 : !dig ? 400 : M.curios.total - M.curios.done <= 1 ? 250 : 90, (c) => (c.autoT || 0) < (owed ? 60 : 25)) : null;
       // dungeons and lairs only when the explorer is a match for the site, healthy, and there is
       // run time left to make it count
       const fit = this.duel || (M.ex.level + 2 >= M.siteInfo.level && hpF > 0.6);
@@ -263,7 +276,8 @@ export function makePlanetGoal(game) {
       if (g.planet && ['scanning', 'panel', 'drop', 'entering'].includes(g.planet.scanner.state)) return 5;
       const ex = ensureExplorer(g.data);
       const since = g.data.playtime - (ex.lastRunAt || -1e9);
-      if (since < 300) return 0;
+      const story = storyNeedsGround(g.data);   // the campaign is waiting on something only a landing can do: shorter rest between runs (the session budget still holds)
+      if (since < (story ? 150 : 300)) return 0;
       // planets share the session with space: at most ~30% of it on the ground, counting the next run
       // not before the first-session objectives are done (or a quarter hour in), and only if the
       // session stays at most ~25% ground time once the coming run (~5 min) is counted

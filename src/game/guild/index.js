@@ -349,6 +349,7 @@ export function installGuild(game) {
           done(); return 0;
         }
         if (!game.player || game.docked || game.mode !== 'space' || !G.g) return 0;
+        if (game.data.level < D.PVP_AUTO_MIN_LEVEL) return 0;
         return now() >= nextAt ? 0.8 : 0;
       },
       update() {

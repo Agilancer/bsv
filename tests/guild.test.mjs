@@ -242,3 +242,11 @@ test('match rewards and the quartermaster', () => {
   for (const cs of D.COSMETICS) assert.ok(cs.type === 'title' || D.EMBLEM_BY_KEY[cs.value].exclusive);
   assert.equal(pvp.rating, D.START_RATING);
 });
+
+test('opposing PvP captains are eased for new captains and at full strength from rank 10', async () => {
+  const D = await import('../src/game/guild/data.js');
+  assert.equal(D.earlyHandicap(10), 1); assert.equal(D.earlyHandicap(40), 1);
+  assert.ok(D.earlyHandicap(1) >= 0.45 && D.earlyHandicap(1) < D.earlyHandicap(5) && D.earlyHandicap(5) < D.earlyHandicap(9) && D.earlyHandicap(9) < 1);
+  const full = D.pvpTargets(3), eased = D.pvpTargets(3, D.BOT, D.earlyHandicap(3));
+  assert.ok(eased.pool < full.pool && eased.dps < full.dps && eased.pool > full.pool * 0.6);
+});

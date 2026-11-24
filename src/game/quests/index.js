@@ -9,6 +9,8 @@
 //   game.quests.autoAccept(station) the autoplay captain's pick of the board
 import { MAX_ACTIVE, boardOffers, rotationOf, advance, isDone, chainNext, migrateContract, progressText, CAT_NAMES, ROTATION_SECONDS } from './data.js';
 import { questGoal, autoAccept } from './auto.js';
+import { installStory } from './storyRun.js';
+import { CURIO_KINDS } from '../planet/lifeData.js';
 import { galaxy } from '../galaxy.js';
 import { RARITY, rollItem } from '../data/items.js';
 import { INV_SIZE, save } from '../Player.js';
@@ -18,12 +20,13 @@ import { kindOf } from '../station/services.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmt = (n) => (n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'k' : Math.round(n).toString());
-const _e = { n: 1, faction: null, elite: 0, size: 0, boss: false, system: 0, station: 0, repeat: false, res: null, ptype: null, rarity: 0 };   // reused event (no per-event garbage)
+const _e = { n: 1, faction: null, elite: 0, size: 0, boss: false, system: 0, station: 0, repeat: false, res: null, ptype: null, rarity: 0, tag: null, kind: null };   // reused event (no per-event garbage)
 
 export function installQuests(game) {
   let dirty = true, trackT = 0, trackSig = '';
   let lastCredits = 0, lastSalvage = 0, started = false, lastDockKey = -1;
-  const resSnap = {};
+  const resSnap = {}, curioSnap = {};
+  let logTab = 'quests', lastMode = 'space', story = null;
   // planet-run counters we have already turned into events
   const run = { mode: null, kills: 0, bosses: 0, curios: 0, punts: 0, dungeons: 0 };
 
@@ -66,6 +69,9 @@ export function installQuests(game) {
     },
     emit(ev, e) {
       if (!started) return;
+      // the story step rides on top of the cap: same tracker, its own slot
+      const sq = story && story.quest();
+      if (sq && advance(sq, ev, e)) { dirty = true; sq.tp = P().playtime || 0; if (isDone(sq)) story.complete(); else if (sq.n >= 4) game.ui.chat('STORY', null, `${sq.title}: ${progressText(sq)}`, 'sys'); }
       const A = active();
       for (let i = A.length - 1; i >= 0; i--) {
         const q = A[i], before = q.progress || 0;
@@ -90,13 +96,14 @@ export function installQuests(game) {
     },
     onSell(it) { _e.n = 1; _e.rarity = RARITY[it.rarity] ? RARITY[it.rarity].i : 0; Q.emit('sell', _e); },
     boardHtml, bindBoard,
+    openStory() { logTab = 'story'; game.ui.toggle('quests', true); },
     // payments we make ourselves must not count as "credits earned" / "resources banked"
     resync() { lastCredits = P().credits; lastSalvage = P().salvage || 0; for (const k of RES_KEYS) resSnap[k] = (P().resources && P().resources[k]) || 0; },
   };
 
-  function complete(q) {
-    const D = P(), A = active(), L = log(), r = q.reward || {};
-    const i = A.indexOf(q); if (i >= 0) A.splice(i, 1);
+  // wire a quest's reward; returns the " · extras" text for the log line
+  function pay(q) {
+    const D = P(), r = q.reward || {};
     D.credits += r.credits || 0;
     if (r.xp) game.gainXp(r.xp);
     let extra = '';
@@ -106,10 +113,16 @@ export function installQuests(game) {
       else { const v = Math.round(it.value * 0.6); D.credits += v; extra += ` · hold full: ${it.name} sold for ${fmt(v)} ¢`; }
     }
     if (r.res) { addResources(D, r.res); extra += ' · ' + Object.entries(r.res).map(([k, v]) => `${v} ${RESOURCES[k] ? RESOURCES[k].short : k}`).join(' '); }
+    Q.resync();
+    return extra;
+  }
+  function complete(q) {
+    const D = P(), A = active(), L = log(), r = q.reward || {};
+    const i = A.indexOf(q); if (i >= 0) A.splice(i, 1);
+    const extra = pay(q);
     L.done++; L.credits += r.credits || 0;
     L.ids.push(q.id); if (L.ids.length > 80) L.ids.splice(0, L.ids.length - 80);
     (L.recent ||= []).unshift({ title: q.title, giver: q.giver, credits: r.credits || 0 }); if (L.recent.length > 6) L.recent.length = 6;
-    Q.resync();
     game.ui.toast(`Quest complete: ${q.title} (+${fmt(r.credits || 0)} ¢)`, 'epic');
     game.ui.chat('QUEST', null, `${q.title} complete. ${q.giver} wires ${fmt(r.credits || 0)} ¢ and ${fmt(r.xp || 0)} XP${extra}.`, 'loot', 'loot');
     if (game.audio) game.audio.play('levelup', null, 0.5);
@@ -126,6 +139,9 @@ export function installQuests(game) {
     save(D);
   }
 
+  story = installStory(game, Q, { pay, dirty: () => { dirty = true; } });
+  Q.story = story;
+
   // ---------------------------------------------------------------- wiring
   const enter = game.enterSystem.bind(game);
   game.enterSystem = (id) => {
@@ -141,6 +157,7 @@ export function installQuests(game) {
     D.contracts = (D.contracts || []).map(migrateContract);
     log();
     Q.resync();
+    for (const k of CURIO_KINDS) curioSnap[k] = (D.curios && D.curios[k]) || 0;
     started = true;
     const ev = game.world.events;
     ev.on('kill', ({ ship, killer }) => {
@@ -149,7 +166,7 @@ export function installQuests(game) {
       _e.n = 1; _e.faction = ship.faction; _e.elite = ship.elite || 0;
       _e.size = ship.design ? ship.design.sizeIndex : tier <= 2 ? 0 : tier <= 4 ? 1 : tier <= 6 ? 2 : 3;
       _e.boss = ship.elite === 2 || _e.size >= 3;
-      _e.system = game.sector.sys.id;
+      _e.system = game.sector.sys.id; _e.tag = ship.storyTag || null;
       Q.emit('kill', _e);
     });
     ev.on('collect', (d) => { if (d.type !== 'item' || !d.item) return; _e.n = 1; _e.rarity = RARITY[d.item.rarity] ? RARITY[d.item.rarity].i : 0; Q.emit('collect', _e); });
@@ -171,6 +188,7 @@ export function installQuests(game) {
     }
     document.getElementById('ui').insertAdjacentHTML('beforeend', '<div id="questTrack" class="holo"></div>');
     document.getElementById('questTrack').onclick = () => game.command('quests');
+    story.start();
   })(game.start.bind(game));
 
   addEventListener('keydown', (e) => {
@@ -188,6 +206,14 @@ export function installQuests(game) {
     update(dt) {
       if (!started || !game.data) return;
       const D = game.data;
+      if (game.mode !== lastMode) { lastMode = game.mode; if (lastMode === 'bridge') { _e.n = 1; Q.emit('bridge', _e); } }
+      // a hand signing on is a tracker event (crew installs after us, so hook it lazily)
+      if (game.crew && !game.crew._questHire && typeof game.crew.hire === 'function') {
+        const crew = game.crew, hire = crew.hire.bind(crew);
+        crew._questHire = true;
+        crew.hire = (...a) => { const st = crew.state, n0 = st && st.members ? st.members.length : 0; const r = hire(...a); if (crew.state && crew.state.members && crew.state.members.length > n0) { _e.n = 1; Q.emit('crew', _e); } return r; };
+      }
+      story.tick(dt);
       if (D.credits > lastCredits) { _e.n = D.credits - lastCredits; lastCredits = D.credits; Q.emit('earn', _e); } else lastCredits = D.credits;
       const sv = D.salvage || 0;
       if (sv > lastSalvage) { _e.n = sv - lastSalvage; lastSalvage = sv; Q.emit('salvage', _e); } else lastSalvage = sv;
@@ -207,7 +233,16 @@ export function installQuests(game) {
         const plain = (kills - run.kills) - (bosses - run.bosses);
         if (plain > 0) { _e.n = plain; _e.boss = false; Q.emit('gkill', _e); }
         run.kills = kills; run.bosses = bosses;
-        if ((S.curios || 0) > run.curios) { _e.n = S.curios - run.curios; run.curios = S.curios; Q.emit('scan', _e); }
+        if ((S.curios || 0) > run.curios) {
+          // which curiosity it was: the codex counts them per kind
+          let left = S.curios - run.curios; run.curios = S.curios;
+          const C = D.curios;
+          if (C) for (let i = 0; i < CURIO_KINDS.length && left > 0; i++) {
+            const k = CURIO_KINDS[i], v = C[k] || 0, was = curioSnap[k] || 0;
+            if (v > was) { _e.n = Math.min(left, v - was); _e.kind = k; left -= _e.n; curioSnap[k] = v; Q.emit('scan', _e); }
+          }
+          if (left > 0) { _e.n = left; _e.kind = null; Q.emit('scan', _e); }
+        }
         if ((S.punts || 0) > run.punts) { _e.n = S.punts - run.punts; run.punts = S.punts; Q.emit('punt', _e); }
         let cleared = 0;
         if (M.dungeons) for (let i = 0; i < M.dungeons.length; i++) if (M.dungeons[i].dungeon && M.dungeons[i].dungeon.cleared) cleared++;
@@ -235,12 +270,13 @@ export function installQuests(game) {
     for (const q of A) top3.push(q);
     top3.sort((a, b) => (b.tp == null ? -1 : b.tp) - (a.tp == null ? -1 : a.tp));   // most recent progress first; untouched jobs keep their order
     top3.length = Math.min(3, top3.length);
-    let sig = A.length + '|';
+    let sig = A.length + '|' + story.trackerSig() + '|';
     for (const q of top3) sig += q.id + ':' + Math.floor(q.progress || 0) + ';';
     if (sig === trackSig) return;
     trackSig = sig;
-    el.style.display = A.length ? '' : 'none';
-    el.innerHTML = `<div class="qh"><b>QUESTS</b><span>${A.length}/${MAX_ACTIVE}</span></div>` + top3.map((q) => `<div class="qt"><b>${progressText(q)}</b><span>${esc(q.obj)}</span></div>`).join('');
+    const sh = story.trackerHtml();
+    el.style.display = A.length || sh ? '' : 'none';
+    el.innerHTML = (sh ? `<div class="qh story"><b>STORY</b><span>◆</span></div>${sh}` : '') + (A.length ? `<div class="qh"><b>QUESTS</b><span>${A.length}/${MAX_ACTIVE}</span></div>` : '') + top3.map((q) => `<div class="qt"><b>${progressText(q)}</b><span>${esc(q.obj)}</span></div>`).join('');
   }
 
   // ---------------------------------------------------------------- shared pieces of quest UI
@@ -269,6 +305,8 @@ export function installQuests(game) {
     h += offers.map((q) => `<div class="svc quest"><div class="qmain"><div class="title">${catTag(q)}${esc(q.title)}</div>
       <div class="qobj">${esc(q.obj)}</div><div class="label qfrom">${esc(q.giver)}</div><div class="qtext">“${esc(q.text)}”</div></div>
       <div class="qside">${rewardText(q.reward)}<button class="btn" data-qtake="${esc(q.id)}" ${A.length < MAX_ACTIVE ? '' : 'disabled'}>Accept</button></div></div>`).join('') || '<div class="label" style="padding:6px 10px">Board cleared. Come back when they have thought of more problems.</div>';
+    const sq = story.quest();
+    if (sq) h += `<div class="label" style="margin:14px 0 6px">Story</div><div class="svc quest story"><div class="qmain"><div class="title"><span class="qcat c-story">Story</span>${esc(sq.title)}</div><div class="qobj">${esc(sq.obj)}</div><div class="label qfrom">${esc(sq.giver)} · ${progressText(sq)}</div></div><div class="qside">${rewardText(sq.reward)}</div></div>`;
     h += `<div class="label" style="margin:14px 0 6px">Your quests (${A.length}/${MAX_ACTIVE})</div>`;
     h += A.map(activeRow).join('') || '<div class="label" style="padding:6px 10px">None yet.</div>';
     return h;
@@ -287,7 +325,10 @@ export function installQuests(game) {
   function renderLog() {
     const W = game.ui.windows.quests; if (!W) return;
     const body = W.querySelector('.wbody'), A = active(), L = log();
-    let h = `<div class="label" style="margin-bottom:8px">Active ${A.length}/${MAX_ACTIVE} · completed ${L.done} · ${fmt(L.credits)} ¢ earned from quests</div>`;
+    const tabs = `<div class="qtabs"><button class="btn ${logTab === 'quests' ? '' : 'violet'}" data-qtab="quests">Quests ${A.length}/${MAX_ACTIVE}</button><button class="btn ${logTab === 'story' ? '' : 'violet'}" data-qtab="story">◆ Story</button></div>`;
+    const bindTabs = () => body.querySelectorAll('[data-qtab]').forEach((b) => b.onclick = () => { logTab = b.dataset.qtab; renderLog(); });
+    if (logTab === 'story') { body.innerHTML = tabs + story.tabHtml(); bindTabs(); story.bindTab(body); return; }
+    let h = tabs + `<div class="label" style="margin-bottom:8px">Active ${A.length}/${MAX_ACTIVE} · completed ${L.done} · ${fmt(L.credits)} ¢ earned from quests</div>`;
     h += A.map(activeRow).join('');
     if (!A.length) {
       const here = game.stations.map((s) => `${esc(s.name)} <span class="label">(${esc(kindOf(s.kind).name || s.kind)})</span>`).join(' · ');
@@ -296,6 +337,7 @@ export function installQuests(game) {
     if (game.docked) h += '<div style="margin-top:12px"><button class="btn violet" id="qBoard">Open the station board</button></div>';
     if (L.recent && L.recent.length) h += `<div class="label" style="margin:14px 0 4px">Recently completed</div>` + L.recent.map((r) => `<div class="qdone"><span>✓ ${esc(r.title)} <i>${esc(r.giver)}</i></span><b>${fmt(r.credits)} ¢</b></div>`).join('');
     body.innerHTML = h;
+    bindTabs();
     bindDrops(body, renderLog);
     const bb = body.querySelector('#qBoard');
     if (bb) bb.onclick = () => { game.ui.toggle('quests', false); if (game.openStationTab) game.openStationTab('quests'); };
