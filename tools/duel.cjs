@@ -24,6 +24,9 @@ const { chromium } = require('playwright');
     const { standardTalents } = await import('./src/game/data/talents.js');
     const { SHIP_UPGRADES } = await import('./src/game/planet/economy.js');
     g.sector.director.update = () => {}; if (g.npcs) g.npcs.update = () => {};
+    // only the game (which steps the world) and the particle layers keep running: population, crew, guild
+    // zones, quest polling and the story tick on their own timers and draw from the duel's random stream
+    for (const s of __engine.systems) if (s !== g && s.capacity === undefined) { if (s.update) s.update = () => {}; if (s.lateUpdate) s.lateUpdate = () => {}; }
     const { ABILITIES } = await import('./src/game/data/abilities.js');
     // the crew's contribution is pinned to what the contract expects (a live crew is random)
     if (g.crew) { const i = g.statProviders.indexOf(g.crew.provider); if (i >= 0) g.statProviders[i] = () => ({ dmg: 0.02, hull: 0.03, shield: 0.02 }); }
@@ -33,6 +36,8 @@ const { chromium } = require('playwright');
       for (let si = 0; si < 6; si++) for (let sample = 0; sample < SAMPLES; sample++) {
         if (!ONLY.includes(si)) continue;
         for (const s of W.ships.slice()) if (s !== g.player) W.removeShip(s);
+        // nothing carried over from the previous duel: shots and torpedoes in flight, hangar craft, loot, scheduled spawns
+        W.projectiles.clear(); W.beams.clear(); W.hangars.clear(); W.loot.clear(); W.timers.length = 0; W.fields.length = 0; W.warnings.length = 0;
         g.data.level = L; g.data.ship.level = L; g.data.ship.chassis = `velscour_${E.tier}`;
         g.data.ship.loadout = starterLoadout({ ...(await import('./src/game/data/chassis.js')).CHASSIS_BY_ID[`velscour_${E.tier}`] }, L, new RNG(L + si + sample * 101), 'rare');
         g.data.talents = standardTalents(L).talents;     // the contract's captain has the standard build

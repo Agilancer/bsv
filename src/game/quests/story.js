@@ -109,7 +109,8 @@ export const STEPS = [
     journal: 'Ran a crate of "garden ornaments" to the Waypoint for Purser Dregg. It hummed. A printer signed for it.',
     next: 'a1_saltwound' },
   { id: 'a1_saltwound', act: 1, lvl: 3, title: 'The Salt Wound', giver: 'xo', ev: 'kill', in: 'Velscour', n: 1, effort: 6, item: 'rare',
-    setpiece: { type: 'boss', design: 'Buccaneer', champion: true, name: 'Rustjaw Kell, the Salt Wound', escorts: ['Cutthroat', 'Gutterknife'] },
+    // (the first named ship a rank-3 captain meets: one escort and no champion's hull — it was sinking one new captain in four)
+    setpiece: { type: 'boss', design: 'Buccaneer', name: 'Rustjaw Kell, the Salt Wound', escorts: ['Gutterknife'] },
     obj: 'Destroy Rustjaw Kell\'s Salt Wound in Velscour',
     brief: [
       ['xo', 'Captain Vane\'s last convoy was jumped on its way out of Velscour. One pirate walked away with her strongbox: Rustjaw Kell, of the Salt Wound. He has been bragging about it in every bar that still serves him.'],

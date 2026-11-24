@@ -213,6 +213,11 @@ export function installStory(game, Q, hooks) {
       return;
     }
     if (tagged(s.cur) > 0) { sp.gap = 0; return; }
+    // a set piece never lands on top of another fight: while anything else hostile is close, or the hull is
+    // badly holed, the next wave (or the named ship) holds off (stacked on a zone garrison it sank new captains)
+    const me = game.player, W = game.world;
+    if (me.hull < me.maxHull * 0.5) { sp.gap = 0; return; }
+    for (const o of W.ships) if (o.alive && o !== me && !o.storyTag && W.hostile(me, o) && o.position.distanceToSquared(me.position) < 1500 * 1500) { sp.gap = 0; return; }
     if (!sp.gap) { sp.gap = now + (sp.first ? 5 : piece.type === 'boss' ? 25 : 6); return; }
     if (now < sp.gap) return;
     sp.gap = 0; sp.first = false;

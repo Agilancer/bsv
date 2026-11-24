@@ -67,6 +67,9 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   seeded, 5 designs per cell, abilities off = sustained gunnery; `--sizes=4,5` to shard),
   `node tools/groundduel.cjs 5,15,30,50 --gate` (surface: kiting and static explorer vs the ground
   contract in `planet/groundBalance.js`; `--dungeon` for dungeons)
+- A new game starts docked with the tutorial running: `?play&new` still skips the title, and the duel
+  harnesses undock first. Timers (planetfall, overlays) only fire between `page.evaluate` calls, so drive
+  long autoplay runs in chunks like `tools/soak.cjs` does, not in one synchronous loop.
 - `python3 tools/serve.py 8420`, then `node tools/shot.cjs "index.html?play&new&webgl" out.png 15000`
   (`EVAL="…"`, `POSTWAIT=ms`). Headless WebGPU canvases screenshot black: use `&webgl` for
   pictures and `tools/gpuprobe.html` to verify the WebGPU path by pixel readback.
@@ -89,6 +92,11 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   seconds, `pvpEngage(L)`, per-mode `focus`); `node tools/pvp.cjs 4 --fixed` measures the autoplay
   captain's win rate at equal rating (target ~50%). Guild perks are capped at +8% XP, +8% credits,
   +1.5% hull per kill (`guildPerks`).
+- Epic-and-up pools and damage are tabulated per rank (`BOSS_POOL_SCALE`, `BOSS_DMG_SCALE` at ranks 5/15/30/50,
+  interpolated). Boss time-to-kill is not smooth in the pool (escorts and phases make cliffs), so correct a
+  column with a damped step and re-measure; `duel.cjs` results still move ~10% with which duels ran before.
+- Opposing PvP captains are eased below rank 10 (`guild/data.js earlyHandicap`); the autopilot leaves PvP
+  alone until rank 6. Story set pieces hold off while another fight is on or the hull is under half.
 - Telegraphed specials pass `TELEGRAPH` (Combat.js) as ws: their own per-hit budget, outside the
   `MIN_TTK` per-source window. Escorts a boss spawns set `capRoot` to share its window.
 

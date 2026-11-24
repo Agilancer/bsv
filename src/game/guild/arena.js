@@ -127,7 +127,7 @@ export function installArena(game, G) {
         if (mate) names.add(mate.name);
         const rating = side === 0 ? myRating + rng.float(-40, 40) : oppRating + (duel ? 0 : rng.float(-40, 40));
         const rec = { side, i: side === 0 ? i + 1 : i, n: mode.team, name: duel ? opp.name : mate ? mate.name : pick(), guild: side === 0 ? (mate ? g.tag : bloc ? rng.pick(bloc.guilds) : g && rng.chance(0.3) ? g.tag : null) : foeGuild, own: !!mate, yard: duel ? opp.yard : rng.pick(YARDS), seed: rng.int(1, 1e9), power: D.botPower(rating), kills: 0, deaths: 0, rt: 0, ship: null };
-        rec.contract = D.pvpTargets(M.level, D.BOT, rec.power.power);
+        rec.contract = D.pvpTargets(M.level, D.BOT, rec.power.power * (side === 1 ? D.earlyHandicap(M.level) : 1));
         rec.contract.dps /= mode.focus || 1; rec.contract.pool *= mode.tough || 1;
         M.recs.push(rec);
         spawnRec(M, rec);

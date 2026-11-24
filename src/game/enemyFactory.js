@@ -6,7 +6,7 @@ import { makeItem } from './data/items.js';
 import { slotKeys, slotType } from './Player.js';
 import { RNG } from '../engine/rng.js';
 import { ELITE_MODS, rollEliteMods } from './data/eliteMods.js';
-import { enemyTargets } from './data/balance.js';
+import { enemyTargets, bossDmgScale } from './data/balance.js';
 
 const chassisCache = new Map();
 export function enemyChassis(d) {
@@ -101,7 +101,7 @@ export function balanceShip(s, d, level, champion = false) {
   s.balanceDps = want;
   // small strafing craft miss more; compensate so each size class delivers its budget
   const accuracy = [2.0, 1.5, 2.0, 2.0, 8.5, 16][d.sizeIndex];   // measured landed/sheet, tools/duel.cjs
-  if (raw > 0) s.stats.dmgMul = (want * 0.9 * accuracy) / raw;
+  if (raw > 0) s.stats.dmgMul = (want * 0.9 * accuracy * bossDmgScale(d.sizeIndex, level)) / raw;
 }
 
 export { SIZES };

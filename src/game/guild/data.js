@@ -373,6 +373,10 @@ export function pvpTargets(L, o = BOT, power = 1) {
   const E = expectedPlayer(L), P = { ...E, ...E.full }, k = Math.sqrt(power);
   return { pool: P.dps * pvpEngage(L) * o.kill * k, dps: (P.ehp / o.die + P.regen * 0.7) / P.mit * k };
 }
+// The contract's expected captain flies a full rare loadout from rank 1; a real new captain is still
+// in starter gear. Opposing PvP captains are eased below rank 10 so early matches are winnable.
+export const earlyHandicap = (L) => (L >= 10 ? 1 : 0.45 + 0.055 * Math.max(1, L));
+export const PVP_AUTO_MIN_LEVEL = 6;    // the autopilot leaves PvP alone until the hull can take it
 export function botPower(rating) {
   const p = clamp(1 + (rating - START_RATING) / 1250, 0.55, 1.7);
   return { power: p, rarity: [['uncommon', Math.max(0.2, 3.5 - 2.5 * p)], ['rare', 4], ['epic', Math.max(0.3, 1 + 3 * (p - 0.8))], ['legendary', Math.max(0, (p - 1) * 2.5)]] };
