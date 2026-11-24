@@ -55,7 +55,7 @@ export function newPlayer(name = 'Captain') {
     ship: { chassis: chassis.id, level: 1, xp: 0, loadout, name: 'BSV Velscour' },
     fleet: [],
     inventory: [makeItem('plasma', 2, 'uncommon', rng), makeItem('thrusters', 2, 'common', rng)],
-    crew: null, explorer: null,
+    crew: null, explorer: null, resources: {}, talents: {}, blueprints: [], contracts: [], scanned: {}, visited: [0],
     system: 0, kills: 0, bossKills: 0, playtime: 0,
     autoplay: { sellBelow: 'rare', keepSets: true },
   };

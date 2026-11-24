@@ -75,6 +75,13 @@ export class Engine {
     this.post = post;
   }
 
+  // Swap what is drawn (planet surface, bridge interior...). Rebuilds the post chain.
+  setView(scene, camera) {
+    this.scene = scene; this.camera = camera;
+    camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+    this.buildPost();
+  }
+
   add(system) { this.systems.push(system); system.engine = this; if (system.onResize) system.onResize(window.innerWidth, window.innerHeight); return system; }
   remove(system) { const i = this.systems.indexOf(system); if (i >= 0) this.systems.splice(i, 1); }
 

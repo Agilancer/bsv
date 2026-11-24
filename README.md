@@ -28,7 +28,10 @@ tier, and `?play` (or `?play&new`) to skip the title screen.
 | Left-click / `Tab` | select / cycle target |
 | `Space`, `1`–`8` | abilities (Space = Broadside Volley) |
 | `Z` | auto-fire on/off |
-| `I` `C` `T` | cargo & loadout, ship, captain abilities |
+| `I` `C` `T` | cargo & loadout, ship, abilities & talents |
+| `G` | dock / undock at a station |
+| `M` / `N` | galaxy map (jump) / system map (warp) |
+| `Enter` | chat |
 | `P` | autoplay |
 | Wheel, `Q`/`E`, middle-drag | zoom, rotate the camera |
 
@@ -86,8 +89,29 @@ tier, and `?play` (or `?play&new`) to skip the title screen.
 turns its fresh shield to the enemy, fires abilities by priority, retreats to recover, sweeps up
 loot and refits with upgrades.
 
-**Galaxy** (`src/game/galaxy.js`) — 64 linked star systems on a three-armed spiral, danger rising
-toward the core; each with a star, 3–7 planets with moons, belts, stations and combat zones.
+**Galaxy & navigation** (`src/game/galaxy.js`, `src/game/nav`) — 64 linked star systems on a
+three-armed spiral, danger rising toward the core; each with a star, 3–7 planets with moons,
+belts, stations and combat zones. `M` opens the galaxy map (jump lanes, routes, fuel, rank-gated
+space: systems up to danger rank+6 are open), `N` the system map (click to warp in-system). The
+jump drive spools, streaks and flashes into the next system.
+
+**Stations** (`src/game/station`) — spinning-ring stations with docking arms and defence turrets
+that hold a safe zone. `G` to dock: market (buy/sell), shipyard (buy hulls, build from blueprints
+dropped by champions and bosses), fleet (swap flagships, gear transfers across), drydock repairs,
+crew quarters and refinery hooks, and a contracts board (bounties that pay out as you fly).
+
+**Captain talents** (`src/game/data/talents.js`) — a point per rank across Gunnery, Defense,
+Navigation and Command: Homing Warheads, Hydra Protocol, Last Stand, Ramming Speed, Wing
+Commander, Slipstream and more. `T` → Talents.
+
+**The simulated MMO** (`src/game/mmo`) — other captains (named, guild-tagged, levelled) warp in,
+fight pirates beside you, chat on GLOBAL / LFG / TRADE / GUILD / HELP, react to your drops and
+deaths, post world events, and invite you to groups; party members follow you through jumps and
+add +10% XP each. Type in chat and they answer.
+
+**Autoplay goals** (`src/game/autoplay/goals.js`) — on top of combat and looting, the autopilot
+docks to sell, repair, buy bigger hulls and take contracts, accepts group invites, and jumps on to
+harder systems once it outranks the current one.
 
 ## Assets
 

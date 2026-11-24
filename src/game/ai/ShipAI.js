@@ -58,7 +58,7 @@ export class ShipAI {
     }
     const tg = s.target;
     if (!tg) return this.idle(dt);
-    if (s.position.distanceTo(this.home) > this.leash && !s.lastAttacker) { s.target = null; return; }
+    if (!this.follow && s.position.distanceTo(this.home) > this.leash && !s.lastAttacker) { s.target = null; return; }
 
     const dx = tg.position.x - s.position.x, dz = tg.position.z - s.position.z;
     const dist = Math.hypot(dx, dz);
@@ -87,7 +87,7 @@ export class ShipAI {
     s.steerHeading(want, dist > range * 1.25 ? 1 : 0.55);
 
     // abilities
-    if (this.useAbilities && s.elite) {
+    if (this.useAbilities && (s.elite || s.npcPlayer)) {
       this.abilityCd -= dt;
       if (this.abilityCd <= 0 && dist < range * 1.2) {
         this.abilityCd = 9 + Math.random() * 6;
@@ -98,6 +98,16 @@ export class ShipAI {
 
   idle(dt) {
     const s = this.ship;
+    if (this.follow && this.follow.alive) {
+      // wingman: hold station off the leader's quarter
+      const L = this.follow, off = this.followOffset || (this.followOffset = { a: (Math.random() < 0.5 ? 1 : -1) * (2.2 + Math.random() * 0.6), r: L.dims.L * 1.2 + s.dims.L });
+      const a = L.heading + off.a;
+      this.wander.set(L.position.x + Math.sin(a) * off.r, 0, L.position.z + Math.cos(a) * off.r);
+      const d = s.steerTo(this.wander, 40, 1);
+      if (d > 600) s.throttle = 1;
+      s.altTarget = L.position.y;
+      return;
+    }
     this.wanderT -= dt;
     if (this.wanderT <= 0) {
       this.wanderT = 6 + Math.random() * 8;

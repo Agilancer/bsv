@@ -9,7 +9,8 @@ export const ABILITIES = [
     run(W, s) {
       const tg = s.target; if (!tg || !tg.alive) return false;
       let fired = 0;
-      for (const w of s.weapons) if (w.hp.type === 'broadside' && s.inArc(w, tg)) { s.fire(w, tg, 1.6); fired++; }
+      const bonus = 1.6 + 0.1 * ((W.game && W.game.data.talents && W.game.data.talents.broadMaster) || 0);
+      for (const w of s.weapons) if (w.hp.type === 'broadside' && s.inArc(w, tg)) { s.fire(w, tg, bonus); fired++; }
       if (!fired) { W.toast('No broadside bears on the target', 'warn'); return false; }
       W.cam.addShake(4);
       return true;

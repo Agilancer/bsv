@@ -217,3 +217,42 @@ button { font-family: var(--font); }
   .ab { width: 44px; height: 44px; } .ab svg { inset: 6px; width: 32px; height: 32px; }
   #helm { width: 170px; }
 }
+
+/* talents */
+.talents { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.tal { display: flex; gap: 8px; align-items: center; padding: 6px; margin-bottom: 6px; border: 1px solid rgba(80, 120, 200, 0.25); background: rgba(6, 12, 28, 0.7); cursor: pointer; position: relative; }
+.tal .ti { width: 30px; height: 30px; color: var(--tc); flex: 0 0 auto; opacity: 0.6; }
+.tal .ti svg { width: 100%; height: 100%; }
+.tal .tn { font-size: 12px; color: var(--text); line-height: 1.1; }
+.tal .tr { font-family: var(--head); font-size: 10px; color: var(--text-dim); }
+.tal.has { border-color: var(--tc); box-shadow: inset 0 0 12px color-mix(in srgb, var(--tc) 30%, transparent); }
+.tal.has .ti { opacity: 1; filter: drop-shadow(0 0 4px var(--tc)); }
+.tal.can:hover { border-color: var(--tc); background: rgba(20, 40, 80, 0.7); }
+.tal.locked { opacity: 0.35; cursor: default; }
+#skills { width: 820px; }
+
+/* station */
+#station { left: 50%; top: 70px; transform: translateX(-50%); width: 860px; }
+#station .btn { text-transform: uppercase; }
+.cell .price { position: absolute; left: 0; right: 0; bottom: -1px; font-size: 9px; text-align: center; color: #ffd66a; font-family: var(--head); text-shadow: 0 0 3px #000; pointer-events: none; }
+.yard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.hull { padding: 8px 10px; border: 1px solid rgba(80, 120, 200, 0.3); background: rgba(6, 12, 28, 0.7); }
+.hull.locked { opacity: 0.5; }
+.hull .hn { font-family: var(--head); color: var(--white); font-size: 13px; letter-spacing: 0.06em; }
+.hull .hs { font-size: 12px; margin: 3px 0; }
+.hull .btn { margin-top: 6px; }
+.svc { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border-bottom: 1px solid rgba(80, 120, 200, 0.18); }
+@media (max-width: 900px) { #station { left: 8px; right: 8px; width: auto; transform: none; } .yard { grid-template-columns: 1fr; } }
+
+/* navigation */
+#galaxy { left: 3vw; right: 3vw; top: 64px; bottom: 100px; max-height: none; background: linear-gradient(160deg, rgba(10, 18, 44, 0.96), rgba(3, 6, 16, 0.97)); }
+#galaxy .wbody { position: absolute; inset: 48px 16px 16px 16px; }
+#galaxy .gwrap { position: relative; width: 100%; height: 100%; }
+#galaxy .gmap { width: 100%; height: 100%; display: block; cursor: crosshair; }
+#galaxy .ginfo { position: absolute; right: 8px; top: 8px; width: 250px; padding: 12px 14px; }
+#system { background: linear-gradient(160deg, rgba(10, 18, 44, 0.95), rgba(3, 6, 16, 0.96)); left: 50%; top: 64px; transform: translateX(-50%); width: min(760px, 94vw); }
+#system .smap { width: 100%; aspect-ratio: 1; max-height: calc(100vh - 220px); display: block; cursor: crosshair; background: radial-gradient(circle, rgba(30, 40, 90, 0.35), transparent 70%); }
+
+/* mmo */
+#chat .online { margin-left: auto; font-family: var(--head); font-size: 10px; color: var(--good); letter-spacing: 0.1em; }
+.invite { position: fixed; left: 50%; top: 180px; transform: translateX(-50%); padding: 14px 18px; z-index: 6; text-align: center; animation: winIn 0.25s ease-out; }

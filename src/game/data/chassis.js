@@ -85,7 +85,7 @@ for (const [yk, yard] of Object.entries(YARDS)) {
       len: Math.round(c.len * mod.len), beam: c.beam, crew: c.crew.slice(),
       hull: Math.round(c.hull * mod.hull), shield: Math.round(c.shield * mod.shield),
       speed: +(c.speed * mod.speed).toFixed(1), turn: +(c.turn * mod.turn).toFixed(1),
-      slots, level: Math.max(1, (c.tier - 1) * 6 + (yk === 'hollow' ? 4 : 0)),
+      slots, level: Math.max(1, (c.tier - 2) * 6 + 1 + (yk === 'hollow' ? 4 : 0)),
       price: Math.round(1200 * Math.pow(c.tier, 2.6) * (yk === 'hollow' ? 2 : 1)),
       seed: (c.tier * 7919 + yk.length * 104729) >>> 0,
     });

@@ -7,12 +7,13 @@ import { BASES, RARITY, describe, itemShipStats, weaponStats } from '../game/dat
 import { slotKeys, slotType, xpForLevel, shipXpForLevel, itemScore, INV_SIZE } from '../game/Player.js';
 import { CHASSIS_BY_ID, YARDS } from '../game/data/chassis.js';
 import { THROTTLE_STEPS } from '../game/ship/Ship.js';
+import { TREES, TALENTS, talentPoints, spentPoints, canLearn } from '../game/data/talents.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
 const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'k' : Math.round(n).toString();
 const _p = new THREE.Vector3(), _q = new THREE.Vector3();
-const SLOT_LABEL = { broadside: 'Broadside', turret: 'Turret', prow: 'Prow', hangar: 'Hangar', module: 'Module' };
+const SLOT_LABEL = { broadside: 'Broadside', turret: 'Turret', prow: 'Prow', hangar: 'Hangar', module: 'Module', blueprint: 'Shipyard' };
 
 export class UI {
   constructor(game) {
@@ -23,6 +24,7 @@ export class UI {
     this.numbers = [];
     this.marker = null;
     this.windows = {};
+    this.renderers = {};   // id -> fn, for windows owned by feature modules
     this.buildHUD();
     this.resize();
     addEventListener('resize', () => this.resize());
@@ -96,6 +98,12 @@ export class UI {
     this.abEls = Object.fromEntries([...document.querySelectorAll('#abilities .ab')].map((e) => [e.dataset.k, e]));
   }
 
+  // hide the space HUD while another mode (planet, bridge) owns the screen
+  setHud(on) {
+    for (const id of ['status', 'target', 'abilities', 'weapons', 'helm', 'radar']) { const el = document.getElementById(id); if (el) el.style.visibility = on ? '' : 'hidden'; }
+    this.canvas.style.display = on ? '' : 'none';
+  }
+
   addWindow(id, title) {
     const w = h(`<div id="${id}" class="win holo scan"><div class="wtitle"><span>${title}</span><span class="close">✕</span></div><div class="wbody"></div></div>`);
     w.querySelector('.close').addEventListener('click', () => this.toggle(id, false));
@@ -113,7 +121,7 @@ export class UI {
     return open;
   }
   closeAll() { let any = false; for (const id of Object.keys(this.windows)) if (this.isOpen(id)) { this.toggle(id, false); any = true; } return any; }
-  render(id) { if (id === 'inventory') this.renderInventory(); if (id === 'character') this.renderCharacter(); if (id === 'skills') this.renderSkills(); }
+  render(id) { if (this.renderers[id]) return this.renderers[id](); if (id === 'inventory') this.renderInventory(); if (id === 'character') this.renderCharacter(); if (id === 'skills') this.renderSkills(); }
   refresh() { for (const id of Object.keys(this.windows)) if (this.isOpen(id)) this.render(id); }
 
   // ---------------- toasts, chat, level up ----------------
@@ -254,10 +262,32 @@ export class UI {
   }
 
   renderSkills() {
-    const g = this.game;
+    const g = this.game, P = g.data;
     const body = this.windows.skills.querySelector('.wbody');
-    body.innerHTML = ABILITIES.map((a) => `<div class="abl"><div class="ab ${g.data.level < a.unlock ? 'locked' : ''}">${icon(a.icon)}<div class="key">${a.key}</div></div>
-      <div><div class="an">${a.name} <span class="label">· rank ${a.unlock} · ${a.cd}s</span></div><div class="ad">${a.desc}</div></div></div>`).join('');
+    const tab = this.skillTab || 'talents';
+    const free = talentPoints(P) - spentPoints(P);
+    let html = `<div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn ${tab === 'talents' ? '' : 'violet'}" data-tab="talents">Talents · ${free} free</button><button class="btn ${tab === 'abilities' ? '' : 'violet'}" data-tab="abilities">Abilities</button>
+      <span style="flex:1"></span><button class="btn bad" id="respec">Respec (${200 * P.level} ¢)</button></div>`;
+    if (tab === 'abilities') {
+      html += ABILITIES.map((a) => `<div class="abl"><div class="ab ${P.level < a.unlock ? 'locked' : ''}">${icon(a.icon)}<div class="key">${a.key}</div></div>
+        <div><div class="an">${a.name} <span class="label">· rank ${a.unlock} · ${Math.round(g.abilityCd(a))}s</span></div><div class="ad">${a.desc}</div></div></div>`).join('');
+    } else {
+      html += `<div class="talents">` + TREES.map((tr) => `<div class="tree"><div class="title" style="color:${tr.color};margin-bottom:8px">${tr.name}</div>` +
+        TALENTS.filter((t) => t.tree === tr.k).map((t) => {
+          const r = (P.talents || {})[t.k] || 0, ok = canLearn(P, t.k), locked = P.level < t.req;
+          return `<div class="tal ${locked ? 'locked' : ''} ${ok ? 'can' : ''} ${r ? 'has' : ''}" data-k="${t.k}" style="--tc:${tr.color}">
+            <div class="ti">${icon(t.icon)}</div><div class="tt"><div class="tn">${t.name}</div><div class="tr">${locked ? 'Rank ' + t.req : r + ' / ' + t.max}</div></div></div>`;
+        }).join('') + `</div>`).join('') + `</div>`;
+    }
+    body.innerHTML = html;
+    body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { this.skillTab = b.dataset.tab; this.renderSkills(); });
+    body.querySelector('#respec').onclick = () => { g.resetTalents(); this.renderSkills(); };
+    body.querySelectorAll('.tal').forEach((el) => {
+      const t = TALENTS.find((x) => x.k === el.dataset.k);
+      el.onclick = () => { if (g.learnTalent(t.k)) this.renderSkills(); };
+      el.onmouseenter = (e) => this.showTip(`<div class="tn">${t.name}</div><div class="tb">Requires rank ${t.req} · max ${t.max}</div><div class="tl">${t.desc}</div>`, e);
+      el.onmouseleave = () => this.hideTip();
+    });
   }
 
   // ---------------- per-frame ----------------
