@@ -15,6 +15,7 @@ const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? (n / 1e3).
 export function installStations(game) {
   game.stations = [];
   game.docked = null;
+  game.atStation = null;   // crew recruiting and other services need a station
   let docking = null;
   let tab = 'market';
   let stock = null, yardStock = null, contracts = null;
