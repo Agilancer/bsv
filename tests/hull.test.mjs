@@ -39,9 +39,9 @@ test('side profiles are closed outlines that hold the castle and the ram', () =>
     assert.ok(crown.y1 > p.Ht * 1.3, `${ch.id} castle height`);
     assert.ok(profileAt(s.top, (crown.z0 + crown.z1) / 2) >= crown.y1 - 1e-6, `${ch.id} crown inside the outline`);
     for (const t of s.castle.towers) assert.ok(t.z1 > t.z0);
-    // the hull reaches the bow; a ram drops its stem below the waterline
+    // the hull reaches the bow; an armoured prow ends in a blunt nose face on the centreline
     assert.ok(s.zMax >= p.L * 0.42, `${ch.id} bow`);
-    if (p.yard.prow === 'ram') assert.ok(p.stem.yo < 0, `${ch.id} ram`);
+    if (p.yard.prow === 'ram') { assert.equal(p.stem.yo, 0, `${ch.id} nose on the centreline`); assert.ok(p.stem.w > p.W * 0.25, `${ch.id} blunt nose`); }
   }
   // a split prow opens a notch in the outline ahead of the stem
   const s9 = sideProfile(CHASSIS_BY_ID.velscour_9), p9 = hullPlan(CHASSIS_BY_ID.velscour_9);

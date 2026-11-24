@@ -74,9 +74,11 @@ export function hullPlan(chassis) {
   const sec = (u, w, ht, hb, yo = 0) => S.push({ z: Z(bowU(u)), w: W * w, ht: Ht * ht, hb: Hb * hb, yo: yo * Ht });
   sec(0, 0.72, 0.7, 0.6); sec(0.04, 0.96, 0.95, 0.92); sec(0.1, 1, 1, 1);
   switch (y.prow) {
-    case 'ram': sec(0.6, 1, 1, 1); sec(0.78, 0.82, 0.9, 1.0); sec(0.9, 0.5, 0.62, 1.05); sec(0.97, 0.22, 0.3, 1.0, -0.15); sec(1.0, 0.04, 0.06, 0.6, -0.3); break;
+    // an armoured wedge on the centreline, ending in a blunt nose face (no drooping beak)
+    case 'ram': sec(0.6, 1, 1, 1); sec(0.8, 0.86, 0.92, 0.95); sec(0.93, 0.6, 0.7, 0.72); sec(1.0, 0.34, 0.42, 0.45); break;
     case 'needle': sec(0.55, 1, 1, 1); sec(0.75, 0.75, 0.75, 0.7); sec(0.9, 0.35, 0.38, 0.35); sec(1.0, 0.05, 0.05, 0.05); break;
-    case 'clipper': sec(0.45, 1, 1, 1); sec(0.7, 0.7, 0.85, 0.95); sec(0.88, 0.36, 0.6, 0.9, 0.1); sec(1.0, 0.04, 0.12, 0.4, 0.35); break;
+    // a long straight taper to a narrow nose (no upswept stem)
+    case 'clipper': sec(0.45, 1, 1, 1); sec(0.7, 0.72, 0.85, 0.9); sec(0.88, 0.4, 0.58, 0.62); sec(1.0, 0.14, 0.2, 0.22); break;
     case 'blunt': sec(0.7, 1, 1, 1); sec(0.88, 0.95, 0.95, 0.95); sec(0.97, 0.8, 0.8, 0.85); sec(1.0, 0.6, 0.6, 0.7); break;
     case 'fork': sec(0.62, 1, 1, 1); sec(0.8, 0.72, 0.8, 0.8); sec(0.86, 0.5, 0.55, 0.6); break;
   }
@@ -90,7 +92,7 @@ export function hullPlan(chassis) {
   }
   // bowsprit / lance
   if ((y.prow === 'needle' || y.prow === 'clipper') && !spined) {
-    const by = y.prow === 'clipper' ? Ht * 0.4 : 0;
+    const by = 0;   // a lance on the centreline, not a raised spar
     P.bowsprit = { y: by, z0: Z(1.0) - L * 0.02, z1: Z(1.0) + L * 0.17 };
   }
   // dorsal strake and ventral keel
@@ -235,10 +237,6 @@ function profileParts(P) {
   const box = (z0, z1, y0, y1, kind) => parts.push({ kind, top: [[z0, y1], [z1, y1]], bottom: [[z0, y0], [z1, y0]] });
   parts.push({ kind: 'hull', top: P.S.map((s) => [s.z, s.yo + s.ht]), bottom: P.S.map((s) => [s.z, s.yo - s.hb]) });
   if (P.tines) parts.push({ kind: 'prow', top: P.tines.map((t) => [t.z, t.ht]), bottom: P.tines.map((t) => [t.z, -t.hb]) });
-  if (P.yard.prow === 'ram') {
-    const z = P.Z(0.87), h = P.L * 0.08;
-    parts.push({ kind: 'prow', top: [[z - h, -P.Hb * 0.62], [z + h, -P.Hb * 0.62]], bottom: [[z - h, -P.Hb * 1.08], [z + h, -P.Hb * 1.32]] });
-  }
   if (P.yard.prow === 'blunt') box(P.Z(1.0) - P.W * 0.05, P.Z(1.0) + P.W * 0.25, -P.Ht * 0.65, P.Ht * 0.65, 'prow');
   if (P.strake) box(P.strake.z0, P.strake.z1, P.strake.y0, P.strake.y1, 'deck');
   if (P.keel) {

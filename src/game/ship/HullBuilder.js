@@ -538,9 +538,20 @@ export function buildHull(chassis) {
     P.cyl('glow', W * 0.02, W * 0.02, L * 0.04, 0, plan.bowsprit.y, Z(1.0) + L * 0.15, 'z', 6);
   }
   if (y.prow === 'ram') {
-    // armoured beak plates along the ram
-    for (const sx of [1, -1]) P.box('trim', W * 0.07, Ht * 0.7, L * 0.16, sx * W * 0.5, -Ht * 0.15, Z(0.87), 0, -sx * 0.42, 0);
-    P.box('trim', W * 0.12, Hb * 0.6, L * 0.16, 0, -Hb * 0.9, Z(0.9), 0.2, 0, 0);
+    // The nose of a warship: a heavy armoured collar round the stem face, a dark recessed bay inside it
+    // with the forward sensor array lit across it, and cheek armour laid flush along the bow wedge.
+    const st = plan.stem, nz = st.z, nw = st.w, nh = st.ht + st.hb, ny = st.yo + (st.ht - st.hb) / 2;
+    P.box('trim', nw * 2.3, nh * 1.12, W * 0.16, 0, ny, nz + W * 0.02);
+    P.box('dark', nw * 1.75, nh * 0.74, W * 0.1, 0, ny, nz + W * 0.09);
+    P.box('glow', nw * 1.3, nh * 0.1, W * 0.04, 0, ny + nh * 0.12, nz + W * 0.13);
+    for (const sx of [1, -1]) P.box('glow', nw * 0.12, nh * 0.34, W * 0.04, sx * nw * 0.62, ny - nh * 0.12, nz + W * 0.13);
+    // cheek plates follow the taper from the shoulder of the bow to the collar
+    const a = sectionAt(plan, Z(bowU(0.8))), b = sectionAt(plan, Z(bowU(0.96)));
+    const dz = b.z - a.z, dx = a.w - b.w, yaw = Math.atan2(dx, dz), len = Math.hypot(dx, dz);
+    for (const sx of [1, -1]) {
+      P.box('trim', W * 0.07, (a.ht + b.ht) * 0.62, len * 0.92, sx * (a.w + b.w) / 2 * 1.0, (a.ht + b.ht) * 0.06, (a.z + b.z) / 2, 0, -sx * yaw, 0);
+      P.box('glow', W * 0.03, Ht * 0.05, len * 0.7, sx * ((a.w + b.w) / 2 + W * 0.045), (a.ht + b.ht) * 0.12, (a.z + b.z) / 2, 0, -sx * yaw, 0);
+    }
   }
   if (y.prow === 'blunt') {
     P.box('trim', W * 1.5, Ht * 1.3, W * 0.3, 0, 0, Z(1.0) + W * 0.1);

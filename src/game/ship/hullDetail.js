@@ -148,7 +148,7 @@ const YARD_DRESS = {
     }
     // gilded crest over the ram
     if (!plan.spine && y_prow(D) === 'ram') {
-      const hs = [0.03, 0.55, 0.45, 0.1];
+      const hs = [0.03, 0.28, 0.24, 0.08];   // a low armoured ridge down the bow, not a helmet crest
       P.add('trim', T.loft([0.78, 0.88, 0.95, 1.0].map((u, i) => {
         const s = sectionAt(plan, Z(plan.bowU(u))), h = Ht * hs[i] / 2;
         return { z: s.z, w: W * 0.055, ht: h, hb: h, yo: s.yo + s.ht + h * 0.85 };
