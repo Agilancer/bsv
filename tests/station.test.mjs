@@ -71,3 +71,19 @@ test('galaxy lanes allow a route from home', () => {
   const S = galaxy().systems;
   assert.ok(S[0].links.length >= 1);
 });
+
+test('station kinds differ: trade pays more, bastions repair cheaper, shipyards stock deeper', async () => {
+  const { STATION_KINDS, repairCost } = await import('../src/game/station/services.js');
+  const P = newPlayer();
+  const it = marketStock(9, 5, P)[0];
+  assert.ok(sellPrice(P, it, 'trade') > sellPrice(P, it, 'military'));
+  const ship = { maxHull: 1000, hull: 400, chassis: { tier: 3 } };
+  assert.ok(repairCost(ship, 'military') < repairCost(ship, 'trade'));
+  assert.equal(marketStock(9, 5, P, 'trade').length, STATION_KINDS.trade.stock);
+  const yardT = shipyardStock(9, 12, P, 'trade'), yardS = shipyardStock(9, 12, P, 'shipyard');
+  const maxTier = (y) => Math.max(...y.map((x) => x.chassis.tier));
+  assert.ok(maxTier(yardS) > maxTier(yardT));
+  assert.ok(new Set(yardS.map((x) => x.chassis.yard)).size > new Set(yardT.map((x) => x.chassis.yard)).size);
+  const cm = makeContracts(9, 5, P, 'military'), ct = makeContracts(9, 5, P, 'trade');
+  assert.ok(cm[0].reward.credits > ct[0].reward.credits);
+});

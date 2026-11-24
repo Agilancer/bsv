@@ -5,27 +5,39 @@ import { slotKeys, slotType, INV_SIZE, SHIP_PREFIX } from '../Player.js';
 import { RNG } from '../../engine/rng.js';
 
 const merchant = (P) => (P.talents && P.talents.merchant) || 0;
-export const buyPrice = (P, item) => Math.round(item.value * 3 * (1 - merchant(P) * 0.03));
-export const sellPrice = (P, item) => Math.round(item.value * 0.6 * (1 + merchant(P) * 0.04));
 
-export function marketStock(stationSeed, danger, P) {
+// What a station is for. Every kind sells, repairs and posts contracts; each is best at one thing.
+export const STATION_KINDS = {
+  trade: { name: 'Trade hub', blurb: 'Best prices for your salvage, the deepest market.', sell: 1.2, buy: 0.9, stock: 20, rarity: [['common', 24], ['uncommon', 36], ['rare', 29], ['epic', 11]], yards: 2, tier: 0, hull: 1, repair: 1, bounty: 1 },
+  military: { name: 'Naval bastion', blurb: 'Half-price repairs; the bounty board pays half again.', sell: 0.9, buy: 1, stock: 10, rarity: [['uncommon', 30], ['rare', 45], ['epic', 25]], weapons: 0.7, yards: 2, tier: 0, hull: 1, repair: 0.5, bounty: 1.5 },
+  shipyard: { name: 'Shipyard', blurb: 'Hulls from every yard, a tier deeper, 10% off.', sell: 1, buy: 1, stock: 10, rarity: [['common', 30], ['uncommon', 36], ['rare', 25], ['epic', 9]], yards: 99, tier: 1, hull: 0.9, repair: 0.8, bounty: 1 },
+};
+const NEUTRAL = { sell: 1, buy: 1, stock: 14, rarity: [['common', 30], ['uncommon', 36], ['rare', 25], ['epic', 9]], yards: 3, tier: 0, hull: 1, repair: 1, bounty: 1 };
+export const kindOf = (kind) => STATION_KINDS[kind] || NEUTRAL;
+
+export const buyPrice = (P, item, kind) => Math.round(item.value * 3 * kindOf(kind).buy * (1 - merchant(P) * 0.03));
+export const sellPrice = (P, item, kind) => Math.round(item.value * 0.6 * kindOf(kind).sell * (1 + merchant(P) * 0.04));
+
+export function marketStock(stationSeed, danger, P, kind) {
+  const K = kindOf(kind);
   const rng = new RNG(stationSeed + Math.floor((P.playtime || 0) / 600) * 7919);
   const ilvl = Math.max(1, Math.round((danger + P.level) / 2));
   const out = [];
-  for (let i = 0; i < 14; i++) {
-    const rarity = rng.weighted([['common', 30], ['uncommon', 36], ['rare', 25], ['epic', 9]]);   // legendaries are found, not bought
-    out.push(rollItem(ilvl + rng.int(-1, 2), rng, { rarity }));
+  for (let i = 0; i < K.stock; i++) {
+    const rarity = rng.weighted(K.rarity);   // legendaries are found, not bought
+    out.push(rollItem(ilvl + rng.int(-1, 2), rng, { rarity, slot: K.weapons && rng.chance(K.weapons) ? rng.pick(['broadside', 'broadside', 'turret', 'prow']) : undefined }));
   }
   return out;
 }
 
-export function shipyardStock(stationSeed, danger, P) {
+export function shipyardStock(stationSeed, danger, P, kind) {
+  const K = kindOf(kind);
   const rng = new RNG(stationSeed * 3 + 11);
   const yards = Object.keys(YARDS).filter((y) => y !== 'hollow' || danger >= 30);
   rng.shuffle(yards);
-  const pick = yards.slice(0, 3);
-  const maxTier = Math.min(10, Math.ceil(danger / 6) + 2);
-  return CHASSIS.filter((c) => pick.includes(c.yard) && c.tier <= maxTier).map((c) => ({ chassis: c, price: Math.round(c.price * (1 - merchant(P) * 0.03)) }));
+  const pick = yards.slice(0, K.yards);
+  const maxTier = Math.min(10, Math.ceil(danger / 6) + 2 + K.tier);
+  return CHASSIS.filter((c) => pick.includes(c.yard) && c.tier <= maxTier).map((c) => ({ chassis: c, price: Math.round(c.price * K.hull * (1 - merchant(P) * 0.03)) }));
 }
 
 // Move the current loadout onto a new hull: items keep matching slot keys where they
@@ -71,7 +83,7 @@ export function switchShip(P, fleetIndex) {
   return { ok: true, msg: `${next.name} is now your flagship` };
 }
 
-export function repairCost(ship) { return Math.round((ship.maxHull - ship.hull) * 0.15 * ship.chassis.tier); }
+export function repairCost(ship, kind) { return Math.round((ship.maxHull - ship.hull) * 0.15 * ship.chassis.tier * kindOf(kind).repair); }
 
 // blueprints are inventory items carrying a chassis id
 export function makeBlueprint(chassis) {
@@ -79,15 +91,16 @@ export function makeBlueprint(chassis) {
   return { uid: newUid(), base: 'blueprint', slot: 'blueprint', bp: chassis.id, rarity: rar, ilvl: chassis.level, affixes: [], unique: [], xp: 0, lvl: 1, name: `Blueprint: ${chassis.fullName}`, value: Math.round(chassis.price * 0.15) };
 }
 
-export function makeContracts(seed, danger, P) {
+export function makeContracts(seed, danger, P, kind) {
   const rng = new RNG(seed + Math.floor((P.playtime || 0) / 300));
-  const lvl = Math.max(danger, 1);
+  const lvl = Math.max(danger, 1), b = kindOf(kind).bounty;
+  const pay = (c) => (b === 1 ? c : { ...c, reward: { ...c.reward, credits: Math.round(c.reward.credits * b), xp: Math.round(c.reward.xp * b) } });
   return [
     { id: 'c' + rng.int(1, 1e9), type: 'faction', faction: 'pirate', n: rng.int(5, 10), title: 'Clear the pirate lanes', reward: { credits: 250 * lvl, xp: 120 * lvl } },
     { id: 'c' + rng.int(1, 1e9), type: 'elite', n: 1, title: 'Hunt a champion or Dread Captain', reward: { credits: 600 * lvl, xp: 300 * lvl, item: rng.pick(['epic', 'legendary']) } },
     { id: 'c' + rng.int(1, 1e9), type: 'any', n: rng.int(12, 20), title: 'Patrol duty: destroy hostiles', reward: { credits: 400 * lvl, xp: 220 * lvl } },
     { id: 'c' + rng.int(1, 1e9), type: 'faction', faction: 'covenant', n: rng.int(2, 4), title: 'Purge the Covenant', reward: { credits: 900 * lvl, xp: 400 * lvl, item: 'epic' }, minDanger: 8 },
-  ].filter((c) => !c.minDanger || danger >= c.minDanger);
+  ].filter((c) => !c.minDanger || danger >= c.minDanger).map(pay);
 }
 
 // returns completed contracts (and removes them)

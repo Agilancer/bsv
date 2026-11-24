@@ -17,7 +17,7 @@ export class PlanetPilot {
     const M = this.mode, V = M.vehicle, st = V.stats;
     this.t += dt; this.runT = (this.runT || 0) + dt;   // runT never resets: a whole surface run is capped
     if (M.state !== 'play' || !V.alive) return;
-    const late = this.runT > 480;
+    const late = this.runT > 330;   // ~5-6 min runs once the trip home and extraction are counted
     const pos = V.position;
     let target = null, fight = null, stopAt = 6, wantMine = false;
     // nearest awake threat
@@ -137,9 +137,9 @@ export function makePlanetGoal(game) {
       if (g.planet && ['scanning', 'panel', 'drop', 'entering'].includes(g.planet.scanner.state)) return 5;
       const ex = ensureExplorer(g.data);
       const since = g.data.playtime - (ex.lastRunAt || -1e9);
-      if (since < 300) return 0.05;
+      if (since < 300) return 0;
       // planets share the session with space: at most ~30% of it on the ground, counting the next run
-      if ((g.planetSessionTime || 0) > 0.3 * ((g.playtime || 0) + 480)) return 0.05;
+      if ((g.planetSessionTime || 0) > 0.3 * ((g.playtime || 0) + 360)) return 0;
       // only go down when the warship can be left alone: hull healthy, no raid inbound, nothing hostile close
       const pl = g.player;
       if (pl.hull < pl.maxHull * 0.6) return 0.05;

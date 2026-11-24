@@ -310,7 +310,13 @@ export function installNav(game) {
       c.fillStyle = info.moon ? '#8890a8' : '#a8b8e0';
       c.beginPath(); c.arc(X(pl.position.x), Y(pl.position.z), r, 0, Math.PI * 2); c.fill();
       if (!info.moon) label(info.name, X(pl.position.x), Y(pl.position.z) - r - 4, '#b8c6e0', Y(pl.position.z) + r + 12);
-      if (game.data.scanned && game.data.scanned[info.name]) { c.strokeStyle = '#4ade80'; c.beginPath(); c.arc(X(pl.position.x), Y(pl.position.z), r + 3, 0, Math.PI * 2); c.stroke(); }
+      // surveyed worlds: a green ring, and what landings there have brought home
+      const rec = game.data.explorer && game.data.explorer.scanned && game.data.explorer.scanned[`${game.data.system}:${info.name}`];
+      if (rec) {
+        c.strokeStyle = '#4ade80'; c.lineWidth = 1.2; c.beginPath(); c.arc(X(pl.position.x), Y(pl.position.z), r + 3, 0, Math.PI * 2); c.stroke();
+        const txt = rec.runs ? `◈ ${rec.runs} landing${rec.runs > 1 ? 's' : ''} · ${rec.banked || 0}u${rec.dungeons ? ' · ' + rec.dungeons + ' dungeon' + (rec.dungeons > 1 ? 's' : '') : ''}` : '◈ surveyed';
+        c.font = '500 10px Rajdhani, sans-serif'; label(txt, X(pl.position.x), Y(pl.position.z) + r + 13, '#7ee8a8', Y(pl.position.z) + r + 25); c.font = '500 11px Rajdhani, sans-serif';
+      }
     }
     const FC = { pirate: '#ff6a5a', rival: '#ffb040', rustborn: '#d89050', covenant: '#ff3b8a', brood: '#40ffd0', silent: '#bff0ff' };
     const ICON = { patrol: '⚔', base: '⛫', belt: '◌', wrecks: '✕', front: '⚑', lair: '☠' };

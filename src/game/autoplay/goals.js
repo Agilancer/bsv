@@ -82,12 +82,12 @@ export function resupplyGoal(ap) {
         g.equipBest();
         const sold = g.sellNonUpgrades ? g.sellNonUpgrades() : 0;
         for (const it of P.inventory.slice()) if (it.slot !== 'blueprint' && RARITY[it.rarity].i < 2) g.sellItem(it, true);
-        const rc = repairCost(s); if (rc > 0 && P.credits >= rc) { P.credits -= rc; s.hull = s.maxHull; }
+        const rc = repairCost(s, st.kind); if (rc > 0 && P.credits >= rc) { P.credits -= rc; s.hull = s.maxHull; }
         // hull upgrade: the biggest hull we can fly and afford with margin
         const cur = CHASSIS_BY_ID[P.ship.chassis];
         const bps = P.inventory.filter((i) => i.slot === 'blueprint');
         let best = null;
-        for (const { chassis: c, price } of shipyardStock(st.seed, danger, P)) {
+        for (const { chassis: c, price } of shipyardStock(st.seed, danger, P, st.kind)) {
           const bp = bps.find((b) => b.bp === c.id);
           const cost = bp ? Math.round(price * 0.4) : price;
           if (c.tier <= cur.tier || !canFly(P, c) || cost > P.credits * 0.9) continue;
@@ -98,7 +98,7 @@ export function resupplyGoal(ap) {
           if (r.ok) { if (best.bp) P.inventory.splice(P.inventory.indexOf(best.bp), 1); g.swapPlayerShip(); ap.log(`Bought a new flagship: ${best.c.fullName}`); }
         }
         P.contracts ||= [];
-        for (const c of makeContracts(st.seed, danger, P)) if (P.contracts.length < 3 && !P.contracts.some((a) => a.id === c.id)) P.contracts.push({ ...c, progress: 0 });
+        for (const c of makeContracts(st.seed, danger, P, st.kind)) if (P.contracts.length < 3 && !P.contracts.some((a) => a.id === c.id)) P.contracts.push({ ...c, progress: 0 });
         if (g.crewAuto) g.crewAuto();          // crew module: hire/assign
         if (g.refineryAuto) g.refineryAuto();  // planet module: spend resources
         g.equipBest();

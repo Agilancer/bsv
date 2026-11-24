@@ -180,3 +180,13 @@ body.planet-hud-hidden .toast:not(.legend) { display: none; }
 body:has(#planetHud.compact) #menubar, body:has(#planetHud.compact) #chat { display: none; }
 /* on the surface the orbit menubar, tutorial objectives and space stick step aside */
 body.planet-mode #menubar, body.planet-mode #objectives, body.planet-mode #stick, body.planet-mode #mMenu, body.planet-mode #mChat, body.planet-mode #mStop, body.planet-mode #dockPrompt { display: none !important; }
+/* portrait phones: banner drops under the status/map row, smaller map, status panel takes the width it needs */
+@media (orientation: portrait) and (max-width: 600px) {
+  #planetHud.compact #pBanner { top: 244px; bottom: auto; left: 50%; transform: translateX(-50%); max-width: 80vw; padding: 4px 10px; }
+  #planetHud.compact #pBanner .title { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #planetHud.compact #pMap { width: 112px; height: 112px; }
+  #planetHud.compact #pMap canvas { width: 112px; height: 112px; }
+  #planetHud.compact #pStatus { max-width: calc(100vw - 140px); }
+  #planetHud.compact #pCargo { top: 136px; }
+  #planetHud.compact #pButtons { top: 150px; }
+}
