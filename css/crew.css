@@ -117,16 +117,17 @@
 .cw-note { font-size: 12px; color: var(--warn); letter-spacing: 0.04em; }
 
 /* ---------- bridge overlay ---------- */
-#bridgeHud { position: fixed; inset: 0; pointer-events: none; z-index: 4; display: none; font-family: var(--font); }
+#bridgeHud { position: fixed; inset: 0; pointer-events: none; z-index: 2; display: none; font-family: var(--font); }
 #bridgeHud.on { display: block; }
 #bridgeHud > * { pointer-events: auto; }
-#bridgeHud .bh-top { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); padding: 8px 18px; text-align: center; min-width: 360px; }
+#bridgeHud > .bh-labels { pointer-events: none; }
+#bridgeHud .bh-top { position: fixed; left: 50%; top: 58px; transform: translateX(-50%); padding: 8px 18px; text-align: center; min-width: 360px; }
 #bridgeHud .bh-top .t { font-family: var(--head); font-size: 13px; letter-spacing: 0.3em; color: var(--white); }
 #bridgeHud .bh-top .s { font-size: 12px; color: var(--text-dim); letter-spacing: 0.1em; margin-top: 2px; }
 #bridgeHud .bh-back { position: fixed; left: 16px; top: 16px; }
-#bridgeHud .bh-status { position: fixed; left: 16px; bottom: 16px; width: 270px; padding: 10px 12px; }
+#bridgeHud .bh-status { position: fixed; left: 16px; bottom: 16px; width: 270px; padding: 10px 12px; background-color: rgba(5, 10, 26, 0.8); }
 #bridgeHud .bh-status .bar { margin: 3px 0 6px; }
-#bridgeHud .bh-crewl { position: fixed; right: 16px; top: 16px; width: 230px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+#bridgeHud .bh-crewl { position: fixed; left: 16px; top: 64px; width: 230px; background-color: rgba(5, 10, 26, 0.82); padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
 #bridgeHud .bh-off { display: flex; gap: 8px; align-items: center; padding: 3px; cursor: pointer; border: 1px solid transparent; }
 #bridgeHud .bh-off:hover, #bridgeHud .bh-off.on { border-color: var(--cyan); background: rgba(30, 60, 130, 0.35); }
 #bridgeHud .bh-off .cw-face { --s: 34px; }
@@ -135,7 +136,7 @@
 #bridgeHud .bh-sub b { font-family: var(--head); font-size: 12px; letter-spacing: 0.14em; color: var(--dc, var(--cyan)); margin-right: 8px; }
 #bridgeHud .bh-hint { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 12px; color: var(--text-dim); letter-spacing: 0.08em; pointer-events: none; text-align: center; }
 #bridgeHud .bh-label { position: fixed; transform: translate(-50%, -100%); font-family: var(--head); font-size: 10px; letter-spacing: 0.14em; color: var(--white); text-shadow: 0 0 4px #000; white-space: nowrap; pointer-events: none; padding: 2px 6px; background: rgba(4, 10, 26, 0.55); border-bottom: 1px solid var(--dc, var(--cyan)); }
-#bridgeHud .bh-dlg { position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%); width: min(720px, calc(100vw - 32px)); padding: 14px 16px; display: none; grid-template-columns: auto 1fr; gap: 12px; }
+#bridgeHud .bh-dlg { position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%); width: min(660px, calc(100vw - 32px)); padding: 14px 16px; display: none; grid-template-columns: auto 1fr; gap: 12px; }
 #bridgeHud .bh-dlg.on { display: grid; animation: winIn 0.18s ease-out; }
 #bridgeHud .bh-dlg .who { font-family: var(--head); font-size: 12px; letter-spacing: 0.16em; color: var(--dc, var(--cyan)); text-transform: uppercase; }
 #bridgeHud .bh-dlg .line { font-size: 16px; color: var(--white); margin: 6px 0 10px; line-height: 1.35; }
@@ -148,6 +149,11 @@
 #bridgeHud .bh-touch button { background: rgba(10, 22, 56, 0.7); border: 1px solid var(--edge-hi); color: var(--white); font-family: var(--head); font-size: 16px; border-radius: 8px; touch-action: none; }
 #bridgeHud .bh-touch button:active, #bridgeHud .bh-touch button.on { background: rgba(60, 120, 240, 0.5); }
 #bridgeHud .bh-touch .lab { font-size: 8px; letter-spacing: 0.1em; display: block; color: var(--text-dim); }
+
+/* the comms log moves down out of the viewscreen's way while on the bridge */
+body.on-bridge #chat { top: auto; bottom: 16px; height: 170px; width: 300px; opacity: 0.8; }
+body.bridge-dlg #chat { display: none; }
+body.on-bridge #menubar button[data-w="bridge"] { border-color: var(--cyan); color: var(--white); }
 
 /* ---------- phones / touch ---------- */
 @media (max-width: 900px), (pointer: coarse) {
@@ -165,13 +171,22 @@
   .cw-mini div { padding: 9px 6px; }
   .cw-dept { padding: 10px 8px; }
   #bridgeHud .bh-touch { display: grid; }
-  #bridgeHud .bh-status { width: 200px; bottom: auto; top: 70px; font-size: 12px; }
-  #bridgeHud .bh-crewl { top: auto; bottom: 214px; width: auto; flex-direction: row; flex-wrap: wrap; right: 8px; left: 8px; justify-content: center; }
-  #bridgeHud .bh-off .n { display: none; }
-  #bridgeHud .bh-off .cw-face { --s: 44px; }
-  #bridgeHud .bh-top { min-width: 0; top: 10px; left: auto; right: 10px; transform: none; padding: 6px 10px; }
-  #bridgeHud .bh-dlg { bottom: 8px; }
-  #bridgeHud .bh-dlg .opts button { padding: 12px 10px; }
-  #bridgeHud .bh-sub { bottom: 280px; font-size: 15px; }
+  #bridgeHud .bh-back { top: 8px; left: 8px; padding: 10px 12px; }
+  #bridgeHud .bh-top { display: none; }
+  #bridgeHud .bh-crewl { top: 54px; left: 8px; right: auto; bottom: auto; width: auto; padding: 4px; }
+  #bridgeHud .bh-crewl .label { display: none; }
+  #bridgeHud #bhOff { display: flex; flex-direction: row; flex-wrap: wrap; gap: 3px; max-width: calc(100vw - 16px); }
+  #bridgeHud .bh-off { padding: 2px; }
+  #bridgeHud .bh-off > div:last-child { display: none; }
+  #bridgeHud .bh-off .cw-face { --s: 42px; }
+  #bridgeHud .bh-status { top: 112px; bottom: auto; left: 8px; width: 190px; padding: 6px 8px; }
+  #bridgeHud .bh-status .label { font-size: 10px; }
+  #bridgeHud .bh-sub { bottom: auto; top: 112px; left: auto; right: 8px; transform: none; max-width: calc(100vw - 230px); text-align: right; font-size: 14px; }
+  #bridgeHud .bh-dlg { left: 0; right: 0; bottom: 0; transform: none; width: auto; max-height: 72vh; overflow-y: auto; grid-template-columns: 1fr; padding: 12px; }
+  #bridgeHud .bh-dlg .cw-face { display: none; }
+  #bridgeHud .bh-dlg .line { font-size: 15px; }
+  #bridgeHud .bh-dlg .opts button { padding: 12px 10px; font-size: 15px; }
+  #bridgeHud .bh-dlg .x { font-size: 22px; padding: 4px 8px; }
   #bridgeHud .bh-hint { display: none; }
+  body.bridge-dlg #bhTouch { display: none; }
 }

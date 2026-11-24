@@ -32,6 +32,10 @@ export function install(game) {
       const closeAll = game.ui.closeAll.bind(game.ui);
       game.ui.closeAll = () => { const a = ui.isOpen() && !ui.toggle(false); const b = closeAll(); return a || b; };
     }
+    // ?bridge opens straight onto the bridge (dev / screenshots), ?crew=<tab> opens the crew window
+    const q = new URLSearchParams(location.search);
+    if (q.has('bridge')) { game.modes.bridge(); }
+    if (q.has('crew')) { ui.toggle(true); ui.show(q.get('crew') || 'roster'); }
   };
 
   game.modes.crew = () => { if (ui) ui.toggle(); };
@@ -40,11 +44,19 @@ export function install(game) {
     if (bridge) return bridge.toggle();
     if (!bridgeP) {
       game.ui.toast('Reporting to the bridge…');
-      bridgeP = import('../bridge/Bridge.js').then(async (m) => { bridge = new m.Bridge(game); game.bridge = bridge; await bridge.load(); return bridge; })
+      bridgeP = import('../bridge/Bridge.js').then(async (m) => {
+        bridge = new m.Bridge(game); game.bridge = bridge;
+        bridge.skipIntro = new URLSearchParams(location.search).has('bridge');
+        await bridge.load(); return bridge;
+      })
         .then((b) => b.enter())
         .catch((e) => { console.error('bridge', e); bridgeP = null; game.ui.toast('Bridge systems offline', 'bad'); });
     }
   };
+
+  // mark fast-forwards (engine.simulate) so the bridge skips drawing its viewscreen for every step
+  const E = game.engine, simulate = E.simulate;
+  E.simulate = function (...a) { this.simulating = true; try { return simulate.apply(this, a); } finally { this.simulating = false; } };
 
   game.engine.add({
     update(dt, t, realDt) {

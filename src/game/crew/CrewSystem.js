@@ -235,7 +235,20 @@ export class CrewSystem {
     this.changed(true);
     return true;
   }
+  // orders from the bridge
+  rally(amount, dept = null) { changeMorale(this.state, amount, dept ? (m) => m.section === dept : null); this.changed(); }
+  douse() { const f = this.state.fires; for (const k of Object.keys(f)) f[k] = Math.min(f[k], 2); this.changed(); }
+  triage() { for (const m of this.state.members) if (m.status === 'wounded') m.wound *= 0.4; this.changed(); }
+
   officer(post) { return officerOf(this.state, post); }
+  // whoever stands the watch at a post: the officer, or the best hand in that department
+  onDuty(post) {
+    const o = officerOf(this.state, post); if (o) return { m: o, acting: false };
+    const dept = OFFICER_POSTS[post].dept;
+    let best = null;
+    for (const m of this.state.members) if (m.section === dept && m.status === 'ok' && (!best || skillOf(m) > skillOf(best))) best = m;
+    return best ? { m: best, acting: true } : null;
+  }
   morale() { return avgMorale(this.state); }
   skill(m, dept) { return skillOf(m, dept); }
   fail(msg) { if (this.game.ui) this.game.ui.toast(msg, 'warn'); return false; }

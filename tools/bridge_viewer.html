@@ -1,0 +1,57 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Bridge viewer</title>
+<base href="../">
+<style>html,body{margin:0;background:#000;overflow:hidden;color:#9cf;font:12px monospace}#info{position:fixed;left:8px;top:8px;white-space:pre}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.webgpu.js","three/webgpu":"./vendor/three/three.webgpu.js","three/tsl":"./vendor/three/three.tsl.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head><body><div id="info"></div>
+<script type="module">
+// The bridge interior on its own (no game running), with the crew at their stations, through the game's post chain.
+//   tools/bridge_viewer.html?yaw=0&pitch=-0.05&x=0&y=1.22&z=1.08&fov=64&bloom=0.42&officers=1
+import * as THREE from 'three/webgpu';
+import { Engine } from './src/engine/Engine.js';
+import { preload } from './src/engine/Assets.js';
+import { initMaterials } from './src/fx/materials.js';
+import { buildBridge, STATIONS, CAPTAIN } from './src/game/bridge/BridgeScene.js';
+import { spawnCrew } from './src/game/bridge/crewmodels.js';
+import { LOOKS, OFFICER_POSTS } from './src/game/crew/data.js';
+import { uv, vec3, hash, floor, step } from 'three/tsl';
+const q = new URLSearchParams(location.search);
+const e = await new Engine(document.body).init();
+initMaterials(e);
+await preload(['hull_naval', 'hull_graphite', 'hull_gold', 'hull_dropship']);
+const B = buildBridge(e);
+{ const u = uv().mul(400); B.screenMat.colorNode = vec3(0.02, 0.04, 0.1).add(step(0.997, hash(floor(u.x).add(floor(u.y).mul(1000)))).mul(1.2)); }
+const cam = new THREE.PerspectiveCamera(+(q.get('fov') || 64), innerWidth / innerHeight, 0.05, 80);
+e.setView(B.scene, cam);
+e.bloomStrength.value = +(q.get('bloom') ?? 0.42);
+if (e.bloomNode.threshold) e.bloomNode.threshold.value = +(q.get('th') ?? 0.9);
+e.uVignette.value = 0.55;
+B.alertK.value = +(q.get('alert') || 0);
+if (B.alertK.value) B.alert.value.setRGB(1, 0.12, 0.12);
+const yaw = +(q.get('yaw') || 0), pitch = +(q.get('pitch') || -0.05);
+cam.position.set(+(q.get('x') ?? CAPTAIN.eye.x), +(q.get('y') ?? CAPTAIN.eye.y), +(q.get('z') ?? CAPTAIN.eye.z));
+cam.lookAt(cam.position.x - Math.sin(yaw) * Math.cos(pitch), cam.position.y + Math.sin(pitch), cam.position.z - Math.cos(yaw) * Math.cos(pitch));
+const crew = [];
+if (q.get('officers') !== '0') {
+  let i = 0;
+  for (const [post, st] of Object.entries(STATIONS)) {
+    const look = LOOKS[(i++ * 3) % LOOKS.length].k;
+    const c = await spawnCrew(look, OFFICER_POSTS[post].dept, { clip: st.sit ? 'sit_idle' : 'idle' });
+    c.root.position.set(...st.pos); c.root.rotation.y = st.face;
+    if (st.sit) {
+      c.pose.play('sit_idle', { fade: 0 }); c.pose.apply(); c.root.updateMatrixWorld(true);
+      const hips = c.rig.bones[c.rig.hips].getWorldPosition(new THREE.Vector3());
+      const local = c.root.worldToLocal(hips.clone());
+      c.root.position.y += 0.57 - hips.y;
+      const off = new THREE.Vector3(local.x, 0, local.z - 0.04).applyAxisAngle(THREE.Object3D.DEFAULT_UP, st.face);
+      c.root.position.x -= off.x; c.root.position.z -= off.z;
+    }
+    B.scene.add(c.root);
+    crew.push(c);
+  }
+}
+e.add({ update(dt) { for (const c of crew) { c.pose.step(dt); c.pose.apply(); } } });
+e.start();
+window.__ready = true;
+</script>
+</body></html>
