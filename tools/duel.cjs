@@ -16,6 +16,7 @@ const { chromium } = require('playwright');
   await p.waitForTimeout(12000);
   const raw = await p.evaluate(async ([levels, stat, SAMPLES, ONLY]) => {
     const g = __game, W = g.world;
+    if (g.docked && g.undock) g.undock();   // a new captain starts docked at the home station: cast off before measuring
     const { ENEMIES, SIZES } = await import('./src/game/data/enemies.js');
     const { expectedPlayer } = await import('./src/game/data/balance.js');
     const { starterLoadout } = await import('./src/game/Player.js');

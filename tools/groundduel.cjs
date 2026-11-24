@@ -29,6 +29,7 @@ async function dungeonRuns(cfg) {
   for (const L of cfg.levels) for (const depth of cfg.dungeon) {
     const r = await p.evaluate(async ({ L, depth, secs }) => {
       const g = __game, E = __engine;
+    if (g.docked && g.undock) g.undock();   // a new captain starts docked at the home station: cast off before measuring
       const GB = await import('./src/game/planet/groundBalance.js');
       if (g.sector && g.sector.director) g.sector.director.update = () => {};
     // only the game (which steps the planet mode) and the particle layers keep running: the always-on
@@ -106,6 +107,7 @@ async function dungeonRuns(cfg) {
   await p.waitForTimeout(12000);
   const out = await p.evaluate(async (cfg) => {
     const g = __game, E = __engine;
+    if (g.docked && g.undock) g.undock();   // a new captain starts docked at the home station: cast off before measuring
     const { ENEMIES } = await import('./src/game/planet/enemies.js');
     const GB = await import('./src/game/planet/groundBalance.js');
     if (g.sector && g.sector.director) g.sector.director.update = () => {};

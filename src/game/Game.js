@@ -368,6 +368,7 @@ export class Game {
     // guild module: an arena handles its own deaths (true); a PvP loss in open space costs nothing ('waive')
     const pvp = this.pvpDeath ? this.pvpDeath(killer) : false;
     if (pvp === true) return;
+    this.data.deaths = (this.data.deaths || 0) + 1;   // hulls lost in open space (arena respawns are not counted)
     this.ui.death(true);
     this.autoplayWasOn = !!this.autoplay;
     const lost = pvp ? 0 : Math.min(Math.round(this.data.credits * 0.04), 500 + this.data.level * 150);
