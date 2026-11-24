@@ -16,6 +16,11 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   - `combat/` — projectiles/beams (instanced), damage model, hangar craft. `ai/ShipAI.js`.
   - Feature modules install through `src/game/modules.js`: `station/`, `nav/`, `mmo/`,
     `autoplay/goals.js` (+ crew/bridge and planet modules).
+  - The autoplay captain's decisions are pure, node-tested modules called from one line each:
+    `autoplay/build.js` (talent builds), `autoplay/refit.js` (station market, reforge, old hulls,
+    hold triage), `crew/auto.js` (`game.crewAuto`: appoint / rebalance / hire / promote; also the
+    Crew window's Auto-manage button), `planet/autoCraft.js` (`game.refineryAuto`: explorer bay,
+    fabricator, refinery ranks, gear workshop, orbital probes, landing site + tool fit).
   - `planet/` living layer: `lifeData.js` (pure data: fauna, curios, radio lines, streaks, weather,
     time of day, report rating), `Life.js` (wildlife herds, flyers, curios), `Weather.js` (fronts +
     telegraphed strikes), `Extras.js` (comm strip, streak callouts, discovery cards, expedition

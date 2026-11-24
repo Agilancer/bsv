@@ -98,15 +98,15 @@ export class PlanetPilot {
       const loot = this.nearestDrop(pos, 150, cargoF >= 1);
       const crate = M.level.crates.find((c) => !c.opened && c.pos.distanceTo(pos) < 120);
       // deposits: the one that pays best for the trip (tool bonus x what the resource is worth)
-      const dig = this.bestNode(pos, 400);
+      const dig = this.duel ? nearNode : this.bestNode(pos, 400);
       // curiosities: a short detour while there is digging to do, a real trip when there is not,
       // and the last one of a site is always worth it (a fully surveyed site drops a bonus cache)
       const curio = M.curios ? M.curios.nearestOpen(pos, !dig ? 400 : M.curios.total - M.curios.done <= 1 ? 250 : 90, (c) => (c.autoT || 0) < 25) : null;
       // dungeons and lairs only when the explorer is a match for the site, healthy, and there is
       // run time left to make it count
-      const fit = M.ex.level + 2 >= M.siteInfo.level && hpF > 0.6;
-      const mouth = fit && this.runT < 130 ? M.dungeons.find((d) => !(d.dungeon && d.dungeon.cleared) && !d.tried) : null;
-      const lair = fit && this.runT < 150 ? M.lairs.find((l) => !l.cleared && M.ex.level + 3 >= (l.boss.levelBand ? M.siteInfo.level : 0)) : null;
+      const fit = this.duel || (M.ex.level + 2 >= M.siteInfo.level && hpF > 0.6);
+      const mouth = fit && (this.duel || this.runT < 130) ? M.dungeons.find((d) => !(d.dungeon && d.dungeon.cleared) && !d.tried) : null;
+      const lair = fit && (this.duel || this.runT < 150) ? M.lairs.find((l) => !l.cleared && M.ex.level + 3 >= (l.boss.levelBand ? M.siteInfo.level : 0)) : null;
       if (cargoF >= 0.95 || runLong) {
         target = M.lander.position; stopAt = 4;
         if (M.atLander && (runLong || !nearNode)) ctl.interact = true;
@@ -165,7 +165,7 @@ PlanetPilot.prototype.note = function (key, msg) {
 PlanetPilot.prototype.nearestDrop = function (pos, maxD, full) {
   let best = null, bd = maxD * maxD;
   for (const d of this.mode.level.drops) {
-    if ((d.type === 'res' && full) || d.autoT > 15) continue;
+    if ((d.type === 'res' && full) || d.autoT > 15 || (this.duel && d.type !== 'item')) continue;   // (measured duels: gear only, as before)
     const d2 = (d.pos.x - pos.x) ** 2 + (d.pos.z - pos.z) ** 2;
     if (d2 < bd) { bd = d2; best = d; }
   }
@@ -244,7 +244,7 @@ export function autoSpend(game) {
   const r = autoCraft(D);
   if (r.log.length) {
     const text = `Refinery: ${r.log.join('; ')}`;
-    if (game.autoplay) game.autoplay.log(text); else game.ui.toast(text, 'epic');
+    if (game.autoplay && game.autoplay.log) game.autoplay.log(text); else game.ui.toast(text, 'epic');
   }
   if (r.ship) game.refitPlayer();
   return r;
@@ -310,7 +310,7 @@ export function makePlanetGoal(game) {
       // before the drop: collect / leave the orbital probe, pick the richest site the explorer is a
       // match for, and fit its tools to what this world carries
       const launch = () => {
-        const ex = ensureExplorer(G.data), sv = S.survey, say = (m) => G.autoplay && G.autoplay.log(m);
+        const ex = ensureExplorer(G.data), sv = S.survey, say = (m) => G.autoplay && G.autoplay.log && G.autoplay.log(m);
         const op = orbitalProbeAuto(G.data, sv, G.data.playtime);
         if (op) say(`Orbit: ${op}`);
         S.siteIdx = pickSite(sv, ex.level);

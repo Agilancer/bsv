@@ -271,8 +271,9 @@ export class Autoplay {
     const after = Object.values(P.ship.loadout).map((i) => i && i.uid).join();
     if (before !== after) this.log('Refitted with better gear');
     holdTriage(g, this);
-    // vacant posts, promotions and reassignment do not need a station; hiring waits for one
+    // vacant posts, reassignment and cheap promotions (5% of the purse) do not need a station;
+    // hiring waits for one
     this.crewT = (this.crewT || 0) + 4;
-    if (this.crewT >= 30 && g.crewAuto && g.mode === 'space') { this.crewT = 0; g.crewAuto({ hire: !!g.docked, budget: Math.floor(P.credits * 0.1) }); }
+    if (this.crewT >= 30 && g.crewAuto && g.mode === 'space') { this.crewT = 0; g.crewAuto({ hire: !!g.docked, budget: Math.floor(P.credits * 0.05) }); }
   }
 }

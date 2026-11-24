@@ -43,7 +43,7 @@ export function install(game) {
   // no-hire pass in flight). Decisions go to the autopilot's log.
   game.crewAuto = (opts = {}) => {
     if (!game.data || !game.world) return null;
-    const quiet = !!game.autoplay;
+    const quiet = !!(game.autoplay && game.autoplay.log);
     const r = crew.autoManage({ ...opts, quiet });
     if (r.text && quiet) game.autoplay.log(r.text);
     return r;
