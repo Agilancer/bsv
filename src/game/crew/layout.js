@@ -44,8 +44,9 @@ export function deckPlan(chassis) {
   room('sensors', top, 0.8, 0.965, 'Sensor Array');
   const gunRows = [];
   if (D === 2) {
-    room('weapons', bottom, eng, 0.5, 'Gun Deck');
-    room('shields', bottom, 0.5, 0.64, 'Shield Generator');
+    room('hangar', bottom, eng, 0.26, 'Shuttle Bay');
+    room('weapons', bottom, 0.26, 0.52, 'Gun Deck');
+    room('shields', bottom, 0.52, 0.64, 'Shield Generator');
     room('damage', bottom, 0.64, 0.74, 'Damage Control');
     room('weapons', bottom, 0.74, 0.955, 'Torpedo Room');
     gunRows.push(bottom);

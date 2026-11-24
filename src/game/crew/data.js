@@ -139,7 +139,7 @@ export function newCrewState(chassis, seed = 1) {
   return { v: 1, chassis: chassis.id, seed: seed >>> 0, n: 0, members: [], officers: {}, recruits: [], recruitT: 0, log: [], fires: {}, dmgAcc: 0 };
 }
 
-function rngFor(state) { state.n = (state.n || 0) + 1; return new RNG((state.seed * 2654435761 + state.n * 40503) >>> 0); }
+function rngFor(state) { state.n = (state.n || 0) + 1; return new RNG((Math.imul(state.seed ^ 0x9e3779b9, 2654435761) ^ Math.imul(state.n, 40503) ^ (state.n << 13)) >>> 0); }
 
 export function makeMember(state, opts = {}) {
   const rng = rngFor(state);
@@ -192,23 +192,28 @@ export function generateCrew(chassis, seed = 1, fill = 0.35) {
   const req = complement(chassis);
   const posts = OFFICER_KEYS.filter((p) => req[OFFICER_POSTS[p].dept] > 0 || p === 'xo' || p === 'helm');
   const nOff = Math.min(posts.length, Math.max(2, Math.min(7, Math.floor(count / 2))));
+  // every officer gets a face of their own
+  const looks = new RNG(seed ^ 0x5bd1e995).shuffle(LOOKS.slice());
   for (let i = 0; i < nOff; i++) {
     const post = posts[i];
-    const m = makeMember(st, { dept: OFFICER_POSTS[post].dept, lvl: 3 + (i % 3), quality: 0.55, rank: post === 'xo' ? 5 : 4 });
+    const m = makeMember(st, { dept: OFFICER_POSTS[post].dept, lvl: 3 + (i % 3), quality: 0.55, rank: post === 'xo' ? 5 : 4, look: looks[i % looks.length] });
     m.officer = post;
     m.morale = 80;
     st.officers[post] = m.id;
     st.members.push(m);
   }
   // fill the rest toward the required complement, proportionally
-  while (st.members.length < count) {
-    const have = staffCount(st);
-    let best = 'tactical', bd = -Infinity;
-    for (const k of DEPT_KEYS) { const d = (req[k] - (have[k] || 0)) / Math.max(1, req[k]); if (req[k] && d > bd) { bd = d; best = k; } }
-    st.members.push(makeMember(st, { dept: best }));
-  }
+  while (st.members.length < count) st.members.push(makeMember(st, { dept: neediest(st, req) }));
   st.recruits = rollRecruits(st, chassis);
   return st;
+}
+
+// the department furthest below its required complement
+export function neediest(st, req) {
+  const have = staffCount(st);
+  let best = 'tactical', bd = -Infinity;
+  for (const k of DEPT_KEYS) { const d = (req[k] - (have[k] || 0)) / Math.max(1, req[k]); if (req[k] && d > bd) { bd = d; best = k; } }
+  return best;
 }
 
 export function staffCount(st) {
@@ -310,7 +315,8 @@ export function fitToChassis(st, chassis) {
     while (st.members.length > hi && ratings.length) { const m = ratings.shift(); st.members.splice(st.members.indexOf(m), 1); removed.push(m); }
   }
   const added = [];
-  while (st.members.length < lo) { const m = makeMember(st, { quality: 0.25 }); st.members.push(m); added.push(m); }
+  const req = complement(chassis);
+  while (st.members.length < lo) { const m = makeMember(st, { quality: 0.25, dept: neediest(st, req) }); st.members.push(m); added.push(m); }
   return { removed, added };
 }
 
