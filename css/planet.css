@@ -20,7 +20,7 @@
 @keyframes cargoFull { to { box-shadow: 0 0 18px rgba(255, 208, 64, 0.9); } }
 
 /* banner */
-#pBanner { position: fixed; left: 50%; top: 56px; transform: translateX(-50%); padding: 8px 18px 8px; text-align: center; min-width: 380px; max-width: 46vw; }
+#pBanner { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); padding: 8px 18px 8px; text-align: center; min-width: 380px; max-width: 46vw; }
 #pBanner .psite { font-size: 12px; color: var(--cyan); letter-spacing: 0.08em; margin-top: 2px; }
 #planetHud.bossfight #pObj { display: none; }
 #planetHud.bossfight #pPrompt { bottom: 172px; }
@@ -178,3 +178,5 @@ body.planet-hud-hidden .toast:not(.legend) { display: none; }
 #planetHud .holo { background: linear-gradient(160deg, rgba(16, 32, 74, 0.82), rgba(6, 12, 30, 0.9) 40%, rgba(10, 8, 34, 0.9)); }
 /* planet compact mode owns the small screen: park the orbit menubar */
 body:has(#planetHud.compact) #menubar, body:has(#planetHud.compact) #chat { display: none; }
+/* on the surface the orbit menubar, tutorial objectives and space stick step aside */
+body.planet-mode #menubar, body.planet-mode #objectives, body.planet-mode #stick, body.planet-mode #mMenu, body.planet-mode #mChat, body.planet-mode #mStop, body.planet-mode #dockPrompt { display: none !important; }

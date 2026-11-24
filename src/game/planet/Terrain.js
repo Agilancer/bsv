@@ -122,10 +122,10 @@ export class Terrain {
       m = new THREE.MeshStandardNodeMaterial({ roughness: 0.8, metalness: 0 });
       const a = nz(0.006, 0.004, 0.0015), b = nz(0.017, -0.006, 0.004), c = nz(0.045, 0.01, -0.012);
       const flow = a.r.mul(0.6).add(b.g.mul(0.4));
-      const crust = smoothstep(0.3, 0.55, flow);
-      const hot = mix(C(0xffb040, 3.4), C(0xff3a08, 1.8), c.a);
+      const crust = smoothstep(0.2, 0.42, flow);
+      const hot = mix(C(0xffa040, 2.2), C(0xff3a08, 1.1), c.a);
       m.colorNode = mix(vec3(0.25, 0.06, 0.02), vec3(0.06, 0.04, 0.035), crust);
-      m.emissiveNode = hot.mul(float(1).sub(crust).pow(1.5)).add(C(0xff3010, 0.25).mul(crust)).add(C(0xffa040, 2).mul(smoothstep(0.06, 0.0, b.b)).mul(crust));
+      m.emissiveNode = hot.mul(float(1).sub(crust).pow(2)).add(C(0xff3010, 0.12).mul(crust)).add(C(0xffa040, 1.2).mul(smoothstep(0.04, 0.0, b.b)).mul(crust));
     } else if (F.kind === 'water') {
       m = new THREE.MeshStandardNodeMaterial({ roughness: 0.06, metalness: 0.25, transparent: true });
       const ripple = nz(0.05, 0.006, 0.004).a.mul(0.5).add(nz(0.033, -0.005, 0.007).a.mul(0.5));

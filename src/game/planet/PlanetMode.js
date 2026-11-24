@@ -455,6 +455,7 @@ export class PlanetMode {
     if (this.sun.castShadow) { E.renderer.shadowMap.enabled = true; E.renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
     G.enterMode('planet', this);
     E.setView(this.scene, this.cam.camera);
+    document.body.classList.add('planet-mode');
     this.applyAtmosphere();
     this.hud.show();
     // descent: the lander drops from orbit on retro-thrusters
@@ -474,6 +475,7 @@ export class PlanetMode {
     const E = this.engine;
     this.probes.recallAll(true);
     this.hud.destroy();
+    document.body.classList.remove('planet-mode');
     for (const l of [this.pfx.G, this.pfx.S, this.pfx.K]) E.remove(l);
     E.renderer.toneMappingExposure = this.savedExposure || 1.05;
     E.renderer.shadowMap.enabled = !!this.savedShadows;

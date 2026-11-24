@@ -44,6 +44,12 @@ export function install(game) {
   game.modes.refinery = () => P.windows.toggle('refinery');
   game.modes.explorer = () => P.windows.toggle('explorer');
   (game.statProviders ||= []).push((g) => refineryShipStats(g.data));
+  // orbit-only modes stay in orbit while the explorer is on the ground
+  for (const k of ['bridge', 'dock']) {
+    const orig = game.modes[k];
+    if (orig) game.modes[k] = (...a) => { if (game.mode === 'planet') { game.ui.toast('Return to orbit first', 'warn'); return; } return orig(...a); };
+  }
+
   // autoplay: the captain's long-horizon goal list takes factories (ap) => {name, score, update}
   game.planetAuto = makePlanetGoal(game);
   if (Array.isArray(game.autoplayGoals)) game.autoplayGoals.push(() => game.planetAuto);
