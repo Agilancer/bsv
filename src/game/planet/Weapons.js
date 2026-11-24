@@ -223,6 +223,8 @@ export class Arsenal {
 
   fire(g, ws, i, dist, aimEnemy, rep) {
     const M = this.mode, V = M.vehicle, fx = M.pfx;
+    const SND = { bullet: ['hit', 0.3], scatter: ['cannon', 0.45], rocket: ['missile', 0.6], plasma: ['beam', 0.35], rail: ['heavy', 0.5], mortar: ['cannon', 0.6], arc: ['beam', 0.4] }[ws.kind];
+    if (SND && !rep) M.sfx(SND[0], null, SND[1]);
     const leech = V.stats.leech, chainreact = ws.unique.includes('chainreact');
     const col = ws.color;
     const base = { team: 0, color: col, crit: ws.crit, critMul: 1.5 + ws.critDmg, burn: ws.burn, leech, chainreact };
@@ -327,6 +329,7 @@ export class Arsenal {
   flame(g, ws, dt) {
     const M = this.mode, fx = M.pfx;
     fx.flame(_mz, _dir, ws.color, ws.range);
+    if (Math.random() < dt * 3) M.sfx('torpedo', null, 0.18);
     this.flameT -= dt;
     if (this.flameT > 0) return;
     this.flameT = 1 / ws.rof;

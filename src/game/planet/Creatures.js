@@ -7,6 +7,7 @@ import * as THREE from 'three/webgpu';
 import { vec3 } from 'three/tsl';
 import { CreatureBatch, PLAN_HEIGHT } from './creatureModels.js';
 import { ENEMY_BY_ID, ENEMIES } from './enemies.js';
+import { creatureHp, hitDamage } from './groundBalance.js';
 import { damp, clamp, wrapAngle } from '../../engine/rng.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Euler(), _a = new THREE.Vector3(), _c = new THREE.Vector3(), _w = new THREE.Vector3();
@@ -52,13 +53,13 @@ export class Creatures {
     this.batch(def); if (def.vis.segs) this.batch(def, 'seg');
     const lv = Math.max(1, level | 0);
     const elite = !!opts.elite;
-    const hp = def.hp * (1 + 0.22 * (lv - 1)) * (elite ? 2.6 : 1);
+    const hp = creatureHp(def, lv) * (elite ? 2.6 : 1);        // balance contract (groundBalance.js)
     const g = this.mode.S.ground(x, z);
     const scale = def.scale * (0.92 + Math.random() * 0.16) * (elite ? 1.15 : 1);
     const e = {
       def, entry: def, level: lv, scale, boss: def.boss, elite, name: (elite ? 'Elite ' : '') + def.name,
       pos: new THREE.Vector3(x, g + def.float, z), vel: new THREE.Vector3(), heading: Math.random() * 6.28,
-      hp, maxHp: hp, dmg: def.dmg * (1 + 0.12 * (lv - 1)) * (elite ? 1.4 : 1), alive: true, dying: 0,
+      hp, maxHp: hp, dmg: hitDamage(def, lv) * (elite ? 1.35 : 1), alive: true, dying: 0,
       mode: opts.awake ? 'hunt' : 'dormant', home: new THREE.Vector3(x, 0, z), camp: opts.camp || null,
       cd: 0.5 + Math.random() * Math.max(1, def.cd), anim: Math.random() * 10, flash: 0, glow: 0, t: 0, state: 'idle',
       burnT: 0, burnDps: 0, shielded: 0, stun: 0, phase: 1,

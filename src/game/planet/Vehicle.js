@@ -7,6 +7,7 @@ import { explorerStats } from './explorerItems.js';
 import { shieldMaterial } from '../../fx/materials.js';
 import { damp, clamp, wrapAngle } from '../../engine/rng.js';
 import { EXPLORER_BY_ID } from '../data/chassis.js';
+import { MAX_HIT_SHARE } from './groundBalance.js';
 
 export const FRAME_PHYS = {
   skiff: { hover: true, accel: 3.0, turn: 6.0, face: 'move', bob: 0.22, bank: 0.25 },
@@ -325,7 +326,7 @@ export class Vehicle {
     const t = this.engine.time;
     this.lastHit = t;
     if (this.bubble > 0) { this.flashShield(point); return 0; }
-    let a = amount;
+    let a = Math.min(amount, (this.stats.maxHp + this.stats.maxShield * 0.8) * MAX_HIT_SHARE);
     if (this.shield > 0) {
       const s = Math.min(this.shield, a);
       this.shield -= s; a -= s;

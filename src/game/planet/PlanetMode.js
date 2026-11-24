@@ -113,6 +113,8 @@ export class PlanetMode {
     this.torchLights = [];   // added only inside dungeons (light count changes recompile materials)
     this.pfx = new PlanetFX(E, scene);
     this.pfx.dustHex = this.dustHex;
+    const boom = this.pfx.explode.bind(this.pfx);
+    this.pfx.explode = (p, s = 1, hex) => { boom(p, s, hex); this.sfx(s > 1.6 ? 'heavy' : 'explosion', p, Math.min(1.3, 0.25 + s * 0.35)); };
     this.ground = new GroundFX(E);
     this.terrain = new Terrain(this, this.S, this.siteInfo.seed);
     scene.add(this.terrain.group);
@@ -151,6 +153,14 @@ export class PlanetMode {
     return false;
   }
   later(delay, fn) { this.timers.push({ t: this.engine.time + delay, fn }); }
+  // procedural audio, attenuated by distance to the explorer (the shared listener follows the space camera)
+  sfx(kind, pos, mul = 1) {
+    const A = this.game.audio;
+    if (!A) return;
+    const d = pos ? Math.hypot(pos.x - this.vehicle.position.x, pos.z - this.vehicle.position.z) : 0;
+    const g = mul * Math.max(0, 1 - d / 260);
+    if (g > 0.03) A.play(kind, null, g);
+  }
   telegraph(p, r, hex, time) { this.ground.telegraph(p, r, hex, time); }
   toast(msg, kind = '') { this.game.ui.toast(msg, kind); }
   itemLevel() { return Math.max(1, this.siteInfo.level + (this.dungeon ? 2 + this.dungeon.entrance.depth : 0) + Math.floor(Math.random() * 3)); }
@@ -185,6 +195,7 @@ export class PlanetMode {
     }
     ex.inventory.push(item);
     this.runStats.items++;
+    this.sfx('loot', null, 0.4 + r.i * 0.15);
     this.game.ui.chat('LOOT', null, `Explorer recovered ${item.name}`, 'loot', 'loot');
     if (r.i >= 3) this.toast(`${r.name}: ${item.name}`, r.i >= 4 ? 'legend' : 'epic');
     this.hud.refreshWindows();
@@ -269,6 +280,7 @@ export class PlanetMode {
     const ups = grantExplorerXp(ex, xp);
     if (ups) {
       const ab = PLANET_ABILITIES.find((a) => a.unlock === ex.level);
+      this.sfx('levelup', null, 1);
       this.game.ui.levelUp(ex.level, 'EXPLORER LEVEL', ab ? `NEW ABILITY · ${ab.name.toUpperCase()}` : 'VEHICLE SYSTEMS UPGRADED');
       this.pfx.pillar(this.vehicle.position, 0x9a6bff, 30, 3, 40); this.pfx.ring(this.vehicle.position, 18, 0x9a6bff, 64);
       this.refreshStats();
@@ -292,6 +304,7 @@ export class PlanetMode {
   }
 
   onPlayerHit(amount, point, shield) {
+    this.sfx(shield ? 'shield' : 'hit', null, 0.6);
     if (amount >= 1) this.hud.damageNumber(point || this.vehicle.position, amount, false, shield ? 'pshield' : 'player');
     if (!shield && amount > this.vehicle.stats.maxHp * 0.06) { this.engine.flash(0.15, 0xff3020); this.cam.addShake(1); }
   }
@@ -452,6 +465,7 @@ export class PlanetMode {
     this.cam.focus.set(this.lander.position.x, this.landerHome.y, this.lander.position.z);
     this.cam.distance = 150; this.cam.distTarget = 80;
     this.ex.runs = (this.ex.runs || 0) + 1;
+    this.sfx('jump', null, 0.8);
     G.ui.chat('SYS', null, `Explorer deploying to ${this.survey.name} · ${this.siteInfo.name} · hazard ${this.survey.hazardName}`, 'sys');
     G.ui.chat('SYS', null, 'WASD drive · Mouse aim · LMB fire · RMB/F mine · Shift boost · 1-4 abilities · X probe · R interact · L explorer bay · U refinery', 'sys');
   }
@@ -486,6 +500,7 @@ export class PlanetMode {
     this.pfx.pillar(V.position, 0x58c8ff, 30, 3, 30);
     this.state = 'ascent'; this.stateT = 0;
     this.lander.visible = true;
+    this.sfx('jump', null, 0.8);
   }
   bank() {
     const n = bankCargo(this.data, this.cargo);

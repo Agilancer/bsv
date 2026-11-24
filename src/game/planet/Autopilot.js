@@ -121,15 +121,16 @@ export function autoSpend(game) {
 // the orbit-side goal for the autoplay captain
 export function makePlanetGoal(game) {
   const goal = {
-    name: 'planet', phase: 'idle', target: null, t: 0,
+    name: 'Explore a planet', phase: 'idle', target: null, t: 0,
     score(g = game) {
-      if (g.mode === 'planet') return 1;
-      if (g.mode !== 'space' || !g.sector || !g.player) return 0;
+      if (g.mode === 'planet' || goal.phase === 'surface') return 5;
+      if (g.mode !== 'space' || !g.sector || !g.player || g.docked) return 0;
+      if (g.planet && ['scanning', 'panel', 'drop', 'entering'].includes(g.planet.scanner.state)) return 5;
       const ex = ensureExplorer(g.data);
       const since = g.data.playtime - (ex.lastRunAt || -1e9);
-      if (since < 240) return 0.05;
+      if (since < 300) return 0.05;
       const any = g.sector.planets.some((p) => p.userData.info && p.userData.info.landable);
-      return any ? 0.55 : 0;
+      return any ? 0.9 : 0;
     },
     update(dt) {
       const G = game, P = G.planet;
@@ -149,8 +150,10 @@ export function makePlanetGoal(game) {
       }
       const tp = goal.target.position;
       if (S.nearby() === goal.target) { s.throttle = 0; S.scan(); return false; }
-      s.throttle = 1;
-      s.steerTo(new THREE.Vector3(tp.x, 0, tp.z), 100, 1);
+      const far = Math.hypot(tp.x - s.position.x, tp.z - s.position.z);
+      const warping = G.isWarping && G.isWarping();
+      if (far > 2600 && G.warpTo && !warping) G.warpTo(new THREE.Vector3(tp.x + 120, 0, tp.z + 120));
+      else if (!warping) { s.throttle = 1; s.steerTo(new THREE.Vector3(tp.x, 0, tp.z), 100, 1); }
       goal.t += dt;
       if (goal.t > 240) { goal.t = 0; goal.target = null; return true; }
       return false;

@@ -19,6 +19,7 @@ export const PLANET_ABILITIES = [
       for (let i = 0; i < 6; i++) M.pfx.dust(V.position, 3, M.dustHex, 2, 8);
       M.later(0.05, () => M.pfx.glowBurst(V.position, 0x58e0ff, 5, 0.3, 1.5));
       M.cam.addShake(0.6);
+      M.sfx('missile', null, 0.7);
       return true;
     },
   },
@@ -30,6 +31,7 @@ export const PLANET_ABILITIES = [
       V.bubble = 5; V.shield = V.stats.maxShield;
       V.flashShield(null);
       M.pfx.ring(V.position, 10, 0x58c8ff, 64); M.pfx.pillar(V.position, 0x58c8ff, 12, 4, 30);
+      M.sfx('shield', null, 1);
       return true;
     },
   },
@@ -56,6 +58,7 @@ export const PLANET_ABILITIES = [
       const R = 15;
       M.telegraph(t, R, 0xff3050, 1.5);
       M.toast('Orbital strike inbound', 'warn');
+      M.sfx('ui', null, 1);
       for (let i = 0; i < 15; i++) M.later(i * 0.1, () => {
         const sky = _w.set(t.x + (Math.random() - 0.5) * 2, t.y + 260, t.z + (Math.random() - 0.5) * 2);
         M.pfx.timedBeam(sky.clone(), t.clone(), 0.12 + i * 0.02, 0xff3050, 1.6, 0.12);
@@ -69,6 +72,7 @@ export const PLANET_ABILITIES = [
         M.pfx.ring(t, 34, 0xffd080, 96); M.pfx.pillar(t, 0xffe0a0, 60, 6, 60);
         for (let i = 0; i < 8; i++) M.pfx.dust(t, 8, M.dustHex, 6, 24);
         M.cam.addShake(5); M.engine.flash(0.35, 0xfff0d0);
+        M.sfx('heavy', t, 1.4); M.sfx('beam', t, 1);
         M.ground.pulse(t.x, t.z, 0xffd080, 1.4);
         const base = (220 + M.ex.level * 55) * V.stats.dmgMul;
         M.creatures.forInRadius(t, R, (e, dd) => M.hitEnemy(e, base * (1 - 0.5 * dd / R), e.pos.clone().setY(e.pos.y + 1), { crit: false }));

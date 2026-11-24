@@ -12,7 +12,7 @@ import { ensureExplorer } from './explorerItems.js';
 import { refineryShipStats, surveyPlanet } from './economy.js';
 import { EXTRA_TEXTURES } from './biomes.js';
 import { preload } from '../../engine/Assets.js';
-import { makePlanetGoal } from './Autopilot.js';
+import { makePlanetGoal, autoSpend } from './Autopilot.js';
 import { ENEMIES } from './enemies.js';
 
 export function install(game) {
@@ -44,8 +44,10 @@ export function install(game) {
   game.modes.refinery = () => P.windows.toggle('refinery');
   game.modes.explorer = () => P.windows.toggle('explorer');
   (game.statProviders ||= []).push((g) => refineryShipStats(g.data));
+  // autoplay: the captain's long-horizon goal list takes factories (ap) => {name, score, update}
   game.planetAuto = makePlanetGoal(game);
-  if (Array.isArray(game.autoplayGoals)) game.autoplayGoals.push(game.planetAuto);
+  if (Array.isArray(game.autoplayGoals)) game.autoplayGoals.push(() => game.planetAuto);
+  game.refineryAuto = () => autoSpend(game);          // stations call this while resupplying
 
   // stylesheet + the extra surface textures
   if (!document.querySelector('link[data-planet]')) {
@@ -54,14 +56,25 @@ export function install(game) {
   }
   preload(EXTRA_TEXTURES).catch(() => {});
 
-  // per-frame: scan prompt / animation, save upgrades, autoplay goal injection
+  // the UI exists only after start(): hook ESC, and ?planet=<type> drops straight onto a surface (dev / screenshots)
+  const start = game.start;
+  game.start = function (fresh) {
+    start.call(this, fresh);
+    ensureExplorer(game.data);
+    const closeAll = game.ui.closeAll.bind(game.ui);
+    game.ui.closeAll = () => { const a = P.windows.closeAll(); const b = P.scanner.state === 'panel' ? (P.scanner.close(), true) : false; return closeAll() || a || b; };
+    const q = new URLSearchParams(location.search);
+    if (q.has('planet')) setTimeout(() => P.debugDeploy(q.get('planet') || 'terran', { hazard: +(q.get('hazard') || 0) || undefined }), 300);
+  };
+
+  // per-frame: scan prompt + animation; older autoplay builds take goals on .extra
   game.engine.add({
     update(dt) {
-      if (!game.data) return;
+      if (!game.data || !game.ui) return;
       if (!game.data.explorer || !game.data.refinery) ensureExplorer(game.data);
       P.scanner.update(dt);
       const A = game.autoplay;
-      if (A && Array.isArray(A.extra) && !A.extra.includes(game.planetAuto)) A.extra.push(game.planetAuto);
+      if (A && !Array.isArray(game.autoplayGoals) && Array.isArray(A.extra) && !A.extra.includes(game.planetAuto)) A.extra.push(game.planetAuto);
     },
   });
 
@@ -71,6 +84,5 @@ export function install(game) {
     if (!game.data || !game.ui || game.input.blocked) return;
     if (e.code === 'KeyU') game.modes.refinery();
     else if (e.code === 'KeyL') game.modes.explorer();
-    else if (e.code === 'Escape') { P.windows.closeAll(); if (P.scanner.state === 'panel') P.scanner.close(); }
   });
 }

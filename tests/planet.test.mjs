@@ -16,6 +16,7 @@ import {
   fabricate, bankCargo, loseCargo, cargoTotal, addResources, affordable, pay,
 } from '../src/game/planet/economy.js';
 import { heightSampler } from '../src/game/planet/terrainHeight.js';
+import { expectedExplorer, groundTargets, creatureHp, hitDamage, GROUND_TTK, MAX_HIT_SHARE } from '../src/game/planet/groundBalance.js';
 import { ENEMIES, ENEMY_BY_ID, SIZE_KEYS, ARCHETYPES, FAMILIES, spawnTable, pickPack, pickBoss, pickEpic } from '../src/game/planet/enemies.js';
 import { generateDungeon, DungeonNav, DUNGEON_THEMES, bfs, CELL } from '../src/game/planet/dungeonGen.js';
 import { probeStats, buyProbeUpgrade, PROBE_UPGRADES, orbitalProbeYield } from '../src/game/planet/economy.js';
@@ -369,4 +370,27 @@ test('explorer loadout: equip, unequip, best, and chassis swaps keep every item'
   const keys = exSlotKeys(EXPLORER_BY_ID.ex_skiff_1);
   for (const k of Object.keys(ex.loadout)) assert.ok(keys.includes(k));
   assert.equal(setExChassis(ex, 'ex_lancer_9'), false, 'cannot deploy an unowned frame');
+});
+
+test('ground balance: time-to-kill stays flat across levels, per size class', () => {
+  for (const L of [1, 5, 12, 25, 40, 60]) {
+    const P = expectedExplorer(L);
+    assert.ok(P.dps > 0 && P.ehp > 0);
+    for (let si = 0; si < 6; si++) {
+      const designs = ENEMIES.filter((e) => e.size === si);
+      const avgHp = designs.reduce((a, e) => a + creatureHp(e, L), 0) / designs.length;
+      const ttk = avgHp / P.dps;
+      assert.ok(ttk > GROUND_TTK.playerKills[si] * 0.75 && ttk < GROUND_TTK.playerKills[si] * 1.35, `L${L} size ${si}: ${ttk.toFixed(1)}s to kill`);
+      for (const e of designs) {
+        const hit = hitDamage(e, L);
+        assert.ok(hit > 0 && hit <= P.ehp * MAX_HIT_SHARE + 1e-6, `${e.name} never one-shots`);
+      }
+    }
+  }
+  // bigger things take longer and hit harder, at any level
+  for (const L of [3, 30]) for (let si = 1; si < 6; si++) {
+    assert.ok(groundTargets(si, L).hp > groundTargets(si - 1, L).hp);
+    assert.ok(groundTargets(si, L).dps > groundTargets(si - 1, L).dps);
+  }
+  assert.ok(expectedExplorer(30).dps > expectedExplorer(5).dps * 3, 'the explorer grows with its level');
 });

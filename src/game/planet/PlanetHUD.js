@@ -60,7 +60,14 @@ export class PlanetHUD {
     root.append(btns);
     root.append(h(`<div id="pBoss"><div class="bname" id="pBossName"></div><div class="bar hull" id="pBossBar"><i></i><span></span></div><div class="bsub" id="pBossSub"></div></div>`));
     root.append(h(`<div id="pPrompt"></div>`));
-    root.append(h(`<div id="pStrip" class="holo"><span id="pStripTxt"></span></div>`));
+    const strip = h(`<div id="pStrip" class="holo"><span id="pStripTxt"></span><button class="btn" data-p="show">Show</button><button class="btn bad" data-p="stop">Stop autoplay</button></div>`);
+    strip.querySelector('[data-p=show]').onclick = () => { this.peekUntil = performance.now() + 20000; };
+    strip.querySelector('[data-p=stop]').onclick = () => { if (mode.game.autoplay) mode.game.toggleAutoplay(); };
+    root.append(strip);
+    this.peekUntil = 0;
+    // tapping the world while the interface is hidden peeks it for a few seconds
+    this.onPeek = (e) => { if (this.hidden && (e.target.id === 'view' || e.target.id === 'pTouch')) this.peekUntil = performance.now() + 6000; };
+    addEventListener('pointerdown', this.onPeek);
     root.append(h(`<div id="pFade"><div class="ft" id="pFadeTxt"></div><div class="streaks"></div></div>`));
     root.append(h(`<div id="pDeath"><div class="big">EXPLORER LOST</div><div class="label" style="margin-top:14px">Half the unbanked cargo is gone. A replacement drops from the lander…</div></div>`));
     ui.append(root);
@@ -94,6 +101,8 @@ export class PlanetHUD {
   }
   destroy() {
     removeEventListener('resize', this.resize);
+    removeEventListener('pointerdown', this.onPeek);
+    document.body.classList.remove('planet-hud-hidden');
     this.root.remove(); this.canvas.remove();
     this.mode.game.ui.hideTip();
   }
@@ -210,8 +219,15 @@ export class PlanetHUD {
 
   update(dt, realDt) {
     const M = this.mode, V = M.vehicle, st = V.stats, ex = M.ex, el = this.el, G = M.game;
-    const hidden = !!G.hudHidden;
-    this.root.classList.toggle('hudHidden', hidden);
+    // hide the interface while autoplay runs (the captain's "hide interface during autoplay" option)
+    const set = G.settings ? G.settings() : {};
+    const hidden = !!G.hudHidden || (!!G.autoplay && !!set.hideHudInAuto && performance.now() > this.peekUntil);
+    if (hidden !== this.hidden) {
+      this.hidden = hidden;
+      this.root.classList.toggle('hudHidden', hidden);
+      document.body.classList.toggle('planet-hud-hidden', hidden);
+      if (hidden && G.planet) G.planet.windows.closeAll();
+    }
     this.setBar(el.pHull, V.hp / st.maxHp, `${fmt(V.hp)} / ${fmt(st.maxHp)}`, true);
     this.setBar(el.pShield, V.shield / st.maxShield, V.bubble > 0 ? 'BUBBLE' : fmt(V.shield));
     const xpN = explorerXpForLevel(ex.level);
@@ -297,7 +313,7 @@ export class PlanetHUD {
     const dpr = this.dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, innerWidth, innerHeight);
-    if (M.game.hudHidden) return;
+    if (this.hidden) return;
     const camera = cam.camera;
     const proj = (v) => { _p.copy(v).project(camera); return _p.z < 1 ? { x: (_p.x * 0.5 + 0.5) * innerWidth, y: (-_p.y * 0.5 + 0.5) * innerHeight } : null; };
     const pxPerUnit = innerHeight / (2 * Math.tan(camera.fov * Math.PI / 360) * cam.distance);

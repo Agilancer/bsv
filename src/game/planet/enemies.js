@@ -6,6 +6,7 @@
 // from the roster by planet type, hazard and context (open surface / dungeon / lair).
 // Pure data: importable in node.
 import { RNG, hashStr } from '../../engine/rng.js';
+import { creatureHp, hitDamage } from './groundBalance.js';
 
 export const SIZE_CLASSES = {
   small: { i: 0, name: 'Small', scale: 0.95, hp: 1, dmg: 1, speed: 1.0, xp: 1, pack: [4, 8], lvl: [-1, 1], minLevel: 1 },
@@ -190,6 +191,12 @@ export const PLANET_FAMILIES = {
   crystal: { crystal: 4, frost: 1.5, hive: 1.5, fungal: 1, guardian: 1 },
 };
 
+// family flavour: golems are tankier than drones, etc. (relative to the average family, clamped)
+const FAM_AVG_HP = Object.values(FAMILIES).reduce((a, f) => a + f.hp, 0) / Object.keys(FAMILIES).length;
+const FAM_AVG_DMG = Object.values(FAMILIES).reduce((a, f) => a + f.dmg, 0) / Object.keys(FAMILIES).length;
+const famHp = (f) => Math.min(1.35, Math.max(0.7, f.hp / FAM_AVG_HP));
+const famDmg = (f) => Math.min(1.3, Math.max(0.75, f.dmg / FAM_AVG_DMG));
+
 // ---------------- build the roster ----------------
 export const ENEMIES = [];
 const pct = (x) => Math.round(x * 100) / 100;
@@ -217,7 +224,7 @@ for (const [fk, fam] of Object.entries(FAMILIES)) {
       const e = {
         id, name, family: fk, familyName: fam.name, sizeClass: sk, size: sz.i, archetype: ak, ai: A.ai, attack: A.attack || null, role: A.role,
         planets, boss, phases: sz.phases || 1, weakPoints: sz.weakPoints || 0, special: (sz.special || boss) ? fam.special : null,
-        hp: Math.round(fam.hp * sz.hp * A.hp), dmg: pct(fam.dmg * sz.dmg * A.dmg), speed: pct(fam.speed * sz.speed * A.speed),
+        hpRel: pct(A.hp * famHp(fam)), dmgRel: pct(A.dmg * famDmg(fam)), speed: pct(fam.speed * sz.speed * A.speed),
         radius: pct(fam.radius * (plan === 'worm' ? 1.2 : plan === 'golem' ? 2.6 : plan === 'turret' ? 2 : plan === 'spitter' ? 1.7 : plan === 'drone' ? 1.6 : plan === 'sentinel' ? 1.8 : plan === 'guardian' ? 1.5 : plan === 'elemental' ? 1.6 : plan === 'flora' ? 1.5 : 1)),
         scale: pct(scale), cd: A.cd, range: A.range ? pct(A.range * (1 + sz.i * 0.12)) : 0, keep: A.keep || 0, far: A.far || 0, float: A.float ? pct(A.float * (1 + sz.i * 0.15)) : plan === 'sentinel' || plan === 'drone' ? 4 + sz.i * 1.2 : plan === 'elemental' ? 1.5 + sz.i * 0.6 : 0,
         burst: A.burst || 0, leap: !!A.leap, support: A.support || null, spawnCd: A.spawnCd || (boss ? 10 : 0),
@@ -231,6 +238,7 @@ for (const [fk, fam] of Object.entries(FAMILIES)) {
     });
   }
 }
+for (const e of ENEMIES) { e.hp = Math.round(creatureHp(e, 1)); e.dmg = pct(hitDamage(e, 1)); }   // level-1 reference values
 export const ENEMY_BY_ID = Object.fromEntries(ENEMIES.map((e) => [e.id, e]));
 
 // ---------------- spawn tables ----------------

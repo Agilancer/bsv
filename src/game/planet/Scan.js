@@ -94,6 +94,7 @@ export class Scanner {
     this.survey = surveyPlanet(info, G.sector.sys);
     if (ensureExplorer(G.data).scanned[key]) { this.showPanel(); return; }
     this.state = 'scanning'; this.t = 0;
+    if (G.audio) G.audio.play('beam', null, 0.6);
     const mat = scanMaterial(this.engine);
     this.sphere = new THREE.Mesh(new THREE.SphereGeometry(info.radius * 1.035, 64, 32), mat);
     g.add(this.sphere);
@@ -124,6 +125,7 @@ export class Scanner {
       ex.scanned[key] = { name: info.name, type: this.survey.type, hazard: this.survey.hazard, sys: G.data.system, at: Math.round(G.data.playtime) };
       this.sphere.material.userData.fade.value = 0.18;
       G.ui.toast(`Survey complete: ${info.name}`, 'epic');
+      if (G.audio) G.audio.play('loot', null, 0.6);
       this.showPanel();
     }
   }
@@ -217,6 +219,7 @@ export class Scanner {
     this.dropFrom = G.player.position.clone();
     this.state = 'drop'; this.t = 0; this.site = site;
     G.ui.toast(`Drop pod away — ${site.name}`, 'epic');
+    if (G.audio) G.audio.play('missile', null, 1);
     G.world.fx.ring(G.player.position, 120, 0x9a6bff, 64);
   }
   animateDrop(dt) {

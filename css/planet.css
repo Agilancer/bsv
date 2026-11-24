@@ -66,9 +66,13 @@
 #pBoss .bsub { font-size: 11px; letter-spacing: 0.14em; color: var(--text-dim); margin-top: 4px; text-transform: uppercase; }
 
 /* status strip (autoplay hide-interface) */
-#pStrip { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); padding: 4px 16px; font-family: var(--head); font-size: 11px; letter-spacing: 0.1em; display: none; }
+#pStrip { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); padding: 4px 8px 4px 16px; font-family: var(--head); font-size: 11px; letter-spacing: 0.1em; display: none; align-items: center; gap: 10px; white-space: nowrap; }
+#pStrip .btn { font-size: 9px; padding: 4px 8px; }
 #planetHud.hudHidden > * { display: none !important; }
-#planetHud.hudHidden > #pStrip, #planetHud.hudHidden > #pFade, #planetHud.hudHidden > #pDeath.show { display: block !important; }
+#planetHud.hudHidden > #pFade, #planetHud.hudHidden > #pDeath.show { display: block !important; }
+#planetHud.hudHidden > #pStrip { display: flex !important; }
+body.planet-hud-hidden #menubar, body.planet-hud-hidden #chat, body.planet-hud-hidden #autoStatus, body.planet-hud-hidden #objectives, body.planet-hud-hidden .mbtn, body.planet-hud-hidden #pOverlay { display: none !important; }
+body.planet-hud-hidden .toast:not(.legend) { display: none; }
 
 /* transitions */
 #pFade { position: fixed; inset: 0; z-index: 30; pointer-events: none; opacity: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 50%, rgba(30, 50, 110, 0.85), rgba(2, 4, 12, 0.98)); transition: opacity 0.6s; }
