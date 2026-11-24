@@ -9,6 +9,7 @@ import { slotKeys, slotType, xpForLevel, shipXpForLevel, itemScore, INV_SIZE } f
 // HUD panels the camera frames around (hidden ones measure 0 and drop out)
 const SAFE_IDS = ['status', 'helm', 'radar', 'weapons', 'target', 'abilities', 'menubar', 'chat', 'objectives', 'hudPeek', 'stick', 'mStop'];
 import { CHASSIS_BY_ID, YARDS, YARD_TRAITS } from '../game/data/chassis.js';
+import { sheetDps } from '../game/data/balance.js';
 import { THROTTLE_STEPS } from '../game/ship/Ship.js';
 import { TREES, TALENTS, talentPoints, spentPoints, canLearn, treePoints } from '../game/data/talents.js';
 import { ENEMIES, SIZES, ENEMY_FACTIONS } from '../game/data/enemies.js';
@@ -177,8 +178,8 @@ export class UI {
     s += `<div class="tx">Fits: ${SLOT_LABEL[item.slot]} · Value ${fmt(item.value)} ¢</div>`;
     if (compareTo && compareTo !== item) {
       const a = itemScore(item), b = itemScore(compareTo);
-      const diff = Math.round(a - b);
-      s += `<div class="cmp">vs equipped <span style="color:${RARITY[compareTo.rarity].color}">${esc(compareTo.name)}</span>: <span class="${diff >= 0 ? 'better' : 'worse'}">${diff >= 0 ? '▲ +' : '▼ '}${diff} gear score</span></div>`;
+      const diff = Math.round(a - b), rel = b > 0 ? Math.round((a / b - 1) * 100) : 0;
+      s += `<div class="cmp">vs equipped <span style="color:${RARITY[compareTo.rarity].color}">${esc(compareTo.name)}</span>: <span class="${diff >= 0 ? 'better' : 'worse'}">${diff >= 0 ? '▲ +' : '▼ '}${diff} gear score (${rel >= 0 ? '+' : ''}${rel}%)</span></div>`;
     }
     return s;
   }
@@ -266,8 +267,7 @@ export class UI {
     const g = this.game, P = g.data, s = g.player;
     const ch = CHASSIS_BY_ID[P.ship.chassis], y = YARDS[ch.yard];
     const body = this.windows.character.querySelector('.wbody');
-    let dps = 0;
-    if (s) for (const w of s.weapons) if (w.hp.type !== 'hangar') dps += w.ws.dmg * w.ws.barrels * w.ws.rof * (s.stats.dmgMul || 1);
+    const dps = s ? sheetDps(s.weapons, s.stats) : 0;   // one flank, turrets and prow, with crit (the balance contract's measure)
     const row = (k, v) => `<span>${k}</span><b>${v}</b>`;
     body.innerHTML = `
       <div class="title" style="color:var(--cyan)">${esc(P.ship.name)}</div>
@@ -285,7 +285,7 @@ export class UI {
         ${row('Turn rate', s ? (s.turnRate * 57.3).toFixed(1) + '°/s' : '-')}
         ${row('Weapon damage', s ? '+' + (((s.stats.dmgMul || 1) - 1) * 100).toFixed(0) + '%' : '-')}
         ${row('Critical chance', s ? (5 + (s.stats.crit || 0) * 100).toFixed(1) + '%' : '-')}
-        ${row('Total DPS', fmt(dps))}
+        ${row('DPS (one flank)', fmt(dps))}
         ${row('Crew complement', `${ch.crew[0]}–${ch.crew[1]}`)}
         ${row('Hull length', ch.len * 10 + ' m')}
         ${row('Kills', P.kills)}

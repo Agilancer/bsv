@@ -10,6 +10,7 @@ test('expected player power grows with rank', () => {
   for (const L of LEVELS) {
     const p = expectedPlayer(L);
     if (prev) { assert.ok(p.dps > prev.dps, `dps L${L}`); assert.ok(p.ehp >= prev.ehp, `ehp L${L}`); }
+    assert.ok(p.effDps < p.dps && p.effDps > p.dps * 0.2, `effective DPS is a share of sheet DPS at L${L}`);
     prev = p;
   }
 });
@@ -18,7 +19,7 @@ test('time-to-kill stays flat across levels for every size class', () => {
   for (let si = 0; si < 6; si++) {
     for (const L of LEVELS) {
       const p = expectedPlayer(L), e = enemyTargets(si, L);
-      const playerKills = (e.hull + e.shield * 1.2) / p.dps;
+      const playerKills = (e.hull + e.shield * 1.2) / p.effDps;   // what lands of the sheet DPS
       const enemyKills = p.ehp / Math.min(e.dps, dpsCapVs(p.ehp));
       assert.ok(Math.abs(playerKills - TTK.playerKills[si]) < 0.01 * TTK.playerKills[si] + 0.01, `size ${si} L${L} player TTK ${playerKills}`);
       assert.ok(enemyKills >= MIN_TTK, `size ${si} L${L} kills the captain in ${enemyKills.toFixed(1)}s`);

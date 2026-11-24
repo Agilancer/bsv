@@ -58,6 +58,22 @@ export function canLearn(data, k) {
 }
 export function rank(data, k) { return (data.talents || {})[k] || 0; }
 
+// The order an unfussy captain spends points in, one point per rank as it comes (the same
+// order Autoplay.spendTalents uses). The balance contract's expected captain learns these.
+export const STANDARD_BUILD = ['gunDrill', 'hullUp', 'harmonics', 'reload', 'deadeye', 'homing', 'recharge', 'broadMaster', 'tactics', 'helm', 'burners', 'hydra', 'lineOfBattle', 'ablative', 'damageCtl', 'veteran', 'plunder', 'lastStand', 'merchant', 'tractor', 'evasivePro', 'wingCmd', 'admiral', 'slipstream', 'ram', 'bastion'];
+export function standardTalents(level, order = STANDARD_BUILD) {
+  const data = { level: 1, talents: {} };
+  for (let l = 2; l <= level; l++) {
+    data.level = l;
+    for (let guard = 0; guard < 80; guard++) {
+      const k = order.find((t) => canLearn(data, t));
+      if (!k) break;
+      data.talents[k] = (data.talents[k] || 0) + 1;
+    }
+  }
+  return data;
+}
+
 export function talentStats(data) {
   const out = {};
   for (const [k, r] of Object.entries(data.talents || {})) {

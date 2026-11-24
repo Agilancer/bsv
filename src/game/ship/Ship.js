@@ -7,12 +7,14 @@ import * as THREE from 'three/webgpu';
 import { hullFor } from './HullBuilder.js';
 import { buildWeapon } from './WeaponModels.js';
 import { shieldMaterial } from '../../fx/materials.js';
-import { BASES, weaponStats, itemShipStats } from '../data/items.js';
+import { BASES, weaponStats, itemShipStats, DISRUPT } from '../data/items.js';
 import { YARDS } from '../data/chassis.js';
 import { clamp, wrapAngle, damp } from '../../engine/rng.js';
 
 const ARC = { broadside: 0.95, turret: 2.4, prow: 0.5, hangar: Math.PI };   // turret: half-angle from the bow (blind astern)
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
+// reused spawn spec for Wake of Thorns mines (Projectiles.spawn copies what it needs)
+const MINE = { pos: new THREE.Vector3(), vel: new THREE.Vector3(0, 0, 0.001), kind: 'mine', team: 1, owner: null, dmg: 0, dmgType: 'explosive', ws: { crit: 0, unique: [] }, life: 14, splash: 55, color: 0xffa040, size: 2.4, len: 3, trail: 0 };
 let SHIP_ID = 1;
 
 export const THROTTLE_STEPS = [-0.25, 0, 0.25, 0.5, 0.75, 1];
@@ -103,6 +105,7 @@ export class Ship {
     if (this.weaponGroup) this.body.remove(this.weaponGroup);
     this.weaponGroup = new THREE.Group();
     this.body.add(this.weaponGroup);
+    const prev = this.weapons || [];
     this.weapons = [];
     const s = this.dims.W * 0.72;   // gun scale: big enough to read at play zoom
     for (const hp of this.hardpoints) {
@@ -114,8 +117,13 @@ export class Ship {
       if (this.weaponMod) this.weaponMod(ws, item, hp);   // captain talents etc.
       if (this.yardTrait === 'velscour' && hp.type === 'broadside') ws.dmg *= 1.12;
       if (this.yardTrait === 'corsair' && ws.kind === 'hangar') ws.count += 1;
-      const w = { hp, item, ws, key, cd: Math.random() * 1.5, arc: ARC[hp.type], head: null, muzzles: [], object: null, burst: 0 };
-      if (hp.type !== 'hangar') {
+      const w = { hp, item, ws, key, cd: Math.random() * 1.5, arc: ARC[hp.type], head: null, muzzles: [], object: null, burst: 0, siegeOn: null, siegeN: 0 };
+      ws.weapon = w;   // lets on-hit powers (Hair Trigger) reach the gun that fired
+      if (hp.type === 'hangar') {
+        // a refit (new gear, mastery level) keeps the bay's craft in the air and under its cap
+        const old = prev.find((o) => o.key === key && o.item === item);
+        if (old) { w.wing = old.wing; w.cd = old.cd; }
+      } else {
         const gs = s * (hp.type === 'prow' ? 1.2 : 1);
         const m = buildWeapon(item, hp, gs);
         m.object.position.copy(hp.pos);
@@ -132,6 +140,7 @@ export class Ship {
     this.maxRange = this.weapons.reduce((r, w) => Math.max(r, w.hp.type === 'hangar' ? 0 : w.ws.range), 200);
     let wd = 0;
     for (const w of this.weapons) if (w.hp.type !== 'hangar') wd += w.ws.dmg * Math.max(1, w.ws.barrels) * w.ws.rof * (w.hp.type === 'broadside' ? 0.5 : 1);
+    this.rawDps = Math.max(20, wd);   // before the damage multiplier (powers scale off this; combat applies dmgMul)
     this.weaponDps = Math.max(20, wd * (st.dmgMul || 1));
   }
 
@@ -210,10 +219,24 @@ export class Ship {
 
     // shields regen after 3s without a hit; flow toward the weakest facing
     const since = t - this.lastHit;
-    const regenMul = since > 3 ? 1 : this.stats.u_aegis === 2 ? 1 : this.stats.u_aegis ? 0.5 : this.stats.u_aegisLite ? 0.4 : 0;
+    const regenMul = this.buffs.disrupted > t ? 0 : since > 3 ? 1 : this.stats.u_aegis === 2 ? 1 : this.stats.u_aegis ? 0.5 : this.stats.u_aegisLite ? 0.4 : 0;   // ion disruption locks regen
     const cap = this.maxShield * 0.3;
     if (regenMul > 0) for (let i = 0; i < 4; i++) this.shields[i] = Math.min(cap, this.shields[i] + this.shieldRegen * regenMul * dt);
     if (this.hullRegen) this.repair(this.maxHull * this.hullRegen * dt);
+    // Triage: emergency surgery below 35% hull, 30% back over 6 s, once every 40 s (the captain's
+    // side only: on a boss's random legendary rack it would stretch the fight past its contract)
+    if (this.stats.u_surgeon && this.team === 1) {
+      if (this.hull < this.maxHull * 0.35 && t > (this._triageT || 0)) {
+        this._triageT = t + 40; this.buffs.triage = t + 6;
+        W.fx.ring(this.position, this.dims.L * 0.6, 0x7affb0, 48);
+      }
+      if (this.buffs.triage > t) this.repair(this.maxHull * 0.05 * dt);
+    }
+    // Wake of Thorns: mines astern at flank speed or under Evasive Manoeuvres
+    if (this.stats.u_wakeMines && t > (this._mineT || 0) && (this.buffs.evasive > t || this.speed > this.maxSpeed * 0.9)) {
+      this._mineT = t + 1.2;
+      this.sowMine();
+    }
     const lvl = this.shieldTotal() / (this.maxShield * 1.2);
     this.shieldMat.userData.level.value = lvl;
     this.shieldMesh.visible = lvl > 0.02;
@@ -261,6 +284,17 @@ export class Ship {
     this.updateWeapons(dt, t);
   }
 
+  // drop a proximity mine off the stern (Wake of Thorns): 3 s of this ship's firepower
+  sowMine() {
+    const back = this.dims.L * 0.55;
+    MINE.pos.set(this.position.x - Math.sin(this.heading) * back, this.position.y, this.position.z - Math.cos(this.heading) * back);
+    MINE.team = this.team; MINE.owner = this;
+    MINE.dmg = (this.rawDps || 20) * 3;
+    MINE.splash = 50 + this.dims.W;
+    this.world.projectiles.spawn(MINE);
+    MINE.owner = null;
+  }
+
   randomHullPoint(out) {
     const f = (Math.random() - 0.5) * this.dims.L * 0.8;
     out.set((Math.random() - 0.5) * this.dims.W * 1.6, this.dims.Ht * Math.random(), f);
@@ -295,7 +329,8 @@ export class Ship {
   updateWeapons(dt, t) {
     const W = this.world;
     const tg = this.target && this.target.alive ? this.target : null;
-    const rofMul = (this.buffs.overcharge > t ? 1.6 : 1);
+    const rofMul = (this.buffs.overcharge > t ? 1.6 : 1) * (this.buffs.forge > t ? 1.35 : 1)   // Overcharge ability, Forgeheart
+      * (this.buffs.disrupted > t && !this.isPlayer ? DISRUPT.rof : 1);                           // ion disruption
     for (const w of this.weapons) {
       w.cd -= dt * rofMul;
       if (w.hp.type === 'hangar') { W.hangars.tick(this, w, dt, t); continue; }
@@ -354,6 +389,11 @@ export class Ship {
     this.lastFire = W.engine.time;
     const ws = w.ws;
     w.cd = 1 / ws.rof;
+    // Siege Rhythm: every volley at the same target lands 8% harder, up to +40%
+    if (ws.unique.includes('siege')) {
+      if (w.siegeOn === target) w.siegeN = Math.min(5, w.siegeN + 1); else { w.siegeOn = target; w.siegeN = 0; }
+      mul *= 1 + 0.08 * w.siegeN;
+    }
     const n = Math.max(1, ws.barrels);
     const shots = ws.unique.includes('splitShot') || (ws.splitChance && Math.random() < ws.splitChance) ? 3 : 1;
     const doFire = (delayIdx) => {

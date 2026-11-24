@@ -6,7 +6,7 @@ import { UI } from '../ui/UI.js';
 import { CHASSIS_BY_ID } from './data/chassis.js';
 import { ABILITIES, ABILITY_BY_KEY } from './data/abilities.js';
 import { RARITY, rollItem, grantItemXp, BASES } from './data/items.js';
-import { newPlayer, load, save, wipe, xpForLevel, shipXpForLevel, MAX_LEVEL, INV_SIZE, slotKeys, slotType, itemScore } from './Player.js';
+import { newPlayer, load, save, wipe, xpForLevel, shipXpForLevel, MAX_LEVEL, INV_SIZE, slotKeys, slotType, itemScore, setScoreRef } from './Player.js';
 import { THROTTLE_STEPS } from './ship/Ship.js';
 import { SIZES } from './data/enemies.js';
 import { galaxy } from './galaxy.js';
@@ -98,6 +98,7 @@ export class Game {
     s.persistent = true;
     s.extraStats = this.extraStats(); s.weaponMod = talentWeaponMod(P); s.refit(); s.hull = s.maxHull;
     s.clipper = !!rank(P, 'clipper'); if (rank(P, 'bastion')) s.stats.u_aegis = 2;
+    setScoreRef(s);   // gear scores are measured against this ship
     this.player = s; this.world.player = s;
     this.cam.follow = s;
     this.cam.focus.copy(pos);
@@ -184,6 +185,7 @@ export class Game {
     let n;
     if (size) { n = Math.floor(size.loot) + (rng.chance(size.loot % 1) ? 1 : 0) + (ship.elite ? rng.int(2, 3) : 0); }
     else { n = rng.chance(0.45 + ship.chassis.tier * 0.03) ? 1 : 0; if (ship.elite === 1) n += rng.int(2, 3); if (ship.elite === 2) n += rng.int(4, 6); }
+    if (st.u_hoard && rng.chance(0.35)) n++;   // Magpie (module power)
     const guaranteed = size ? Math.max(0, size.i - 3) * (size.i === 5 ? 2 : 1) : (ship.elite === 2 ? 1 : 0);
     for (let i = 0; i < n; i++) {
       const it = rollItem(ship.level, rng, { luck, rarity: i < guaranteed ? rng.pick(size && size.i === 5 ? ['legendary', 'mythic'] : ['legendary', 'legendary', 'mythic']) : null });
@@ -228,6 +230,8 @@ export class Game {
   canCollect(d) { return d.type !== 'item' || this.data.inventory.length < INV_SIZE; }
   collect(d) {
     const P = this.data;
+    const s = this.player;
+    if (s && s.stats.u_hoard && (d.type !== 'item' || P.inventory.length < INV_SIZE)) s.repair(s.maxHull * 0.02);   // Magpie: every pickup patches the hull
     if (d.type === 'credits') { P.credits += d.amount; return; }
     if (d.type === 'salvage') { P.salvage += d.amount; P.credits += d.amount * 15; return; }
     if (P.inventory.length >= INV_SIZE) { this.ui.toast('Cargo hold full', 'warn'); return; }
@@ -303,7 +307,7 @@ export class Game {
     this.ui.refresh();
   }
   refitPlayer() {
-    if (this.player) { const p = this.player; p.loadout = this.data.ship.loadout; p.extraStats = this.extraStats(); p.weaponMod = talentWeaponMod(this.data); p.refit(); p.clipper = !!rank(this.data, 'clipper'); if (rank(this.data, 'bastion')) p.stats.u_aegis = 2; }
+    if (this.player) { const p = this.player; p.loadout = this.data.ship.loadout; p.extraStats = this.extraStats(); p.weaponMod = talentWeaponMod(this.data); p.refit(); p.clipper = !!rank(this.data, 'clipper'); if (rank(this.data, 'bastion')) p.stats.u_aegis = 2; setScoreRef(p); }
     this.ui.refresh();
   }
 

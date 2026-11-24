@@ -371,4 +371,4 @@ body.hud-hidden #objectives { display: none; }
 
 /* round-1 review fixes */
 #autoStatus { top: auto !important; bottom: 92px; left: 50%; transform: translateX(-50%); }
-body.win-open #objectives, body[data-mode]:not([data-mode="space"]) #objectives { display: none !important; }
+body.win-open #objectives, body.hud-hidden #objectives, body[data-mode]:not([data-mode="space"]) #objectives { display: none !important; }
