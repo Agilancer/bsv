@@ -4,6 +4,7 @@
 // The world and the UI only exist after game.start(), so everything that needs them is set up by wrapping start.
 import { CrewSystem } from './CrewSystem.js';
 import { CrewUI } from './CrewUI.js';
+import { shortfall } from './auto.js';
 
 export function install(game) {
   if (!document.querySelector('link[href$="css/crew.css"]')) {
@@ -37,6 +38,19 @@ export function install(game) {
     if (q.has('bridge')) { game.modes.bridge(); }
     if (q.has('crew')) { ui.toggle(true); ui.show(q.get('crew') || 'roster'); }
   };
+
+  // the autoplay captain's crew pass (stations call it while resupplying; Autoplay runs a
+  // no-hire pass in flight). Decisions go to the autopilot's log.
+  game.crewAuto = (opts = {}) => {
+    if (!game.data || !game.world) return null;
+    const quiet = !!game.autoplay;
+    const r = crew.autoManage({ ...opts, quiet });
+    if (r.text && quiet) game.autoplay.log(r.text);
+    return r;
+  };
+
+  // 0..1: the share of required posts standing empty (the autopilot puts in to recruit when it is high)
+  game.crewShortfall = () => (game.data && game.data.crew ? shortfall(crew.state, crew.chassis) : 0);
 
   game.modes.crew = () => { if (ui) ui.toggle(); };
   // the bridge (three.js scene, crew models) loads on first use

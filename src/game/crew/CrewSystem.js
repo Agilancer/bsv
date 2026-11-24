@@ -8,6 +8,7 @@ import {
   changeMorale, rollRecruits, recruitCost, removeMember, promote, appoint, officerOf, avgMorale, skillOf, rankName, canPromote,
 } from './data.js';
 import { deckPlan, roomAt } from './layout.js';
+import { autoManageCrew } from './auto.js';
 
 const _v = new THREE.Vector3();
 const RECRUIT_REFRESH = 300;   // seconds of game time between fresh recruit lists
@@ -236,6 +237,17 @@ export class CrewSystem {
     this.say(`${m.name} appointed ${OFFICER_POSTS[post].name}`);
     this.changed(true);
     return true;
+  }
+  // "Sort it out, Number One": appoint, reassign, recruit (at a station) and promote in one pass
+  // (crew/auto.js). opts: { budget, hire, quiet }. Returns what was done, with a one-line `text`.
+  autoManage(opts = {}) {
+    const st = this.state, P = this.data;
+    const r = autoManageCrew(st, this.chassis, P, { ...opts, hire: opts.hire !== false && this.canHire(), rerollCost: 40 * this.chassis.tier });
+    if (!r.text) return r;
+    if (!opts.quiet) this.say(r.text);
+    if (r.hired.length || r.rerolls) this.emit('recruits');
+    this.changed(true);
+    return r;
   }
   // orders from the bridge
   rally(amount, dept = null) { changeMorale(this.state, amount, dept ? (m) => m.section === dept : null); this.changed(); }

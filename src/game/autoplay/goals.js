@@ -8,6 +8,7 @@ import { RARITY } from '../data/items.js';
 import { INV_SIZE } from '../Player.js';
 import { galaxy, systemDetail } from '../galaxy.js';
 import { route, jumpCost, unlockedDanger } from '../nav/index.js';
+import { stationRefit } from './refit.js';
 
 // systems with a station to put in at (cached: systemDetail is deterministic)
 const stationCache = new Map();
@@ -36,6 +37,8 @@ export function resupplyGoal(ap) {
     if (P.inventory.length >= INV_SIZE - 6) sc += 3;
     if (s.hull / s.maxHull < 0.45) sc += 2;
     if ((g.playtime || 0) - (ap.lastDock || -1e9) > 900) sc += 1.2;   // drop in every ~15 minutes
+    // badly short-handed with money to hire: worth a visit (at most every 5 minutes)
+    if (g.crewShortfall && P.credits > 800 && (g.playtime || 0) - (ap.lastDock || -1e9) > 300 && g.crewShortfall() > 0.3) sc += 1.5;
     return sc;
   };
   return {
@@ -98,6 +101,8 @@ export function resupplyGoal(ap) {
           const r = acquireShip(P, best.c.id, best.cost);
           if (r.ok) { if (best.bp) P.inventory.splice(P.inventory.indexOf(best.bp), 1); g.swapPlayerShip(); ap.log(`Bought a new flagship: ${best.c.fullName}`); }
         }
+        if (g.crewAuto) g.crewAuto();          // crew module: appoint, reassign, hire, promote (crew/auto.js)
+        if (g.refineryAuto) g.refineryAuto();  // planet module: spend resources (empowering gear is cheaper than the yard)
         // refit yard: bring fitted gear up to rank (oldest first), keeping a reserve for the next hull
         const next = shipyardStock(st.seed, danger, P, st.kind).filter(({ chassis: c }) => c.tier > CHASSIS_BY_ID[P.ship.chassis].tier).sort((a, b) => a.price - b.price)[0];
         const reserve = next ? next.price * 0.6 : P.credits * 0.3;
@@ -105,10 +110,9 @@ export function resupplyGoal(ap) {
         let refits = 0;
         for (const it of fitted) { if (P.credits - overhaulCost(it, P.level) < reserve) continue; if (overhaul(P, it).ok) refits++; }
         if (refits) { g.refitPlayer(); ap.log(`Refit yard: overhauled ${refits} item${refits > 1 ? 's' : ''} to rank ${P.level}`); }
+        stationRefit(g, ap, st);               // market, reforge, old hulls and blueprints (autoplay/refit.js)
         P.contracts ||= [];
         for (const c of makeContracts(st.seed, danger, P, st.kind)) if (P.contracts.length < 3 && !P.contracts.some((a) => a.id === c.id)) P.contracts.push({ ...c, progress: 0 });
-        if (g.crewAuto) g.crewAuto();          // crew module: hire/assign
-        if (g.refineryAuto) g.refineryAuto();  // planet module: spend resources
         g.equipBest();
         ap.log(`Resupplied: sold ${sold} items, repaired, ${P.contracts.length} contracts active`);
         ap.lastDock = g.playtime || 0;
