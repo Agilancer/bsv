@@ -29,7 +29,7 @@ export const YARDS = {
     name: 'Ironhold Foundry', short: 'IRH', blurb: 'Brick-hulled foundry ships. Thick armour, slow turns, enormous broadsides.',
     hull: 'hull_dropship', trim: 'hull_apc', dark: 'hull_graphite', tint: 0xd8d2c4, trimTint: 0xd8c070,
     glow: 0xffc040, window: 0xffd070, engine: 0xffa030,
-    prow: 'blunt', castle: 'block', spires: 0, sails: 0, buttress: true, keel: 0.4, sponsons: 1.0, hullRound: 0.0,
+    prow: 'blunt', castle: 'block', spires: 0, sails: 0, buttress: true, keel: 0.4, sponsons: 1.0, hullRound: 0.0, glowMul: 0.7,
     names: ['Anvil', 'Bulwark', 'Crucible', 'Rampart', 'Smelter', 'Bastion', 'Forgeheart', 'Juggernaut', 'Citadel', 'Mountain of Ironhold'],
   },
   corsair: {
@@ -41,7 +41,7 @@ export const YARDS = {
   },
   hollow: {
     name: 'Hollow Star Covenant', short: 'HSC', blurb: 'Grown, not built. Chitinous hulls lit from within by something red.',
-    hull: 'hull_alien', trim: 'hull_graphite', dark: 'hull_alien', tint: 0xb0a0a8, trimTint: 0x904050, tintMul: 1.35,
+    hull: 'hull_alien', trim: 'hull_graphite', dark: 'hull_alien', tint: 0xb0a0a8, trimTint: 0xe08a98, tintMul: 2.0,
     glow: 0xff2040, window: 0xff3050, engine: 0xff1050, alienGlow: true,
     prow: 'fork', castle: 'organic', spires: 6, sails: 0, buttress: true, keel: 1.1, sponsons: 0.4, hullRound: 0.6,
     names: ['Thornmaw', 'Hive Lantern', 'Choir of Teeth', 'Marrowbloom', 'Hollowheart', 'Carrion Psalm', 'Starveling', 'Nest Eternal', 'Void Cantor', 'The Unmaking'],
@@ -58,7 +58,7 @@ export const YARDS = {
     name: 'The Silent Choir', short: 'SIL', enemyOnly: true, blurb: 'Black glass and white light.',
     hull: 'hull_graphite', trim: 'hull_glacier', dark: 'hull_graphite', tint: 0x50586e, trimTint: 0xe0f0ff, tintMul: 1.2,
     glow: 0x9ff0ff, window: 0xbff8ff, engine: 0x9ff0ff,
-    prow: 'needle', castle: 'swept', spires: 3, sails: 0, buttress: false, keel: 0.3, sponsons: 0, hullRound: 0.0,
+    prow: 'needle', castle: 'swept', spires: 3, sails: 0, buttress: false, keel: 0.3, sponsons: 0, hullRound: 0.0, glowMul: 0.55,
     names: [],
   },
   brood: {

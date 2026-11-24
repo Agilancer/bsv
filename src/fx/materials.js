@@ -57,7 +57,7 @@ export function hullMaterials(yardKey, glowOverride = null, liveryKey = null) {
     return m;
   };
   const glow = new THREE.MeshBasicNodeMaterial();
-  glow.colorNode = hdr(y.glow, 3.2).mul(sin(engineRef.uTime.mul(2.0).add(positionLocal.z.mul(0.15))).mul(0.25).add(0.85));
+  glow.colorNode = hdr(y.glow, 3.2 * (y.glowMul ?? 1)).mul(sin(engineRef.uTime.mul(2.0).add(positionLocal.z.mul(0.15))).mul(0.25).add(0.85));
   const engineMat = new THREE.MeshBasicNodeMaterial();
   engineMat.colorNode = hdr(y.engine, 6).mul(sin(engineRef.uTime.mul(23.0)).mul(0.08).add(1));
   const sail = new THREE.MeshBasicNodeMaterial({ transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
