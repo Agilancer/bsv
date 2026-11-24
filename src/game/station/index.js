@@ -1,12 +1,11 @@
 // Stations in each system, docking, and the station window (market, shipyard, fleet,
-// services, contracts). Installs onto the game through modules.js.
+// services, the quest board — see quests/). Installs onto the game through modules.js.
 import * as THREE from 'three/webgpu';
 import { Station } from './Station.js';
-import { marketStock, shipyardStock, buyPrice, sellPrice, acquireShip, switchShip, repairCost, makeContracts, progressContracts, makeBlueprint, canFly, kindOf, reforge, overhaul, reforgeCost, overhaulCost } from './services.js';
+import { marketStock, shipyardStock, buyPrice, sellPrice, acquireShip, switchShip, repairCost, makeBlueprint, canFly, kindOf, reforge, overhaul, reforgeCost, overhaulCost } from './services.js';
 import { CHASSIS_BY_ID, CHASSIS, YARDS } from '../data/chassis.js';
-import { RARITY, rollItem, describe } from '../data/items.js';
+import { RARITY } from '../data/items.js';
 import { INV_SIZE, itemScore, save } from '../Player.js';
-import { RNG } from '../../engine/rng.js';
 import { icon } from '../../ui/icons.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -18,7 +17,7 @@ export function installStations(game) {
   game.atStation = null;   // crew recruiting and other services need a station
   let docking = null;
   let tab = 'market';
-  let stock = null, yardStock = null, contracts = null;
+  let stock = null, yardStock = null;
 
   // build stations whenever a system loads
   const enter = game.enterSystem.bind(game);
@@ -71,9 +70,9 @@ export function installStations(game) {
     const danger = game.sector.sys.danger;
     stock = marketStock(st.seed, danger, game.data, st.kind);
     yardStock = shipyardStock(st.seed, danger, game.data, st.kind);
-    contracts = makeContracts(st.seed, danger, game.data, st.kind);
     tab = tab || 'market';
     game.ui.toggle('station', true);
+    if (game.quests) game.quests.onDock(st);   // courier jobs land here
     game.world.fx.ring(s.position, 120, 0x58ffd8, 64);
     game.ui.chat('STATION', null, `Docked at ${st.name}. Welcome, Captain.`, 'sys');
     save(game.data);
@@ -87,21 +86,13 @@ export function installStations(game) {
   }
   game.undock = undock;
   game.dockNow = dockNow;
+  game.openStationTab = (name) => { if (!game.docked) return; tab = name; game.ui.toggle('station', true); };
 
   // station window
   game.start = ((start) => (fresh) => {
     start(fresh);
     game.ui.windows.station = game.ui.addWindow('station', 'Station');
     game.ui.renderers.station = render;
-    game.world.events.on('kill', ({ ship }) => {
-      if (!ship.playerTagged) return;
-      for (const c of progressContracts(game.data, ship)) {
-        game.data.credits += c.reward.credits;
-        game.gainXp(c.reward.xp);
-        if (c.reward.item && game.data.inventory.length < INV_SIZE) game.data.inventory.push(rollItem(game.sector.sys.danger + 2, new RNG(Math.random() * 1e9), { rarity: c.reward.item }));
-        game.ui.toast(`Contract complete: ${c.title} (+${fmt(c.reward.credits)} ¢)`, 'epic');
-      }
-    });
     // blueprint drops from champions and bosses
     game.world.events.on('kill', ({ ship }) => {
       if (!ship.playerTagged || !ship.elite) return;
@@ -159,7 +150,7 @@ export function installStations(game) {
     if (!st) { body.innerHTML = '<div class="label">Not docked.</div>'; return; }
     const K = kindOf(st.kind);
     W.querySelector('.wtitle span').textContent = `${st.name} · ${K.name || st.kind}`;
-    const tabs = ['market', 'shipyard', 'refit', 'fleet', 'services', 'contracts'];
+    const tabs = ['market', 'shipyard', 'refit', 'fleet', 'services', 'quests'];
     let h = K.blurb ? `<div class="label" style="margin:-4px 0 10px;color:var(--cyan)">${K.name} — ${K.blurb}</div>` : '';
     h += `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">${tabs.map((t) => `<button class="btn ${t === tab ? '' : 'violet'}" data-tab="${t}">${t}</button>`).join('')}<span style="flex:1"></span><span class="val" style="color:#ffd66a;align-self:center">${fmt(P.credits)} ¢</span><button class="btn bad" id="stUndock">Undock</button></div>`;
     if (tab === 'market') {
@@ -201,12 +192,8 @@ export function installStations(game) {
         return `<div class="svc"><div style="display:flex;gap:10px;align-items:center">${itemEl(it)}<div><div class="title" style="color:${RARITY[it.rarity].color}">${esc(it.name)}</div><div class="label">${where === 'hold' ? 'In the hold' : 'Fitted · ' + where.replace(':', ' ')} · item level ${it.ilvl} · mastery ${it.lvl || 1}</div></div></div>
           <div style="display:flex;gap:6px"><button class="btn violet" data-reforge="${it.uid}" ${P.credits >= rc ? '' : 'disabled'}>Reforge ${fmt(rc)} ¢</button>${oc ? `<button class="btn" data-overhaul="${it.uid}" ${P.credits >= oc ? '' : 'disabled'}>Overhaul → ${P.level} · ${fmt(oc)} ¢</button>` : ''}</div></div>`;
       }).join('') || '<div class="label">Nothing fitted or rare+ in the hold.</div>';
-    } else if (tab === 'contracts') {
-      P.contracts ||= [];
-      h += `<div class="label" style="margin-bottom:6px">Active (${P.contracts.length}/3)</div>`;
-      h += P.contracts.map((c) => `<div class="svc"><div><div class="title">${c.title}</div><div class="label">${c.progress || 0} / ${c.n}</div></div><div class="val" style="color:#ffd66a">${fmt(c.reward.credits)} ¢</div></div>`).join('') || '<div class="label">None</div>';
-      h += `<div class="label" style="margin:12px 0 6px">Board</div>`;
-      h += contracts.filter((c) => !P.contracts.some((a) => a.id === c.id)).map((c) => `<div class="svc"><div><div class="title">${c.title}</div><div class="label">${c.n} target${c.n > 1 ? 's' : ''} · ${fmt(c.reward.xp)} XP${c.reward.item ? ' · ' + c.reward.item + ' item' : ''}</div></div><button class="btn" data-accept="${c.id}" ${P.contracts.length < 3 ? '' : 'disabled'}>Accept · ${fmt(c.reward.credits)} ¢</button></div>`).join('');
+    } else if (tab === 'quests') {
+      h += game.quests ? game.quests.boardHtml(st) : '<div class="label">The board is empty.</div>';
     }
     body.innerHTML = h;
     const $ = (s) => body.querySelector(s);
@@ -246,12 +233,13 @@ export function installStations(game) {
     const findGear = (uid) => Object.values(P.ship.loadout).find((x) => x && x.uid === uid) || P.inventory.find((x) => x && x.uid === uid);
     body.querySelectorAll('[data-reforge]').forEach((b) => b.onclick = () => { const it = findGear(b.dataset.reforge); const r = reforge(P, it); game.ui.toast(r.ok ? `Reforged: ${it.name}` : r.msg, r.ok ? 'epic' : 'warn'); if (r.ok) { game.refitPlayer(); if (game.audio) game.audio.play('loot', null, 0.6); } render(); });
     body.querySelectorAll('[data-overhaul]').forEach((b) => b.onclick = () => { const it = findGear(b.dataset.overhaul); const r = overhaul(P, it); game.ui.toast(r.ok ? `Overhauled: ${it.name} (item level ${it.ilvl})` : r.msg, r.ok ? 'epic' : 'warn'); if (r.ok) { game.refitPlayer(); if (game.audio) game.audio.play('loot', null, 0.6); } render(); });
-    body.querySelectorAll('[data-accept]').forEach((b) => b.onclick = () => { const c = contracts.find((x) => x.id === b.dataset.accept); if (c && P.contracts.length < 3) P.contracts.push({ ...c, progress: 0 }); render(); });
+    if (tab === 'quests' && game.quests) game.quests.bindBoard(body, render);
   }
 
   function sell(it, quiet) {
     const P = game.data, i = P.inventory.indexOf(it); if (i < 0) return;
     P.inventory.splice(i, 1); const v = sellPrice(P, it, game.docked && game.docked.kind); P.credits += v;
+    if (game.quests) game.quests.onSell(it);
     if (!quiet) game.ui.chat('TRADE', null, `Sold ${it.name} for ${v} ¢`, 'loot', 'loot');
   }
   game.sellItem = sell;
