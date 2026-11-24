@@ -548,3 +548,13 @@ body.mobile #questTrack { left: var(--ml) !important; width: 206px; }
   body.mobile #questTrack .qt:nth-child(n+4) { display: none; }   /* two lines: the stick is just below */
 }
 @media (min-aspect-ratio: 1/1) and (max-width: 700px) { body.mobile #questTrack { display: none !important; } }
+
+/* galaxy map: the lanes out of the selected system */
+.glanes { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; max-height: 150px; overflow-y: auto; }
+.glane { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 8px; min-height: 28px; background: rgba(20, 40, 80, 0.45); border: 1px solid rgba(88, 184, 255, 0.25); border-left: 2px solid var(--cyan); color: var(--text); font-family: var(--body, Rajdhani, sans-serif); font-size: 13px; cursor: pointer; text-align: left; }
+.glane:hover { background: rgba(40, 80, 150, 0.55); color: var(--white); }
+.glane b { font-family: var(--head); font-size: 9px; letter-spacing: 0.08em; color: var(--cyan); text-transform: uppercase; white-space: nowrap; }
+.glane.locked { border-left-color: #8a7ab8; opacity: 0.75; } .glane.locked b { color: #b0a0d8; }
+.glane.here { border-left-color: #4ade80; } .glane.here b { color: #4ade80; }
+.slegend #sGalaxy { font-size: 10px; padding: 5px 10px; margin-right: 8px; }
+body.mobile .glane { min-height: 40px; }

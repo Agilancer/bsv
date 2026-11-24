@@ -77,6 +77,20 @@ export function galaxy() {
     best[0].links.push(best[1].id); best[1].links.push(best[0].id);
     comp.add(best[1].id); flood();
   }
+  // A web, not a string of beads: every system has at least two lanes (so there is always a choice of
+  // way on), and a share of systems gain a cross-lane to the nearest system of a neighbouring arm, which
+  // gives the map its branches and short cuts. Own seeded stream; lanes stay short and never exceed five.
+  const link = (a, b) => { a.links.push(b.id); b.links.push(a.id); };
+  const nearestFree = (s, pred) => systems.filter((o) => o !== s && !s.links.includes(o.id) && o.links.length < 5 && pred(o)).sort((a, b) => dist(s, a) - dist(s, b))[0];
+  // (home's second lane leads somewhere a new captain can actually go)
+  { const o = nearestFree(systems[0], (x) => x.danger <= 8); if (o) link(systems[0], o); }
+  for (const s of systems) if (s.links.length < 2) { const o = nearestFree(s, () => true); if (o) link(s, o); }
+  const wrng = new RNG((GALAXY_SEED ^ 0x77eb1a) >>> 0);
+  for (const s of systems) {
+    if (s.links.length >= 4 || !wrng.chance(0.4)) continue;
+    const o = nearestFree(s, (x) => x.arm !== s.arm && Math.abs(x.danger - s.danger) <= 14);
+    if (o && dist(s, o) < 380) link(s, o);
+  }
   cached = { systems };
   return cached;
 }

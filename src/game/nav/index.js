@@ -251,26 +251,45 @@ export function installNav(game) {
       c.fillStyle = 'rgba(190,200,255,0.42)'; c.fillText(ARM_NAMES[arm].toUpperCase(), x, y);
     }
     c.restore();
-    // lanes
-    c.lineWidth = 1;
+    // the lane web: every jump lane in the galaxy, drawn to be read. Open lanes are solid, lanes into
+    // space above the captain's rank are dashed, and the lanes out of the current system (and the
+    // selected one) are lit, with a pulse running outward along them.
+    const here = P.system, PX = (o) => L.cx + o.x * L.S, PY = (o) => L.cy + o.y * L.S;
     for (const s of S) for (const l of s.links) if (l > s.id) {
       const o = S[l];
       const open = s.danger <= max && o.danger <= max;
-      c.strokeStyle = open ? 'rgba(88,184,255,0.28)' : 'rgba(120,100,160,0.12)';
-      c.beginPath(); c.moveTo(L.cx + s.x * L.S, L.cy + s.y * L.S); c.lineTo(L.cx + o.x * L.S, L.cy + o.y * L.S); c.stroke();
+      const mine = s.id === here || l === here, sel = selected != null && (s.id === selected || l === selected);
+      if (mine || sel) continue;
+      c.lineWidth = open ? 1.4 : 1.1; c.setLineDash(open ? [] : [4, 4]);
+      c.strokeStyle = open ? 'rgba(96,190,255,0.6)' : 'rgba(180,160,235,0.5)';
+      c.beginPath(); c.moveTo(PX(s), PY(s)); c.lineTo(PX(o), PY(o)); c.stroke();
     }
+    c.setLineDash([]);
+    const lit = (from, col, glow) => {
+      for (const l of S[from].links) {
+        const o = S[l], open = S[from].danger <= max && o.danger <= max;
+        c.strokeStyle = open ? col : 'rgba(200,170,255,0.55)'; c.lineWidth = 2; c.shadowColor = glow; c.shadowBlur = open ? 8 : 0; c.setLineDash(open ? [] : [4, 5]);
+        c.beginPath(); c.moveTo(PX(S[from]), PY(S[from])); c.lineTo(PX(o), PY(o)); c.stroke();
+        c.shadowBlur = 0; c.setLineDash([]);
+        if (open) { const k = (t * 0.55 + l * 0.37) % 1, x = PX(S[from]) + (PX(o) - PX(S[from])) * k, y = PY(S[from]) + (PY(o) - PY(S[from])) * k; c.fillStyle = '#fff'; c.beginPath(); c.arc(x, y, 2, 0, Math.PI * 2); c.fill(); }
+      }
+    };
+    if (selected != null && selected !== here) lit(selected, 'rgba(255,255,255,0.6)', '#ffffff');
+    lit(here, 'rgba(88,220,255,0.95)', '#58c8ff');
     if (rt) {
       c.strokeStyle = '#4ade80'; c.lineWidth = 2.5; c.shadowColor = '#4ade80'; c.shadowBlur = 10; c.setLineDash([6, 4]); c.lineDashOffset = -t * 20;
       c.beginPath(); rt.forEach((id, i) => { const s = S[id]; i ? c.lineTo(L.cx + s.x * L.S, L.cy + s.y * L.S) : c.moveTo(L.cx + s.x * L.S, L.cy + s.y * L.S); }); c.stroke();
       c.setLineDash([]); c.shadowBlur = 0;
     }
-    // systems
+    // systems (the current one, its neighbours and the selection are labelled first)
     c.textAlign = 'center';
-    for (const s of S) {
+    const labels = [];
+    const order = [...S].sort((a, b) => (b.id === P.system || b.id === selected) - (a.id === P.system || a.id === selected) || S[P.system].links.includes(b.id) - S[P.system].links.includes(a.id));
+    for (const s of order) {
       const x = L.cx + s.x * L.S, y = L.cy + s.y * L.S;
       const star = systemDetail(s).star;
       const locked = s.danger > max;
-      const r = 2.5 + Math.min(4, s.danger / 14);
+      const r = 3.5 + Math.min(4, s.danger / 14);
       c.globalAlpha = locked ? 0.35 : 1;
       c.fillStyle = STAR_HEX[star.k]; c.shadowColor = STAR_HEX[star.k]; c.shadowBlur = 12;
       c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
@@ -280,10 +299,18 @@ export function installNav(game) {
       if (s.id === P.system) { c.strokeStyle = '#58c8ff'; c.lineWidth = 2; const pr = r + 6 + Math.sin(t * 3) * 2; c.beginPath(); c.arc(x, y, pr, 0, Math.PI * 2); c.stroke(); }
       if (s.id === selected) { c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.strokeRect(x - r - 7, y - r - 7, (r + 7) * 2, (r + 7) * 2); }
       const near = S[P.system].links.includes(s.id) || (selected != null && S[selected].links.includes(s.id));
-      if (s === hover || s.id === selected || s.id === P.system || near || (P.visited.includes(s.id) && L.w > 900) || gView.k >= 2) {
-        c.font = `${s === hover || s.id === selected ? 600 : 500} 11px Rajdhani, sans-serif`;
-        c.fillStyle = locked ? '#6a7a9a' : s.danger > P.level + 3 ? '#ffb040' : '#b8c6e0';
-        c.fillText(s.name + (locked ? ' 🔒' : ''), x, y - r - (s.id === selected ? 11 : 6));   // clear of the selection box
+      const must = s === hover || s.id === selected || s.id === P.system || near;
+      if (must || P.visited.includes(s.id) || L.w > 700 || gView.k >= 1.6) {
+        // every system is named when there is room: the ones that matter first, the rest where they fit
+        const txt = `${s.name} · ${s.danger}${locked ? ' 🔒' : ''}`, ly = y - r - (s.id === selected ? 11 : 6);
+        c.font = `${must ? 600 : 500} ${must ? 12 : 10.5}px Rajdhani, sans-serif`;
+        const tw = c.measureText(txt).width + 8;
+        if (must || !labels.some((q) => Math.abs(q.x - x) < (q.w + tw) / 2 && Math.abs(q.y - ly) < 12)) {
+          labels.push({ x, y: ly, w: tw });
+          c.lineWidth = 3; c.strokeStyle = 'rgba(4,8,20,0.8)'; c.strokeText(txt, x, ly);
+          c.fillStyle = locked ? '#7a86a8' : s.id === P.system ? '#8fe4ff' : s.danger > P.level + 3 ? '#ffb040' : must ? '#e6eeff' : '#a8b6d4';
+          c.fillText(txt, x, ly);
+        }
       }
       c.globalAlpha = 1;
     }
@@ -302,6 +329,12 @@ export function installNav(game) {
       ${rt ? `<span>Jumps</span><b>${rt.length - 1}</b><span>Fuel</span><b>${fmt(jumpCost(rt, P))} ¢</b>` : ''}</div>
       <div style="margin-top:10px">${s.id === P.system ? '<div class="label">You are here</div>' : locked ? `<div class="label" style="color:var(--warn)">Requires commander rank ${s.danger - 6}</div>` : rt ? '<button class="btn" id="gJump">Engage jump drive</button>' : '<div class="label">No charted route</div>'}</div>
       <div class="label" style="margin-top:12px">${document.body.classList.contains('mobile') ? 'Pinch to zoom · drag to pan' : 'Double-click a system to jump · wheel zooms, drag pans'} · rings show who holds each system · higher danger, better loot</div>`;
+    // the lanes out of this system: where each leads, and whether the captain may follow it
+    const max = unlockedDanger(P), S = galaxy().systems;
+    const lanes = s.links.map((id) => S[id]).sort((a, b) => a.danger - b.danger);
+    el.insertAdjacentHTML('beforeend', `<div class="label" style="margin-top:12px">Jump lanes from ${s.name} (${lanes.length})</div><div class="glanes">${lanes.map((o) => `<button class="glane${o.danger > max ? ' locked' : ''}${o.id === P.system ? ' here' : ''}" data-sys="${o.id}"><span>${o.name}</span><b>${o.id === P.system ? 'you are here' : o.danger > max ? 'rank ' + (o.danger - 6) : 'danger ' + o.danger}</b></button>`).join('')}</div>${s.id === P.system ? '<button class="btn violet" id="gSys" style="margin-top:10px;width:100%">Open system map</button>' : ''}`);
+    el.querySelectorAll('.glane').forEach((x) => x.onclick = () => { selected = +x.dataset.sys; drawGalaxy(); info(); });
+    const gs = document.getElementById('gSys'); if (gs) gs.onclick = () => { game.ui.toggle('galaxy', false); game.ui.toggle('system', true); };
     const b = document.getElementById('gJump'); if (b) b.onclick = () => game.jumpTo(s.id);
   }
 
@@ -312,12 +345,22 @@ export function installNav(game) {
     W.querySelector('.wtitle span').textContent = `${game.sector.sys.name} · danger ${game.sector.sys.danger}`;
     if (!sCanvas) {
       const LEG = [['⚔', 'patrol'], ['⛫', 'raider base'], ['◌', 'mining belt'], ['✕', 'wreck field'], ['⚑', 'contested'], ['☠', 'boss lair'], ['◆', 'derelict'], ['✚', 'distress'], ['✺', 'anomaly'], ['?', 'signal']];
-      body.innerHTML = `<canvas class="smap"></canvas><div class="slegend"><span class="label">${document.body.classList.contains('mobile') ? 'Tap to warp · pinch to zoom' : 'Click to warp · wheel zooms'}</span>${LEG.map(([g, n]) => `<span><b>${g}</b>${n}</span>`).join('')}</div>`;
+      body.innerHTML = `<canvas class="smap"></canvas><div class="slegend"><button class="btn violet" id="sGalaxy">Galaxy map</button><span class="label">${document.body.classList.contains('mobile') ? 'Tap to warp · tap a gate twice to jump · pinch to zoom' : 'Click to warp · click a gate twice to jump · wheel zooms'}</span><span><b>◎</b> jump gate</span>${LEG.map(([g, n]) => `<span><b>${g}</b>${n}</span>`).join('')}</div>`;
       sCanvas = body.querySelector('canvas');
+      body.querySelector('#sGalaxy').onclick = () => { game.ui.toggle('system', false); game.ui.toggle('galaxy', true); };
       panZoom(sCanvas, sView, 8);
       sCanvas.addEventListener('click', (e) => {
         if (sView.moved) return;
         const L = sLayout(), r = sCanvas.getBoundingClientRect();
+        // a jump gate on the rim: select it first (its lane lights up), a second click engages the drive
+        const mx = e.clientX - r.left, my = e.clientY - r.top;
+        const gate = gates(L).find((q) => Math.hypot(q.x - mx, q.y - my) < 30);
+        if (gate) {
+          if (gateSel === gate.id) { gateSel = null; if (game.jumpTo(gate.id)) game.ui.toggle('system', false); }
+          else { gateSel = gate.id; if (gate.locked) game.ui.toast(`${gate.sys.name} requires commander rank ${gate.sys.danger - 6}`, 'warn'); }
+          return;
+        }
+        gateSel = null;
         const x = (e.clientX - r.left - L.cx) / L.S, z = (e.clientY - r.top - L.cy) / L.S;
         game.warpTo(new THREE.Vector3(x, 0, z));
       });
@@ -325,6 +368,30 @@ export function installNav(game) {
     sLoop();
   }
   function sLoop() { if (!game.ui.isOpen('system')) return; drawSystem(); requestAnimationFrame(sLoop); }
+  // The lanes out of this system, as gates on the rim of the map: each sits on the bearing of the system
+  // it leads to (as the galaxy map draws them), fixed to the frame however the map is panned or zoomed.
+  let gateSel = null;
+  game.navGates = () => (sCanvas ? gates(sLayout()).map((q) => ({ id: q.id, name: q.sys.name, x: q.x, y: q.y, locked: q.locked })) : []);   // for tools
+  function gates(L) {
+    const P = game.data, S = galaxy().systems, me = S[P.system], max = unlockedDanger(P);
+    const hx = L.w / 2 - 70, hy = L.h / 2 - 34;
+    const out = me.links.map((id) => {
+      const o = S[id], a = Math.atan2(o.y - me.y, o.x - me.x);
+      // where the bearing meets the frame (inset so the label fits)
+      const kx = hx / Math.max(1e-6, Math.abs(Math.cos(a))), ky = hy / Math.max(1e-6, Math.abs(Math.sin(a))), k = Math.min(kx, ky);
+      return { id, sys: o, a, x: L.w / 2 + Math.cos(a) * k, y: L.h / 2 + Math.sin(a) * k, side: kx < ky, locked: o.danger > max, cost: jumpCost([P.system, id], P) };
+    });
+    // neighbours on nearly the same bearing would sit on top of each other: slide them apart along the edge
+    const GAP_X = 118, GAP_Y = 46;
+    for (let pass = 0; pass < 8; pass++) for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) {
+      const p = out[i], q = out[j];
+      if (Math.abs(p.x - q.x) >= GAP_X || Math.abs(p.y - q.y) >= GAP_Y) continue;
+      if (p.side && q.side) { const d = (GAP_Y - Math.abs(p.y - q.y)) / 2 + 1, sg = p.y <= q.y ? -1 : 1; p.y += sg * d; q.y -= sg * d; }
+      else { const d = (GAP_X - Math.abs(p.x - q.x)) / 2 + 1, sg = p.x <= q.x ? -1 : 1; p.x += sg * d; q.x -= sg * d; }
+    }
+    for (const p of out) { p.x = Math.max(L.w / 2 - hx, Math.min(L.w / 2 + hx, p.x)); p.y = Math.max(L.h / 2 - hy, Math.min(L.h / 2 + hy, p.y)); }
+    return out;
+  }
   function sLayout() {
     const r = sCanvas.getBoundingClientRect(), dpr = Math.min(devicePixelRatio, 2);
     if (sCanvas.width !== Math.round(r.width * dpr)) { sCanvas.width = Math.round(r.width * dpr); sCanvas.height = Math.round(r.height * dpr); }
@@ -389,6 +456,28 @@ export function installNav(game) {
     }
     if (game.raidMarker) { const x = X(game.raidMarker.x), y = Y(game.raidMarker.z); c.strokeStyle = '#ff9a2e'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 16 + Math.sin(t * 6) * 3, 0, Math.PI * 2); c.stroke(); c.fillStyle = '#ff9a2e'; c.fillText('☠ ARMADA', x, y - 22); }
     if (game.mapExtras) game.mapExtras.system(c, X, Y, t);   // guild module: contested zone
+    // jump gates: a lane from the star out to each neighbouring system
+    c.save(); c.textAlign = 'center';
+    for (const q of gates(L)) {
+      const sel = gateSel === q.id, col = q.locked ? '#8a7ab8' : sel ? '#ffffff' : '#58dcff';
+      c.strokeStyle = q.locked ? 'rgba(170,150,220,0.3)' : sel ? 'rgba(255,255,255,0.7)' : 'rgba(88,220,255,0.38)';
+      c.lineWidth = sel ? 2 : 1.2; c.setLineDash(q.locked ? [3, 6] : [8, 6]); c.lineDashOffset = q.locked ? 0 : -t * 24;
+      c.beginPath(); c.moveTo(L.cx, L.cy); c.lineTo(q.x, q.y); c.stroke(); c.setLineDash([]);
+      // the gate: a ring with a chevron pointing out along the lane
+      c.shadowColor = col; c.shadowBlur = q.locked ? 0 : 10; c.strokeStyle = col; c.lineWidth = 2;
+      c.beginPath(); c.arc(q.x, q.y, sel ? 13 + Math.sin(t * 6) * 1.5 : 11, 0, Math.PI * 2); c.stroke(); c.shadowBlur = 0;
+      c.save(); c.translate(q.x, q.y); c.rotate(q.a); c.fillStyle = col; c.beginPath(); c.moveTo(6, 0); c.lineTo(-3, -5); c.lineTo(-3, 5); c.closePath(); c.fill(); c.restore();
+      const up = q.y < L.h / 2, ly = q.y + (up ? 27 : -18);
+      c.font = '600 12px Rajdhani, sans-serif'; c.lineWidth = 3; c.strokeStyle = 'rgba(4,8,20,0.85)';
+      const name = `${q.sys.name}${q.locked ? ' 🔒' : ''}`;
+      // a plate behind the two lines, so the gate reads over planets and their labels
+      const pw = Math.max(c.measureText(name).width, 96) + 12; c.fillStyle = 'rgba(4,8,20,0.78)'; c.fillRect(q.x - pw / 2, ly - 11, pw, 27);
+      c.strokeText(name, q.x, ly); c.fillStyle = q.locked ? '#8a94b4' : '#e6eeff'; c.fillText(name, q.x, ly);
+      c.font = '500 10.5px Rajdhani, sans-serif';
+      const sub = q.locked ? `rank ${q.sys.danger - 6} · danger ${q.sys.danger}` : sel ? `click again to jump · ${fmt(q.cost)} ¢` : `danger ${q.sys.danger} · ${fmt(q.cost)} ¢`;
+      c.strokeText(sub, q.x, ly + 12); c.fillStyle = q.locked ? '#7a86a8' : sel ? '#8fe4ff' : q.sys.danger > game.data.level + 3 ? '#ffb040' : '#9fb4d8'; c.fillText(sub, q.x, ly + 12);
+    }
+    c.restore();
     c.font = '500 11px Rajdhani, sans-serif';
     for (const st of game.stations) { const x = X(st.position.x), y = Y(st.position.z); c.fillStyle = '#58ffd8'; c.shadowColor = '#58ffd8'; c.shadowBlur = 8; c.fillRect(x - 5, y - 5, 10, 10); c.shadowBlur = 0; }
     for (const o of game.world.ships) { if (!o.alive || o === game.player) continue; c.fillStyle = o.team === 1 ? '#58c8ff' : '#ff4a6a'; c.fillRect(X(o.position.x) - 1.5, Y(o.position.z) - 1.5, 3, 3); }
