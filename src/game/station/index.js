@@ -3,7 +3,7 @@
 import * as THREE from 'three/webgpu';
 import { Station } from './Station.js';
 import { marketStock, shipyardStock, buyPrice, sellPrice, acquireShip, switchShip, repairCost, makeContracts, progressContracts, makeBlueprint, canFly } from './services.js';
-import { CHASSIS_BY_ID, YARDS } from '../data/chassis.js';
+import { CHASSIS_BY_ID, CHASSIS, YARDS } from '../data/chassis.js';
 import { RARITY, rollItem, describe } from '../data/items.js';
 import { INV_SIZE, itemScore, save } from '../Player.js';
 import { RNG } from '../../engine/rng.js';
@@ -105,7 +105,9 @@ export function installStations(game) {
     game.world.events.on('kill', ({ ship }) => {
       if (!ship.playerTagged || !ship.elite) return;
       if (Math.random() < (ship.elite === 2 ? 0.5 : 0.12)) {
-        const bp = makeBlueprint(ship.chassis);
+        const yard = YARDS[ship.chassis.yard] && !YARDS[ship.chassis.yard].enemyOnly ? ship.chassis.yard : ['velscour', 'aurelian', 'tidewright', 'ironhold', 'corsair'][Math.floor(Math.random() * 5)];
+        const tier = Math.max(1, Math.min(10, ship.chassis.tier + (ship.elite ? 1 : 0)));
+        const bp = makeBlueprint(CHASSIS_BY_ID[`${yard}_${tier}`] || CHASSIS[0]);
         game.world.loot.dropItem(bp, ship.position);
       }
     });

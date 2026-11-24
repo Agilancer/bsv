@@ -163,7 +163,7 @@ export class Game {
     const st = s ? s.stats : {};
     const xp = Math.round(28 * ship.level * (1 + ship.chassis.tier * 0.3) * eliteMul * (1 + (st.xp || 0)));
     P.kills++;
-    if (ship.elite === 2) P.bossKills++;
+    if (ship.elite === 2 || (ship.design && ship.design.sizeIndex >= 4)) P.bossKills++;
     this.gainXp(xp);
     if (s && st.salvage) s.repair(s.maxHull * st.salvage);
     // loot

@@ -17,16 +17,16 @@ export const RARITY = Object.fromEntries(RARITIES.map((r, i) => [r.k, { ...r, i 
 export const BASES = {
   // ---- broadside (side-firing batteries) ----
   macrocannon: { slot: 'broadside', name: 'Macrocannon Battery', kind: 'shell', dmgType: 'kinetic', dmg: 26, rof: 0.55, range: 520, speed: 420, barrels: 3, spread: 0.05, color: 0xffb060, icon: 'cannon' },
-  lance: { slot: 'broadside', name: 'Lance Battery', kind: 'beam', dmgType: 'energy', dmg: 58, rof: 0.32, range: 560, barrels: 1, color: 0x7ad8ff, icon: 'lance' },
-  plasma: { slot: 'broadside', name: 'Plasma Broadside', kind: 'bolt', dmgType: 'energy', dmg: 34, rof: 0.45, range: 460, speed: 360, barrels: 2, splash: 26, color: 0x6affc8, icon: 'plasma' },
-  railgun: { slot: 'broadside', name: 'Railgun Battery', kind: 'bolt', dmgType: 'kinetic', dmg: 72, rof: 0.22, range: 700, speed: 1100, barrels: 1, pierce: 1, color: 0xc8b4ff, icon: 'rail' },
-  carronade: { slot: 'broadside', name: 'Carronade Deck', kind: 'shell', dmgType: 'explosive', dmg: 20, rof: 0.7, range: 330, speed: 380, barrels: 5, spread: 0.12, color: 0xff8040, icon: 'cannon' },
+  lance: { slot: 'broadside', name: 'Lance Battery', kind: 'beam', dmgType: 'energy', dmg: 70, rof: 0.5, range: 560, barrels: 1, color: 0x7ad8ff, icon: 'lance' },
+  plasma: { slot: 'broadside', name: 'Plasma Broadside', kind: 'bolt', dmgType: 'energy', dmg: 34, rof: 0.5, range: 460, speed: 360, barrels: 2, splash: 26, color: 0x6affc8, icon: 'plasma' },
+  railgun: { slot: 'broadside', name: 'Railgun Battery', kind: 'bolt', dmgType: 'kinetic', dmg: 95, rof: 0.38, range: 700, speed: 1100, barrels: 1, pierce: 1, color: 0xc8b4ff, icon: 'rail' },
+  carronade: { slot: 'broadside', name: 'Carronade Deck', kind: 'shell', dmgType: 'explosive', dmg: 15, rof: 0.65, range: 330, speed: 380, barrels: 5, spread: 0.12, color: 0xff8040, icon: 'cannon' },
   // ---- turrets (dorsal / ventral, wide arcs) ----
-  autocannon: { slot: 'turret', name: 'Autocannon Turret', kind: 'shell', dmgType: 'kinetic', dmg: 9, rof: 3.2, range: 420, speed: 520, barrels: 2, spread: 0.04, color: 0xffd080, icon: 'turret' },
-  laser: { slot: 'turret', name: 'Pulse Laser Turret', kind: 'bolt', dmgType: 'energy', dmg: 12, rof: 2.4, range: 460, speed: 900, barrels: 2, color: 0xff5a7a, icon: 'laser' },
-  missile: { slot: 'turret', name: 'Missile Rack', kind: 'missile', dmgType: 'explosive', dmg: 30, rof: 0.8, range: 620, speed: 230, barrels: 2, homing: 1, splash: 18, color: 0xffc040, icon: 'missile' },
-  flak: { slot: 'turret', name: 'Flak Battery', kind: 'flak', dmgType: 'kinetic', dmg: 7, rof: 2.6, range: 300, speed: 480, barrels: 3, splash: 22, pd: 1, color: 0xffe0a0, icon: 'flak' },
-  ion: { slot: 'turret', name: 'Ion Disruptor', kind: 'beam', dmgType: 'ion', dmg: 18, rof: 0.9, range: 420, barrels: 1, color: 0x58a8ff, icon: 'ion' },
+  autocannon: { slot: 'turret', name: 'Autocannon Turret', kind: 'shell', dmgType: 'kinetic', dmg: 5.5, rof: 3.2, range: 420, speed: 520, barrels: 2, spread: 0.04, color: 0xffd080, icon: 'turret' },
+  laser: { slot: 'turret', name: 'Pulse Laser Turret', kind: 'bolt', dmgType: 'energy', dmg: 7.5, rof: 2.4, range: 460, speed: 900, barrels: 2, color: 0xff5a7a, icon: 'laser' },
+  missile: { slot: 'turret', name: 'Missile Rack', kind: 'missile', dmgType: 'explosive', dmg: 19, rof: 0.8, range: 620, speed: 230, barrels: 2, homing: 1, splash: 18, color: 0xffc040, icon: 'missile' },
+  flak: { slot: 'turret', name: 'Flak Battery', kind: 'flak', dmgType: 'kinetic', dmg: 4.5, rof: 2.6, range: 300, speed: 480, barrels: 3, splash: 22, pd: 1, color: 0xffe0a0, icon: 'flak' },
+  ion: { slot: 'turret', name: 'Ion Disruptor', kind: 'beam', dmgType: 'ion', dmg: 12, rof: 0.9, range: 420, barrels: 1, color: 0x58a8ff, icon: 'ion' },
   // ---- prow (forward heavy weapons) ----
   torpedo: { slot: 'prow', name: 'Torpedo Tubes', kind: 'torpedo', dmgType: 'explosive', dmg: 160, rof: 0.18, range: 900, speed: 150, barrels: 2, homing: 0.4, splash: 45, color: 0xff7030, icon: 'torpedo' },
   nova: { slot: 'prow', name: 'Nova Cannon', kind: 'shell', dmgType: 'explosive', dmg: 260, rof: 0.08, range: 1100, speed: 340, barrels: 1, splash: 110, color: 0xfff0a0, icon: 'nova' },
@@ -194,8 +194,10 @@ export function itemShipStats(item, out) {
     const m = r.mult * (1 + item.ilvl * 0.02) * (1 + (item.lvl - 1) * 0.04);
     for (const [k, v] of Object.entries(b.stats)) out[k] = (out[k] || 0) + (k === 'armor' ? v * (1 + item.ilvl * 0.1) : v * m);
   }
+  const isWeapon = b.kind !== 'module' && b.kind !== 'hangar' && b.kind !== 'blueprint';
   for (const a of item.affixes) {
     if (AFFIXES[a.k].scope === 'weapon') continue;
+    if (isWeapon && (a.k === 'crit' || a.k === 'critDmg')) continue;   // already in this weapon's own stats
     out[a.k] = (out[a.k] || 0) + a.v;
   }
   for (const u of item.unique || []) out['u_' + u] = 1;

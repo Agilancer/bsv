@@ -11,7 +11,7 @@ import { BASES, weaponStats, itemShipStats } from '../data/items.js';
 import { YARDS } from '../data/chassis.js';
 import { clamp, wrapAngle, damp } from '../../engine/rng.js';
 
-const ARC = { broadside: 0.95, turret: 2.6, prow: 0.5, hangar: Math.PI };
+const ARC = { broadside: 0.95, turret: 2.4, prow: 0.5, hangar: Math.PI };   // turret: half-angle from the bow (blind astern)
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
 let SHIP_ID = 1;
 
@@ -258,8 +258,7 @@ export class Ship {
     const dx = target.position.x - mp.x, dz = target.position.z - mp.z;
     const dist = Math.hypot(dx, dz) - target.dims.W;
     if (dist > w.ws.range) return false;
-    if (w.hp.type === 'turret') return true;
-    const d = _v.copy(w.hp.dir).applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.heading);
+    const d = w.hp.type === 'turret' ? _v.set(Math.sin(this.heading), 0, Math.cos(this.heading)) : _v.copy(w.hp.dir).applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.heading);
     const ang = Math.acos(clamp((d.x * dx + d.z * dz) / Math.max(1e-3, Math.hypot(dx, dz)), -1, 1));
     return ang <= w.arc;
   }

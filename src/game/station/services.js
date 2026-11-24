@@ -54,7 +54,8 @@ export function acquireShip(P, chassisId, price, name) {
   const old = P.ship;
   const loadout = transferLoadout(old.loadout, c, P.inventory);
   P.fleet.push({ ...old, loadout: {} });
-  P.ship = { chassis: c.id, level: Math.max(1, Math.floor(old.level * 0.5)), xp: 0, loadout, name: name || `${SHIP_PREFIX} ${c.name}` };
+  // the crew carry their experience to the new hull: ship level transfers
+  P.ship = { chassis: c.id, level: old.level, xp: old.xp, loadout, name: name || `${SHIP_PREFIX} ${c.name}` };
   return { ok: true, msg: `${c.fullName} commissioned` };
 }
 
