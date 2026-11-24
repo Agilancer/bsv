@@ -6,11 +6,18 @@ import { RNG } from '../../engine/rng.js';
 
 const merchant = (P) => (P.talents && P.talents.merchant) || 0;
 
-// What a station is for. Every kind sells, repairs and posts contracts; each is best at one thing.
+// What a station is for. Every kind sells, repairs and posts work (quests/data.js gives each kind
+// its own flavour of jobs); each is best at one thing.
 export const STATION_KINDS = {
   trade: { name: 'Trade hub', blurb: 'Best prices for your salvage, the deepest market.', sell: 1.2, buy: 0.9, stock: 20, rarity: [['common', 24], ['uncommon', 36], ['rare', 29], ['epic', 11]], yards: 2, tier: 0, hull: 1, repair: 1, bounty: 1 },
   military: { name: 'Naval bastion', blurb: 'Half-price repairs; the bounty board pays half again.', sell: 0.9, buy: 1, stock: 10, rarity: [['uncommon', 30], ['rare', 45], ['epic', 25]], weapons: 0.7, yards: 2, tier: 0, hull: 1, repair: 0.5, bounty: 1.5 },
   shipyard: { name: 'Shipyard', blurb: 'Hulls from every yard, a tier deeper, 10% off.', sell: 1, buy: 1, stock: 10, rarity: [['common', 30], ['uncommon', 36], ['rare', 25], ['epic', 9]], yards: 99, tier: 1, hull: 0.9, repair: 0.8, bounty: 1 },
+  // outposts: thinner shelves and one yard, but each has its own trade — and its own kind of work on the board
+  research: { name: 'Research outpost', blurb: 'Pays for curiosities, specimens and survey data. A small, odd market.', sell: 1, buy: 1.05, stock: 8, rarity: [['uncommon', 30], ['rare', 45], ['epic', 25]], yards: 1, tier: 0, hull: 1, repair: 1, bounty: 1 },
+  mining: { name: 'Mining depot', blurb: 'Hull plate at cost: cheap repairs, 5% off hulls. Buys ore by the hold.', sell: 1.05, buy: 0.95, stock: 12, rarity: [['common', 45], ['uncommon', 35], ['rare', 17], ['epic', 3]], yards: 2, tier: 0, hull: 0.95, repair: 0.7, bounty: 1 },
+  relay: { name: 'Frontier relay', blurb: 'Couriers, charts and gossip. A thin market at honest prices.', sell: 1, buy: 1, stock: 8, rarity: [['common', 30], ['uncommon', 40], ['rare', 24], ['epic', 6]], yards: 1, tier: 0, hull: 1, repair: 0.9, bounty: 1 },
+  haven: { name: 'Black-market haven', blurb: 'Rare gear, no questions asked, and a premium for the silence.', sell: 1.1, buy: 1.2, stock: 12, rarity: [['rare', 50], ['epic', 50]], yards: 1, tier: 0, hull: 1.1, repair: 1.3, bounty: 1.2 },
+  shrine: { name: 'Covenant-watch shrine', blurb: 'Pilgrims watching the Hollow Star. Repairs by donation; generous bounties.', sell: 0.85, buy: 1, stock: 6, rarity: [['uncommon', 40], ['rare', 40], ['epic', 20]], yards: 1, tier: 0, hull: 1, repair: 0.6, bounty: 1.3 },
 };
 const NEUTRAL = { sell: 1, buy: 1, stock: 14, rarity: [['common', 30], ['uncommon', 36], ['rare', 25], ['epic', 9]], yards: 3, tier: 0, hull: 1, repair: 1, bounty: 1 };
 export const kindOf = (kind) => STATION_KINDS[kind] || NEUTRAL;
@@ -35,7 +42,7 @@ export function shipyardStock(stationSeed, danger, P, kind) {
   const rng = new RNG(stationSeed * 3 + 11);
   const yards = Object.keys(YARDS).filter((y) => y !== 'hollow' || danger >= 30);
   rng.shuffle(yards);
-  const pick = yards.slice(0, K.yards);
+  const pick = yards.filter((y) => !YARDS[y].enemyOnly).slice(0, K.yards);   // enemy-only yards build nothing a captain can buy
   const maxTier = Math.min(10, Math.ceil(danger / 6) + 2 + K.tier);
   return CHASSIS.filter((c) => pick.includes(c.yard) && c.tier <= maxTier).map((c) => ({ chassis: c, price: Math.round(c.price * K.hull * (1 - merchant(P) * 0.03)) }));
 }
@@ -91,6 +98,8 @@ export function makeBlueprint(chassis) {
   return { uid: newUid(), base: 'blueprint', slot: 'blueprint', bp: chassis.id, rarity: rar, ilvl: chassis.level, affixes: [], unique: [], xp: 0, lvl: 1, name: `Blueprint: ${chassis.fullName}`, value: Math.round(chassis.price * 0.15) };
 }
 
+// The original three-job bounty board. The station boards now deal from quests/data.js; these stay
+// for old saves' contract shape (migrated on load) and the tools/tests that still price against them.
 export function makeContracts(seed, danger, P, kind) {
   const rng = new RNG(seed + Math.floor((P.playtime || 0) / 300));
   const lvl = Math.max(danger, 1), b = kindOf(kind).bounty;

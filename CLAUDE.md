@@ -20,6 +20,13 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     time of day, report rating), `Life.js` (wildlife herds, flyers, curios), `Weather.js` (fronts +
     telegraphed strikes), `Extras.js` (comm strip, streak callouts, discovery cards, expedition
     report). All of it is skipped while `pilot.duel` is set so measured duels stay clean.
+  - `quests/` — station quest boards. `data.js` (pure: templates x targets x station kind x danger,
+    `boardOffers(sys, stationIndex, rotation)`, tracker `advance(q, ev, e)` over the `EVENTS` table),
+    `index.js` (turns play into tracker events, pays out, board tab / Quest log [J] / HUD tracker),
+    `auto.js` (autopilot: `acceptScore`, `autoAccept`, the board-and-errands goal). Active quests are
+    save data in `data.contracts` (old three-field contracts migrate on load), history in `data.questLog`.
+    Stations: `galaxy.js` gives every system at least one (94 total, 8 kinds in `STATION_KINDS`);
+    outposts are appended from their own seeded stream so older stations keep index, seed and place.
   - `flavor/` — space-side game feel: kill-streak callouts, slow-mo on big kills, last words.
 - `src/ui/` — HUD, overlay canvas, windows; `css/ui.css` holds the holo theme.
 
@@ -30,6 +37,9 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - `game.statProviders.push(g => ({stat: value}))` — merged into the player's ship on refit.
 - `ui.addWindow(id, title)` + `ui.renderers[id] = fn` for module-owned windows.
 - `game.autoplayGoals` — factories for long-horizon autoplay goals.
+- Quests: add a template to `TEMPLATES` in `quests/data.js` (its `ev` must be in `EVENTS`); new
+  trackable things call `game.quests.emit(ev, {n, ...fields})`. `tests/quests.test.mjs` checks every
+  template is posted somewhere, completable, and that the galaxy offers >1000 distinct jobs.
 - Wrap `game.start` / `game.enterSystem` for per-session or per-system setup.
 - Planet mode: `mode.extras.radio(event, force, once)` speaks a `RADIO[event]` line from orbit;
   `mode.telegraph(...)` + `mode.later(...)` for anything that hits the ground (the autopilot dodges
