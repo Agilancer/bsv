@@ -84,8 +84,10 @@ export function installStory(game, Q, hooks) {
     } else if (game.ui) game.ui.chat('STORY', sk.name, text, 'guild');
     pageT = 0;
   }
+  // briefings wait for a quiet deck: not on a planet surface or the bridge, and not in the middle of an arena match
+  const quiet = () => game.mode === 'space' && !(game.guild && game.guild.arena && game.guild.arena.match);
   function pump() {
-    if (cur || !queue.length) return;
+    if (cur || !queue.length || !quiet()) return;
     cur = queue.shift(); page = 0; choiceT = 0;
     if (cur.kind === 'choice') {
       // rebuild from the script (the options depend on what has been chosen so far)
@@ -213,10 +215,10 @@ export function installStory(game, Q, hooks) {
       return;
     }
     if (tagged(s.cur) > 0) { sp.gap = 0; return; }
-    // a set piece never lands on top of another fight: while anything else hostile is close, or the hull is
-    // badly holed, the next wave (or the named ship) holds off (stacked on a zone garrison it sank new captains)
+    // a set piece never lands on top of another fight: while anything else hostile is close the next wave (or
+    // the named ship) holds off (stacked on a zone garrison it sank new captains). Hull damage alone does not
+    // hold it: hulls do not mend at sea, and a captain who never docks would wait for ever.
     const me = game.player, W = game.world;
-    if (me.hull < me.maxHull * 0.5) { sp.gap = 0; return; }
     for (const o of W.ships) if (o.alive && o !== me && !o.storyTag && W.hostile(me, o) && o.position.distanceToSquared(me.position) < 1500 * 1500) { sp.gap = 0; return; }
     if (!sp.gap) { sp.gap = now + (sp.first ? 5 : piece.type === 'boss' ? 25 : 6); return; }
     if (now < sp.gap) return;
@@ -251,6 +253,9 @@ export function installStory(game, Q, hooks) {
     if (tickT > 0) return;
     tickT = 0.5;
     if (s.pending && !cur && !queue.some((x) => x.kind === 'choice')) { queue.push({ kind: 'choice', step: s.pending }); pump(); }
+    // a briefing that was open when the captain went down to a planet (or into a match) steps aside and comes back after
+    if (cur && !quiet()) { queue.unshift(cur); cur = null; show(); }
+    if (!cur && queue.length) pump();   // anything held back while the captain was busy elsewhere
     // the next step starts once the captain has the rank for it and nobody is mid-sentence
     if (s.wait && !s.pending && !s.q) {
       if (gapT > 0) gapT -= 0.5;

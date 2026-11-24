@@ -102,9 +102,11 @@ export function stationRefit(g, ap, st) {
     if ((!c || c.tier <= chassis().tier) && g.sellItem) { g.sellItem(it, true); bpSold++; }
   }
   if (bpSold) log(`Sold ${bpSold} blueprint${bpSold > 1 ? 's' : ''} for hulls we have outgrown`);
-  // hulls left behind in the fleet list: broken up for 35% of their price (as the shipyard offers)
+  // hulls left behind in the fleet list: broken up for 35% of their price (as the shipyard offers),
+  // but only if the captain has said so in Options — a fleet is the player's to keep
   let scrap = 0, n = 0;
-  for (let i = P.fleet.length - 1; i >= 0; i--) {
+  const mayScrap = !!(g.settings && g.settings().autoScrapHulls);
+  for (let i = P.fleet.length - 1; mayScrap && i >= 0; i--) {
     const c = CHASSIS_BY_ID[P.fleet[i].chassis];
     if (!c || c.tier >= chassis().tier) continue;
     scrap += Math.round(c.price * 0.35); n++; P.fleet.splice(i, 1);

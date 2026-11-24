@@ -1,4 +1,4 @@
-# BATTLESHIP VELSCOUR
+# FLAGSHIP VELSCOUR
 
 A space action-RPG of long gothic warships trading broadsides. Isometric, real-time, with
 ship-of-the-line handling (throttle steps, rudder, inertia, drifting turns), Diablo-style

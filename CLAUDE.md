@@ -1,4 +1,4 @@
-# BATTLESHIP VELSCOUR — working notes
+# FLAGSHIP VELSCOUR — working notes
 
 WebGPU space action-RPG (three.js r180 `three/webgpu` + TSL), no build step: ES modules via the
 import map in `index.html`, three vendored in `vendor/three/` (with the addons we use).
@@ -99,7 +99,8 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   interpolated). Boss time-to-kill is not smooth in the pool (escorts and phases make cliffs), so correct a
   column with a damped step and re-measure; `duel.cjs` results still move ~10% with which duels ran before.
 - Opposing PvP captains are eased below rank 10 (`guild/data.js earlyHandicap`); the autopilot leaves PvP
-  alone until rank 6. Story set pieces hold off while another fight is on or the hull is under half.
+  alone until rank 6. Story set pieces hold off while another fight is on; story briefings wait until the
+  captain is in open space (not on a surface, the bridge or in an arena match).
 - Telegraphed specials pass `TELEGRAPH` (Combat.js) as ws: their own per-hit budget, outside the
   `MIN_TTK` per-source window. Escorts a boss spawns set `capRoot` to share its window.
 
