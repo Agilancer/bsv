@@ -450,3 +450,66 @@ test('ground contract: landed shares and exposure are applied per archetype', ()
   const B = expectedBuild(20);
   assert.ok(B.loadout['gun:0'] && B.loadout['tool:0'] && B.chassis.startsWith('ex_rover_'));
 });
+
+// ---- the living layer: fauna, curiosities, radio, streaks, report ----
+import { FAUNA, faunaFor, planHerds, CURIOS, planCurios, curioReward, RADIO, RADIO_CAST, radioLine, streakFor, streakBonus, STREAKS, timeOfDay, TIMES_OF_DAY, expeditionRating } from '../src/game/planet/lifeData.js';
+import { BIOMES as LIFE_BIOMES } from '../src/game/planet/biomes.js';
+
+test('every biome has its own harmless fauna', () => {
+  const ids = new Set();
+  for (const type of Object.keys(LIFE_BIOMES)) { const f = FAUNA[type]; assert.ok(f, type); assert.ok(f.name && f.note && f.hop > 0); ids.add(f.id); }
+  assert.equal(ids.size, Object.keys(LIFE_BIOMES).length);
+  assert.equal(faunaFor('nonsense'), FAUNA.barren);
+});
+
+test('herds and curiosities are deterministic and stay on the site', () => {
+  assert.deepEqual(planHerds(42), planHerds(42));
+  assert.notDeepEqual(planHerds(42), planHerds(43));
+  for (const h of planHerds(7)) assert.ok(Math.hypot(h.x, h.z) >= 40 && Math.hypot(h.x, h.z) < 1000);
+  const a = planCurios(99), b = planCurios(99);
+  assert.deepEqual(a, b);
+  assert.equal(new Set(a.map((c) => c.kind)).size, a.length, 'no duplicate curio on one site');
+  assert.ok(Math.hypot(a[0].x, a[0].z) < 100, 'the first curio is near the pad');
+  for (const c of a) { assert.ok(CURIOS[c.kind]); assert.ok(CURIOS[c.kind].lore[c.lore]); }
+  assert.ok(curioReward(10, true).xp > curioReward(10).xp);
+});
+
+test('radio lines resolve to a speaker; every biome has a deploy line', () => {
+  for (const [ev, pool] of Object.entries(RADIO)) for (const [who, text] of pool) { assert.ok(RADIO_CAST[who], `${ev}: ${who}`); assert.ok(text.length > 8 && text.length < 130, text); }
+  for (const type of Object.keys(LIFE_BIOMES)) assert.ok(radioLine('deploy_' + type), type);
+  assert.equal(radioLine('no-such-event'), null);
+  assert.equal(radioLine('deploy', () => 0.999).text, RADIO.deploy.at(-1)[1]);
+});
+
+test('kill streak tiers climb and the XP bonus is capped', () => {
+  assert.equal(streakFor(1), null);
+  assert.equal(streakFor(2).title, 'DOUBLE KILL');
+  let last = 0; for (const [n] of STREAKS) { assert.ok(n > last); last = n; }
+  assert.equal(streakBonus(1), 0);
+  assert.ok(streakBonus(5) > streakBonus(2));
+  assert.ok(streakBonus(999) <= 0.5);
+});
+
+test('time of day is seeded and keeps the sun above the horizon', () => {
+  assert.equal(timeOfDay(5).id, timeOfDay(5).id);
+  const seen = new Set(); for (let i = 0; i < 200; i++) seen.add(timeOfDay(i * 7919).id);
+  assert.equal(seen.size, Object.keys(TIMES_OF_DAY).length);
+  for (const t of Object.values(TIMES_OF_DAY)) assert.ok(t.dir[1] >= 0.25);
+});
+
+test('the expedition report always finds a title', () => {
+  assert.equal(expeditionRating({ kills: 0, banked: 40 })[0], 'Conscientious Objector (With a Drill)');
+  assert.equal(expeditionRating({ deaths: 3 })[0], 'Insurance Liability');
+  assert.equal(expeditionRating({ curios: 5, curioTotal: 5 })[0], 'Tourist of the Year');
+  for (const r of [{}, { kills: 3, banked: 10 }, { punts: 9 }, { bosses: 1 }]) { const [t, q] = expeditionRating(r); assert.ok(t && q); }
+});
+
+import { WEATHER, weatherFor } from '../src/game/planet/lifeData.js';
+test('every biome has a weather front with a radio line; strikes are telegraphed and survivable', () => {
+  for (const type of Object.keys(LIFE_BIOMES)) {
+    const w = weatherFor(type); assert.ok(w && w.name && w.warn, type);
+    assert.ok(RADIO['weather_' + w.id], w.id);
+    assert.ok(w.fog >= 0 && w.fog <= 0.6 && w.dim <= 0.5);
+    if (w.strike) { assert.ok(w.strike.lead >= 1.2, 'time to drive out of the ring'); assert.ok(w.strike.dmg <= 0.1); assert.ok(w.strike.every >= 2.5); }
+  }
+});

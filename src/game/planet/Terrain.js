@@ -60,7 +60,10 @@ export class Terrain {
     const nzA = texture(NZ, p.xz.mul(0.0023).add(vec2((this.seed % 97) * 0.013, 0.31)));
     const nzB = texture(NZ, p.xz.mul(0.011));
     const macro = nzA.r, macro2 = nzB.g;
-    const flatA = texture(tFlat, p.xz.mul(fs)).rgb;
+    // two orientations of the ground sheet traded off in noise patches: the tile grid never lines up
+    const flatA0 = texture(tFlat, p.xz.mul(fs)).rgb;
+    const flatA1 = texture(tFlat, p.zx.mul(fs * 0.83).add(vec2(0.47, 0.29))).rgb;
+    const flatA = mix(flatA0, flatA1, smoothstep(0.38, 0.62, texture(NZ, p.xz.mul(0.019).add(vec2(0.11, 0.73))).a));
     const flatB = texture(tFlat, p.xz.mul(fs * 0.23).add(vec2(0.37, 0.11))).rgb;
     let flat = mix(flatA, flatB, 0.45).mul(C(B.tint));
     const alt = texture(tAlt, p.xz.mul(fs * 0.8)).rgb.mul(C(B.altTint));
@@ -81,6 +84,12 @@ export class Terrain {
     if (B.snowLine !== undefined) {
       const snow = smoothstep(B.snowLine, B.snowLine + 7, p.y.add(macro.mul(9))).mul(smoothstep(0.45, 0.75, n.y));
       col = mix(col, vec3(0.8, 0.86, 0.95), snow);
+    }
+    // worlds with weather: cloud shadows sliding across the ground
+    if (B.clouds) {
+      const t = E.uTime;
+      const cl = texture(NZ, p.xz.mul(0.0019).add(vec2(t.mul(0.0042), t.mul(0.0021)))).r.mul(0.65).add(texture(NZ, p.xz.mul(0.0057).add(vec2(t.mul(-0.003), t.mul(0.006)))).g.mul(0.35));
+      col = col.mul(mix(float(1), float(1 - B.clouds), smoothstep(0.4, 0.74, cl)));
     }
     const F = B.fluid;
     if (F) {

@@ -31,8 +31,13 @@ import { uSeeThrough } from './props.js';
 import { PlanetPilot } from './Autopilot.js';
 import { TouchControls } from './Touch.js';
 import { setCheapTextures } from './ptex.js';
+import { Wildlife, Flyers, Curios } from './Life.js';
+import { PlanetExtras } from './Extras.js';
+import { timeOfDay } from './lifeData.js';
+import { Weather } from './Weather.js';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _r = new THREE.Ray(), _a = new THREE.Vector3();
+const _c1 = new THREE.Color(), _c2 = new THREE.Color();
 
 // isometric follow camera with aim look-ahead
 export class PlanetCamera {
@@ -92,7 +97,9 @@ export class PlanetMode {
     this.surfaceS = this.S;
     const B = this.biome;
     this.dustHex = new THREE.Color(B.tint).multiplyScalar(0.75).getHex();
-    this.headlightI = B.sunI < 2.6 || this.type === 'barren' ? 60 : 28;
+    // time of day: the same biome under a different sun on every landing site
+    this.tod = timeOfDay(this.siteInfo.seed);
+    this.headlightI = B.sunI < 2.6 || this.type === 'barren' || this.tod.id === 'dusk' ? 60 : 28;
     this.buildScene();
   }
 
@@ -108,14 +115,14 @@ export class PlanetMode {
     sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera; sc.left = -75; sc.right = 75; sc.top = 75; sc.bottom = -75; sc.near = 1; sc.far = 400;
     sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.6;
-    this.sunDir = new THREE.Vector3(0.55, 1, 0.35).normalize();
+    this.sunDir = new THREE.Vector3(...this.tod.dir).normalize();
     this.hemi = new THREE.HemisphereLight(B.hemi[0], B.hemi[1], B.hemi[2]);
     scene.add(sun, sun.target, this.hemi);
     this.torchLights = [];   // added only inside dungeons (light count changes recompile materials)
     this.pfx = new PlanetFX(E, scene);
     this.pfx.dustHex = this.dustHex;
     const boom = this.pfx.explode.bind(this.pfx);
-    this.pfx.explode = (p, s = 1, hex) => { boom(p, s, hex); this.sfx(s > 1.6 ? 'heavy' : 'explosion', p, Math.min(1.3, 0.25 + s * 0.35)); };
+    this.pfx.explode = (p, s = 1, hex) => { boom(p, s, hex); if (this.wildlife && !this.dungeon && !this.pilot.duel) this.wildlife.startle(p, 12 + s * 9); this.sfx(s > 1.6 ? 'heavy' : 'explosion', p, Math.min(1.3, 0.25 + s * 0.35)); };
     this.ground = new GroundFX(E);
     this.terrain = new Terrain(this, this.S, this.siteInfo.seed);
     scene.add(this.terrain.group);
@@ -143,6 +150,12 @@ export class PlanetMode {
     this.lairs = this.plan.lairs;
     this.dungeons = this.plan.dungeons;
     this.hud = new PlanetHUD(this);
+    // the living layer: harmless fauna, a flock overhead, curiosities to scan, the voice from orbit
+    this.wildlife = new Wildlife(this);
+    this.flyers = this.type === 'barren' ? null : new Flyers(this);
+    this.curios = new Curios(this);
+    this.extras = new PlanetExtras(this);
+    this.weather = new Weather(this);
     this.pilot = new PlanetPilot(this);
     this.touch = TouchControls.wanted() ? new TouchControls(this) : null;
   }
@@ -208,7 +221,7 @@ export class PlanetMode {
       this.runStats.gathered[res] = (this.runStats.gathered[res] || 0) + k;
       this.hud.cargoPop(res, k);
     }
-    if (k < n && this.engine.time > this.toastT) { this.toastT = this.engine.time + 4; this.toast('Cargo hold full — return to the lander to bank it', 'warn'); }
+    if (k < n && this.engine.time > this.toastT) { this.toastT = this.engine.time + 4; this.toast('Cargo hold full — return to the lander to bank it', 'warn'); if (this.extras) this.extras.radio('cargoFull', false, true); }
     return k;
   }
   pickupItem(item) {
@@ -265,13 +278,15 @@ export class PlanetMode {
     else if (plan === 'golem' || plan === 'elemental') { fx.rocks(p, 14 + e.scale * 4, 0x4a3a30, 14 + e.scale * 4); fx.glowBurst(p, def.vis.glow, 4 * e.scale, 0.3, 1.5); fx.dust(p, 3 * e.scale, this.dustHex, 3, 6); }
     else { fx.ichor(p, def.ichor, 14 + e.scale * 6); fx.glowBurst(p, def.ichor, 3 * e.scale, 0.25, 1.2); fx.dust(p, 2 * e.scale, this.dustHex, 2, 4); }
     if (big) {
+      if (this.game.flavor && !this.game.autoplay) this.game.flavor.slowmo(0.7);
       for (let i = 0; i < 8; i++) this.later(i * 0.18, () => { _a.copy(e.pos).add(_w.set((Math.random() - 0.5) * e.radius * 2, Math.random() * e.height, (Math.random() - 0.5) * e.radius * 2)); fx.explode(_a, 0.6 + Math.random() * 0.8, def.vis.glow); this.cam.addShake(1); });
       this.later(1.6, () => { fx.explode(e.pos, 2.5, 0xffa050); fx.ring(e.pos, 30, def.vis.glow, 80); this.cam.addShake(4); this.engine.flash(0.25, 0xffd0a0); });
     }
     if (o.chainreact) { const r = 6, g0 = this.vehicle.stats.guns[0], cd = (g0 ? g0.ws.dmg : 10) * 1.2 * this.vehicle.stats.dmgMul; this.creatures.forInRadius(e.pos, r, (x) => { if (x !== e) this.hitEnemy(x, cd, _a.copy(x.pos), { quiet: true }); }); fx.explode(e.pos, 0.8, 0xffa040); }
     // rewards
     const st = this.vehicle.stats;
-    const xp = Math.round(def.xp * (1 + 0.12 * (e.level - 1)) * (e.elite ? 2.5 : 1) * st.xpMul);
+    const chain = this.extras && !this.pilot.duel ? this.extras.onKill(e) : 0;   // kills in quick succession pay a little extra
+    const xp = Math.round(def.xp * (1 + 0.12 * (e.level - 1)) * (e.elite ? 2.5 : 1) * st.xpMul * (1 + chain));
     this.gainXp(xp);
     // the commander's share: ~70% of a comparable space kill, at the commander's own rank
     const G = this.game, sst = (G.player && G.player.stats) || {};
@@ -300,6 +315,7 @@ export class PlanetMode {
     if (e.boss) {
       this.runStats.bosses++;
       this.toast(`${e.name} has fallen!`, 'legend');
+      this.later(2.2, () => this.extras.radio('bossDown', true));
       this.game.ui.chat('SYS', null, `Apex creature slain: ${e.name} (+${xp} XP)`, 'sys');
       if (e.dungeonBoss && this.dungeon) this.dungeon.onBossDown();
       for (const l of this.lairs) if (l.boss === def && !l.cleared) l.cleared = true;
@@ -349,6 +365,8 @@ export class PlanetMode {
     const lost = loseCargo(this.cargo, 0.5);
     const n = Object.values(lost).reduce((a, b) => a + b, 0);
     this.ex.deaths = (this.ex.deaths || 0) + 1;
+    this.runStats.deaths = (this.runStats.deaths || 0) + 1;
+    this.later(1.2, () => this.extras.radio('death', true));
     this.toast(`Explorer destroyed${n ? ` — ${n} cargo units lost` : ''}`, 'bad');
     this.probes.recallAll(false);
     this.state = 'dead'; this.stateT = 4;
@@ -369,6 +387,7 @@ export class PlanetMode {
     this.toast(`${e.def.sizeClass === 'gargantuan' ? 'GARGANTUAN' : 'APEX'}: ${e.name}`, 'legend');
     this.game.ui.chat('SYS', null, `${e.name} — ${e.def.role}`, 'sys');
     if (e.def.size >= 5) this.cam.extra = 45;
+    this.later(1.5, () => this.extras.radio('boss', true));
   }
   onBossPhase(e) { this.toast(`${e.name} enters phase ${e.phase}!`, 'epic'); }
   onCrateOpened(c) { this.noise(0.01); }
@@ -449,6 +468,7 @@ export class PlanetMode {
       uRoverRim.value = 2.4; uCreatureRim.value = 1.5;
       this.engine.renderer.toneMappingExposure = 1.15;
       this.game.ui.chat('SYS', null, `${d.name} — ${T.name}, depth ${d.depth}. Apex lurks at the far end.`, 'sys');
+      this.extras.radio('dungeon', true, true);
       this.transition = false;
     });
   }
@@ -478,10 +498,15 @@ export class PlanetMode {
     });
   }
   applyAtmosphere() {
-    const B = this.biome;
-    this.scene.fog.color.set(B.fog); this.scene.background.set(B.fog);
-    this.sun.color.set(B.sun); this.sun.intensity = B.sunI;
-    this.hemi.color.set(B.hemi[0]); this.hemi.groundColor.set(B.hemi[1]); this.hemi.intensity = B.hemi[2];
+    const B = this.biome, T = this.tod;
+    // haze leans toward the hour's colour at the biome's own brightness
+    const fog = _c1.set(B.fog), tint = _c2.set(T.fogTint);
+    const lum = (c) => c.r * 0.3 + c.g * 0.55 + c.b * 0.15 + 1e-4;
+    tint.multiplyScalar(Math.min(2.5, lum(fog) / lum(tint)));
+    fog.lerp(tint, T.fogMix);
+    this.scene.fog.color.copy(fog); this.scene.background.copy(fog);
+    this.sun.color.set(B.sun).multiply(_c2.set(T.sun)); this.sunBase = this.sun.intensity = B.sunI * T.sunMul;
+    this.hemi.color.set(B.hemi[0]); this.hemi.groundColor.set(B.hemi[1]); this.hemi.intensity = B.hemi[2] * T.hemiMul;
     this.engine.renderer.toneMappingExposure = 1.05 * (B.exposure || 1);
   }
 
@@ -507,7 +532,7 @@ export class PlanetMode {
     this.ex.runs = (this.ex.runs || 0) + 1;
     this.sfx('jump', null, 0.8);
     G.ui.chat('SYS', null, `Explorer deploying to ${this.survey.name} · ${this.siteInfo.name} · hazard ${this.survey.hazardName}`, 'sys');
-    G.ui.chat('SYS', null, 'WASD drive · Mouse aim · LMB fire · RMB/F mine · Shift boost · 1-4 abilities · X probe · R interact · L explorer bay · U refinery', 'sys');
+    G.ui.chat('SYS', null, 'WASD drive · Mouse aim · LMB fire · RMB/F mine · Shift boost · 1-4 abilities · X probe · R interact · H horn · L explorer bay · U refinery', 'sys');
   }
 
   exit() {
@@ -520,6 +545,7 @@ export class PlanetMode {
     E.renderer.toneMappingExposure = this.savedExposure || 1.05;
     E.renderer.shadowMap.enabled = !!this.savedShadows;
     this.terrain.dispose();
+    this.weather.dispose(); this.wildlife.dispose(); if (this.flyers) this.flyers.dispose(); this.curios.dispose();
     this.disposed = true;
   }
 
@@ -533,6 +559,7 @@ export class PlanetMode {
     this.state = 'extract'; this.stateT = 8;
     this.extractAt = V.position.clone();
     this.toast('Dropship inbound — hold out for 8 seconds!', 'epic');
+    this.extras.radio('extract', true);
     this.spawnWave(true);
   }
   ascend() {
@@ -549,6 +576,7 @@ export class PlanetMode {
     if (n) {
       this.runStats.banked += n;
       this.toast(`Banked ${n} resource units`, 'epic');
+      if (n >= 20) this.extras.radio('banked');
       this.pfx.timedBeam(_v.copy(this.lander.position).setY(this.lander.position.y + 8), _w.copy(this.vehicle.position).setY(this.vehicle.position.y + 1), 1.2, 0x58c8ff, 2.2, 0.6);
       this.pfx.ring(this.vehicle.position, 8, 0x58c8ff, 40);
     }
@@ -560,6 +588,7 @@ export class PlanetMode {
     const rec = this.ex.scanned && this.ctx.info && this.ex.scanned[planetKey(this.sys.id ?? G.data.system, this.ctx.info)];
     if (rec) { rec.runs = (rec.runs || 0) + 1; rec.banked = (rec.banked || 0) + R.banked; rec.kills = (rec.kills || 0) + R.kills; rec.dungeons = (rec.dungeons || 0) + R.dungeons; }
     G.exitMode();
+    PlanetExtras.report(G, this);
     const got = Object.entries(R.gathered).map(([k, v]) => `${v} ${RESOURCES[k].short}`).join(' · ');
     G.ui.toast(`Explorer recovered · ${R.banked} units banked`, 'epic');
     G.ui.chat('SYS', null, `Survey of ${this.survey.name} complete: ${R.kills} kills, ${R.items} items, ${R.banked} banked${got ? ` (${got})` : ''}, ${R.xp} XP.`, 'sys');
@@ -600,6 +629,14 @@ export class PlanetMode {
       this.updateThreat(dt);
       this.updateLander(dt);
       this.updateMouths(dt);
+      // measured duels (tools/groundduel.cjs) run without the living layer: nothing here may touch
+      // the explorer or draw from the seeded random stream
+      if (!this.pilot.duel) {
+        this.wildlife.update(dt);
+        if (this.flyers) this.flyers.update(dt);
+        this.curios.update(dt);
+        this.weather.update(dt);
+      }
     } else {
       this.dungeon.update(dt, this.torchLights);
     }
@@ -617,14 +654,16 @@ export class PlanetMode {
     this.cam.update(realDt, focusTarget, _w);
     // fog tracks zoom so the play area stays crisp
     const B = this.biome, D = this.cam.distance;
-    this.scene.fog.near = D * (this.dungeon ? 0.9 : B.fogNear);
-    this.scene.fog.far = D * (this.dungeon ? 2.2 : B.fogFar);
+    const wf = this.dungeon ? 0 : this.weather.fog;   // weather closes the haze in
+    this.scene.fog.near = D * (this.dungeon ? 0.9 : B.fogNear * (1 - wf * 0.55));
+    this.scene.fog.far = D * (this.dungeon ? 2.2 : B.fogFar * (1 - wf * 0.6));
     // the key light (and its shadow frustum) follows the explorer
     const f = this.cam.focus;
     this.sun.position.copy(f).addScaledVector(this.sunDir, 160);
     this.sun.target.position.copy(f);
     uSeeThrough.value.copy(V.position);
     fx.update(dt); fx.flush();
+    this.extras.update(dt, realDt);
     this.hud.update(dt, realDt);
   }
 
@@ -646,6 +685,7 @@ export class PlanetMode {
       ctl.boost = k('ShiftLeft') || k('ShiftRight');
       for (let i = 0; i < 4; i++) ctl.abil[i] = h('Digit' + (i + 1));
       ctl.probe = h('KeyX'); ctl.interact = h('KeyR');
+      if (h('KeyH')) this.honk();
       this.pickAim(m.nx, m.ny);
     }
     if (auto) { this.pilot.control(ctl, dt); }
@@ -686,6 +726,23 @@ export class PlanetMode {
       }
       this.aimEnemy = best;
     }
+  }
+
+  // the horn: scatters the wildlife, wakes the neighbours, achieves nothing else
+  honk() {
+    const V = this.vehicle, now = this.engine.time;
+    if (!V.alive || this.state !== 'play' || now < (this.honkT || 0)) return;
+    this.honkT = now + 1.2;
+    this.sfx('honk', null, 1);
+    this.ground.pulse(V.position.x, V.position.z, 0xffd66a, 0.7);
+    this.pfx.ring(V.position, 10, 0xffd66a, 40);
+    if (!this.dungeon) this.wildlife.startle(V.position, 48);
+    let woke = 0;
+    this.creatures.forInRadius(V.position, 70, (e) => { if (e.mode !== 'hunt') { this.creatures.aggro(e); woke++; } });
+    this.noise(0.02);
+    this.honks = (this.honks || 0) + 1;
+    if (this.honks === 1) this.toast(woke ? `HONK. ${woke} hostile${woke > 1 ? 's' : ''} noticed.` : 'HONK.', woke ? 'warn' : '');
+    if (this.honks === 2 || woke >= 3) this.extras.radio('honk', false, true);
   }
 
   // ---------------- mining ----------------
@@ -824,12 +881,15 @@ export class PlanetMode {
         if (e && pk.entry.ai === 'burrow') e.under = true;
       }
     }
-    if (!extraction) this.toast(this.threat > 0.6 ? 'Seismic readings spiking — the swarm is coming' : 'Hostiles inbound', 'warn');
+    if (!extraction) { this.toast(this.threat > 0.6 ? 'Seismic readings spiking — the swarm is coming' : 'Hostiles inbound', 'warn'); this.extras.radio('wave'); }
   }
   updateLander(dt) {
     const V = this.vehicle, L = this.lander;
     const d = Math.hypot(V.position.x - L.position.x, V.position.z - L.position.z);
-    this.ground.set(1, L.position.x, L.position.z, 18, d < 18 ? 1.6 : 0.9, 0x58c8ff, d < 18 ? 0.25 : 0);
+    this.ground.set(1, L.position.x, L.position.z, 18, d < 18 ? 0.75 : 0.4, 0x58c8ff, d < 18 ? 0.12 : 0);
+    // the homing beacon is for finding the pad from afar: it thins out as the explorer comes home
+    const bs = clamp((d - 20) / 110, 0.12, 1);
+    this.beacon.scale.x = this.beacon.scale.z = damp(this.beacon.scale.x, bs, 4, dt);
     this.atLander = d < 18 && this.state === 'play' && V.alive;
     if (this.atLander) {
       if (cargoTotal(this.cargo) > 0) this.bank();
@@ -878,7 +938,8 @@ export class PlanetMode {
         fx.pillar(V.position, 0x58c8ff, 20, 2, 24);
         this.ground.pulse(V.position.x, V.position.z, 0x58c8ff, 1);
         this.state = 'play';
-        this.toast(`${this.siteInfo.name} · ${this.biome.name}`, 'epic');
+        this.toast(`${this.siteInfo.name} · ${this.biome.name} · ${this.tod.name}`, 'epic');
+        this.later(1.5, () => this.extras.radio(Math.random() < 0.65 ? 'deploy_' + this.type : 'deploy', true) || this.extras.radio('deploy', true));
       });
     }
   }
