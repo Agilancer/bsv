@@ -158,7 +158,13 @@ export class Autoplay {
   act(dt, t) {
     const g = this.game, s = g.player;
     s.autoFire = true;
-    if (this.state === 'goal' && this.goal) { if (this.goal.update(dt)) this.goal = null; return; }
+    if (this.state === 'goal' && this.goal) {
+      // a goal that throws is dropped (logged once) rather than taking the whole autoplay down
+      let done = true;
+      try { done = this.goal.update(dt); } catch (e) { if (!this.goal.failed) { this.goal.failed = true; console.error('autoplay goal', this.goal.name, e); } }
+      if (done) this.goal = null;
+      return;
+    }
     if (this.state === 'retreat') {
       const foes = this.hostiles(1400);
       const c = _v.set(0, 0, 0);

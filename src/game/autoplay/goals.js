@@ -77,6 +77,7 @@ export function resupplyGoal(ap) {
         else if (t > 40) { phase = null; return true; }
         return false;
       }
+      if (phase === 'services' && !g.docked) { phase = 'approach'; t = 0; return false; }   // undocked meanwhile (a fight)
       if (phase === 'services' && t > 1.5) {
         const st = g.docked, danger = g.sector.sys.danger;
         g.equipBest();
