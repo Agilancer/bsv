@@ -7,6 +7,16 @@ import { vec3, float } from 'three/tsl';
 import { wrapAngle, clamp } from '../../engine/rng.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _v = new THREE.Vector3(), _e = new THREE.Euler();
+const _h = new THREE.Vector3();
+const NONE = [];
+function hasDecoy(wing) { if (wing) for (const c of wing) if (c.alive && c.decoy) return true; return false; }
+// index of the weakest shield facing below its cap, or -1
+function weakestFacing(s) {
+  const cap = s.maxShield * 0.3;
+  let best = -1, low = cap * 0.999;
+  for (let i = 0; i < 4; i++) if (s.shields[i] < low) { low = s.shields[i]; best = i; }
+  return best;
+}
 
 function craftGeometry() {
   const parts = [];
@@ -38,8 +48,11 @@ export class Hangars {
   tick(ship, w, dt, t) {
     w.wing ||= [];
     w.wing = w.wing.filter((c) => c.alive);
-    const max = (w.ws.count || 2) + (w.item.unique.includes('swarm') ? 2 : 0) + (ship.buffs.launch > t ? 2 : 0);
-    if (w.wing.length < max && w.cd <= 0 && (ship.target && ship.target.alive || w.ws.craft === 'drone' || ship.buffs.launch > t)) {
+    const U = w.item.unique;
+    // Phantom Flight: the decoy flies on top of the wing, and goes up first
+    const needDecoy = U.includes('decoy') && !hasDecoy(w.wing);
+    const max = (w.ws.count || 2) + (U.includes('swarm') ? 2 : 0) + (U.includes('decoy') ? 1 : 0) + (ship.buffs.launch > t ? 2 : 0);
+    if (w.wing.length < max && w.cd <= 0 && (needDecoy || ship.target && ship.target.alive || w.ws.craft === 'drone' || ship.buffs.launch > t)) {
       w.cd = w.ws.rebuild / (ship.buffs.launch > t ? 4 : 1);
       w.wing.push(this.launch(ship, w));
     }
@@ -49,16 +62,29 @@ export class Hangars {
     const ws = w.ws;
     const pos = w.hp.pos.clone().applyAxisAngle(THREE.Object3D.DEFAULT_UP, ship.heading).add(ship.position);
     const side = w.hp.dir.clone().applyAxisAngle(THREE.Object3D.DEFAULT_UP, ship.heading);
+    const U = (w.item && w.item.unique) || NONE;
+    // Phantom Flight: one craft per wing is a decoy, tough enough to soak a few hits meant for the carrier
+    const decoy = U.includes('decoy') && !hasDecoy(w.wing);
     const c = {
       alive: true, owner: ship, team: ship.team, type: ws.craft, ws,
       pos, vel: side.multiplyScalar(60).add(ship.velocity), heading: Math.atan2(side.x, side.z),
-      hp: ws.craft === 'bomber' ? 120 : 70 * (1 + ship.level * 0.05), cd: 1 + Math.random(), state: 'out', t: 0,
-      orbit: Math.random() * Math.PI * 2, color: new THREE.Color(ship.isPlayer || ship.team === 1 ? 0xbfe0ff : ship.yard.glow),
+      hp: decoy ? ship.maxHull * 0.06 : ws.craft === 'bomber' ? 120 : 70 * (1 + ship.level * 0.05), cd: 1 + Math.random(), state: 'out', t: 0,
+      orbit: Math.random() * Math.PI * 2, color: new THREE.Color(decoy ? 0xd0a0ff : ship.isPlayer || ship.team === 1 ? 0xbfe0ff : ship.yard.glow),
       speed: ws.craft === 'fighter' ? 170 : ws.craft === 'bomber' ? 120 : 110, size: ws.craft === 'bomber' ? 1.5 : 1.1,
+      decoy, weave: U.includes('weavers'),
     };
     this.world.fx.column(pos, ship.yard.glow, 10, 6);
     this.craft.push(c);
     return c;
+  }
+
+  // a live decoy flying for this ship (Phantom Flight), or null
+  decoyFor(ship) {
+    for (const w of ship.weapons) {
+      if (w.hp.type !== 'hangar' || !w.wing) continue;
+      for (const c of w.wing) if (c.alive && c.decoy) return c;
+    }
+    return null;
   }
 
   damageNear(point, r, team, dmg) {
@@ -82,13 +108,20 @@ export class Hangars {
       const own = c.owner;
       let tg = own.target && own.target.alive ? own.target : null;
       let goal;
-      if (c.type === 'drone') {
-        c.orbit += dt * 0.9;
-        goal = _v.set(Math.sin(c.orbit) * own.dims.W * 3, own.dims.top + 8, Math.cos(c.orbit) * own.dims.L * 0.45).applyAxisAngle(THREE.Object3D.DEFAULT_UP, own.heading).add(own.position);
-        if (c.cd <= 0 && own.hull < own.maxHull) {
+      if (c.type === 'drone' || c.decoy) {
+        // drones (and decoys, which loiter with a beacon lit) hold station around the mother ship
+        c.orbit += dt * (c.decoy ? 0.6 : 0.9);
+        const R = c.decoy ? 1.6 : 1;
+        goal = _v.set(Math.sin(c.orbit) * own.dims.W * 3 * R, own.dims.top + 8, Math.cos(c.orbit) * own.dims.L * 0.45 * R).applyAxisAngle(THREE.Object3D.DEFAULT_UP, own.heading).add(own.position);
+        const fi = c.weave ? weakestFacing(own) : -1;   // Shieldweavers mend the weakest facing too
+        if (c.decoy) { if (c.cd <= 0) { c.cd = 0.8; fx.trailPuff(c.pos, 0xd0a0ff, 6, 0.6); } }
+        else if (c.cd <= 0 && (own.hull < own.maxHull || fi >= 0)) {
           c.cd = 1;
-          own.repair(c.ws.heal || 10);
-          W.beams.add(c.pos, own.position.clone().add(new THREE.Vector3(0, own.dims.Ht, 0)), 0x7affb0, 0.8, 0.5);
+          const heal = c.ws.heal || 10;
+          own.repair(heal);
+          if (fi >= 0) own.shields[fi] = Math.min(own.maxShield * 0.3, own.shields[fi] + heal * 1.5);
+          _h.copy(own.position); _h.y += own.dims.Ht;
+          W.beams.add(c.pos, _h, fi >= 0 ? 0x7ad8ff : 0x7affb0, 0.8, 0.5);   // add() copies its endpoints
         }
       } else if (!tg || c.state === 'home') {
         goal = own.position;

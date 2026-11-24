@@ -6,13 +6,9 @@
 //    poor vs shields), ion (strips shields, barely scratches hull).
 import * as THREE from 'three/webgpu';
 import { dpsCapVs } from '../data/balance.js';
+import { DMG_TYPES as TYPE } from '../data/items.js';
 
-const TYPE = {
-  kinetic: { shield: 0.8, hull: 1.15 },
-  energy: { shield: 1.25, hull: 0.85 },
-  explosive: { shield: 0.6, hull: 1.45 },
-  ion: { shield: 2.2, hull: 0.25 },
-};
+const RETRIBUTION_R = 300;
 export const FACINGS = ['fore', 'aft', 'port', 'starboard'];
 
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c1 = new THREE.Vector3(), _c2 = new THREE.Vector3(), _l = new THREE.Vector3();
@@ -37,6 +33,12 @@ function segSeg(p1, q1, p2, q2, c1, c2) {
   }
   c1.copy(p1).addScaledVector(d1, s); c2.copy(p2).addScaledVector(d2, t);
   return c1.distanceToSquared(c2);
+}
+
+// every shield facing of s above frac of its cap?
+function shieldsAbove(s, frac) {
+  const min = s.maxShield * 0.3 * frac, sh = s.shields;
+  return !!sh && sh[0] > min && sh[1] > min && sh[2] > min && sh[3] > min;
 }
 
 const _s0 = new THREE.Vector3(), _s1 = new THREE.Vector3(), _fw = new THREE.Vector3();
@@ -112,9 +114,13 @@ export class Combat {
       }
     }
     // splash also detonates enemy missiles/torpedoes nearby (flak)
+    const curtain = p.ws && p.ws.unique && p.ws.unique.includes('ironCurtain');
+    const pdR2 = r * r * (curtain ? 8 : 2);
     if (p.pd) for (const q of W.projectiles.list) {
-      if (q.team !== p.team && (q.kind === 'missile' || q.kind === 'torpedo') && q.pos.distanceToSquared(point) < r * r * 2) { q.age = q.life; q.pos.copy(q.pos); }
+      if (q.team !== p.team && (q.kind === 'missile' || q.kind === 'torpedo') && q.pos.distanceToSquared(point) < pdR2) { q.age = q.life; q.pos.copy(q.pos); }
     }
+    // Iron Curtain: the burst shreds strike craft too
+    if (curtain && W.hangars) W.hangars.damageNear(point, r * 1.5, p.team, p.dmg * 3 * ((p.owner && p.owner.stats && p.owner.stats.dmgMul) || 1));
   }
 
   // Core damage entry. Returns damage dealt.
@@ -125,6 +131,7 @@ export class Combat {
     let crit = false;
     let dmg = amount;
     const srcStats = source && source.stats ? source.stats : null;
+    const U = ws && ws.unique && ws.unique.length ? ws.unique : null;   // the weapon's own powers
     if (ws) {
       const critChance = (ws.crit || 0) + (srcStats ? srcStats.crit || 0 : 0) + 0.05;
       if (Math.random() < critChance) { crit = true; dmg *= 1.6 + (ws.critDmg || 0) + (srcStats ? srcStats.critDmg || 0 : 0); }
@@ -134,6 +141,18 @@ export class Combat {
     if (source && source.buffs && source.buffs.command > now) dmg *= 1.25;     // command aura
     if (source && source.clipper && source.speed > source.maxSpeed * 0.7) dmg *= 1.25;   // Clipper Doctrine
     if (ship.spottedUntil > now) dmg *= 1.2;                                     // painted by a spotter
+    if (U && U.includes('executioner') && ship.hull < ship.maxHull * 0.3) dmg *= 1.75;   // Coup de Grace
+    if (srcStats && srcStats.u_sovereign && shieldsAbove(source, 0.5)) dmg *= 1.2;          // Sovereign
+    // Phantom Flight: a decoy craft takes a quarter of the hits meant for its carrier
+    if (ship.stats && ship.stats.u_decoy && W.hangars && Math.random() < 0.25) {
+      const dc = W.hangars.decoyFor(ship);
+      if (dc) {
+        dc.hp -= dmg;
+        W.fx.impact(dc.pos, 0xd0a0ff, 0.8, true);
+        if (dc.hp <= 0) W.hangars.destroy(dc);
+        return 0;
+      }
+    }
     // boss contract: no single enemy can take the captain down faster than MIN_TTK
     if (ship.isPlayer && source && source.team !== ship.team) {
       const ehp = ship.maxHull + ship.maxShield * 1.2 * 0.5;
@@ -146,7 +165,7 @@ export class Combat {
     }
     const fi = this.facingFor(ship, point);
     let shieldDealt = 0, hullDealt = 0;
-    const ignoreShield = ws && ws.unique && ws.unique.includes('shieldbreak') ? 0.4 : 0;
+    const ignoreShield = U && U.includes('shieldbreak') ? 0.4 : 0;
     // shields
     const sh = ship.shields[fi];
     if (sh > 0 && !ignoreShield) {
@@ -164,30 +183,54 @@ export class Combat {
       dmg = dmg * ignoreShield;
       ship.onShieldHit(point, fi);
     }
+    // Retribution: a collapsing facing bursts outward and re-forms
+    if (sh > 0 && ship.shields[fi] <= 0 && ship.stats && ship.stats.u_retribution && now > (ship._retributionT || 0)) this.retribution(ship, fi, now);
     if (dmg > 0.01) {
       const hMul = T.hull * (1 + (ws ? ws.hullDmg || 0 : 0));
       let h = dmg * hMul;
       if (ship.yardTrait === 'ironhold' && fi >= 2) h *= 0.8;   // armoured broadside facings
-      h *= 100 / (100 + Math.max(0, ship.armor));
+      const breached = ship.breachT > now ? ship.breachN : 0;   // Breach strips armour
+      h *= 100 / (100 + Math.max(0, ship.armor - breached));
+      if (ship.stats && ship.stats.u_stonewall) h = Math.min(h, ship.maxHull * 0.04);   // Stonewall
       ship.hull -= h; hullDealt = h;
       ship.lastHullHit = W.engine.time;
       W.fx.impact(point, 0xffb060, 1, false);
-      if (ws && ws.unique && ws.unique.includes('inferno')) ship.ignite(h * 0.6, 4, source);
+      if (U && U.includes('inferno')) ship.ignite(h * 0.6, 4, source);
+      if (U && U.includes('breach')) { ship.breachN = Math.min(30, breached + 3); ship.breachT = now + 8; }
     }
+    // ion disruption, Tidelock snare
+    if (ws && ws.disrupt) ship.buffs.disrupted = Math.max(ship.buffs.disrupted || 0, now + ws.disrupt);
+    if (U && U.includes('stasis')) ship.buffs.slowed = Math.max(ship.buffs.slowed || 0, now + 2);
     ship.lastHit = W.engine.time;
     ship.lastAttacker = source;
     if (source && source.team === 1 && ship.faction === 'rival' && !ship.provoked) { ship.provoked = true; W.toast(`${ship.name} turns hostile`, 'warn'); }
     const total = shieldDealt + hullDealt;
-    if (crit && ws && ws.unique && ws.unique.includes('overload')) {
+    if (crit && U && U.includes('overload')) {
       W.fx.explosion(point, 0.5, 0xffe070);
       for (const s of W.ships) if (s !== ship && s.alive && s.team === ship.team && s.position.distanceTo(point) < 60) this.damage(s, amount * 0.8, 'explosive', point, source, null);
     }
-    if (source && source.alive && source.stats && (source.stats.u_vampiric || (ws && ws.unique && ws.unique.includes('vampiric')))) source.repair(total * 0.04);
+    if (crit && U && U.includes('hairTrigger') && ws.weapon) ws.weapon.cd = Math.min(ws.weapon.cd, 0.1);   // Hair Trigger
+    if (crit && srcStats && srcStats.u_paint) ship.spottedUntil = Math.max(ship.spottedUntil || 0, now + 4);   // Choir's Gaze
+    if (source && source.alive && source.stats && (source.stats.u_vampiric || (U && U.includes('vampiric')))) source.repair(total * 0.04);
     if (source && source.alive && source.trait === 'covenant') source.repair(total * 0.08);   // the Covenant feed
     ship.recentDmg = (ship.recentDmg || 0) + total;
     W.events.emit('damage', { ship, amount: total, crit, shield: hullDealt < 0.01, point, source });
     if (ship.hull <= 0) W.kill(ship, source);
     return total;
+  }
+
+  // Retribution (module power): the collapsing facing's stored charge bursts outward
+  retribution(ship, fi, now) {
+    const W = this.world;
+    ship._retributionT = now + 12;
+    const cap = ship.maxShield * 0.3;
+    ship.shields[fi] = cap * 0.25;
+    const dmg = cap / ((ship.stats && ship.stats.dmgMul) || 1);   // the full facing, whatever the ship's damage bonus
+    W.fx.ring(ship.position, RETRIBUTION_R, ship.shieldColor, 64);
+    for (const s of W.ships) {
+      if (!s.alive || !W.hostile(ship, s) || s.position.distanceToSquared(ship.position) > RETRIBUTION_R * RETRIBUTION_R) continue;
+      this.damage(s, dmg, 'energy', s.position, ship, null);
+    }
   }
 
   beam(owner, ws, from, target, color, width) {

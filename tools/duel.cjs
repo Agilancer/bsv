@@ -1,5 +1,6 @@
 // In-engine duel harness: a captain at rank L in the expected hull with rare gear fights
 // one enemy of each size class; prints how long each side takes to kill the other.
+// expDps is the contract's effective DPS (what enemy pools are sized from), sheetDps its paper DPS.
 //   node tools/duel.cjs [levels=5,15,30,50]       (dev server on PORT, default 8420)
 const { chromium } = require('playwright');
 (async () => {
@@ -40,7 +41,7 @@ const { chromium } = require('playwright');
           if (P.hull < P.maxHull * 0.3) { P.hull = P.maxHull; lastHull = P.hull + P.shieldTotal(); }   // keep the duel going
         }
         const pdps = dmgToPlayer / Math.max(1, t);
-        out.push({ L, size: SIZES[si].k, design: d.name, enPool: Math.round(en.maxHull + en.maxShield * 1.2), playerKillsIt: en.alive ? '>' + t : t, playerDps: Math.round((en.maxHull + en.maxShield * 1.2) / Math.max(1, t)), enDps: Math.round(pdps), wantDps: Math.round(en.balanceDps), itKillsPlayer: +(startHp / Math.max(1, pdps)).toFixed(1), expDps: Math.round(E.dps) });
+        out.push({ L, size: SIZES[si].k, design: d.name, enPool: Math.round(en.maxHull + en.maxShield * 1.2), playerKillsIt: en.alive ? '>' + t : t, playerDps: Math.round((en.maxHull + en.maxShield * 1.2) / Math.max(1, t)), enDps: Math.round(pdps), wantDps: Math.round(en.balanceDps), itKillsPlayer: +(startHp / Math.max(1, pdps)).toFixed(1), expDps: Math.round(E.effDps), sheetDps: Math.round(E.dps) });
         if (!stat) g.toggleAutoplay();
       }
     }
