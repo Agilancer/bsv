@@ -156,6 +156,12 @@ async function dungeonRuns(cfg) {
                 // script, so game time carries an arbitrary fraction that flips cooldown comparisons by a frame
                 E.time = Math.ceil((E.time + 1) / 1000) * 1000; E.uTime.value = E.time;
                 M.creatures.list.length = 0; M.shots.clear(); M.timers.length = 0; M.ground.clear();
+                // nothing carried over from the previous duel: gun spin and cooldowns, the pilot's stuck/wiggle
+                // memory, deployed turrets, buffs, threat
+                M.arsenal = new M.arsenal.constructor(M); M.pilot = new M.pilot.constructor(M);
+                M.cooldowns = {}; M.dmgBuff = 1; M.threat = 0; M.strikes.length = 0;
+                for (const T of M.turrets) M.scene.remove(T.g); M.turrets.length = 0;
+                V.velocity.set(0, 0, 0);
                 if (M.warnings) M.warnings.length = 0;
                 V.alive = true; V.setVisible(true); M.state = 'play';
                 V.hp = V.stats.maxHp; V.shield = V.stats.maxShield; V.invuln = 0; V.bubble = 0; V.boostT = 0;
@@ -198,7 +204,7 @@ async function dungeonRuns(cfg) {
                 you: kr.killedAt || +(kr.maxHp / Math.max(1e-3, kr.dealt / kr.t)).toFixed(1),
                 it: er.gross > 0 ? +(ehp / (er.gross / er.t)).toFixed(1) : null,
                 wantYou: GB.GROUND_TTK.playerKills[si], wantIt: GB.GROUND_TTK.enemyKills[si],
-                dbg: { shots: er.attacks, dist: er.dist, spawns: er.spawns },
+                dbg: { shots: er.attacks, dist: er.dist, spawns: er.spawns, killDist: kr.dist, killDealt: Math.round(kr.dealt), hp: Math.round(kr.maxHp) },
               });
             }
           }
