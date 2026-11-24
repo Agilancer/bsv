@@ -349,7 +349,7 @@ function addLivery(P, lv, plan, rng) {
   const { L, W, Ht, Z, tier, taperStart, castle } = plan;
   const marks = new Set(lv.marks);
   const sec = (u) => sectionAt(plan, Z(u));
-  const bowEnd = Math.min(0.97, plan.bowU(0.95));
+  const bowEnd = Math.min(0.97, plan.bowU(0.95), plan.stem.z / L + 0.5 - 0.005);   // on the hull, not past a fork's stem
   if (plan.emblem) addEmblem(P, plan.emblem.kind, plan.emblem.size, plan.emblem.y, plan.emblem.z, Ht * 0.16);
 
   if (marks.has('hazard')) {
