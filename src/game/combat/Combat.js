@@ -5,6 +5,7 @@
 //  - Damage types: kinetic (good vs hull), energy (good vs shields), explosive (great vs hull,
 //    poor vs shields), ion (strips shields, barely scratches hull).
 import * as THREE from 'three/webgpu';
+import { dpsCapVs } from '../data/balance.js';
 
 const TYPE = {
   kinetic: { shield: 0.8, hull: 1.15 },
@@ -122,6 +123,16 @@ export class Combat {
     const now = W.engine.time;
     if (source && source.buffs && source.buffs.command > now) dmg *= 1.25;     // command aura
     if (ship.spottedUntil > now) dmg *= 1.2;                                     // painted by a spotter
+    // boss contract: no single enemy can take the captain down faster than MIN_TTK
+    if (ship.isPlayer && source && source.team !== ship.team) {
+      const ehp = ship.maxHull + ship.maxShield * 1.2 * 0.5;
+      const w = source._dmgWin || (source._dmgWin = { t: now, sum: 0 });
+      if (now - w.t > 1) { w.t = now; w.sum = 0; }
+      const allowed = Math.max(0, dpsCapVs(ehp) - w.sum);
+      if (dmg > allowed) dmg = allowed;
+      w.sum += dmg;
+      if (dmg <= 0) return 0;
+    }
     const fi = this.facingFor(ship, point);
     let shieldDealt = 0, hullDealt = 0;
     const ignoreShield = ws && ws.unique && ws.unique.includes('shieldbreak') ? 0.4 : 0;
@@ -145,7 +156,7 @@ export class Combat {
     if (dmg > 0.01) {
       const hMul = T.hull * (1 + (ws ? ws.hullDmg || 0 : 0));
       let h = dmg * hMul;
-      h = Math.max(h * 0.25, h - ship.armor);
+      h *= 100 / (100 + Math.max(0, ship.armor));
       ship.hull -= h; hullDealt = h;
       ship.lastHullHit = W.engine.time;
       W.fx.impact(point, 0xffb060, 1, false);

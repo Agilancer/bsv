@@ -200,7 +200,7 @@ export class ShipAI {
   detonate(world, tg) {
     const s = this.ship;
     if (!s.alive) return;
-    const dmg = (90 + s.level * 30) * (s.dmgScale || 1) * 2;
+    const dmg = (s.balanceDps || 60 + s.level * 20) * 6;
     world.combat.splash({ splash: 70 + s.dims.L, team: s.team, kind: 'torpedo', color: new THREE.Color(0xff7030), dmg, dmgType: 'explosive', owner: s, ws: { crit: 0, unique: [] } }, s.position, tg);
     s.noLoot = true;
     world.kill(s, null);
@@ -209,6 +209,11 @@ export class ShipAI {
   latch(world, tg, t) {
     const s = this.ship;
     if (tg.buffs.evasive > t) return;
+    // ram first: an armoured prow at speed
+    if (s.design && s.design.specials.includes('ram') && s.speed > s.maxSpeed * 0.5) {
+      world.combat.damage(tg, (s.balanceDps || 60) * 3, 'kinetic', s.position, s, null);
+      world.fx.explosion(s.position.clone().lerp(tg.position, 0.5), 0.8, 0xffc080); world.cam.addShake(4);
+    }
     s.latched = { target: tg, off: s.position.clone().sub(tg.position).applyAxisAngle(THREE.Object3D.DEFAULT_UP, -tg.heading).setLength(tg.dims.W * 1.6 + s.dims.W), until: t + 12, tick: 0 };
     if (tg.isPlayer) world.toast(`${s.name} has latched on — boarders aboard! (Evasive Manoeuvres shakes it)`, 'bad');
     world.fx.impact(s.position, 0xffb060, 2, false);
@@ -228,7 +233,7 @@ export class ShipAI {
     if (L.tick <= 0) {
       L.tick = 1;
       // the boarding party cuts through the hull directly (armour, not shields)
-      tg.hull -= (20 + s.level * 8) * (s.dmgScale || 1) * (1 + (s.design ? s.design.sizeIndex : 0) * 0.6);
+      tg.hull -= (s.balanceDps || 20 + s.level * 8) * 0.8;
       tg.lastHit = t;
       world.fx.fire(tg.position, tg.dims.W * 0.8);
       world.events.emit('boarded', { ship: tg, by: s });

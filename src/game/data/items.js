@@ -146,14 +146,14 @@ export function rollItem(ilvl, rng, { luck = 0, slot = null, rarity = null } = {
   return makeItem(rng.weighted(weights), ilvl, rarity || rollRarity(rng, luck), rng);
 }
 
-// item XP: equipped gear learns from kills. Each level is +4% to its main power, up to 20.
+// item XP: equipped gear learns from kills. Each level is +2% to its main power, up to 20.
 export const ITEM_MAX_LVL = 20;
-export function itemXpNeeded(lvl) { return Math.round(60 * Math.pow(lvl, 1.6)); }
+export function itemXpNeeded(lvl, ilvl = 1) { return Math.round(60 * Math.pow(lvl, 1.6) * (1 + ilvl * 0.06)); }
 export function grantItemXp(item, xp) {
   if (item.lvl >= ITEM_MAX_LVL) return false;
   item.xp += xp;
   let up = false;
-  while (item.lvl < ITEM_MAX_LVL && item.xp >= itemXpNeeded(item.lvl)) { item.xp -= itemXpNeeded(item.lvl); item.lvl++; up = true; }
+  while (item.lvl < ITEM_MAX_LVL && item.xp >= itemXpNeeded(item.lvl, item.ilvl)) { item.xp -= itemXpNeeded(item.lvl, item.ilvl); item.lvl++; up = true; }
   return up;
 }
 
@@ -161,7 +161,7 @@ export function grantItemXp(item, xp) {
 export function weaponStats(item) {
   const b = BASES[item.base];
   const r = RARITY[item.rarity];
-  const scale = (1 + item.ilvl * 0.11) * r.mult * (1 + (item.lvl - 1) * 0.04);
+  const scale = (1 + item.ilvl * 0.11) * r.mult * (1 + (item.lvl - 1) * 0.02);
   const s = {
     kind: b.kind, dmgType: b.dmgType, color: b.color, barrels: b.barrels || 1,
     dmg: b.dmg * scale, rof: b.rof, range: b.range, speed: b.speed || 0, spread: b.spread || 0,
@@ -191,7 +191,7 @@ export function itemShipStats(item, out) {
   const b = BASES[item.base];
   const r = RARITY[item.rarity];
   if (b.stats) {
-    const m = r.mult * (1 + item.ilvl * 0.02) * (1 + (item.lvl - 1) * 0.04);
+    const m = r.mult * (1 + item.ilvl * 0.02) * (1 + (item.lvl - 1) * 0.02);
     for (const [k, v] of Object.entries(b.stats)) out[k] = (out[k] || 0) + (k === 'armor' ? v * (1 + item.ilvl * 0.1) : v * m);
   }
   const isWeapon = b.kind !== 'module' && b.kind !== 'hangar' && b.kind !== 'blueprint';

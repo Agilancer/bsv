@@ -50,7 +50,7 @@ test('weapon stats scale with item level, rarity and mastery', () => {
   assert.ok(c.dmg > b.dmg);
   const it = makeItem('lance', 30, 'common', rng); it.affixes = [];
   const before = weaponStats(it).dmg;
-  grantItemXp(it, itemXpNeeded(1) + itemXpNeeded(2));
+  grantItemXp(it, itemXpNeeded(1, it.ilvl) + itemXpNeeded(2, it.ilvl));
   assert.equal(it.lvl, 3);
   assert.ok(weaponStats(it).dmg > before);
 });

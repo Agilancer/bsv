@@ -6,6 +6,7 @@ import { makeItem } from './data/items.js';
 import { slotKeys, slotType } from './Player.js';
 import { RNG } from '../engine/rng.js';
 import { ELITE_MODS, rollEliteMods } from './data/eliteMods.js';
+import { enemyTargets } from './data/balance.js';
 
 const chassisCache = new Map();
 export function enemyChassis(d) {
@@ -58,9 +59,10 @@ export function spawnDesign(world, d, level, pos, heading = 0, opts = {}) {
     { aggro: 2000 + d.sizeIndex * 300, flee: d.faction === 'pirate' && d.sizeIndex < 3 ? 0.12 : 0, archetype: d.ai });
   s.design = d;
   s.factionName = F.name;
-  s.dmgScale = (0.4 + Math.min(0.5, level * 0.014)) * (d.sizeIndex >= 3 ? 1.15 : 1);
+  s.dmgScale = 1;
   s.refit();
-  s.armor += d.mul.armor;
+  s.armor = d.mul.armor + d.sizeIndex * 2 + level * 0.3;
+  balanceShip(s, d, level, champion);
   if (champion) {
     s.mods = rollEliteMods(rng, 1);
     for (const m of s.mods) if (ELITE_MODS[m].apply) ELITE_MODS[m].apply(s);
@@ -74,6 +76,27 @@ export function spawnDesign(world, d, level, pos, heading = 0, opts = {}) {
   if (d.sizeIndex >= 2) fx.ring(pos, d.len * 0.8, s.yard.glow, 40 + d.sizeIndex * 10);
   if (d.sizeIndex >= 4) { world.cam.addShake(4 + d.sizeIndex); world.engine.flash(0.15, s.yard.glow); }
   return s;
+}
+
+// Set hull, shields and damage from the balance contract (data/balance.js), keeping each
+// role's character: tanky roles get more hull, glass cannons less, and so on.
+export function balanceShip(s, d, level, champion = false) {
+  const T = enemyTargets(d.sizeIndex, level);
+  const size = SIZES[d.sizeIndex];
+  const hullMul = d.mul.hull / size.hull, shieldMul = d.mul.shield / size.shield;
+  const champ = champion ? 2.2 : 1;
+  s.maxHull = T.hull * hullMul * champ; s.hull = s.maxHull;
+  s.maxShield = T.shield * shieldMul * champ;
+  for (let i = 0; i < 4; i++) s.shields[i] = s.maxShield * 0.3;
+  s.shieldRegen = s.maxShield * 0.03;
+  // weapons carry ~70% of the damage budget, specials the rest
+  let raw = 0;
+  for (const w of s.weapons) if (w.hp.type !== 'hangar') raw += w.ws.dmg * Math.max(1, w.ws.barrels) * w.ws.rof * 0.6;   // 0.6: one flank bears
+  const want = T.dps * (champion ? 1.3 : 1);
+  s.balanceDps = want;
+  // small strafing craft miss more; compensate so each size class delivers its budget
+  const accuracy = [2.6, 2.0, 1.6, 1.2, 1.0, 1.0][d.sizeIndex];
+  if (raw > 0) s.stats.dmgMul = (want * 0.9 * accuracy) / raw;
 }
 
 export { SIZES };

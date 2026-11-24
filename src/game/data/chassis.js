@@ -91,12 +91,12 @@ export const CLASSES = [
   { tier: 2, name: 'Corvette', len: 50, beam: 0.19, crew: [10, 22], hull: 1500, shield: 950, speed: 88, turn: 38, slots: { broadside: 2, turret: 1, prow: 1, hangar: 0, module: 3 } },
   { tier: 3, name: 'Frigate', len: 64, beam: 0.18, crew: [18, 36], hull: 2300, shield: 1400, speed: 80, turn: 31, slots: { broadside: 2, turret: 2, prow: 1, hangar: 1, module: 3 } },
   { tier: 4, name: 'Destroyer', len: 80, beam: 0.17, crew: [30, 52], hull: 3300, shield: 1900, speed: 74, turn: 26, slots: { broadside: 3, turret: 2, prow: 1, hangar: 1, module: 4 } },
-  { tier: 5, name: 'Light Cruiser', len: 98, beam: 0.17, crew: [44, 72], hull: 4600, shield: 2600, speed: 66, turn: 21, slots: { broadside: 3, turret: 3, prow: 1, hangar: 1, module: 4 } },
-  { tier: 6, name: 'Cruiser', len: 118, beam: 0.17, crew: [60, 96], hull: 6200, shield: 3400, speed: 60, turn: 17, slots: { broadside: 4, turret: 3, prow: 2, hangar: 2, module: 5 } },
-  { tier: 7, name: 'Heavy Cruiser', len: 140, beam: 0.18, crew: [80, 124], hull: 8200, shield: 4300, speed: 54, turn: 14, slots: { broadside: 4, turret: 4, prow: 2, hangar: 2, module: 5 } },
-  { tier: 8, name: 'Battlecruiser', len: 165, beam: 0.17, crew: [104, 150], hull: 10500, shield: 5400, speed: 52, turn: 12, slots: { broadside: 5, turret: 4, prow: 2, hangar: 2, module: 6 } },
-  { tier: 9, name: 'Battleship', len: 195, beam: 0.18, crew: [130, 178], hull: 13500, shield: 6600, speed: 44, turn: 10, slots: { broadside: 6, turret: 5, prow: 2, hangar: 3, module: 6 } },
-  { tier: 10, name: 'Dreadnought', len: 235, beam: 0.18, crew: [160, 200], hull: 17500, shield: 8200, speed: 38, turn: 8, slots: { broadside: 7, turret: 6, prow: 3, hangar: 3, module: 7 } },
+  { tier: 5, name: 'Light Cruiser', len: 98, beam: 0.17, crew: [44, 72], hull: 4600, shield: 2600, speed: 66, turn: 22, slots: { broadside: 3, turret: 3, prow: 1, hangar: 1, module: 4 } },
+  { tier: 6, name: 'Cruiser', len: 118, beam: 0.17, crew: [60, 96], hull: 6200, shield: 3400, speed: 60, turn: 18, slots: { broadside: 4, turret: 3, prow: 2, hangar: 2, module: 5 } },
+  { tier: 7, name: 'Heavy Cruiser', len: 140, beam: 0.18, crew: [80, 124], hull: 8200, shield: 4300, speed: 54, turn: 15, slots: { broadside: 4, turret: 4, prow: 2, hangar: 2, module: 5 } },
+  { tier: 8, name: 'Battlecruiser', len: 165, beam: 0.17, crew: [104, 150], hull: 10500, shield: 5400, speed: 52, turn: 13, slots: { broadside: 5, turret: 4, prow: 2, hangar: 2, module: 6 } },
+  { tier: 9, name: 'Battleship', len: 195, beam: 0.18, crew: [130, 178], hull: 13500, shield: 6600, speed: 44, turn: 11.5, slots: { broadside: 6, turret: 5, prow: 2, hangar: 3, module: 6 } },
+  { tier: 10, name: 'Dreadnought', len: 235, beam: 0.18, crew: [160, 200], hull: 17500, shield: 8200, speed: 38, turn: 10, slots: { broadside: 7, turret: 6, prow: 3, hangar: 3, module: 7 } },
 ];
 
 // per-yard handling modifiers (multipliers)
@@ -124,7 +124,7 @@ for (const [yk, yard] of Object.entries(YARDS)) {
       hull: Math.round(c.hull * mod.hull), shield: Math.round(c.shield * mod.shield),
       speed: +(c.speed * mod.speed).toFixed(1), turn: +(c.turn * mod.turn).toFixed(1),
       slots, level: Math.max(1, (c.tier - 2) * 6 + 1 + (yk === 'hollow' ? 4 : 0)),
-      price: Math.round(1200 * Math.pow(c.tier, 2.6) * (yk === 'hollow' ? 2 : 1)),
+      price: Math.round(450 * Math.pow(c.tier, 2.35) * (yk === 'hollow' ? 1.8 : 1) / 50) * 50,
       seed: (c.tier * 7919 + [...yk].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619), 2166136261)) >>> 0,
       arch: ARCH[c.tier], carrier: yk === 'corsair' && [6, 8, 10].includes(c.tier),
     });

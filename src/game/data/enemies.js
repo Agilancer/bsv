@@ -7,11 +7,11 @@
 // that dwarf a dreadnought. Pure data — importable in node.
 
 export const SIZES = [
-  { k: 'small', name: 'Small', tiers: [1, 2], len: [20, 46], hull: 0.55, shield: 0.5, xp: 0.6, loot: 0.25, minDanger: 1, color: '#c4cad6' },
-  { k: 'mid', name: 'Mid-sized', tiers: [3, 4], len: [52, 96], hull: 1, shield: 1, xp: 1, loot: 0.5, minDanger: 2, color: '#4ade80' },
-  { k: 'large', name: 'Large', tiers: [5, 7], len: [104, 160], hull: 1.4, shield: 1.3, xp: 2, loot: 1, minDanger: 7, color: '#4f9dff' },
-  { k: 'epic', name: 'Epic', tiers: [7, 8], len: [170, 240], hull: 3, shield: 2.4, xp: 5, loot: 3, minDanger: 13, color: '#b46bff', boss: 1 },
-  { k: 'legendary', name: 'Legendary', tiers: [9, 10], len: [250, 340], hull: 7, shield: 4, xp: 14, loot: 6, minDanger: 20, color: '#ff9a2e', boss: 2, phases: [0.66, 0.33] },
+  { k: 'small', name: 'Small', tiers: [1, 2], len: [20, 46], hull: 0.55, shield: 0.5, xp: 0.6, loot: 0.6, minDanger: 1, color: '#c4cad6' },
+  { k: 'mid', name: 'Mid-sized', tiers: [3, 4], len: [52, 96], hull: 1, shield: 1, xp: 1, loot: 1.2, minDanger: 2, color: '#4ade80' },
+  { k: 'large', name: 'Large', tiers: [5, 7], len: [104, 160], hull: 1.4, shield: 1.3, xp: 2, loot: 2.2, minDanger: 7, color: '#4f9dff' },
+  { k: 'epic', name: 'Epic', tiers: [7, 8], len: [170, 240], hull: 3, shield: 2.4, xp: 5, loot: 4, minDanger: 13, color: '#b46bff', boss: 1 },
+  { k: 'legendary', name: 'Legendary', tiers: [9, 10], len: [250, 340], hull: 7, shield: 4, xp: 14, loot: 7, minDanger: 20, color: '#ff9a2e', boss: 2, phases: [0.66, 0.33] },
   { k: 'gargantuan', name: 'Gargantuan', tiers: [10, 10], len: [420, 900], hull: 16, shield: 8, xp: 40, loot: 12, minDanger: 26, color: '#ff3b5c', boss: 2, phases: [0.75, 0.5, 0.25] },
 ];
 export const SIZE_BY_KEY = Object.fromEntries(SIZES.map((s, i) => [s.k, { ...s, i }]));

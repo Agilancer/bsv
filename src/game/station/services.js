@@ -13,7 +13,7 @@ export function marketStock(stationSeed, danger, P) {
   const ilvl = Math.max(1, Math.round((danger + P.level) / 2));
   const out = [];
   for (let i = 0; i < 14; i++) {
-    const rarity = rng.weighted([['common', 30], ['uncommon', 35], ['rare', 24], ['epic', 9], ['legendary', 2]]);
+    const rarity = rng.weighted([['common', 30], ['uncommon', 36], ['rare', 25], ['epic', 9]]);   // legendaries are found, not bought
     out.push(rollItem(ilvl + rng.int(-1, 2), rng, { rarity }));
   }
   return out;

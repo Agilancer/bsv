@@ -120,6 +120,9 @@ export class Ship {
       this.weapons.push(w);
     }
     this.maxRange = this.weapons.reduce((r, w) => Math.max(r, w.hp.type === 'hangar' ? 0 : w.ws.range), 200);
+    let wd = 0;
+    for (const w of this.weapons) if (w.hp.type !== 'hangar') wd += w.ws.dmg * Math.max(1, w.ws.barrels) * w.ws.rof * (w.hp.type === 'broadside' ? 0.5 : 1);
+    this.weaponDps = Math.max(20, wd * (st.dmgMul || 1));
   }
 
   static slotKey(hp) { return hp.type === 'broadside' ? `broadside:${hp.side[0]}${hp.index}` : `${hp.type}:${hp.index}`; }
@@ -172,11 +175,16 @@ export class Ship {
     const boost = (this.buffs.evasive > t ? 1.6 : 1) * (this.buffs.slowed > t ? 0.55 : 1);
     if (this.cloaked && t > this.cloakUntil) this.setCloak(false);
     // physics
+    // mass: a cutter reaches speed in ~2s, a dreadnought in ~10s; braking is a little quicker
+    const tier = this.chassis.tier || 1;
+    const accRate = 0.5 - (tier - 1) * 0.045;
     const targetSpeed = this.throttle * this.maxSpeed * boost;
-    const acc = this.maxSpeed * (targetSpeed > this.speed ? 0.32 : 0.55) * boost;
+    const acc = this.maxSpeed * accRate * (targetSpeed > this.speed ? 1 : 1.6) * boost;
     this.speed += clamp(targetSpeed - this.speed, -acc * dt, acc * dt);
-    const yawTarget = this.rudder * this.turnRate * boost * (0.55 + 0.45 * Math.min(1, Math.abs(this.speed) / (this.maxSpeed * 0.3) + 0.3));
-    this.yawRate = damp(this.yawRate, yawTarget, 2.2, dt);
+    // rudder authority needs way on: 20% at a standstill, full from half speed
+    const way = Math.min(1, Math.abs(this.speed) / (this.maxSpeed * 0.5));
+    const yawTarget = this.rudder * this.turnRate * boost * (0.2 + 0.8 * way);
+    this.yawRate = damp(this.yawRate, yawTarget, 2.6 - tier * 0.12, dt);
     this.heading = wrapAngle(this.heading + this.yawRate * dt);
     const fwd = this.forward;
     _w.copy(fwd).multiplyScalar(this.speed);
@@ -260,6 +268,7 @@ export class Ship {
     if (dist > w.ws.range) return false;
     const d = w.hp.type === 'turret' ? _v.set(Math.sin(this.heading), 0, Math.cos(this.heading)) : _v.copy(w.hp.dir).applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.heading);
     const ang = Math.acos(clamp((d.x * dx + d.z * dz) / Math.max(1e-3, Math.hypot(dx, dz)), -1, 1));
+    if (w.hp.type === 'broadside' && Math.abs(target.position.y - mp.y) > dist * 0.45 + 25) return false;
     return ang <= w.arc;
   }
 
@@ -321,7 +330,8 @@ export class Ship {
     const spd = ws.speed;
     const dist = mp.distanceTo(target.position);
     const tt = dist / spd;
-    const aim = _w.copy(target.position).addScaledVector(target.velocity, tt * 0.9);
+    const err = (Math.random() - 0.5) * 0.7 * Math.min(1, dist / 600) * (0.5 + Math.min(1, Math.abs(target.yawRate || 0) * 4));
+    const aim = _w.copy(target.position).addScaledVector(target.velocity, tt * (0.9 + err));
     const dir = aim.sub(mp).normalize();
     const sp = ws.spread + (splitK ? 0.08 * splitK : 0);
     if (sp) { const a = (Math.random() - 0.5) * sp * 2 + (splitK ? 0.12 * splitK : 0); dir.applyAxisAngle(THREE.Object3D.DEFAULT_UP, a); }

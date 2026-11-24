@@ -348,7 +348,7 @@ export class Game {
   onPlayerDeath() {
     this.ui.death(true);
     this.autoplayWasOn = !!this.autoplay;
-    const lost = Math.round(this.data.credits * 0.08);
+    const lost = Math.min(Math.round(this.data.credits * 0.04), 500 + this.data.level * 150);
     this.data.credits -= lost;
     this.ui.chat('SYS', null, `Hull lost. Insurance deductible: ${lost} ¢`, 'sys');
     this.world.schedule(3.5, () => {
