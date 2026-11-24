@@ -26,6 +26,7 @@ import { pickPack } from './enemies.js';
 import { PlanetHUD } from './PlanetHUD.js';
 import { PLANET_ABILITIES } from './abilities.js';
 import { buildGun } from './vehicleModels.js';
+import { uSeeThrough } from './props.js';
 import { PlanetPilot } from './Autopilot.js';
 import { TouchControls } from './Touch.js';
 import { setCheapTextures } from './ptex.js';
@@ -132,7 +133,7 @@ export class PlanetMode {
     const bg = new THREE.CylinderGeometry(0.7, 0.7, 1, 12, 1, true); bg.translate(0, 0.5, 0);
     this.beacon = new THREE.Mesh(bg, beaconMaterial(E, 0x58c8ff));
     this.beacon.scale.set(1, 160, 1); this.beacon.renderOrder = 18;
-    this.beacon.position.copy(this.lander.position);
+    this.beacon.position.copy(this.lander.position); this.beacon.position.y += 11.5;
     scene.add(this.beacon);
     buildSurface(this, this.plan);
     this.camps = this.plan.camps;
@@ -395,7 +396,7 @@ export class PlanetMode {
       const T = D.theme;
       for (let i = 0; i < 4; i++) { const l = new THREE.PointLight(0xffa040, 0, 60, 1.6); this.scene.add(l); this.torchLights.push(l); }
       this.scene.fog.color.set(T.fog); this.scene.background.set(T.fog);
-      this.sun.intensity = 0.5; this.hemi.color.set(T.hemi[0]); this.hemi.groundColor.set(T.hemi[1]); this.hemi.intensity = T.hemi[2] * 1.4;
+      this.sun.intensity = 1.3; this.sun.color.set(T.hemi[0]); this.hemi.color.set(T.hemi[0]); this.hemi.groundColor.set(T.hemi[1]); this.hemi.intensity = T.hemi[2] * 3;
       this.headlightSave = this.headlightI; this.headlightI = 120;
       this.engine.renderer.toneMappingExposure = 1.15;
       this.game.ui.chat('SYS', null, `${d.name} — ${T.name}, depth ${d.depth}. Apex lurks at the far end.`, 'sys');
@@ -538,7 +539,6 @@ export class PlanetMode {
       this.updateMouths(dt);
     } else {
       this.dungeon.update(dt, this.torchLights);
-      for (const x of this.dungeon.exits) if (V.alive && x.pos.distanceTo(_v.copy(V.position).setY(0)) < 6) { this.exitDungeon(); break; }
     }
     this.ambient(dt);
     this.ground.update(dt);
@@ -559,6 +559,7 @@ export class PlanetMode {
     const f = this.cam.focus;
     this.sun.position.copy(f).addScaledVector(this.sunDir, 160);
     this.sun.target.position.copy(f);
+    uSeeThrough.value.copy(V.position);
     fx.update(dt); fx.flush();
     this.hud.update(dt, realDt);
   }
@@ -821,7 +822,7 @@ export class PlanetMode {
     if (!this.vehicle.alive) { this.state = 'dead'; this.stateT = 4; return; }
     const k = 1 - Math.max(0, this.stateT) / 8;
     L.position.set(P.x - 9, this.S.ground(P.x, P.z) + 140 * (1 - k * k * (3 - 2 * k)), P.z - 9);
-    this.beacon.position.copy(L.position); this.beacon.position.y = this.S.ground(P.x, P.z);
+    this.beacon.position.copy(L.position); this.beacon.position.y = L.position.y + 11.5;
     for (const e of L.userData.engines) { _v.copy(e).applyMatrix4(L.matrixWorld); this.pfx.thruster(_v, _w.set(0, -1, 0), 0x58c8ff, 1.4, 2); }
     this.ground.set(1, P.x, P.z, 14, 1.6, 0xffd060, k);
     if (this.stateT <= 0) { this.state = 'play'; this.ascend(); }

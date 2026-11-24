@@ -60,13 +60,13 @@ export class Dungeon {
     const p = positionWorld;
     const ft = texture(tex(floorTex), p.xz.mul(0.12)).rgb, ft2 = texture(tex(floorTex), p.xz.mul(0.031).add(0.3)).rgb;
     const n = texture(noiseTexture(), p.xz.mul(0.008)).r;
-    fm.colorNode = mix(ft, ft2, 0.4).mul(n.mul(0.35).add(0.6)).mul(T.floor === 'flat' ? C(B.tint) : vec3(1));
+    fm.colorNode = mix(ft, ft2, 0.4).mul(n.mul(0.4).add(0.85)).mul(T.floor === 'flat' ? C(B.tint) : vec3(1));
     // glowing floor lines for built places
     let fe = M.ground.node(p);
     if (T.glow && T.name !== 'Hive Tunnels') {
       const gx = abs(fract(p.x.mul(1 / 16)).sub(0.5)), gz = abs(fract(p.z.mul(1 / 16)).sub(0.5));
-      const lines = smoothstep(0.485, 0.5, max(gx, gz));
-      fe = fe.add(C(T.glow, 0.9).mul(lines).mul(sin(E.uTime.mul(1.5).add(p.x.mul(0.05))).mul(0.3).add(0.7)));
+      const lines = smoothstep(0.492, 0.5, max(gx, gz));
+      fe = fe.add(C(T.glow, 0.45).mul(lines).mul(sin(E.uTime.mul(1.5).add(p.x.mul(0.05))).mul(0.3).add(0.7)));
     } else if (T.glow) fe = fe.add(C(T.glow, 0.7).mul(smoothstep(0.72, 0.8, n)));
     fm.emissiveNode = fe;
     const floor = new THREE.Mesh(fg, fm);
@@ -102,6 +102,21 @@ export class Dungeon {
     });
     wmesh.castShadow = true; wmesh.receiveShadow = true;
     this.group.add(wmesh);
+    // natural tunnels: boulders heaped along the wall line break up the block silhouette
+    if (T.wall === 'cliff' || T.name === 'Hive Tunnels') {
+      const edge = walls.filter(([x, y]) => isFloor(x + 1, y) || isFloor(x - 1, y) || isFloor(x, y + 1) || isFloor(x, y - 1));
+      const rm = new THREE.InstancedMesh(rockGeometry(1, 1.7), wm, edge.length);
+      const rr = new RNG(L.seed + 3);
+      edge.forEach(([x, y], i) => {
+        let fx = 0, fz = 0;
+        if (isFloor(x + 1, y)) fx += 1; if (isFloor(x - 1, y)) fx -= 1; if (isFloor(x, y + 1)) fz += 1; if (isFloor(x, y - 1)) fz -= 1;
+        const s = rr.float(2.6, 4.6);
+        _m.compose(_p.set(nav.worldX(x) + fx * 1.2, rr.float(-0.5, 3) , nav.worldZ(y) + fz * 1.2), _q.setFromEuler(_e.set(rr.float(0, 3), rr.float(0, 6), rr.float(0, 3))), _s.set(s, s * rr.float(0.8, 1.6), s));
+        rm.setMatrixAt(i, _m);
+      });
+      rm.castShadow = true; rm.receiveShadow = true;
+      this.group.add(rm);
+    }
     // props
     const rng = new RNG(L.seed + 5);
     this.torches = [];
@@ -143,7 +158,7 @@ export class Dungeon {
 
   addPortal(x, z, hex) {
     const g = new THREE.Group();
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(5, 0.35, 8, 40), texturedMat(this.mode.engine, 'hull_graphite', 0.3));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(5, 0.35, 8, 40), new THREE.MeshStandardNodeMaterial({ color: 0x485060, metalness: 0.6, roughness: 0.4, emissive: hex, emissiveIntensity: 0.6 }));
     ring.rotation.x = Math.PI / 2; ring.position.y = 0.3;
     const disc = new THREE.Mesh(new THREE.CircleGeometry(4.8, 40), portalMaterial(this.mode.engine, hex));
     disc.rotation.x = -Math.PI / 2; disc.position.y = 0.35;
@@ -203,6 +218,17 @@ export class Dungeon {
     for (const e of spawned) if (e) e.home.copy(e.pos);
     this.total = spawned.filter(Boolean).length;
   }
+
+  // navigation helpers (walls, line of sight, flow field toward the explorer)
+  steer(p, tx, tz, out) { return this.nav.steer(p, tx, tz, out); }
+  collide(p, r) {
+    for (const o of this.obstacles) {
+      const dx = p.x - o.x, dz = p.z - o.z, R = o.r + r, d2 = dx * dx + dz * dz;
+      if (d2 < R * R && d2 > 1e-6) { const d = Math.sqrt(d2); p.x += dx / d * (R - d); p.z += dz / d * (R - d); }
+    }
+    return this.nav.collide(p, r);
+  }
+  solid(x, z) { return this.nav.solid(x, z); }
 
   onBossDown() {
     if (this.cleared) return;

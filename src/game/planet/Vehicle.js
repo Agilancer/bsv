@@ -182,6 +182,14 @@ export class Vehicle {
 
   collide() {
     const p = this.position, r = this.radius * 0.8;
+    if (this.mode.dungeon) {
+      const bx = p.x, bz = p.z;
+      this.mode.dungeon.collide(p, r);
+      // slide along walls: drop the velocity component we were pushed against
+      const px = p.x - bx, pz = p.z - bz, pl = Math.hypot(px, pz);
+      if (pl > 1e-4) { const nx = px / pl, nz = pz / pl, vn = this.velocity.x * nx + this.velocity.z * nz; if (vn < 0) { this.velocity.x -= nx * vn; this.velocity.z -= nz * vn; this.speed *= 0.95; } }
+      return;
+    }
     this.mode.terrain.forObstacles(p.x, p.z, (o) => {
       const dx = p.x - o.x, dz = p.z - o.z, d2 = dx * dx + dz * dz, R = o.r + r;
       if (d2 < R * R && d2 > 1e-6) {

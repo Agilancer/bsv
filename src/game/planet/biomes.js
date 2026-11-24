@@ -17,8 +17,8 @@ export const BIOMES = {
   },
   desert: {
     name: 'Desert world',
-    tex: { flat: 'pl_dune', cliff: 'pl_canyon', alt: 'pl_redsand' }, flatScale: 1 / 10, cliffScale: 1 / 16,
-    tint: 0xf0d8a8, cliffTint: 0xd8a080, altTint: 0xe8c090,
+    tex: { flat: 'pl_dune', cliff: 'pl_canyon', alt: 'pl_ochre' }, flatScale: 1 / 10, cliffScale: 1 / 16,
+    tint: 0xf4e2bc, cliffTint: 0xd8a080, altTint: 0xe8d0a8,
     sky: 0xf0c890, fog: 0xe0b888, fogNear: 1.2, fogFar: 3.4, sun: 0xfff0c8, sunI: 3.8, hemi: [0xffe0b0, 0x6a4a2a, 1.1], exposure: 0.95,
     fluid: null,
     shape: { amp: 16, freq: 0.004, ridge: 0.15, detail: 0.5, dunes: 7 },
@@ -40,8 +40,8 @@ export const BIOMES = {
   ice: {
     name: 'Frozen world',
     tex: { flat: 'pl_gypsum', cliff: 'pl_salt', alt: 'pl_shale' }, flatScale: 1 / 10, cliffScale: 1 / 13,
-    tint: 0xeaf4ff, cliffTint: 0x9ab0c8, altTint: 0xc8dcf0,
-    sky: 0xb8d8f8, fog: 0xc0daf2, fogNear: 1.0, fogFar: 3.0, sun: 0xe8f0ff, sunI: 3.0, hemi: [0xc0e0ff, 0x30405a, 1.3], exposure: 0.85,
+    tint: 0xb4c8dc, cliffTint: 0x8094b0, altTint: 0x9ab4cc,
+    sky: 0x6a88a8, fog: 0x5a7898, fogNear: 1.1, fogFar: 3.2, sun: 0xe0ecff, sunI: 2.6, hemi: [0x9ab8e0, 0x203048, 1.0], exposure: 0.8,
     fluid: { kind: 'ice', level: -3 },
     shape: { amp: 22, freq: 0.0045, ridge: 0.6, detail: 0.9, craters: 0.4 },
     snowLine: 6,
@@ -74,8 +74,8 @@ export const BIOMES = {
   toxic: {
     name: 'Toxic world',
     tex: { flat: 'pl_scrub', cliff: 'pl_ochre', alt: 'pl_tufa' }, flatScale: 1 / 9, cliffScale: 1 / 12,
-    tint: 0xb8c878, cliffTint: 0xa0a060, altTint: 0x98b060,
-    sky: 0x9ab860, fog: 0x7a9848, fogNear: 0.95, fogFar: 2.8, sun: 0xf0ffc0, sunI: 2.8, hemi: [0xc0ff80, 0x2a3010, 1.1], exposure: 1.0,
+    tint: 0x98a868, cliffTint: 0x8a8a58, altTint: 0x88a058,
+    sky: 0x4a5a30, fog: 0x3a4a26, fogNear: 1.0, fogFar: 3.0, sun: 0xe8f8c0, sunI: 2.5, hemi: [0x98c068, 0x1a2008, 0.9], exposure: 0.85,
     fluid: { kind: 'toxic', level: -3 },
     shape: { amp: 15, freq: 0.005, ridge: 0.2, detail: 1.1 },
     props: [['mushroom', 20], ['shroomcap', 6], ['rock', 8], ['boulder', 2]],

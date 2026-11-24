@@ -3,7 +3,7 @@
 // One merged geometry + one material per kind; vertex colour carries the paint and an
 // emissive weight lights the glowing bits (bloom picks them up).
 import * as THREE from 'three/webgpu';
-import { texture, positionWorld, normalWorld, attribute, vec3, float, abs, sin, mix } from 'three/tsl';
+import { texture, positionWorld, normalWorld, attribute, vec3, float, abs, sin, mix, uniform, length, step, fract, screenCoordinate } from 'three/tsl';
 import { tex } from './ptex.js';
 import { GeoBuilder, rockGeometry } from './geo.js';
 
@@ -27,6 +27,15 @@ export const PROP_DEFS = {
 };
 
 const rockGeo = rockGeometry(1);
+
+// where the explorer is: tall props over it dissolve to a screen-door so it is never lost under a canopy
+export const uSeeThrough = uniform(new THREE.Vector3(0, -1e5, 0));
+function seeThroughMask() {
+  const p = positionWorld, v = uSeeThrough;
+  const near = step(length(p.xz.sub(v.xz)), 11).mul(step(v.y.add(2.5), p.y));
+  const keep = step(0.5, fract(screenCoordinate.x.mul(0.5))).mul(step(0.5, fract(screenCoordinate.y.mul(0.5))));
+  return near.lessThan(0.5).or(keep.greaterThan(0.5));
+}
 
 function shapes(kind, B) {
   const b = new GeoBuilder();
@@ -172,6 +181,7 @@ export function buildProp(kind, B, engine) {
     const pulse = sin(engine.uTime.mul(1.8).add(p.x.mul(0.3)).add(p.z.mul(0.2))).mul(0.25).add(0.85);
     mat.emissiveNode = vc.mul(emit).mul(pulse);
     if (kind === 'icespike' || kind === 'crystal' || kind === 'spire') { mat.roughnessNode = float(0.2); mat.metalnessNode = float(0.3); }
+    if (['tree', 'shroomcap', 'spire', 'hoodoo', 'basalt', 'boulder', 'icespike', 'cactus', 'wreck'].includes(kind)) mat.maskNode = seeThroughMask();
     matCache.set(key, mat);
   }
   return { geo, mat };

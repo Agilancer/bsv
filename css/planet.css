@@ -168,3 +168,9 @@
   .sites { grid-template-columns: 1fr; }
   .hrow { grid-template-columns: 60px repeat(10, 1fr); }
 }
+/* survey + bay windows sit over bright planets: keep them readable */
+#pScanPanel, .pwin { background: linear-gradient(160deg, rgba(14, 28, 66, 0.96), rgba(5, 10, 26, 0.97) 40%, rgba(9, 7, 30, 0.97)); backdrop-filter: blur(6px); }
+/* the surface can be bright (ice, desert): give the field HUD a denser backing than orbit's */
+#planetHud .holo { background: linear-gradient(160deg, rgba(16, 32, 74, 0.82), rgba(6, 12, 30, 0.9) 40%, rgba(10, 8, 34, 0.9)); }
+/* planet compact mode owns the small screen: park the orbit menubar */
+body:has(#planetHud.compact) #menubar, body:has(#planetHud.compact) #chat { display: none; }

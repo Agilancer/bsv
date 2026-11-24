@@ -71,7 +71,7 @@ export class Terrain {
     let emis = vec3(0);
     if (B.snowLine !== undefined) {
       const snow = smoothstep(B.snowLine, B.snowLine + 7, p.y.add(macro.mul(9))).mul(smoothstep(0.45, 0.75, n.y));
-      col = mix(col, vec3(0.92, 0.95, 1.0), snow);
+      col = mix(col, vec3(0.8, 0.86, 0.95), snow);
     }
     const F = B.fluid;
     if (F) {
@@ -84,7 +84,7 @@ export class Terrain {
         col = col.mul(float(1).sub(heat.mul(0.6)));
       } else if (F.kind === 'toxic') {
         col = mix(col, col.mul(vec3(0.6, 0.8, 0.3)), shore);
-        emis = emis.add(C(0x90ff30, 0.5).mul(shore.mul(shore)));
+        emis = emis.add(C(0x90ff30, 0.25).mul(shore.mul(shore)));
       } else if (F.kind === 'crystal') {
         emis = emis.add(C(0xc060ff, 0.9).mul(shore.mul(shore)));
       } else if (F.kind === 'water') {
@@ -136,9 +136,9 @@ export class Terrain {
     } else if (F.kind === 'toxic') {
       m = new THREE.MeshStandardNodeMaterial({ roughness: 0.25, metalness: 0.1, transparent: true });
       const n1 = nz(0.012, 0.003, 0.002).r;
-      const bub = smoothstep(0.78, 0.92, nz(0.09, 0.0, 0.02).a);
-      m.colorNode = mix(C(0x3a5a08), C(0x8ac020), n1);
-      m.emissiveNode = C(0x9aff20, 0.9).mul(n1.mul(0.6).add(0.2)).add(C(0xd0ff60, 3).mul(bub));
+      const bub = smoothstep(0.86, 0.95, nz(0.09, 0.0, 0.02).a);
+      m.colorNode = mix(C(0x18280a), C(0x40601a), n1);
+      m.emissiveNode = C(0x9aff20, 0.32).mul(n1.mul(0.6).add(0.2)).add(C(0xd0ff60, 1.4).mul(bub));
       m.opacityNode = float(0.92);
     } else if (F.kind === 'crystal') {
       m = new THREE.MeshStandardNodeMaterial({ roughness: 0.1, metalness: 0.4, transparent: true });

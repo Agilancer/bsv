@@ -122,7 +122,7 @@ export class Scanner {
       const key = planetKey(G.data.system, info);
       const ex = ensureExplorer(G.data);
       ex.scanned[key] = { name: info.name, type: this.survey.type, hazard: this.survey.hazard, sys: G.data.system, at: Math.round(G.data.playtime) };
-      this.sphere.material.userData.fade.value = 0.35;
+      this.sphere.material.userData.fade.value = 0.18;
       G.ui.toast(`Survey complete: ${info.name}`, 'epic');
       this.showPanel();
     }
