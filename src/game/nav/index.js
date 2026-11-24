@@ -66,6 +66,7 @@ export function installNav(game) {
     if (game.docked) game.undock();
     P.credits -= cost;
     warp = { kind: 'jump', phase: 'spool', t: 0, target: id, hops: path.length - 1 };
+    if (game.audio) game.audio.play('jump', null);
     game.ui.toggle('galaxy', false);
     game.ui.toast(`Jump drive spooling · ${galaxy().systems[id].name}`, 'epic');
     return true;
@@ -78,6 +79,7 @@ export function installNav(game) {
     const d = _v.copy(pos).sub(s.position).setY(0);
     if (d.length() < 600) { game.moveTarget = pos.clone(); return true; }
     warp = { kind: 'local', phase: 'spool', t: 0, to: pos.clone().setY(0), from: s.position.clone() };
+    if (game.audio) game.audio.play('jump', null, 0.6);
     game.ui.toggle('system', false);
     return true;
   };

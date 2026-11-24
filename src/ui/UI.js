@@ -49,7 +49,7 @@ export class UI {
     R.append(h(`<div id="menubar">
       <button data-w="character">SHIP [C]</button><button data-w="inventory">CARGO [I]</button><button data-w="skills">SKILLS [T]</button>
       <button data-w="crew">CREW [K]</button><button data-w="bridge">BRIDGE [B]</button><button data-w="galaxy">GALAXY [M]</button>
-      <button class="auto" data-w="auto">AUTO [P]</button></div>`));
+      <button class="auto" data-w="auto">AUTO [P]</button><button data-w="options">⚙</button></div>`));
     R.querySelectorAll('#menubar button').forEach((b) => b.addEventListener('click', () => this.game.command(b.dataset.w)));
     R.append(h(`<div id="target" class="holo"><div class="tname" id="tName"></div><div class="tsub" id="tSub"></div>
       <div class="bar shield" id="tShield"><i></i><span></span></div><div class="bar hull" id="tHull"><i></i><span></span></div></div>`));
@@ -94,6 +94,8 @@ export class UI {
     this.windows.inventory = this.addWindow('inventory', 'Cargo & Loadout');
     this.windows.character = this.addWindow('character', 'Ship');
     this.windows.skills = this.addWindow('skills', 'Captain Abilities');
+    this.windows.options = this.addWindow('options', 'Options');
+    this.renderers.options = () => this.renderOptions();
     this.hud = { hull: $('#hHull'), shield: $('#hShield'), xp: $('#hXp'), lvl: $('#hLvl'), name: $('#hName'), cls: $('#hClass'), cred: $('#hCred'), rose: $('#shieldRose').getContext('2d'), thr: [...document.querySelectorAll('#thr i')], spd: $('#spd'), alt: $('#alt'), afire: $('#afire'), target: $('#target'), radar: $('#radar canvas').getContext('2d') };
     this.abEls = Object.fromEntries([...document.querySelectorAll('#abilities .ab')].map((e) => [e.dataset.k, e]));
   }
@@ -288,6 +290,23 @@ export class UI {
       el.onmouseenter = (e) => this.showTip(`<div class="tn">${t.name}</div><div class="tb">Requires rank ${t.req} · max ${t.max}</div><div class="tl">${t.desc}</div>`, e);
       el.onmouseleave = () => this.hideTip();
     });
+  }
+
+  renderOptions() {
+    const g = this.game, a = g.audio, e = g.engine;
+    const body = this.windows.options.querySelector('.wbody');
+    const sl = (id, label, v) => `<label class="opt"><span>${label}</span><input type="range" id="${id}" min="0" max="100" value="${Math.round(v * 100)}"></label>`;
+    body.innerHTML = `${sl('oMaster', 'Master volume', a ? a.volume : 0.7)}${sl('oMusic', 'Music', a ? a.musicVolume : 0.45)}${sl('oBloom', 'Bloom', e.bloomStrength.value / 1.6)}
+      <label class="opt"><span>Broadside arcs</span><input type="checkbox" id="oArcs" ${g.showArcs ? 'checked' : ''}></label>
+      <div class="label" style="margin:10px 0">Renderer: ${e.backend} · quality ${e.quality} · ${e.fps.toFixed(0)} fps</div>
+      <div style="display:flex;gap:8px"><button class="btn" id="oSave">Save now</button><button class="btn bad" id="oWipe">Delete save &amp; restart</button></div>`;
+    const q = (id) => body.querySelector('#' + id);
+    q('oMaster').oninput = (ev) => { if (a) { a.volume = ev.target.value / 100; if (a.master) a.master.gain.value = a.volume; } };
+    q('oMusic').oninput = (ev) => { if (a) { a.musicVolume = ev.target.value / 100; if (a.music) a.music.gain.value = a.musicVolume; } };
+    q('oBloom').oninput = (ev) => { e.bloomStrength.value = ev.target.value / 100 * 1.6; };
+    q('oArcs').onchange = (ev) => { g.showArcs = ev.target.checked; };
+    q('oSave').onclick = () => { g.saveNow(); this.toast('Saved'); };
+    q('oWipe').onclick = () => { if (confirm('Delete your captain and start over?')) { g.wipeSave(); location.reload(); } };
   }
 
   // ---------------- per-frame ----------------

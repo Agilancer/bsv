@@ -256,3 +256,9 @@ button { font-family: var(--font); }
 /* mmo */
 #chat .online { margin-left: auto; font-family: var(--head); font-size: 10px; color: var(--good); letter-spacing: 0.1em; }
 .invite { position: fixed; left: 50%; top: 180px; transform: translateX(-50%); padding: 14px 18px; z-index: 6; text-align: center; animation: winIn 0.25s ease-out; }
+
+/* options */
+#options { right: 16px; top: 64px; width: 340px; }
+.opt { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0; font-size: 13px; }
+.opt input[type=range] { flex: 1; max-width: 170px; accent-color: var(--cyan); }
+.opt input[type=checkbox] { accent-color: var(--cyan); width: 16px; height: 16px; }

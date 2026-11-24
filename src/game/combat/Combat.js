@@ -90,6 +90,7 @@ export class Combat {
     const W = this.world;
     const r = p.splash || 20;
     W.fx.explosion(point, Math.max(0.25, r / 90), p.kind === 'torpedo' ? 0xff8a40 : p.color.getHex());
+    if (W.audio) W.audio.play(r > 40 ? 'explosion' : 'hit', point, Math.min(1, 0.3 + r / 80));
     if (r > 40) W.cam.addShake(r / 40 * (W.player && point.distanceTo(W.player.position) < 400 ? 1 : 0.2));
     for (const s of W.ships) {
       if (!s.alive || s.team === p.team) continue;
