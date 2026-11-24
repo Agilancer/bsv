@@ -85,8 +85,7 @@ export class PlanetPilot {
       const D = M.dungeon;
       if (D.cleared || this.t > 300 || late) target = (D.exits[D.exits.length - 1] || D.exits[0]).pos;
       else {
-        const loot = this.nearestDrop(pos, 1e4, cargoF >= 1) || M.level.crates.find((c) => !c.opened);
-        if (loot && loot.type) loot.autoT = (loot.autoT || 0) + dt * 0.5;
+        const loot = M.level.drops.find((d) => d.type === 'item') || M.level.crates.find((c) => !c.opened);
         target = loot ? loot.pos : D.boss && D.boss.alive ? D.boss.pos : D.bossRoom ? _v.set(D.bossRoom.x, 0, D.bossRoom.z) : null;
       }
       if (target && D.exits.some((x) => x.pos === target) && target.distanceTo(_v.copy(pos).setY(0)) < 12) ctl.interact = true;
@@ -95,13 +94,15 @@ export class PlanetPilot {
       const nearNode = M.level.nearestNode(pos, 400);
       // everything that fell (gear, ore, credits), nearest first: kills are made at gun range, so
       // what they drop has to be driven over
-      const loot = this.nearestDrop(pos, 150, cargoF >= 1);
+      // (measured duels keep the plain rules they were calibrated with: first gear drop in reach,
+      // nearest deposit, the short curio detour)
+      const loot = this.duel ? M.level.drops.find((d) => d.type === 'item' && d.pos.distanceTo(pos) < 150) : this.nearestDrop(pos, 150, cargoF >= 1);
       const crate = M.level.crates.find((c) => !c.opened && c.pos.distanceTo(pos) < 120);
       // deposits: the one that pays best for the trip (tool bonus x what the resource is worth)
       const dig = this.duel ? nearNode : this.bestNode(pos, 400);
       // curiosities: a short detour while there is digging to do, a real trip when there is not,
       // and the last one of a site is always worth it (a fully surveyed site drops a bonus cache)
-      const curio = M.curios ? M.curios.nearestOpen(pos, !dig ? 400 : M.curios.total - M.curios.done <= 1 ? 250 : 90, (c) => (c.autoT || 0) < 25) : null;
+      const curio = M.curios ? M.curios.nearestOpen(pos, this.duel ? 90 : !dig ? 400 : M.curios.total - M.curios.done <= 1 ? 250 : 90, (c) => (c.autoT || 0) < 25) : null;
       // dungeons and lairs only when the explorer is a match for the site, healthy, and there is
       // run time left to make it count
       const fit = this.duel || (M.ex.level + 2 >= M.siteInfo.level && hpF > 0.6);
@@ -116,7 +117,7 @@ export class PlanetPilot {
       else if (dig && (cargoF < 0.95)) {
         // every tool aboard works a deposit inside the longest tool's reach
         let reach = st.tools.length ? 0 : 12;
-        for (const tl of st.tools) reach = Math.max(reach, tl.ts.range);
+        for (const tl of st.tools) { reach = Math.max(reach, tl.ts.range); if (this.duel) break; }
         target = dig.pos; stopAt = Math.max(6, reach * 0.7);
         if (Math.hypot(dig.pos.x - pos.x, dig.pos.z - pos.z) < stopAt + 4) { wantMine = true; M.aimPoint.copy(dig.pos); }
       } else if (mouth && this.t > 60) {
@@ -165,7 +166,7 @@ PlanetPilot.prototype.note = function (key, msg) {
 PlanetPilot.prototype.nearestDrop = function (pos, maxD, full) {
   let best = null, bd = maxD * maxD;
   for (const d of this.mode.level.drops) {
-    if ((d.type === 'res' && full) || d.autoT > 15 || (this.duel && d.type !== 'item')) continue;   // (measured duels: gear only, as before)
+    if ((d.type === 'res' && full) || d.autoT > 15) continue;
     const d2 = (d.pos.x - pos.x) ** 2 + (d.pos.z - pos.z) ** 2;
     if (d2 < bd) { bd = d2; best = d; }
   }
