@@ -319,7 +319,7 @@ export function installStory(game, Q, hooks) {
     if (d) d.onclick = () => { game.ui.toggle('quests', false); if (!cur && !queue.some((x) => x.kind === 'choice')) { queue.push({ kind: 'choice', step: s.pending }); pump(); } };
   }
 
-  game.story = { state: S, say, choose, skip, busy: () => !!cur || queue.length > 0, current: () => cur, titleCard, speaker };
+  game.story = { state: S, say, choose, skip, complete, busy: () => !!cur || queue.length > 0, current: () => cur, titleCard, speaker };
   return {
     quest: () => (game.data && game.data.story ? game.data.story.q : null),
     start() { S(); build(); gapT = 3; },

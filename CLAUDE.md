@@ -76,6 +76,8 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - `python3 tools/serve.py 8420`, then `node tools/shot.cjs "index.html?play&new&webgl" out.png 15000`
   (`EVAL="…"`, `POSTWAIT=ms`). Headless WebGPU canvases screenshot black: use `&webgl` for
   pictures and `tools/gpuprobe.html` to verify the WebGPU path by pixel readback.
+- Story: `node tools/story.cjs manual|auto|mobile` plays the opening for real; `node tools/storyff.cjs [0|1|2] --gate`
+  fast-forwards the live story runtime to an ending (every briefing, choice and set piece stages; fights are not played).
 - Touch / phones: `node tools/touch.cjs --gate [--shots=dir]` emulates 360x640 and 800x360 with
   synthetic touches: pinch / twist / drag vs camera distance and yaw (space and surface), gestures vs
   the sticks, HUD overlap / off-screen / 40 px tap targets, hold-to-inspect, rotation, resolution
