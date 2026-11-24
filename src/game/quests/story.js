@@ -786,5 +786,7 @@ export function walkPaths() {
   go(FIRST_STEP, [], {});
   return out;
 }
-export const fillText = (text, P) => String(text).replace(/\{captain\}/g, (P && P.name) || 'Captain').replace(/\{ship\}/g, (P && P.ship && P.ship.name) || 'the ship');
+// a captain who kept the default name is just "Captain", not "Captain Captain"
+const plainName = (P) => { const n = (P && P.name) || 'Captain'; return n === 'Captain' ? '' : n; };
+export const fillText = (text, P) => String(text).replace(/Captain \{captain\}/g, () => (plainName(P) ? `Captain ${plainName(P)}` : 'Captain')).replace(/\{captain\}/g, (P && P.name) || 'Captain').replace(/\{ship\}/g, (P && P.ship && P.ship.name) || 'the ship');
 export function newStoryState() { return { v: 1, cur: null, q: null, wait: FIRST_STEP, done: [], choices: {}, standing: {}, pending: null, ending: null, complete: false, t0: 0 }; }
