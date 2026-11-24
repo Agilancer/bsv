@@ -82,7 +82,7 @@ function helpers() {
   };
 }
 
-const SPACE_HUD = ['#status', '#radar', '#target', '#abilities', '#stick', '.mbtn', '#objectives'];
+const SPACE_HUD = ['#status', '#radar', '#target', '#abilities', '#stick', '.mbtn', '#objectives', '#questTrack'];
 const PLANET_HUD = ['#pStatus', '#pBanner', '#pMap', '#pCargo', '#pAbilities .ab', '#pButtons .btn', '#pPrompt', '#pComm', '#pTouch .tbtn', '.mbtn'];
 const TAPS = ['.mbtn', '.ab', '.tbtn', '.btn'];
 const layoutOk = (L) => !L.overlaps.length && !L.off.length && !L.small.length;
@@ -154,11 +154,13 @@ async function run(name, vp, browser) {
   check(sp.stickTap.taps === 1 && sp.stickTap.stick, 'space: thumb on the stick + tap on the view = one tap, stick held', sp.stickTap);
   check(sp.stickPinch.to < sp.stickPinch.from / 2 && sp.stickPinch.stick && sp.stickPinch.yawMoved === 0 && sp.stickUp, 'space: thumb on the stick + pinch on the view zooms, stick keeps steering', sp.stickPinch);
   check(!!sp.target && sp.climb[1] > sp.climb[0] && !sp.climb[2] && sp.zoomBtn[1] < sp.zoomBtn[0] && sp.zoomBtn[2] > sp.zoomBtn[1], 'helm tray: next target, climb (hold), zoom +/−', { target: sp.target, altitude: sp.climb.slice(0, 2), zoom: sp.zoomBtn });
-  const need = ['character', 'inventory', 'skills', 'crew', 'bridge', 'galaxy', 'codex', 'auto', 'options', 'systemMap', 'dock', 'scan', 'explorer', 'refinery', 'autofire'];
+  const need = ['quests', 'character', 'inventory', 'skills', 'crew', 'bridge', 'galaxy', 'codex', 'auto', 'options', 'systemMap', 'dock', 'scan', 'explorer', 'refinery', 'autofire'];
   const shown = sp.sheetShown.map((s) => s.split(':')[0]);
   check(sp.sheetOpen && sp.sheetFits && need.every((w) => shown.includes(w)) && sp.sheetShown.every((s) => +s.split(':')[1] >= 40), 'menu sheet: every command, 40 px+ rows, on screen', `${shown.length} buttons` + (need.every((w) => shown.includes(w)) ? '' : ' MISSING ' + need.filter((w) => !shown.includes(w))));
+  // the busiest HUD: a target locked and three quests on the tracker
+  const nq = await ev(() => { const g = __game, Q = g.quests; if (!Q || !g.stations || !g.stations[0]) return -1; for (const q of Q.offers(g.stations[0]).slice(0, 3)) Q.accept(q, true); __engine.simulate(0.5); return document.querySelectorAll('#questTrack .qt').length; });
   let L = await ev(([s, t]) => { __game.player.target = __game.world.ships.find((o) => o.alive && o.team !== 1) || null; __engine.simulate(0.3); return TT.layout(s, t); }, [SPACE_HUD, TAPS]);
-  check(layoutOk(L), `space HUD: ${L.panels} panels, no overlap, none off-screen, tap targets >= 40 px`, layoutOk(L) ? undefined : L);
+  check(layoutOk(L), `space HUD (${nq} quests tracked): ${L.panels} panels, no overlap, none off-screen, tap targets >= 40 px`, layoutOk(L) ? undefined : L);
   await shot('space');
 
   // press and hold: tooltip + actions (real timers)

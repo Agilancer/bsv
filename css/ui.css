@@ -533,3 +533,18 @@ body.bridge-dlg #mZin, body.bridge-dlg #mZout { display: none; }
   #title .load { width: min(360px, 80vw); }
   #title .tag { font-size: 12px; letter-spacing: 0.3em; text-align: center; }
 }
+/* quest tracker (css/quests.css puts it top-left): in portrait it takes the strip under the target
+   panel and the prompts move down a row; in landscape it sits under the buttons / the objectives */
+body.mobile #questTrack { left: var(--ml) !important; width: 206px; }
+@media (max-aspect-ratio: 1/1) {
+  body.mobile #questTrack { top: calc(var(--mt) + 198px) !important; width: min(250px, 70vw); }
+  body.mobile:has(#questTrack:not([style*="none"])) #toasts { top: calc(var(--mt) + 270px); }
+  body.mobile:has(#questTrack:not([style*="none"])) #dockPrompt { top: calc(var(--mt) + 270px); }
+  body.mobile:has(#questTrack:not([style*="none"])) #autoStatus { top: calc(var(--mt) + 300px) !important; }
+}
+@media (min-aspect-ratio: 1/1) {
+  body.mobile #questTrack { top: calc(var(--mt) + 72px) !important; }
+  body.mobile:has(#objectives:not([style*="none"])) #questTrack { display: none !important; }   /* first session: the tutorial has that corner */
+  body.mobile #questTrack .qt:nth-child(n+4) { display: none; }   /* two lines: the stick is just below */
+}
+@media (min-aspect-ratio: 1/1) and (max-width: 700px) { body.mobile #questTrack { display: none !important; } }
