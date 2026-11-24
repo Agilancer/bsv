@@ -102,6 +102,9 @@ export class World {
       if (this.camNear(ship.position, 300)) this.cam.addShake(2 + big * 2);
       this.engine.flash(0.08 * big, 0xffc080);
       this.debris.burst(ship);
+      for (const o of this.ships) if (o.alive && o.trait === 'rustborn' && o.position.distanceTo(ship.position) < 700) {
+        o.repair(o.maxHull * 0.15); this.beams.add(o.position, ship.position, 0xffa040, 1.2, 0.8);
+      }
       this.events.emit('destroyed', { ship, killer });
       this.removeShip(ship);
     });

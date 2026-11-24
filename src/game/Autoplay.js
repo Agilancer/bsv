@@ -13,6 +13,8 @@ import { wrapAngle, clamp } from '../engine/rng.js';
 import { ABILITY_BY_KEY } from './data/abilities.js';
 import { RARITY } from './data/items.js';
 import { itemScore, INV_SIZE } from './Player.js';
+import { canLearn } from './data/talents.js';
+const canLearnQuiet = (g, k) => canLearn(g.data, k);
 
 const _v = new THREE.Vector3();
 
@@ -182,9 +184,23 @@ export class Autoplay {
     return g.useAbility(k);
   }
 
+  // a balanced broadside build, then the gunnery capstone
+  spendTalents() {
+    const g = this.game;
+    const ORDER = ['gunDrill', 'hullUp', 'harmonics', 'reload', 'deadeye', 'homing', 'recharge', 'broadMaster', 'tactics', 'helm', 'burners', 'hydra', 'lineOfBattle', 'ablative', 'damageCtl', 'veteran', 'plunder', 'lastStand', 'merchant', 'tractor', 'evasivePro', 'wingCmd', 'admiral', 'slipstream', 'ram', 'bastion'];
+    let learned = 0;
+    for (let guard = 0; guard < 80; guard++) {
+      const k = ORDER.find((t) => g.learnTalent && canLearnQuiet(g, t));
+      if (!k) break;
+      g.learnTalent(k); learned++;
+    }
+    if (learned) this.log(`Spent ${learned} talent point${learned > 1 ? 's' : ''}`);
+  }
+
   // inventory: equip upgrades, keep the hold clear
   manage() {
     const g = this.game, P = g.data;
+    this.spendTalents();
     const before = Object.values(P.ship.loadout).map((i) => i && i.uid).join();
     g.equipBest();
     const after = Object.values(P.ship.loadout).map((i) => i && i.uid).join();

@@ -38,6 +38,15 @@ export const TALENTS = [
   { k: 'wingCmd', tree: 'command', name: 'Wing Commander', max: 2, req: 12, icon: 'hangar', desc: '+1 craft per hangar bay per rank.' },
   { k: 'admiral', tree: 'command', name: "Admiral's Presence", max: 1, req: 30, icon: 'nova', stat: { dmg: 0.1, cdr: 0.1, hull: 0.1 }, desc: '+10% damage, hull and cooldown reduction.' },
 ];
+// capstones: need 15 points spent in their tree; each reshapes the build with a trade-off
+TALENTS.push(
+  { k: 'lineOfBattle', tree: 'gunnery', name: 'Line of Battle', max: 1, req: 1, treeReq: 15, icon: 'broadside', capstone: true, desc: 'Broadsides +40% damage; turrets -50%. Fight like a ship of the line.' },
+  { k: 'bastion', tree: 'defense', name: 'Bastion Protocol', max: 1, req: 1, treeReq: 15, icon: 'shield', capstone: true, stat: { speed: -0.15 }, desc: 'Shields regenerate at full rate under fire; 15% slower.' },
+  { k: 'clipper', tree: 'navigation', name: 'Clipper Doctrine', max: 1, req: 1, treeReq: 15, icon: 'engine', capstone: true, stat: { speed: 0.3, hull: -0.15 }, desc: '+30% speed and +25% damage above 70% speed; 15% less hull.' },
+  { k: 'carrierAdmiral', tree: 'command', name: 'Carrier Admiral', max: 1, req: 1, treeReq: 15, icon: 'hangar', capstone: true, desc: '+2 craft per hangar and +50% craft damage; broadsides -20%.' },
+);
+export const treePoints = (data, tree) => TALENTS.filter((t) => t.tree === tree).reduce((a, t) => a + ((data.talents || {})[t.k] || 0), 0);
+
 export const TALENT_BY_KEY = Object.fromEntries(TALENTS.map((t) => [t.k, t]));
 
 export function talentPoints(data) { return Math.max(0, data.level - 1) + (data.bonusTalentPoints || 0); }
@@ -45,7 +54,7 @@ export function spentPoints(data) { return Object.values(data.talents || {}).red
 export function canLearn(data, k) {
   const t = TALENT_BY_KEY[k];
   const r = (data.talents || {})[k] || 0;
-  return t && r < t.max && data.level >= t.req && spentPoints(data) < talentPoints(data);
+  return t && r < t.max && data.level >= t.req && spentPoints(data) < talentPoints(data) && (!t.treeReq || treePoints(data, t.tree) >= t.treeReq);
 }
 export function rank(data, k) { return (data.talents || {})[k] || 0; }
 
@@ -62,8 +71,10 @@ export function talentStats(data) {
 // per-weapon modifications applied in Ship.refit for the player's ship
 export function talentWeaponMod(data) {
   const reload = rank(data, 'reload'), homing = rank(data, 'homing'), hydra = rank(data, 'hydra');
-  const wing = rank(data, 'wingCmd');
-  return (ws) => {
+  const wing = rank(data, 'wingCmd'), lob = rank(data, 'lineOfBattle'), ca = rank(data, 'carrierAdmiral');
+  return (ws, item, hp) => {
+    if (lob && hp) { if (hp.type === 'broadside') ws.dmg *= 1.4; if (hp.type === 'turret') ws.dmg *= 0.5; }
+    if (ca && hp) { if (ws.kind === 'hangar') { ws.count += 2; ws.dmg *= 1.5; } if (hp.type === 'broadside') ws.dmg *= 0.8; }
     if (reload) ws.rof *= 1 + reload * 0.03;
     if (homing) {
       if (ws.kind === 'missile' || ws.kind === 'torpedo') ws.homing = Math.max(ws.homing, 1);

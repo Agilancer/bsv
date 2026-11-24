@@ -105,6 +105,23 @@ export const ENEMY_FACTIONS = {
   silent: { name: 'The Silent Choir', team: 6, styles: ['silent'], minDanger: 12, blurb: 'Ancient machines of black glass. They do not speak.' },
 };
 
+// What makes each faction fight differently (see enemyFactory / Ship / Combat)
+export const FACTION_TRAITS = {
+  pirate: { name: 'Plunderers', desc: 'Fast, break off when beaten, and carry more coin.' },
+  rival: { name: 'Disciplined', desc: 'Strong shields; focus fire on the weakest target.' },
+  rustborn: { name: 'Scavengers', desc: 'Patch their hulls from every wreck nearby; kinetic junk-guns.' },
+  covenant: { name: 'Hungering', desc: 'Leech hull from what they hit and strip shields; energy and ion.' },
+  brood: { name: 'Living hulls', desc: 'Regenerate constantly; bio-plasma and spore missiles.' },
+  silent: { name: 'Phase-shifted', desc: 'Pure energy weapons; blink away from heavy fire.' },
+};
+// faction weapon dialects: the same role, armed in the faction's own way
+export const WEAPON_DIALECT = {
+  brood: { macrocannon: 'plasma', carronade: 'plasma', railgun: 'lance', autocannon: 'laser', flak: 'laser', ion: 'laser', nova: 'torpedo' },
+  silent: { macrocannon: 'lance', carronade: 'plasma', railgun: 'lance', autocannon: 'laser', flak: 'ion', missile: 'laser', torpedo: 'spinal', nova: 'spinal' },
+  rustborn: { lance: 'carronade', plasma: 'macrocannon', laser: 'autocannon', ion: 'flak', spinal: 'nova' },
+  covenant: { macrocannon: 'plasma', autocannon: 'ion', laser: 'ion', railgun: 'lance' },
+};
+
 // 60 names per faction: ten per size class, in ROLES order.
 const N = {
   pirate: [

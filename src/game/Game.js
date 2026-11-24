@@ -95,6 +95,7 @@ export class Game {
     s.position.copy(pos);
     s.persistent = true;
     s.extraStats = this.extraStats(); s.weaponMod = talentWeaponMod(P); s.refit(); s.hull = s.maxHull;
+    s.clipper = !!rank(P, 'clipper'); if (rank(P, 'bastion')) s.stats.u_aegis = 2;
     this.player = s; this.world.player = s;
     this.cam.follow = s;
     this.cam.focus.copy(pos);
@@ -178,7 +179,7 @@ export class Game {
       const it = rollItem(ship.level, rng, { luck, rarity: i < guaranteed ? rng.pick(size && size.i === 5 ? ['legendary', 'mythic'] : ['legendary', 'legendary', 'mythic']) : null });
       W.loot.dropItem(it, ship.position);
     }
-    W.loot.dropCredits(Math.round((12 + ship.level * 6) * Math.min(ship.chassis.tier, 6) * eliteMul * (1 + (st.credits || 0))), ship.position);
+    W.loot.dropCredits(Math.round((12 + ship.level * 6) * Math.min(ship.chassis.tier, 6) * eliteMul * (1 + (st.credits || 0)) * (ship.trait === 'pirate' ? 1.5 : 1)), ship.position);
     if (rng.chance(0.5)) W.loot.dropSalvage(ship.chassis.tier * (1 + ship.elite), ship.position);
     this.ui.chat('COMBAT', null, `${ship.name} destroyed (+${xp} XP)`, 'sys', 'combat');
   }
@@ -292,7 +293,7 @@ export class Game {
     this.ui.refresh();
   }
   refitPlayer() {
-    if (this.player) { const p = this.player; p.loadout = this.data.ship.loadout; p.extraStats = this.extraStats(); p.weaponMod = talentWeaponMod(this.data); p.refit(); }
+    if (this.player) { const p = this.player; p.loadout = this.data.ship.loadout; p.extraStats = this.extraStats(); p.weaponMod = talentWeaponMod(this.data); p.refit(); p.clipper = !!rank(this.data, 'clipper'); if (rank(this.data, 'bastion')) p.stats.u_aegis = 2; }
     this.ui.refresh();
   }
 

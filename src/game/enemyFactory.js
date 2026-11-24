@@ -1,7 +1,7 @@
 // Turns a roster design (data/enemies.js) into a live Ship: a pseudo-chassis for the hull
 // builder and stats, a role loadout, size-class multipliers, AI archetype and specials.
 import { CLASSES, ARCH } from './data/chassis.js';
-import { ENEMY_FACTIONS, SIZES, designSlots } from './data/enemies.js';
+import { ENEMY_FACTIONS, SIZES, designSlots, WEAPON_DIALECT } from './data/enemies.js';
 import { makeItem } from './data/items.js';
 import { slotKeys, slotType } from './Player.js';
 import { RNG } from '../engine/rng.js';
@@ -42,6 +42,7 @@ export function enemyLoadout(d, chassis, level, rng) {
       const i = counters[t] = (counters[t] ?? -1) + 1;
       // broadside slots come in port/starboard pairs: keep pairs matched
       base = list[(t === 'broadside' ? Math.floor(i / 2) : i) % list.length];
+      const dia = WEAPON_DIALECT[d.faction]; if (dia && dia[base]) base = dia[base];
     }
     L[key] = makeItem(base, level, rng.pick(rar), rng);
   }
@@ -63,6 +64,10 @@ export function spawnDesign(world, d, level, pos, heading = 0, opts = {}) {
   s.refit();
   s.armor = d.mul.armor + d.sizeIndex * 2 + level * 0.3;
   balanceShip(s, d, level, champion);
+  // faction traits
+  s.trait = d.faction;
+  if (d.faction === 'pirate') { s.maxSpeed *= 1.15; s.turnRate *= 1.1; }
+  if (d.faction === 'rival') { s.maxShield *= 1.25; for (let i = 0; i < 4; i++) s.shields[i] = s.maxShield * 0.3; }
   if (champion) {
     s.mods = rollEliteMods(rng, 1);
     for (const m of s.mods) if (ELITE_MODS[m].apply) ELITE_MODS[m].apply(s);

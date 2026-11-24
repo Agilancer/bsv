@@ -79,6 +79,10 @@ export class Ship {
     for (const it of Object.values(this.loadout)) if (it) itemShipStats(it, st);
     // bonuses from outside the loadout (crew, captain talents, explorer finds): {stat: value}
     if (this.extraStats) for (const [k, v] of Object.entries(this.extraStats)) st[k] = (st[k] || 0) + v;
+    // shipyard signature (see YARD_TRAITS in data/chassis.js)
+    this.yardTrait = this.chassis.yard;
+    if (this.yardTrait === 'corsair') st.lootFind = (st.lootFind || 0) + 0.15;
+    if (this.yardTrait === 'aurelian') st.u_aegisLite = 1;
     const lvl = this.level;
     const lvlMul = 1 + (lvl - 1) * 0.045;
     const eliteMul = [1, 2.4, 6][this.elite];
@@ -87,7 +91,7 @@ export class Ship {
     this.stats = st;
     this.maxHull = c.hull * (1 + (st.hull || 0)) * lvlMul * eliteMul;
     this.maxShield = c.shield * (1 + (st.shield || 0)) * lvlMul * (this.elite ? 1.5 + this.elite * 0.5 : 1);
-    this.armor = (st.armor || 0) + c.tier * 1.5 + lvl * 0.3;
+    this.armor = (st.armor || 0) + c.tier * 1.5 + lvl * 0.3 + (c.yard === 'velscour' ? 5 : 0);
     this.maxSpeed = c.speed * (1 + (st.speed || 0));
     this.turnRate = THREE.MathUtils.degToRad(c.turn) * (1 + (st.turn || 0));
     this.shieldRegen = this.maxShield * 0.035 * (1 + (st.shieldRegen || 0));
@@ -108,6 +112,8 @@ export class Ship {
       const ws = weaponStats(item);
       ws.range *= 1 + (st.range || 0);
       if (this.weaponMod) this.weaponMod(ws, item, hp);   // captain talents etc.
+      if (this.yardTrait === 'velscour' && hp.type === 'broadside') ws.dmg *= 1.12;
+      if (this.yardTrait === 'corsair' && ws.kind === 'hangar') ws.count += 1;
       const w = { hp, item, ws, key, cd: Math.random() * 1.5, arc: ARC[hp.type], head: null, muzzles: [], object: null, burst: 0 };
       if (hp.type !== 'hangar') {
         const m = buildWeapon(item, hp, s * (hp.type === 'prow' ? 1.2 : 1));
@@ -172,7 +178,7 @@ export class Ship {
   update(dt, t) {
     if (!this.alive) return;
     const W = this.world;
-    const boost = (this.buffs.evasive > t ? 1.6 : 1) * (this.buffs.slowed > t ? 0.55 : 1);
+    const boost = (this.buffs.evasive > t ? 1.6 : 1) * (this.buffs.slowed > t ? 0.55 : 1) * (this.yardTrait === 'tidewright' && t - (this.lastFire || 0) > 4 ? 1.25 : 1);
     if (this.cloaked && t > this.cloakUntil) this.setCloak(false);
     // physics
     // mass: a cutter reaches speed in ~2s, a dreadnought in ~10s; braking is a little quicker
@@ -200,7 +206,7 @@ export class Ship {
 
     // shields regen after 3s without a hit; flow toward the weakest facing
     const since = t - this.lastHit;
-    const regenMul = since > 3 ? 1 : this.stats.u_aegis ? 0.5 : 0;
+    const regenMul = since > 3 ? 1 : this.stats.u_aegis === 2 ? 1 : this.stats.u_aegis ? 0.5 : this.stats.u_aegisLite ? 0.4 : 0;
     const cap = this.maxShield * 0.3;
     if (regenMul > 0) for (let i = 0; i < 4; i++) this.shields[i] = Math.min(cap, this.shields[i] + this.shieldRegen * regenMul * dt);
     if (this.hullRegen) this.repair(this.maxHull * this.hullRegen * dt);
@@ -236,6 +242,17 @@ export class Ship {
       }
     }
 
+    // faction traits
+    if (this.trait === 'brood') this.repair(this.maxHull * (t - this.lastHit < 3 ? 0.003 : 0.008) * dt);
+    if (this.trait === 'silent' && this.recentDmg > this.maxHull * 0.08 && t > (this._blinkT || 0)) {
+      this._blinkT = t + 9; this.recentDmg = 0;
+      W.fx.column(this.position, this.yard.glow, 80, 24);
+      const a = this.heading + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2;
+      this.position.add(_w.set(Math.sin(a) * 260, 0, Math.cos(a) * 260));
+      W.fx.column(this.position, this.yard.glow, 80, 24);
+    }
+    if (this.recentDmg) this.recentDmg *= Math.exp(-dt * 0.5);
+    if (this.yardTrait === 'hollow') this.repair(this.maxHull * 0.004 * dt);
     if (this.mods) for (const m of this.mods) { const M = this.world.eliteMods && this.world.eliteMods[m]; if (M && M.tick) M.tick(this, dt, W); }
     this.updateWeapons(dt, t);
   }
@@ -297,6 +314,7 @@ export class Ship {
   fire(w, target, mul = 1, instant = false) {
     const W = this.world;
     if (this.cloaked) this.setCloak(false);
+    this.lastFire = W.engine.time;
     const ws = w.ws;
     w.cd = 1 / ws.rof;
     const n = Math.max(1, ws.barrels);

@@ -76,6 +76,7 @@ export class ShipAI {
       let score = d;
       if (o === s.lastAttacker) score *= 0.5;
       if (o.isPlayer) score *= 0.8;
+      if (s.trait === 'rival') score *= 0.4 + o.hull / o.maxHull;   // disciplined: focus the weakest
       if (score < bestScore) { bestScore = score; best = o; }
     }
     return best;
@@ -103,7 +104,7 @@ export class ShipAI {
     const hpFrac = s.hull / s.maxHull;
     s.altTarget = clamp(tg.position.y + Math.sin(t * 0.3 + s.id) * 15, -60, 60);
 
-    if (hpFrac < this.flee && s.faction !== 'covenant' && s.faction !== 'silent') { s.steerHeading(bearing + Math.PI, 1); return; }
+    if (hpFrac < (s.trait === 'pirate' ? Math.max(this.flee, 0.22) : this.flee) && s.faction !== 'covenant' && s.faction !== 'silent') { s.steerHeading(bearing + Math.PI, 1); return; }
     const range = this.range;
     switch (this.style) {
       case 'kamikaze': {
@@ -186,8 +187,13 @@ export class ShipAI {
     world.fx.ring(s.position, s.dims.L, s.yard.glow, 96);
     world.fx.column(s.position, s.yard.glow, 300, 80);
     world.cam.addShake(6);
-    world.toast(`${s.name} — phase ${this.phase + 1}`, 'legend');
+    const pool = ['novaBurst', 'megabeam', 'artillery', 'droneCloud', 'snare', 'torpStorm', 'mines'].filter((k) => !this.specials.some((x) => x.k === k));
+    const add = pool[Math.floor(Math.random() * pool.length)];
+    if (add) this.specials.push({ k: add, def: SPECIALS[add], cd: 2 });
+    const NAMES = { novaBurst: 'Nova Burst', megabeam: 'Megabeam', artillery: 'Bombardment', droneCloud: 'Drone Cloud', snare: 'Gravity Snare', torpStorm: 'Torpedo Storm', mines: 'Minefield' };
+    world.toast(`${s.name} — phase ${this.phase + 1}${add ? ': unleashes ' + NAMES[add] : ''}`, 'legend');
     if (s.design) SPECIALS.spawn.run(world, s);
+    if (this.phase >= 2) SPECIALS.mines.run(world, s);   // the arena itself turns hostile
   }
 
   anchor(world) {

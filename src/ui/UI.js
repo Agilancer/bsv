@@ -5,9 +5,9 @@ import { icon } from './icons.js';
 import { ABILITIES } from '../game/data/abilities.js';
 import { BASES, RARITY, describe, itemShipStats, weaponStats } from '../game/data/items.js';
 import { slotKeys, slotType, xpForLevel, shipXpForLevel, itemScore, INV_SIZE } from '../game/Player.js';
-import { CHASSIS_BY_ID, YARDS } from '../game/data/chassis.js';
+import { CHASSIS_BY_ID, YARDS, YARD_TRAITS } from '../game/data/chassis.js';
 import { THROTTLE_STEPS } from '../game/ship/Ship.js';
-import { TREES, TALENTS, talentPoints, spentPoints, canLearn } from '../game/data/talents.js';
+import { TREES, TALENTS, talentPoints, spentPoints, canLearn, treePoints } from '../game/data/talents.js';
 import { ENEMIES, SIZES, ENEMY_FACTIONS } from '../game/data/enemies.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -170,6 +170,7 @@ export class UI {
     s += d.lines.map((l) => `<div class="tl">${l}</div>`).join('');
     s += d.affixes.map((a) => `<div class="ta">${a}</div>`).join('');
     s += d.uniques.map((u) => `<div class="tu"><b>${u.name}:</b> ${u.desc}</div>`).join('');
+    if (d.flavor) s += `<div class="tx" style="font-style:italic;color:#d8b890">“${d.flavor}”</div>`;
     s += `<div class="tx">Fits: ${SLOT_LABEL[item.slot]} · Value ${fmt(item.value)} ¢</div>`;
     if (compareTo && compareTo !== item) {
       const a = itemScore(item), b = itemScore(compareTo);
@@ -247,7 +248,8 @@ export class UI {
     body.innerHTML = `
       <div class="title" style="color:var(--cyan)">${esc(P.ship.name)}</div>
       <div class="label" style="margin:2px 0 10px">${ch.fullName} · ${y.name}</div>
-      <div style="font-size:13px;margin-bottom:10px">${y.blurb}</div>
+      <div style="font-size:13px;margin-bottom:6px">${y.blurb}</div>
+      <div style="font-size:13px;margin-bottom:10px;color:var(--cyan)">${YARD_TRAITS[ch.yard] || ''}</div>
       <div class="label">Ship level ${P.ship.level}</div><div class="bar xp" style="margin:4px 0 12px"><i style="width:${(P.ship.xp / shipXpForLevel(P.ship.level) * 100).toFixed(1)}%"></i></div>
       <div class="statgrid">
         ${row('Commander rank', P.level)}
@@ -280,9 +282,9 @@ export class UI {
     } else {
       html += `<div class="talents">` + TREES.map((tr) => `<div class="tree"><div class="title" style="color:${tr.color};margin-bottom:8px">${tr.name}</div>` +
         TALENTS.filter((t) => t.tree === tr.k).map((t) => {
-          const r = (P.talents || {})[t.k] || 0, ok = canLearn(P, t.k), locked = P.level < t.req;
+          const r = (P.talents || {})[t.k] || 0, ok = canLearn(P, t.k), locked = P.level < t.req || (t.treeReq && treePoints(P, t.tree) < t.treeReq);
           return `<div class="tal ${locked ? 'locked' : ''} ${ok ? 'can' : ''} ${r ? 'has' : ''}" data-k="${t.k}" style="--tc:${tr.color}">
-            <div class="ti">${icon(t.icon)}</div><div class="tt"><div class="tn">${t.name}</div><div class="tr">${locked ? 'Rank ' + t.req : r + ' / ' + t.max}</div></div></div>`;
+            <div class="ti">${icon(t.icon)}</div><div class="tt"><div class="tn">${t.capstone ? '★ ' : ''}${t.name}</div><div class="tr">${locked ? (t.treeReq ? t.treeReq + ' pts in tree' : 'Rank ' + t.req) : r + ' / ' + t.max}</div></div></div>`;
         }).join('') + `</div>`).join('') + `</div>`;
     }
     body.innerHTML = html;

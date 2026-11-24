@@ -1,6 +1,7 @@
 // Diablo-style itemisation: base types per slot, rarities, affixes, unique powers, item XP.
 // An item is plain data (serialisable): { uid, base, slot, rarity, ilvl, affixes:[{k,v}], unique, xp, lvl, name }
 import { RNG } from '../../engine/rng.js';
+import { NAMED } from './uniques.js';
 
 export const RARITIES = [
   { k: 'common', name: 'Common', color: '#c4cad6', affixes: [0, 0], weight: 520, mult: 1.0 },
@@ -143,7 +144,26 @@ function itemName(item, rng) {
 export function rollItem(ilvl, rng, { luck = 0, slot = null, rarity = null } = {}) {
   const keys = slot ? BASE_KEYS_BY_SLOT[slot] : Object.keys(BASES).filter((k) => !BASES[k].noRoll);
   const weights = keys.map((k) => [k, BASES[k].slot === 'module' ? 1.1 : BASES[k].slot === 'hangar' ? 0.5 : 1]);
-  return makeItem(rng.weighted(weights), ilvl, rarity || rollRarity(rng, luck), rng);
+  const r = rarity || rollRarity(rng, luck);
+  if ((r === 'legendary' || r === 'mythic') && NAMED_REF.list && rng.chance(0.6)) {
+    const pool = NAMED_REF.list.filter((n) => !slot || BASES[n.base].slot === slot);
+    if (pool.length) return makeNamed(rng.pick(pool), ilvl, rng, r);
+  }
+  return makeItem(rng.weighted(weights), ilvl, r, rng);
+}
+// filled by data/uniques.js consumers (avoids a circular import)
+export const NAMED_REF = { list: NAMED };
+
+// a named legendary from data/uniques.js (fixed powers, guaranteed affixes, flavour)
+export function makeNamed(def, ilvl, rng, rarity = 'legendary') {
+  const it = makeItem(def.base, ilvl, rarity, rng);
+  it.name = def.name; it.named = true; it.flavor = def.flavor;
+  it.unique = def.powers.slice();
+  const have = new Set(it.affixes.map((a) => a.k));
+  for (const k of def.affixes) if (!have.has(k) && AFFIXES[k]) it.affixes.unshift({ k, v: round(AFFIXES[k].v(ilvl, rng) * 1.15) });
+  it.affixes = it.affixes.slice(0, Math.max(def.affixes.length, RARITY[rarity].affixes[1]));
+  it.value = Math.round(it.value * 1.4);
+  return it;
 }
 
 // item XP: equipped gear learns from kills. Each level is +2% to its main power, up to 20.
@@ -221,7 +241,7 @@ export function describe(item) {
     const st = {}; itemShipStats({ ...item, affixes: [], unique: [] }, st);
     for (const [k, v] of Object.entries(st)) lines.push(fmtStat(k, v));
   }
-  return { title: item.name, rarity: r, base: b.name, lines, affixes: item.affixes.map((a) => AFFIXES[a.k].fmt(a.v)), uniques: (item.unique || []).map((u) => UNIQUES[u]) };
+  return { title: item.name, flavor: item.flavor, rarity: r, base: b.name, lines, affixes: item.affixes.map((a) => AFFIXES[a.k].fmt(a.v)), uniques: (item.unique || []).map((u) => UNIQUES[u]) };
 }
 export function fmtStat(k, v) {
   const P = (x) => `+${(x * 100).toFixed(0)}%`;

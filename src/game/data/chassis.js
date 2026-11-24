@@ -70,6 +70,16 @@ export const YARDS = {
   },
 };
 
+// Shipyard signatures: what flying a yard's hull feels like
+export const YARD_TRAITS = {
+  velscour: 'Cathedral Batteries — broadsides +12% damage, +5 armour.',
+  aurelian: 'Shield Overcharge — shields keep regenerating under fire (40%).',
+  tidewright: 'Solar Sails — +25% speed after 4 s without firing.',
+  ironhold: 'Armoured Flanks — port and starboard facings take 20% less hull damage.',
+  corsair: 'Boarding Crews — +1 craft per hangar, +15% better loot.',
+  hollow: 'Living Hull — regenerates 0.4% hull per second.',
+};
+
 // Each class has its own silhouette (arch): bow length, number of gun decks, where the
 // castle sits, outrigger pods or side hulls, an armour belt, fins.
 export const ARCH = {
