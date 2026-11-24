@@ -85,6 +85,9 @@ export function installArena(game, G) {
     game.sector.update = (dt) => pre(dt);
     game.ui.closeAll();
     if (game.cancelWarp) game.cancelWarp();
+    // your group waits where it is (it would otherwise set off after you across the system)
+    M.party = game.mmo ? game.mmo.party.filter((x) => x.alive) : [];
+    for (const x of M.party) { x.ai.follow = null; x.ai.home.copy(x.position); }
     const scene = game.spaceScene || game.engine.scene;
     const addMesh = (m) => { scene.add(m); M.meshes.push(m); return m; };
     addMesh(ringMesh(arena.r, '#9a6bff', 10)).position.set(arena.x, -10, arena.z);
@@ -125,7 +128,7 @@ export function installArena(game, G) {
         const rating = side === 0 ? myRating + rng.float(-40, 40) : oppRating + (duel ? 0 : rng.float(-40, 40));
         const rec = { side, i: side === 0 ? i + 1 : i, n: mode.team, name: duel ? opp.name : mate ? mate.name : pick(), guild: side === 0 ? (mate ? g.tag : bloc ? rng.pick(bloc.guilds) : g && rng.chance(0.3) ? g.tag : null) : foeGuild, own: !!mate, yard: duel ? opp.yard : rng.pick(YARDS), seed: rng.int(1, 1e9), power: D.botPower(rating), kills: 0, deaths: 0, rt: 0, ship: null };
         rec.contract = D.pvpTargets(M.level, D.BOT, rec.power.power);
-        rec.contract.dps /= mode.focus || 1;
+        rec.contract.dps /= mode.focus || 1; rec.contract.pool *= mode.tough || 1;
         M.recs.push(rec);
         spawnRec(M, rec);
       }
@@ -236,6 +239,7 @@ export function installArena(game, G) {
     s.position.copy(M.back.pos); s.heading = M.back.heading; s.velocity.set(0, 0, 0); s.speed = 0; s.throttle = 0; s.target = null;
     s.hull = Math.max(1, s.maxHull * M.back.hull); for (let i = 0; i < 4; i++) s.shields[i] = s.maxShield * M.back.sh[i];
     s.invuln = false;
+    for (const x of M.party) if (x.alive) x.ai.follow = s;
     game.cam.focus.copy(s.position); game.moveTarget = null;
     W.fx.column(s.position, 0x58b8ff, 140, 60);
     A.last = { key: M.key, result: M.result, score: M.score.slice(), rewards: M.rewards, delta: M.delta, t: M.t, pl: M.pl, hp: M.hp, role: M.convoy && M.convoy.role, oppRating: M.oppRating, myRating: M.myRating };

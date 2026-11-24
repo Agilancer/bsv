@@ -263,8 +263,11 @@ export function installMMO(game) {
       if (pop.chatT <= 0) {
         pop.chatT = 4 + Math.random() * 10;
         const kind = R.weighted([['banter', 5], ['lfg', 2], ['trade', 2], ['help', 1]]);
-        const ch = { banter: R.pick(['GLOBAL', 'LOCAL', 'GUILD']), lfg: 'LFG', trade: 'TRADE', help: 'HELP' }[kind];
-        const who = handle();
+        let ch = { banter: R.pick(['GLOBAL', 'LOCAL', 'GUILD']), lfg: 'LFG', trade: 'TRADE', help: 'HELP' }[kind];
+        // guild chat is your own guild talking (guild module): a member speaks, or the line goes to global
+        const member = ch === 'GUILD' && pop.guildSpeaker ? pop.guildSpeaker() : null;
+        if (ch === 'GUILD' && pop.guildSpeaker && !member) ch = 'GLOBAL';
+        const who = member || handle();
         say(ch, (ch === 'GUILD' ? '' : '') + who, fill(R.pick(CHAT[kind]), game), ch === 'GUILD' ? 'guild' : '');
       }
       pop.eventT -= dt;

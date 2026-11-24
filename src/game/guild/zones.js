@@ -259,6 +259,10 @@ export function installZones(game, G) {
     });
     const enter = game.enterSystem;
     game.enterSystem = (id) => { Z.cur = null; enter(id); Z.enter(id); };
+    // an autoplay sortie stays on the field: between kills its patrol brain would otherwise spool
+    // a warp to the next PvE zone before the reinforcements arrive
+    const warpTo = game.warpTo;
+    if (warpTo) game.warpTo = (pos) => (G.sortie && G.sortie.kind === 'zone' && Z.cur && Z.cur.phase === 'battle' && pos.distanceTo(Z.cur.center) > NEAR ? false : warpTo(pos));
     Z.enter(game.data.system || 0);
   })(game.start.bind(game));
 }

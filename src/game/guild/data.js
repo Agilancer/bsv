@@ -363,8 +363,9 @@ export function opponentRating(rating, rng, streak = 0) { return Math.round(rati
 //           drift balance.bossRankScale corrects for bosses (measured with tools/pvp.cjs)
 //   dps   = what takes the expected captain down in `die` seconds (his EHP plus his hull repair)
 // BOT is the calibration point: at START_RATING the autoplay captain wins about half its matches
-// (tools/pvp.cjs --fixed measures it). Rating moves pool and damage together; each mode carries its
-// own share of the damage budget (in a team fight several captains shoot at you).
+// (tools/pvp.cjs --fixed measures it). Rating moves pool and damage together. A captain's damage on
+// the player is bounded by the MIN_TTK per-source cap (about 2% of his EHP a second lands from one
+// broadside ship), so `kill` is what makes a duel even; a mode may ask for tougher hulls (`tough`).
 export const pvpEngage = (L) => clamp(0.5 + 0.0165 * L, 0.5, 1.35);
 export const BOT = { kill: 44, die: 30 };
 export const ZONE_BOT = { kill: 11, die: 75 };       // open-space captains: quicker, lighter fights
@@ -379,8 +380,8 @@ export function botPower(rating) {
 export const MODES = {
   skirmish: { k: 'skirmish', name: 'Skirmish', sub: '3v3 deathmatch · first to 5', team: 3, time: 150, goal: 5, respawn: 5, focus: 1 },
   capture: { k: 'capture', name: 'Relay Capture', sub: '5v5 · hold three relays', team: 5, time: 165, goal: 150, respawn: 6, focus: 1 },
-  convoy: { k: 'convoy', name: 'Convoy', sub: '4v4 · raid or escort the freighters', team: 4, time: 150, goal: 3, respawn: 8, focus: 1, freighter: 30 },
-  duel: { k: 'duel', name: 'Duel', sub: '1v1 · the ladder', team: 1, time: 110, goal: 1, respawn: 0, focus: 1 },
+  convoy: { k: 'convoy', name: 'Convoy', sub: '4v4 · raid or escort the freighters', team: 4, time: 150, goal: 3, respawn: 8, focus: 1, freighter: 65 },
+  duel: { k: 'duel', name: 'Duel', sub: '1v1 · the ladder', team: 1, time: 110, goal: 1, respawn: 0, focus: 1, tough: 1.15 },
 };
 const MODE_PAY = { skirmish: { honour: 60, glass: 4, cr: 1 }, capture: { honour: 90, glass: 6, cr: 1.3 }, convoy: { honour: 80, glass: 5, cr: 1.2 }, duel: { honour: 50, glass: 3, cr: 0.7 } };
 // score: 1 / 0.5 / 0; perf: {kills, objective (0-1)}

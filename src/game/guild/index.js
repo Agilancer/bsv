@@ -68,6 +68,7 @@ export function installGuild(game) {
     game.world.schedule(delay + Math.random() * 2, () => G.chat(who, line));
   };
   G.dirty = () => { if (game.ui) game.ui.refresh(); };
+  if (game.mmo) game.mmo.guildSpeaker = someone;
 
   // ---- guild level and perks
   game.statProviders.push((g) => D.guildPerks(g.data && g.data.guild));
@@ -188,7 +189,7 @@ export function installGuild(game) {
     if (pop.party.length >= (pop.partyCap || 3)) { game.ui.toast('Your group is full', 'warn'); return false; }
     let s = liveShip(m);
     if (!s) s = spawnMember(m);
-    if (!s) return false;
+    if (!s) { game.ui.toast(`${m.name} cannot break away right now`, 'warn'); return false; }
     s.traffic = null;
     pop.joinParty(s);
     return true;
@@ -314,7 +315,7 @@ export function installGuild(game) {
       autoAllyT = pt() + 300;
       let best = null, bc = 0;
       for (const o of guilds) { const c = G.allianceChance(o.tag); if (c > bc) { bc = c; best = o; } }
-      if (best && bc >= 0.35) { const r = G.propose(best.tag); ap.log(r.ok ? `Alliance sworn with ${best.name}` : `${best.name} refused an alliance`); }
+      if (best && bc >= 0.3) { const r = G.propose(best.tag); ap.log(r.ok ? `Alliance sworn with ${best.name}` : `${best.name} refused an alliance`); }
     }
   }
   G.autoManage = autoManage;
@@ -337,7 +338,7 @@ export function installGuild(game) {
   game.autoplayGoals.push((ap) => {
     let nextAt = (game.playtime || 0) + FIRST_SORTIE, act = null;
     const now = () => game.playtime || 0;
-    const done = (delay = SORTIE_EVERY) => { act = null; nextAt = now() + delay; };
+    const done = (delay = SORTIE_EVERY) => { act = null; G.sortie = null; nextAt = now() + delay; };
     return {
       name: 'PvP sortie',
       score() {
@@ -355,7 +356,7 @@ export function installGuild(game) {
         if (act && act.kind === 'match') { done(); return true; }
         if (!act) {
           const pvp = G.pvp, zone = pvp.autoN++ % 2 === 1 && G.zones.canVisit();
-          if (zone) { act = { kind: 'zone', t0: now() }; ap.log(`Sailing for the ${G.zones.cur.zone.name}`); return false; }
+          if (zone) { act = G.sortie = { kind: 'zone', t0: now() }; ap.log(`Sailing for the ${G.zones.cur.zone.name}`); return false; }
           const mode = ROTA[(pvp.autoM = (pvp.autoM || 0) + 1) % ROTA.length];
           if (!G.arena.start(mode, { quiet: true })) { done(45); return true; }
           act = { kind: 'match' }; ap.log(`Queued for ${D.MODES[mode].name}`);
