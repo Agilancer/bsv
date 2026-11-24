@@ -28,7 +28,7 @@ const { chromium } = require('playwright');
       for (let k = 0; k < step * 4; k++) {
         __engine.simulate(0.25);
         const A = g.autoplay; if (!A) continue;
-        const st = g.mode !== 'space' ? g.mode : A.state === 'goal' && A.goal ? 'goal:' + A.goal.name : A.state === 'patrol' && A.travel ? 'travel' : A.state;
+        const st = g.mode !== 'space' ? g.mode : A.state === 'goal' && A.goal ? 'goal:' + A.goal.name : A.state === 'patrol' && A.waiting ? 'wave-gap' : A.state === 'patrol' && A.travel ? 'travel' : A.state;
         S.states[st] = (S.states[st] || 0) + 0.25;
         if (st === 'patrol') {
           // why patrolling: no live zone (all cooling) or still on the way to one

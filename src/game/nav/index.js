@@ -200,7 +200,8 @@ export function installNav(game) {
     c.save(); c.font = `600 ${Math.max(11, Math.round(15 * L.S * 2.2))}px Rajdhani, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
     for (let arm = 0; arm < 3; arm++) {
       // just outside the arm's outer systems, outlined so a nearby dot never hides it
-      const tt = 0.93, r = 120 + tt * 820 + 150, a = arm * (Math.PI * 2 / 3) + tt * 4.2;
+      // mid-arm, just outside it: away from the canvas edges the info panels cover
+      const tt = 0.6, r = 120 + tt * 820 + 130, a = arm * (Math.PI * 2 / 3) + tt * 4.2;
       const x = L.cx + Math.cos(a) * r * L.S, y = L.cy + Math.sin(a) * r * L.S;
       c.lineWidth = 4; c.strokeStyle = 'rgba(4,8,20,0.85)'; c.strokeText(ARM_NAMES[arm].toUpperCase(), x, y);
       c.fillStyle = 'rgba(190,200,255,0.42)'; c.fillText(ARM_NAMES[arm].toUpperCase(), x, y);
@@ -238,7 +239,7 @@ export function installNav(game) {
       if (s === hover || s.id === selected || s.id === P.system || near || (P.visited.includes(s.id) && L.w > 900)) {
         c.font = `${s === hover || s.id === selected ? 600 : 500} 11px Rajdhani, sans-serif`;
         c.fillStyle = locked ? '#6a7a9a' : s.danger > P.level + 3 ? '#ffb040' : '#b8c6e0';
-        c.fillText(s.name + (locked ? ' 🔒' : ''), x, y - r - 6);
+        c.fillText(s.name + (locked ? ' 🔒' : ''), x, y - r - (s.id === selected ? 11 : 6));   // clear of the selection box
       }
       c.globalAlpha = 1;
     }
