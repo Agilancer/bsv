@@ -10,6 +10,8 @@ const { chromium } = require('playwright');
   const SIZES_ARG = ((process.argv.find((a) => a.startsWith('--sizes=')) || '--sizes=0,1,2,3,4,5').split('=')[1]).split(',').map(Number);   // e.g. --sizes=4,5 for bosses only
   const b = await chromium.launch({ args: ['--use-angle=swiftshader'] });
   const p = await b.newPage({ viewport: { width: 480, height: 270 } });
+  // determinism: one seeded stream from before the first page script (crew, names, everything)
+  await p.addInitScript(() => { let a = 0x9E3779B9 >>> 0; Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; });
   await p.goto(`http://localhost:${process.env.PORT || 8420}/index.html?play&new&webgl&q=low`);
   await p.waitForTimeout(12000);
   const raw = await p.evaluate(async ([levels, stat, SAMPLES, ONLY]) => {
@@ -22,6 +24,8 @@ const { chromium } = require('playwright');
     const { SHIP_UPGRADES } = await import('./src/game/planet/economy.js');
     g.sector.director.update = () => {}; if (g.npcs) g.npcs.update = () => {};
     const { ABILITIES } = await import('./src/game/data/abilities.js');
+    // the crew's contribution is pinned to what the contract expects (a live crew is random)
+    if (g.crew) { const i = g.statProviders.indexOf(g.crew.provider); if (i >= 0) g.statProviders[i] = () => ({ dmg: 0.02, hull: 0.03, shield: 0.02 }); }
     const out = [];
     for (const L of levels) {
       const E = expectedPlayer(L);

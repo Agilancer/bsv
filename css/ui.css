@@ -374,6 +374,8 @@ body.hud-hidden #objectives { display: none; }
 #autoStatus { top: auto !important; bottom: 92px; left: 50%; transform: translateX(-50%); }
 body.win-open #objectives, body.hud-hidden #objectives, body[data-mode]:not([data-mode="space"]) #objectives { display: none !important; }
 /* station market: name under each item so the grid reads without hovering */
-#station .grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
+#station .grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)) !important; width: 100%; box-sizing: border-box; }
+#station .wbody { overflow-x: hidden; }
+#station .cell.named .nm { word-break: normal; overflow-wrap: anywhere; hyphens: auto; }
 #station .cell.named { height: auto; min-height: 92px; display: flex; flex-direction: column; align-items: center; padding-bottom: 14px; }
 #station .cell.named .nm { font-size: 9.5px; line-height: 1.15; text-align: center; margin-top: 2px; max-height: 2.3em; overflow: hidden; padding: 0 2px; pointer-events: none; }

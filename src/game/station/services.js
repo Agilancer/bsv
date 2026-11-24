@@ -1,6 +1,6 @@
 // Station services as plain logic over the save data (testable in node).
 import { CHASSIS, CHASSIS_BY_ID, YARDS } from '../data/chassis.js';
-import { rollItem, RARITY, newUid, makeItem, makeNamed, NAMED_REF } from '../data/items.js';
+import { rollItem, RARITY, newUid, makeItem, makeNamed, NAMED_REF, AFFIXES } from '../data/items.js';
 import { slotKeys, slotType, INV_SIZE, SHIP_PREFIX } from '../Player.js';
 import { RNG } from '../../engine/rng.js';
 
@@ -125,13 +125,18 @@ export function overhaulCost(item, L) {
   const gap = Math.max(0, L - item.ilvl);
   return Math.round(item.value * gap * 0.35 * (1 + RARITY[item.rarity].i * 0.3));
 }
-function remake(item, ilvl, rng) {
+// keepAffixKeys: overhaul keeps the same affixes (re-valued at the new item level); reforge rerolls
+// them. Either way the item keeps its name and its unique powers — those are what you chose it for.
+function remake(item, ilvl, rng, keepAffixKeys = false) {
   const def = item.named && NAMED_REF.list.find((n) => n.name === item.name);
   const fresh = def ? makeNamed(def, ilvl, rng, item.rarity) : makeItem(item.base, ilvl, item.rarity, rng);
   fresh.uid = item.uid; fresh.xp = item.xp; fresh.lvl = item.lvl;
-  if (!def) { fresh.named = undefined; fresh.flavor = undefined; }
+  fresh.name = item.name; fresh.unique = (item.unique || []).slice();
+  if (!def) { fresh.named = item.named; fresh.flavor = item.flavor; }
+  if (keepAffixKeys) fresh.affixes = item.affixes.map((a) => (AFFIXES[a.k] ? { k: a.k, v: roundAffix(AFFIXES[a.k].v(ilvl, rng)) } : { ...a }));
   return fresh;
 }
+const roundAffix = (v) => (Math.abs(v) >= 1 ? Math.round(v) : Math.round(v * 1000) / 1000);   // as items.js rounds affix values
 // returns { ok, msg, cost }; mutates the item in place (so loadout / hold references stay valid)
 export function reforge(P, item, rng = new RNG(Math.random() * 1e9)) {
   if (!item || item.slot === 'blueprint') return { ok: false, msg: 'Nothing to reforge' };
@@ -147,6 +152,6 @@ export function overhaul(P, item, rng = new RNG(Math.random() * 1e9)) {
   const cost = overhaulCost(item, P.level);
   if (P.credits < cost) return { ok: false, msg: `Overhaul costs ${cost} ¢`, cost };
   P.credits -= cost;
-  Object.assign(item, remake(item, P.level, rng));
+  Object.assign(item, remake(item, P.level, rng, true));
   return { ok: true, cost };
 }

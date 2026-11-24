@@ -101,7 +101,7 @@ export function resupplyGoal(ap) {
         // refit yard: bring fitted gear up to rank (oldest first), keeping a reserve for the next hull
         const next = shipyardStock(st.seed, danger, P, st.kind).filter(({ chassis: c }) => c.tier > CHASSIS_BY_ID[P.ship.chassis].tier).sort((a, b) => a.price - b.price)[0];
         const reserve = next ? next.price * 0.6 : P.credits * 0.3;
-        const fitted = Object.values(P.ship.loadout).filter((it) => it && it.ilvl < P.level - 2).sort((a, b) => a.ilvl - b.ilvl);
+        const fitted = Object.values(P.ship.loadout).filter((it) => it && it.ilvl < P.level - 1).sort((a, b) => a.ilvl - b.ilvl);
         let refits = 0;
         for (const it of fitted) { if (P.credits - overhaulCost(it, P.level) < reserve) continue; if (overhaul(P, it).ok) refits++; }
         if (refits) { g.refitPlayer(); ap.log(`Refit yard: overhauled ${refits} item${refits > 1 ? 's' : ''} to rank ${P.level}`); }

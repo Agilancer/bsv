@@ -196,6 +196,12 @@ export class Autoplay {
       else if (hold) { this.travel = false; s.throttle = 0; }
       else { this.travel = true; s.steerTo(pos, 60, 1); }
     };
+    this.waiting = false;
+    if (live && live.active && live.pos.distanceTo(s.position) < 1600) {
+      // on an active zone between reinforcement waves: hold here (the next wave warps in shortly)
+      this.waiting = true; this.travel = false; s.throttle = Math.min(s.throttle, 0.2);
+      return;
+    }
     if (live) return go(live.pos, 1100, false);
     const poi = D && D.nextPoi && D.nextPoi(s.position);
     if (poi) return go(poi.pos, 200, false);

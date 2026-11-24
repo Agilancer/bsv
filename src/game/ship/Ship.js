@@ -6,7 +6,7 @@
 import * as THREE from 'three/webgpu';
 import { hullFor } from './HullBuilder.js';
 import { buildWeapon } from './WeaponModels.js';
-import { shieldMaterial } from '../../fx/materials.js';
+import { shieldMaterial, rimVariant } from '../../fx/materials.js';
 import { BASES, weaponStats, itemShipStats, DISRUPT } from '../data/items.js';
 import { YARDS } from '../data/chassis.js';
 import { clamp, wrapAngle, damp } from '../../engine/rng.js';
@@ -44,6 +44,7 @@ export class Ship {
     this.root.add(this.body);
     this.body.add(h.group);
     this.hullGroup = h.group;
+    if (this.isPlayer) h.group.traverse((o) => { if (o.isMesh && o.material) o.material = Array.isArray(o.material) ? o.material.map((m) => rimVariant(m)) : rimVariant(o.material); });
     world.engine.scene.add(this.root);
 
     // shield bubble

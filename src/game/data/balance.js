@@ -185,10 +185,20 @@ export function expectedExtras(L) {
   return x;
 }
 
+// Boss pools across ranks: the captain's damage against single huge targets outgrows his sheet as
+// he ranks up (ability bursts, crit, reactive gear powers all compound), so epic-and-up pools scale
+// with rank around an L30 anchor (measured: L15 epics took ~3.8x too long, L50 legendaries and
+// gargantuans died 3-15x too fast with one constant per size).
+export const BOSS_RANK_EXP = [0, 0, 0, 1.5, 2.0, 2.5];
+export function bossRankScale(si, L) {
+  const k = BOSS_RANK_EXP[si] || 0;
+  return k ? Math.min(4, Math.max(0.3, Math.pow(Math.max(1, L) / 30, k))) : 1;
+}
+
 // target pools for an enemy of size index si at level L (from the captain with his extras)
 export function enemyTargets(si, L) {
   const E = expectedPlayer(L), P = { ...E, ...E.full };
-  const pool = P.dps * ENGAGE_BY_SIZE[si] * TTK.playerKills[si];   // hull + shields it must soak
+  const pool = P.dps * ENGAGE_BY_SIZE[si] * TTK.playerKills[si] * bossRankScale(si, L);   // hull + shields it must soak
   // what it must put out per second (before the captain's armour) so the captain goes down in
   // TTK.enemyKills: his EHP over that time, plus its share of what his damage control repairs
   // (packs split it, a boss carries it all; a full share for every escort would make packs lethal)

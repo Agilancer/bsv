@@ -21,6 +21,8 @@ async function dungeonRuns(cfg) {
   const b = await chromium.launch({ args: ['--use-angle=swiftshader'] });
   const p = await b.newPage({ viewport: { width: 480, height: 270 } });
   p.on('pageerror', (e) => console.log('[pageerror]', e.message));
+  // determinism: one seeded stream from before the first page script (crew, names, everything)
+  await p.addInitScript(() => { let a = 0x9E3779B9 >>> 0; Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; });
   await p.goto(`http://localhost:${process.env.PORT || 8420}/index.html?play&new&webgl&q=low`);
   await p.waitForTimeout(12000);
   const rows = [];
@@ -94,6 +96,8 @@ async function dungeonRuns(cfg) {
   const b = await chromium.launch({ args: ['--use-angle=swiftshader'] });
   const p = await b.newPage({ viewport: { width: 480, height: 270 } });
   p.on('pageerror', (e) => console.log('[pageerror]', e.message));
+  // determinism: one seeded stream from before the first page script (crew, names, everything)
+  await p.addInitScript(() => { let a = 0x9E3779B9 >>> 0; Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; });
   await p.goto(`http://localhost:${process.env.PORT || 8420}/index.html?play&new&webgl&q=low`);
   await p.waitForTimeout(12000);
   const out = await p.evaluate(async (cfg) => {
@@ -138,6 +142,8 @@ async function dungeonRuns(cfg) {
             const d = list[(k * 7 + L) % list.length];
             for (const mode of cfg.modes) {
               const run = (shoot, secs) => {
+                // every run draws from its own seeded stream (same code => same answer)
+                { let a = (L * 7919 + si * 104729 + k * 1299709 + (shoot ? 1 : 2) * 15485863 + mode.length * 32452843) >>> 0; Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
                 M.creatures.list.length = 0; M.shots.clear(); M.timers.length = 0; M.ground.clear();
                 if (M.warnings) M.warnings.length = 0;
                 V.alive = true; V.setVisible(true); M.state = 'play';

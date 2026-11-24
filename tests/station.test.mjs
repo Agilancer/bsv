@@ -104,3 +104,20 @@ test('refit yard: reforge and overhaul keep identity and mastery, cost credits',
   const poor = newPlayer(); poor.credits = 0; poor.level = 20;
   assert.equal(reforge(poor, makeItem('lance', 5, 'rare')).ok, false);
 });
+
+test('refit yard keeps a legendary\'s name and unique powers (overhaul keeps its affixes too)', async () => {
+  const { reforge, overhaul } = await import('../src/game/station/services.js');
+  const { makeItem } = await import('../src/game/data/items.js');
+  const P = newPlayer(); P.level = 40; P.credits = 1e9;
+  let lost = 0;
+  for (let i = 0; i < 60; i++) {
+    const it = makeItem('lance', 10, 'legendary');
+    if (!it.unique.length) continue;
+    const name = it.name, powers = it.unique.join(), keys = it.affixes.map((a) => a.k).join();
+    overhaul(P, it);
+    if (it.unique.join() !== powers || it.name !== name || it.affixes.map((a) => a.k).join() !== keys) lost++;
+    reforge(P, it);
+    if (it.unique.join() !== powers || it.name !== name) lost++;
+  }
+  assert.equal(lost, 0);
+});

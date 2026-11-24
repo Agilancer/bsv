@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { expectedPlayer, enemyTargets, TTK, MIN_TTK, dpsCapVs, ENGAGE_BY_SIZE, REGEN_SHARE_BY_SIZE } from '../src/game/data/balance.js';
+import { expectedPlayer, enemyTargets, TTK, MIN_TTK, dpsCapVs, ENGAGE_BY_SIZE, REGEN_SHARE_BY_SIZE, bossRankScale } from '../src/game/data/balance.js';
 import { CHASSIS } from '../src/game/data/chassis.js';
 
 const LEVELS = [1, 3, 5, 10, 15, 20, 30, 40, 50, 60];
@@ -19,7 +19,7 @@ test('time-to-kill stays flat across levels for every size class', () => {
   for (let si = 0; si < 6; si++) {
     for (const L of LEVELS) {
       const E = expectedPlayer(L), p = { ...E, ...E.full }, e = enemyTargets(si, L);   // the captain with refinery + crew
-      const playerKills = (e.hull + e.shield * 1.2) / (p.dps * ENGAGE_BY_SIZE[si]);   // what lands of the sheet DPS
+      const playerKills = (e.hull + e.shield * 1.2) / (p.dps * ENGAGE_BY_SIZE[si] * bossRankScale(si, L));   // what lands of the sheet DPS
       // what lands on the captain after armour, less his repairs, capped by the boss contract
       const landed = Math.min(e.dps, dpsCapVs(p.ehp)) * p.mit - p.regen * REGEN_SHARE_BY_SIZE[si];   // its share of his repairs
       const enemyKills = p.ehp / landed;

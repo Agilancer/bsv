@@ -8,8 +8,8 @@ export const RARITIES = [
   { k: 'uncommon', name: 'Uncommon', color: '#4ade80', affixes: [1, 2], weight: 280, mult: 1.08 },
   { k: 'rare', name: 'Rare', color: '#4f9dff', affixes: [2, 3], weight: 140, mult: 1.18 },
   { k: 'epic', name: 'Epic', color: '#b46bff', affixes: [3, 4], weight: 45, mult: 1.3 },
-  { k: 'legendary', name: 'Legendary', color: '#ff9a2e', affixes: [4, 5], weight: 12, mult: 1.45, unique: 1 },
-  { k: 'mythic', name: 'Velscour Mythic', color: '#ff3b5c', affixes: [5, 6], weight: 2, mult: 1.65, unique: 2 },
+  { k: 'legendary', name: 'Legendary', color: '#ff9a2e', affixes: [4, 5], weight: 7, mult: 1.45, unique: 1 },   // was 12: six legendaries fitted by rank 12 was too many
+  { k: 'mythic', name: 'Velscour Mythic', color: '#ff3b5c', affixes: [5, 6], weight: 1, mult: 1.65, unique: 2 },
 ];
 export const RARITY = Object.fromEntries(RARITIES.map((r, i) => [r.k, { ...r, i }]));
 
