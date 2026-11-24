@@ -74,7 +74,7 @@ export class Game {
     this.enterSystem(this.data.system || 0);
     this.engine.add(this);
     this.ui.chat('SYS', null, `Welcome aboard, Captain. ${this.engine.backend} renderer online.`, 'sys');
-    this.ui.chat('SYS', null, 'W/S throttle · A/D rudder · R/F altitude · Right-click sail · Tab target · 1-8 abilities · I cargo', 'sys');
+    this.ui.chat('SYS', null, document.body.classList.contains('mobile') ? 'Left stick steers · tap a ship to target · tap space to sail · abilities on the right' : 'W/S throttle · A/D rudder · R/F altitude · Right-click sail · Tab target · 1-8 abilities · I cargo', 'sys');
   }
 
   enterSystem(id) {
@@ -133,7 +133,8 @@ export class Game {
     ev.on('damage', (d) => {
       if (d.source === this.player || (d.source && d.source.team === 1 && d.source.isPlayer)) d.ship.playerTagged = true;
       if (d.ship === this.player || d.source === this.player || d.ship.playerTagged) {
-        if (d.amount >= 1 && this.world.camNear(d.point, 200)) this.ui.damageNumber(d.point, d.amount, d.crit, d.shield);
+        const own = d.ship === this.player;
+        if (d.amount >= 1 && this.world.camNear(d.point, 200) && (!own || d.amount > this.player.maxHull * 0.02)) this.ui.damageNumber(d.point, d.amount, d.crit, d.shield, d.ship);
       }
       if (d.ship === this.player && !d.shield && d.amount > this.player.maxHull * 0.04) { this.engine.flash(0.18, 0xff3020); this.cam.addShake(2); }
     });
@@ -469,8 +470,13 @@ export class Game {
     else if (this.activeMode) this.activeMode.update(dt, t, realDt);
     if (this.mode === 'space') {
       // pull the camera back for things that dwarf us
-      const tg = this.player && this.player.target && this.player.target.alive ? this.player.target : null;
-      this.cam.distFloor = tg && tg.dims.L > 200 ? Math.min(this.cam.maxDist, tg.dims.L * 1.5 + 250) : 0;
+      const s = this.player, tg = s && s.target && s.target.alive ? s.target : null;
+      const sep = tg ? tg.position.distanceTo(s.position) : 0;
+      const framing = tg && sep < 1600;
+      // frame the fight: focus between the ships, pull back far enough to fit both
+      this.cam.frameWith = framing ? tg.position : null;
+      this.cam.frameMix = this.autoplay && this.autoplay.active ? 0.5 : 0.42;
+      this.cam.distFloor = framing ? Math.min(this.cam.maxDist, Math.max(tg.dims.L > 200 ? tg.dims.L * 1.5 + 250 : 0, sep * 1.3 + 220)) : 0;
       this.cam.update(dt, t, realDt);
     }
     if (this.audio) {

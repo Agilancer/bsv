@@ -342,9 +342,14 @@ export class UI {
   }
 
   // ---------------- per-frame ----------------
-  damageNumber(pos, amount, crit, shield) {
-    if (this.numbers.length > 120) this.numbers.shift();
-    this.numbers.push({ pos: pos.clone(), v: Math.round(amount), crit, shield, t: 0, dx: (Math.random() - 0.5) * 30 });
+  damageNumber(pos, amount, crit, shield, ship = null) {
+    // hits on the same ship within a quarter second merge into one number
+    if (ship) for (let i = this.numbers.length - 1; i >= 0; i--) {
+      const n = this.numbers[i];
+      if (n.ship === ship && n.t < 0.25 && n.shield === shield) { n.v += Math.round(amount); n.crit = n.crit || crit; n.pos.lerp(pos, 0.3); return; }
+    }
+    if (this.numbers.length > 60) this.numbers.shift();
+    this.numbers.push({ pos: pos.clone(), v: Math.round(amount), crit, shield, t: 0, dx: (Math.random() - 0.5) * 30, ship, own: ship && ship === this.game.player });
   }
 
   update(dt, realDt) {
@@ -632,7 +637,7 @@ export class UI {
       const a = n.t < 0.8 ? 1 : 1 - (n.t - 0.8) / 0.3;
       const scale = n.crit ? 1.6 - Math.min(0.5, n.t * 2) : 1;
       ctx.font = `${n.crit ? 800 : 700} ${Math.round(15 * scale)}px Orbitron, Rajdhani, sans-serif`;
-      ctx.fillStyle = n.shield ? `rgba(120,200,255,${a})` : n.crit ? `rgba(255,220,90,${a})` : `rgba(255,255,255,${a})`;
+      ctx.fillStyle = n.own ? `rgba(255,110,110,${a})` : n.shield ? `rgba(120,200,255,${a})` : n.crit ? `rgba(255,220,90,${a})` : `rgba(255,255,255,${a})`;
       ctx.strokeStyle = `rgba(0,0,0,${a * 0.8})`; ctx.lineWidth = 3;
       const y = sp.y - 20 - n.t * 46, x = sp.x + n.dx * n.t;
       const txt = (n.crit ? n.v + '!' : n.v);

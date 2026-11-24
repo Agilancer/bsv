@@ -163,7 +163,7 @@ export function installNav(game) {
     const r = gCanvas.getBoundingClientRect();
     const dpr = Math.min(devicePixelRatio, 2);
     if (gCanvas.width !== Math.round(r.width * dpr)) { gCanvas.width = Math.round(r.width * dpr); gCanvas.height = Math.round(r.height * dpr); }
-    const S = Math.min(r.width, r.height) / 2100;
+    const S = Math.min(r.width, r.height) / 1900;
     return { w: r.width, h: r.height, dpr, S, cx: r.width / 2, cy: r.height / 2 };
   }
   function pick(e) {
@@ -212,7 +212,8 @@ export function installNav(game) {
       if (P.visited.includes(s.id)) { c.strokeStyle = 'rgba(200,220,255,0.5)'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, r + 3, 0, Math.PI * 2); c.stroke(); }
       if (s.id === P.system) { c.strokeStyle = '#58c8ff'; c.lineWidth = 2; const pr = r + 6 + Math.sin(t * 3) * 2; c.beginPath(); c.arc(x, y, pr, 0, Math.PI * 2); c.stroke(); }
       if (s.id === selected) { c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.strokeRect(x - r - 7, y - r - 7, (r + 7) * 2, (r + 7) * 2); }
-      if (s === hover || s.id === selected || s.id === P.system || L.w > 1000) {
+      const near = S[P.system].links.includes(s.id) || (selected != null && S[selected].links.includes(s.id));
+      if (s === hover || s.id === selected || s.id === P.system || near || (P.visited.includes(s.id) && L.w > 900)) {
         c.font = `${s === hover || s.id === selected ? 600 : 500} 11px Rajdhani, sans-serif`;
         c.fillStyle = locked ? '#6a7a9a' : s.danger > P.level + 3 ? '#ffb040' : '#b8c6e0';
         c.fillText(s.name + (locked ? ' 🔒' : ''), x, y - r - 6);
@@ -268,17 +269,24 @@ export function installNav(game) {
     c.fillStyle = g; c.beginPath(); c.arc(L.cx, L.cy, 40, 0, Math.PI * 2); c.fill();
     for (const b of D.belts) { c.strokeStyle = 'rgba(160,150,140,0.25)'; c.setLineDash([2, 4]); c.lineWidth = Math.max(2, b.width * L.S); c.beginPath(); c.arc(L.cx, L.cy, (b.r0 + b.width / 2) * L.S, 0, Math.PI * 2); c.stroke(); c.setLineDash([]); }
     c.textAlign = 'center'; c.font = '500 11px Rajdhani, sans-serif';
+    const placed = [];
+    const label = (txt, x, y, color) => {
+      const w = c.measureText(txt).width + 6;
+      if (placed.some((p) => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < 13)) return;
+      placed.push({ x, y, w }); c.fillStyle = color; c.fillText(txt, x, y);
+    };
+    for (const st of game.stations) label(st.name, X(st.position.x), Y(st.position.z) + 18, '#9ff0e0');
     for (const pl of game.sector.planets) {
       const info = pl.userData.info;
       if (!info.moon) { c.strokeStyle = 'rgba(88,184,255,0.12)'; c.lineWidth = 1; c.beginPath(); c.arc(L.cx, L.cy, Math.hypot(pl.position.x, pl.position.z) * L.S, 0, Math.PI * 2); c.stroke(); }
       const r = Math.max(info.moon ? 2 : 4, info.radius * L.S);
       c.fillStyle = info.moon ? '#8890a8' : '#a8b8e0';
       c.beginPath(); c.arc(X(pl.position.x), Y(pl.position.z), r, 0, Math.PI * 2); c.fill();
-      if (!info.moon) { c.fillStyle = '#b8c6e0'; c.fillText(info.name, X(pl.position.x), Y(pl.position.z) - r - 4); }
+      if (!info.moon) label(info.name, X(pl.position.x), Y(pl.position.z) - r - 4, '#b8c6e0');
       if (game.data.scanned && game.data.scanned[info.name]) { c.strokeStyle = '#4ade80'; c.beginPath(); c.arc(X(pl.position.x), Y(pl.position.z), r + 3, 0, Math.PI * 2); c.stroke(); }
     }
     for (const z of D.zones) { const x = X(z.x), y = Y(z.z); c.strokeStyle = z.faction === 'covenant' ? '#ff3b5c' : z.faction === 'rival' ? '#ffb040' : '#ff7a6a'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x - 6, y); c.lineTo(x + 6, y); c.moveTo(x, y - 6); c.lineTo(x, y + 6); c.stroke(); c.beginPath(); c.arc(x, y, 9, 0, Math.PI * 2); c.stroke(); }
-    for (const st of game.stations) { const x = X(st.position.x), y = Y(st.position.z); c.fillStyle = '#58ffd8'; c.shadowColor = '#58ffd8'; c.shadowBlur = 8; c.fillRect(x - 5, y - 5, 10, 10); c.shadowBlur = 0; c.fillStyle = '#9ff0e0'; c.fillText(st.name, x, y + 18); }
+    for (const st of game.stations) { const x = X(st.position.x), y = Y(st.position.z); c.fillStyle = '#58ffd8'; c.shadowColor = '#58ffd8'; c.shadowBlur = 8; c.fillRect(x - 5, y - 5, 10, 10); c.shadowBlur = 0; }
     for (const o of game.world.ships) { if (!o.alive || o === game.player) continue; c.fillStyle = o.team === 1 ? '#58c8ff' : '#ff4a6a'; c.fillRect(X(o.position.x) - 1.5, Y(o.position.z) - 1.5, 3, 3); }
     const s = game.player;
     if (s) { c.save(); c.translate(X(s.position.x), Y(s.position.z)); c.rotate(-s.heading + Math.PI); c.fillStyle = '#fff'; c.shadowColor = '#58c8ff'; c.shadowBlur = 10; c.beginPath(); c.moveTo(0, -9); c.lineTo(6, 7); c.lineTo(-6, 7); c.closePath(); c.fill(); c.restore(); }

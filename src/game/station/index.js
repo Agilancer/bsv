@@ -36,7 +36,7 @@ export function installStations(game) {
     // a new captain starts beside the home station
     if (game.stations.length && id === 0 && game.data.kills === 0) {
       const st = game.stations[0];
-      game.player.position.copy(st.position).add(new THREE.Vector3(500, 0, 300));
+      game.player.position.copy(st.position).add(new THREE.Vector3(1300, 0, 800));   // outside the turrets' reach
       game.cam.focus.copy(game.player.position);
     }
   };

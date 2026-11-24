@@ -36,7 +36,8 @@ export class IsoCamera {
     if (this.follow) {
       this.target.copy(this.follow.position);
       if (this.follow.velocity) this.lead.lerp(this._off.copy(this.follow.velocity).multiplyScalar(0.9), 1 - Math.exp(-2 * realDt));
-      this.target.add(this.lead);
+      this.target.add(this.lead.clone().multiplyScalar(this.frameWith ? 0.3 : 1));
+      if (this.frameWith) this.target.lerp(this._off.copy(this.frameWith), this.frameMix || 0.32);
     }
     this.focus.x = damp(this.focus.x, this.target.x, 5, realDt);
     this.focus.y = damp(this.focus.y, this.target.y * 0.6, 5, realDt);
