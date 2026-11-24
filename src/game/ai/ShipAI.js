@@ -168,7 +168,8 @@ export class ShipAI {
       if (sp.cd > 0) continue;
       if (!sp.def.aura && (!tg || tg.position.distanceTo(s.position) > sp.def.range)) continue;
       let fired = false;
-      try { fired = sp.def.run(world, s, tg, t); } catch (e) { console.warn('special', sp.k, e); sp.def = null; continue; }
+      // a broken special logs once and backs off; it stays in the kit so the bug stays visible
+      try { fired = sp.def.run(world, s, tg, t); } catch (e) { if (!sp.def.warned) { sp.def.warned = true; console.error('special', sp.k, e); } sp.cd = 8; continue; }
       if (fired) sp.cd = sp.def.cd * (0.85 + Math.random() * 0.3) * (s.enraged ? 0.7 : 1);
       else sp.cd = 1;
     }
