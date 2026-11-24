@@ -16,6 +16,12 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   - `combat/` — projectiles/beams (instanced), damage model, hangar craft. `ai/ShipAI.js`.
   - Feature modules install through `src/game/modules.js`: `station/`, `nav/`, `mmo/`,
     `autoplay/goals.js` (+ crew/bridge and planet modules).
+  - `guild/` — guilds, alliances and PvP, all simulated (`game.guild`): `data.js` (pure rules: guild
+    level/perks/upgrades, invite and alliance acceptance, NPC guilds and blocs, zone capture and
+    control ticks, rating/tiers/matchmaking, rewards, vendor), `index.js` (runtime, autoplay
+    management, the `PvP sortie` goal), `zones.js` (contested Voidglass fields in the open galaxy),
+    `arena.js` (instanced modes), `bots.js` (PvP captains), `ui.js` + `css/guild.css`. Save:
+    `data.guild`, `data.pvp`, `data.diplo`. Hostile PvP captains use teams 8+ (`s.pvp`, `noLoot`).
 - `src/ui/` — HUD, overlay canvas, windows; `css/ui.css` holds the holo theme.
 
 ## Extension points
@@ -48,6 +54,10 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - `data/balance.js` is the contract: `expectedPlayer(L)` builds the expected captain from the real
   item/talent/hull formulas (sheet DPS, EHP, armour, repair); `enemyTargets` sizes enemies from it
   with per-size engagement (`ENGAGE_BY_SIZE`) and repair share. Recalibrate with `tools/duel.cjs`.
+- PvP captains are sized from the same contract (`guild/data.js pvpTargets`: `BOT.kill`/`BOT.die`
+  seconds, `pvpEngage(L)`, per-mode `focus`); `node tools/pvp.cjs 4 --fixed` measures the autoplay
+  captain's win rate at equal rating (target ~50%). Guild perks are capped at +8% XP, +8% credits,
+  +1.5% hull per kill (`guildPerks`).
 - Telegraphed specials pass `TELEGRAPH` (Combat.js) as ws: their own per-hit budget, outside the
   `MIN_TTK` per-source window. Escorts a boss spawns set `capRoot` to share its window.
 

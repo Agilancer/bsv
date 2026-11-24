@@ -118,7 +118,7 @@ export function installMMO(game) {
     if (game.autoplay && game.autoplay.active) setTimeout(() => el.isConnected && close(true), 1500);
   }
   function joinParty(s) {
-    if (pop.party.length >= 3 || pop.party.includes(s)) return;
+    if (pop.party.length >= pop.partyCap || pop.party.includes(s)) return;
     pop.party.push(s);
     s.ai.follow = game.player;
     s.life = Infinity;
@@ -126,6 +126,7 @@ export function installMMO(game) {
     game.ui.toast(`${s.name} joined your group`, 'epic');
     say('PARTY', s.name, R.pick(['hey! lets go', 'o7 ready', 'lead the way captain', 'need anything from the drops? im good', 'nice ship']), 'guild', 'all');
   }
+  Object.assign(pop, { spawnCaptain, joinParty, partyCap: 3 });   // the guild module calls members to your side
   // party XP bonus: +10% per member, they cheer on kills
   game.statProviders.push(() => ({ xp: pop.party.filter((s) => s.alive).length * 0.1 }));
 

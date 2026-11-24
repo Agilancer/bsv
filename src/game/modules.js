@@ -8,6 +8,7 @@ import { resupplyGoal, advanceGoal } from './autoplay/goals.js';
 import { installOnboarding } from './onboarding.js';
 import { install as installCrew } from './crew/index.js';
 import { install as installPlanets } from './planet/index.js';
+import { installGuild } from './guild/index.js';
 
 export function install(game) {
   game.modes = game.modes || {};
@@ -19,4 +20,5 @@ export function install(game) {
   installOnboarding(game);
   installCrew(game);
   installPlanets(game);
+  installGuild(game);     // guilds, alliances, contested zones, PvP arenas (after the MMO population and nav)
 }
