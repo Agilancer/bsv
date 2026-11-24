@@ -202,14 +202,18 @@ export function installNav(game) {
       panZoom(gCanvas, gView, 6);
     }
     selected ??= game.data.system;
-    loop();
     info();
+    if (document.body.classList.contains('mobile') && gView.k === 1 && !gView.ox && !gView.oy) {
+      const me = galaxy().systems[game.data.system], r = gCanvas.getBoundingClientRect(), k = 2.2, S = Math.min(r.width, r.height) / 1900 * k;
+      if (r.width > 0) { gView.k = k; gView.ox = -me.x * S; gView.oy = -me.y * S; }
+    }
+    loop();
   }
   function loop() { if (!game.ui.isOpen('galaxy')) return; drawGalaxy(); requestAnimationFrame(loop); }
   function layout() {
     const r = gCanvas.getBoundingClientRect();
     const dpr = Math.min(devicePixelRatio, 2);
-    if (gCanvas.width !== Math.round(r.width * dpr)) { gCanvas.width = Math.round(r.width * dpr); gCanvas.height = Math.round(r.height * dpr); }
+    if (gCanvas.width !== Math.round(r.width * dpr) || gCanvas.height !== Math.round(r.height * dpr)) { gCanvas.width = Math.round(r.width * dpr); gCanvas.height = Math.round(r.height * dpr); }
     const S = Math.min(r.width, r.height) / 1900 * gView.k;
     return { w: r.width, h: r.height, dpr, S, cx: r.width / 2 + gView.ox, cy: r.height / 2 + gView.oy };
   }
@@ -328,7 +332,7 @@ export function installNav(game) {
       <div class="statgrid"><span>Planets</span><b>${d.planets.length}</b><span>Moons</span><b>${d.planets.reduce((a, p) => a + p.moons.length, 0)}</b><span>Stations</span><b>${d.stations.length}</b><span>Belts</span><b>${d.belts.length}</b><span>Visited</span><b>${P.visited.includes(s.id) ? 'yes' : 'no'}</b>
       ${rt ? `<span>Jumps</span><b>${rt.length - 1}</b><span>Fuel</span><b>${fmt(jumpCost(rt, P))} ¢</b>` : ''}</div>
       <div style="margin-top:10px">${s.id === P.system ? '<div class="label">You are here</div>' : locked ? `<div class="label" style="color:var(--warn)">Requires commander rank ${s.danger - 6}</div>` : rt ? '<button class="btn" id="gJump">Engage jump drive</button>' : '<div class="label">No charted route</div>'}</div>
-      <div class="label" style="margin-top:12px">${document.body.classList.contains('mobile') ? 'Pinch to zoom · drag to pan' : 'Double-click a system to jump · wheel zooms, drag pans'} · rings show who holds each system · higher danger, better loot</div>`;
+      <div class="label ghint" style="margin-top:12px">${document.body.classList.contains('mobile') ? 'Pinch to zoom · drag to pan' : 'Double-click a system to jump · wheel zooms, drag pans'} · rings show who holds each system · higher danger, better loot</div>`;
     // the lanes out of this system: where each leads, and whether the captain may follow it
     const max = unlockedDanger(P), S = galaxy().systems;
     const lanes = s.links.map((id) => S[id]).sort((a, b) => a.danger - b.danger);
@@ -375,11 +379,16 @@ export function installNav(game) {
   function gates(L) {
     const P = game.data, S = galaxy().systems, me = S[P.system], max = unlockedDanger(P);
     const hx = L.w / 2 - 70, hy = L.h / 2 - 34;
+    const tall = L.h > L.w * 1.2, wide = L.w > L.h * 1.2;
     const out = me.links.map((id) => {
       const o = S[id], a = Math.atan2(o.y - me.y, o.x - me.x);
       // where the bearing meets the frame (inset so the label fits)
       const kx = hx / Math.max(1e-6, Math.abs(Math.cos(a))), ky = hy / Math.max(1e-6, Math.abs(Math.sin(a))), k = Math.min(kx, ky);
-      return { id, sys: o, a, x: L.w / 2 + Math.cos(a) * k, y: L.h / 2 + Math.sin(a) * k, side: kx < ky, locked: o.danger > max, cost: jumpCost([P.system, id], P) };
+      let x = L.w / 2 + Math.cos(a) * k, y = L.h / 2 + Math.sin(a) * k, side = kx < ky;
+      // a frame much taller or wider than the system (phones): gates take the spare edges, clear of the orbits
+      if (tall) { x = L.w / 2 + Math.cos(a) * hx; y = L.h / 2 + (Math.sin(a) >= 0 ? hy : -hy); side = false; }
+      else if (wide) { x = L.w / 2 + (Math.cos(a) >= 0 ? hx : -hx); y = L.h / 2 + Math.sin(a) * hy; side = true; }
+      return { id, sys: o, a, x, y, side, locked: o.danger > max, cost: jumpCost([P.system, id], P) };
     });
     // neighbours on nearly the same bearing would sit on top of each other: slide them apart along the edge
     const GAP_X = 118, GAP_Y = 46;
@@ -394,7 +403,7 @@ export function installNav(game) {
   }
   function sLayout() {
     const r = sCanvas.getBoundingClientRect(), dpr = Math.min(devicePixelRatio, 2);
-    if (sCanvas.width !== Math.round(r.width * dpr)) { sCanvas.width = Math.round(r.width * dpr); sCanvas.height = Math.round(r.height * dpr); }
+    if (sCanvas.width !== Math.round(r.width * dpr) || sCanvas.height !== Math.round(r.height * dpr)) { sCanvas.width = Math.round(r.width * dpr); sCanvas.height = Math.round(r.height * dpr); }
     const D = game.sector.detail;
     const ext = Math.max(...D.planets.map((p) => p.orbit + p.radius * 3)) * 1.05;
     return { w: r.width, h: r.height, dpr, S: Math.min(r.width, r.height) / 2 / ext * sView.k, cx: r.width / 2 + sView.ox, cy: r.height / 2 + sView.oy };
@@ -412,6 +421,10 @@ export function installNav(game) {
     const mkz = game.sector.director ? game.sector.director.markers() : { zones: D.zones, pois: [] };
     for (const z of mkz.zones) placed.push({ x: X(z.x), y: Y(z.z) + 4, w: 26 });   // keep labels off the zone glyphs
     for (const p of mkz.pois) if (!p.done) placed.push({ x: X(p.x), y: Y(p.z) + 4, w: 16 });
+    for (const q of gates(L)) {                                                      // and off the jump-gate plates
+      const ly = q.y + (q.y < L.h / 2 ? 27 : -30), pw = Math.max(q.sys.name.length * 7.5, 96) + 16;
+      placed.push({ x: q.x, y: q.y + 4, w: 34 }, { x: q.x, y: ly - 2, w: pw }, { x: q.x, y: ly + 12, w: pw });
+    }
     const hit = (x, y, w) => placed.some((p) => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < 13);
     const label = (txt, x, y, color, alt) => {
       const w = c.measureText(txt).width + 6;
@@ -467,7 +480,7 @@ export function installNav(game) {
       c.shadowColor = col; c.shadowBlur = q.locked ? 0 : 10; c.strokeStyle = col; c.lineWidth = 2;
       c.beginPath(); c.arc(q.x, q.y, sel ? 13 + Math.sin(t * 6) * 1.5 : 11, 0, Math.PI * 2); c.stroke(); c.shadowBlur = 0;
       c.save(); c.translate(q.x, q.y); c.rotate(q.a); c.fillStyle = col; c.beginPath(); c.moveTo(6, 0); c.lineTo(-3, -5); c.lineTo(-3, 5); c.closePath(); c.fill(); c.restore();
-      const up = q.y < L.h / 2, ly = q.y + (up ? 27 : -18);
+      const up = q.y < L.h / 2, ly = q.y + (up ? 27 : -30);
       c.font = '600 12px Rajdhani, sans-serif'; c.lineWidth = 3; c.strokeStyle = 'rgba(4,8,20,0.85)';
       const name = `${q.sys.name}${q.locked ? ' 🔒' : ''}`;
       // a plate behind the two lines, so the gate reads over planets and their labels

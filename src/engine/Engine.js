@@ -1,4 +1,4 @@
-// BATTLESHIP VELSCOUR — engine core.
+// FLAGSHIP VELSCOUR — engine core.
 // Owns the WebGPU renderer, the post-processing chain, the frame loop and the clock.
 // Everything game-side plugs in through `engine.add(system)`: a system is any object with
 // optional update(dt, t) / lateUpdate(dt, t) / onResize(w, h) methods.

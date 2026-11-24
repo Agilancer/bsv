@@ -134,7 +134,9 @@ export class Director {
       if (d < 2800) nearZone = true;
       if (zs.respawnT > 0) zs.respawnT -= dt;
       if (!zs.active) {
-        if (d < 2600 && zs.respawnT <= 0) { zs.active = true; zs.wave = 0; this.garrison(zs, 0); }
+        // (a garrison does not warp in on a captain who is tied up at a station: a new game starts docked, and
+        // the home patrol used to arrive under the station's guns before the captain had cast off)
+        if (d < 2600 && zs.respawnT <= 0 && !(W.game && W.game.docked)) { zs.active = true; zs.wave = 0; this.garrison(zs, 0); }
         continue;
       }
       if (d > 5200) {   // left behind: stand the garrison down quietly

@@ -99,7 +99,11 @@ async function run(name, vp, browser) {
   await page.evaluate(helpers);
   const ev = (f, a) => page.evaluate(f, a);
   const shot = async (n) => { if (!SHOTS) return; require('fs').mkdirSync(SHOTS, { recursive: true }); await ev(() => __engine.start()); await page.waitForTimeout(2500); await page.screenshot({ path: `${SHOTS}/${n}-${name}.png`, timeout: 120000 }); await ev(() => __engine.renderer.setAnimationLoop(null)); };
-  await ev(() => { __engine.renderer.setAnimationLoop(null); __game.settings().hideHudInAuto = false; __engine.simulate(2); });
+  // a new captain starts docked with the tutorial and an arrival briefing up: these checks are about the
+  // helm and the HUD in open space, so wave those through and cast off first (tools/story.cjs mobile covers them)
+  await ev(() => { __engine.renderer.setAnimationLoop(null); const g = __game; g.settings().hideHudInAuto = false; if (g.skipTutorial) g.skipTutorial(); if (g.story) g.story.skip(); if (g.docked && g.undock) g.undock(); g.ui.closeAll(); __engine.simulate(2); if (g.story) g.story.skip(); g.ui.closeAll(); });
+  // (with the tutorial waved through no skirmish is staged: put one pirate on the scope for the target checks)
+  await ev(async () => { const { ENEMIES } = await import('./src/game/data/enemies.js'); const g = __game, d = ENEMIES.find((e) => e.faction === 'pirate' && e.size === 'small'); const e = g.world.spawnDesign(d, 1, g.player.position.clone().add({ x: 600, y: 0, z: 200 }), 0); e.persistent = true; e.invuln = true; });
 
   const dev = await ev(() => ({ mobile: document.body.classList.contains('mobile'), quality: __engine.quality, res: __engine.res.on, scale: __engine.res.scale, viewport: document.querySelector('meta[name=viewport]').content, touchAction: getComputedStyle(document.getElementById('view')).touchAction }));
   check(dev.mobile && dev.quality === 'low' && dev.res, 'phone detected: touch layout, low tier, dynamic resolution', `pixel ratio ${dev.scale} of device ${2}`);
@@ -132,7 +136,7 @@ async function run(name, vp, browser) {
     g.helm = helm;
     // helm tray
     for (const o of hostile()) o.position.x -= 9000;
-    TT.step(); document.getElementById('mTgt').click(); out.target = g.player.target ? g.player.target.name : null;
+    TT.step(); document.getElementById('mTgt').click(); out.target = g.player.target ? g.player.target.name : null; out.targetDbg = hostile().map((o) => Math.round(o.position.distanceTo(g.player.position)));
     const up = document.getElementById('mUp'), a0 = g.player.altTarget;
     up.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); __engine.simulate(0.5); up.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
     out.climb = [a0, +g.player.altTarget.toFixed(1), g.input.down.has('KeyR')];
@@ -153,7 +157,7 @@ async function run(name, vp, browser) {
   check(sp.tap.taps === 1 && sp.tap.sailing, 'space: a tap sails there', sp.tap);
   check(sp.stickTap.taps === 1 && sp.stickTap.stick, 'space: thumb on the stick + tap on the view = one tap, stick held', sp.stickTap);
   check(sp.stickPinch.to < sp.stickPinch.from / 2 && sp.stickPinch.stick && sp.stickPinch.yawMoved === 0 && sp.stickUp, 'space: thumb on the stick + pinch on the view zooms, stick keeps steering', sp.stickPinch);
-  check(!!sp.target && sp.climb[1] > sp.climb[0] && !sp.climb[2] && sp.zoomBtn[1] < sp.zoomBtn[0] && sp.zoomBtn[2] > sp.zoomBtn[1], 'helm tray: next target, climb (hold), zoom +/−', { target: sp.target, altitude: sp.climb.slice(0, 2), zoom: sp.zoomBtn });
+  check(!!sp.target && sp.climb[1] > sp.climb[0] && !sp.climb[2] && sp.zoomBtn[1] < sp.zoomBtn[0] && sp.zoomBtn[2] > sp.zoomBtn[1], 'helm tray: next target, climb (hold), zoom +/−', { target: sp.target, hostilesAt: sp.targetDbg, altitude: sp.climb.slice(0, 2), zoom: sp.zoomBtn });
   const need = ['quests', 'character', 'inventory', 'skills', 'crew', 'bridge', 'galaxy', 'codex', 'auto', 'options', 'systemMap', 'dock', 'scan', 'explorer', 'refinery', 'autofire'];
   const shown = sp.sheetShown.map((s) => s.split(':')[0]);
   check(sp.sheetOpen && sp.sheetFits && need.every((w) => shown.includes(w)) && sp.sheetShown.every((s) => +s.split(':')[1] >= 40), 'menu sheet: every command, 40 px+ rows, on screen', `${shown.length} buttons` + (need.every((w) => shown.includes(w)) ? '' : ' MISSING ' + need.filter((w) => !shown.includes(w))));
@@ -216,7 +220,9 @@ async function run(name, vp, browser) {
     __engine.simulate(6);
     const M = __game.planet.current, el = document.getElementById('pTouch'), cam = M.cam, t = M.touch, out = {};
     const read = () => ({ dist: +cam.distTarget.toFixed(1), yaw: +cam.yawTarget.toFixed(3) });
-    const c = TT.clear('pTouch', 0.66, 0.45); out.at = c; out.side = c[0] > innerWidth * 0.45 ? 'aim side' : 'stick side';
+    const c = TT.clear('pTouch', 0.66, 0.45);
+    if (!c) { const seen = {}; for (let y = 60; y < innerHeight - 60; y += 24) for (let x = 100; x < innerWidth - 100; x += 24) { const e = document.elementFromPoint(x, y), k = e ? (e.id || e.className || e.tagName) : 'none'; seen[k] = (seen[k] || 0) + 1; } throw new Error('no clear patch of the surface view to touch; what is on top: ' + JSON.stringify(seen)); }
+    out.at = c; out.side = c[0] > innerWidth * 0.45 ? 'aim side' : 'stick side';
     cam.distTarget = cam.distance = 110; out.start = read();
     TT.ptwo(el, [c[0] - 30, c[1]], [c[0] + 30, c[1]], [c[0] - 90, c[1]], [c[0] + 90, c[1]]); out.spread = read(); out.idle = !t.stick && !t.aim && !t.gesture;
     TT.ptwo(el, [c[0] - 90, c[1]], [c[0] + 90, c[1]], [c[0] - 45, c[1]], [c[0] + 45, c[1]]); out.pinch = read();

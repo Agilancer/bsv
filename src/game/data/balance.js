@@ -192,8 +192,8 @@ export function expectedExtras(L) {
 // the ranks tools/duel.cjs measures (5, 15, 30, 50) and interpolated between. Recalibrate a column by
 // dividing the pool entry by the measured `rP` (and multiplying the damage entry by `rE`), damped.
 export const BOSS_LEVELS = [5, 15, 30, 50];
-export const BOSS_POOL_SCALE = { 3: [0.78, 0.87, 1.13, 1.87], 4: [1.05, 1.92, 1.5, 2.88], 5: [0.62, 0.8, 1.3, 4.2] };
-export const BOSS_DMG_SCALE = { 3: [1.0, 0.85, 1.45, 1.9], 4: [0.55, 1.35, 2.2, 2.2], 5: [0.75, 1.0, 2.2, 2.2] };
+export const BOSS_POOL_SCALE = { 3: [0.78, 0.87, 1.13, 1.87], 4: [1.05, 1.92, 1.5, 2.88], 5: [0.62, 0.8, 1.41, 5.6] };
+export const BOSS_DMG_SCALE = { 3: [1.0, 0.85, 1.45, 1.9], 4: [0.55, 1.35, 2.2, 2.2], 5: [0.75, 1.0, 3.3, 3.8] };
 function byRank(table, L) {
   if (!table) return 1;
   const X = BOSS_LEVELS;

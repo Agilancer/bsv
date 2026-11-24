@@ -219,7 +219,7 @@ export class Station {
       if (tr.cd > 0) continue;
       let tg = null, bd = this.safeRadius * this.safeRadius;
       for (const s of W.ships) {
-        if (!s.alive || s.team === 1 || (s.faction === 'rival' && !s.provoked)) continue;
+        if (!s.alive || s.team === 1 || (s.faction === 'rival' && !s.provoked) || s.lesson) continue;   // (the tutorial's pirates are the captain's to sink)
         const d = s.position.distanceToSquared(this.position);
         if (d < bd) { bd = d; tg = s; }
       }

@@ -61,7 +61,11 @@ export function installOnboarding(game) {
   })(game.start.bind(game));
 
   // two pirate cutters jump in away from the station's guns: the first fight
+  // the lesson's pirates: station guns leave them alone, and if they are lost before the captain has sunk
+  // one (an ally got there first, or they ran) another pair is staged, so the lesson can always be finished
+  const lesson = [];
   function stageSkirmish(delay) {
+    if (staged && lesson.length && lesson.every((o) => !o.alive) && game.data.kills === 0) { staged = false; lesson.length = 0; delay = Math.max(delay, 6); }
     if (staged) return;
     staged = true;
     game.world.schedule(delay, () => {
@@ -71,7 +75,8 @@ export function installOnboarding(game) {
       const away = st ? P.position.clone().sub(st.position).setY(0).normalize() : new THREE.Vector3(1, 0, 0);
       const at = P.position.clone().addScaledVector(away, 700);
       const pool = ENEMIES.filter((e) => e.faction === 'pirate' && e.size === 'small' && ['interceptor', 'gunboat'].includes(e.role));
-      for (let i = 0; i < 2; i++) game.world.spawnDesign(pool[i % pool.length], 1, at.clone().add(new THREE.Vector3((i - 0.5) * 160, 0, (i - 0.5) * 120)), Math.atan2(-away.x, -away.z));
+      lesson.length = 0;
+      for (let i = 0; i < 2; i++) { const o = game.world.spawnDesign(pool[i % pool.length], 1, at.clone().add(new THREE.Vector3((i - 0.5) * 160, 0, (i - 0.5) * 120)), Math.atan2(-away.x, -away.z)); o.lesson = true; lesson.push(o); }
       game.ui.toast('Pirates inbound — clear them out', 'warn');
     });
   }

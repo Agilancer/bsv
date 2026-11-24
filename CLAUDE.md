@@ -1,4 +1,4 @@
-# BATTLESHIP VELSCOUR — working notes
+# FLAGSHIP VELSCOUR — working notes
 
 WebGPU space action-RPG (three.js r180 `three/webgpu` + TSL), no build step: ES modules via the
 import map in `index.html`, three vendored in `vendor/three/` (with the addons we use).
@@ -76,6 +76,8 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - `python3 tools/serve.py 8420`, then `node tools/shot.cjs "index.html?play&new&webgl" out.png 15000`
   (`EVAL="…"`, `POSTWAIT=ms`). Headless WebGPU canvases screenshot black: use `&webgl` for
   pictures and `tools/gpuprobe.html` to verify the WebGPU path by pixel readback.
+- Story: `node tools/story.cjs manual|auto|mobile` plays the opening for real; `node tools/storyff.cjs [0|1|2] --gate`
+  fast-forwards the live story runtime to an ending (every briefing, choice and set piece stages; fights are not played).
 - Touch / phones: `node tools/touch.cjs --gate [--shots=dir]` emulates 360x640 and 800x360 with
   synthetic touches: pinch / twist / drag vs camera distance and yaw (space and surface), gestures vs
   the sticks, HUD overlap / off-screen / 40 px tap targets, hold-to-inspect, rotation, resolution
@@ -95,11 +97,16 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   seconds, `pvpEngage(L)`, per-mode `focus`); `node tools/pvp.cjs 4 --fixed` measures the autoplay
   captain's win rate at equal rating (target ~50%). Guild perks are capped at +8% XP, +8% credits,
   +1.5% hull per kill (`guildPerks`).
+- `duel.cjs 5,15,30,50 --gate` passes for all six sizes with the current tables. Gargantuans only count at
+  ranks 30 and 50 (`rel`), and their rank-30 pool sits on a cliff (0.4x below ~1.4, 2.9x above): move it in
+  hundredths. Boss damage at rank 50 does not answer its multiplier (salvoes are clipped by the per-second
+  `MIN_TTK` window), so it reads ~1.9x there by design.
 - Epic-and-up pools and damage are tabulated per rank (`BOSS_POOL_SCALE`, `BOSS_DMG_SCALE` at ranks 5/15/30/50,
   interpolated). Boss time-to-kill is not smooth in the pool (escorts and phases make cliffs), so correct a
   column with a damped step and re-measure; `duel.cjs` results still move ~10% with which duels ran before.
 - Opposing PvP captains are eased below rank 10 (`guild/data.js earlyHandicap`); the autopilot leaves PvP
-  alone until rank 6. Story set pieces hold off while another fight is on or the hull is under half.
+  alone until rank 6. Story set pieces hold off while another fight is on; story briefings wait until the
+  captain is in open space (not on a surface, the bridge or in an arena match).
 - Telegraphed specials pass `TELEGRAPH` (Combat.js) as ws: their own per-hit budget, outside the
   `MIN_TTK` per-source window. Escorts a boss spawns set `capRoot` to share its window.
 

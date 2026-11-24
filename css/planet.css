@@ -1,4 +1,4 @@
-/* BATTLESHIP VELSCOUR — planet exploration interface (reuses .holo .scan .btn .win .bar .label .title) */
+/* FLAGSHIP VELSCOUR — planet exploration interface (reuses .holo .scan .btn .win .bar .label .title) */
 #pOverlay { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
 #planetHud { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
 #planetHud > * { pointer-events: auto; }
