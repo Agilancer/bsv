@@ -98,7 +98,7 @@ export const ROLES = {
 // Six enemy factions. `style` = hull design language for HullBuilder (YARDS key).
 export const ENEMY_FACTIONS = {
   pirate: { name: 'Corsair Pirates', team: 2, styles: ['corsair', 'corsair', 'tidewright'], minDanger: 1, blurb: 'Raiders, boarders and fireships under black pennants.' },
-  rival: { name: 'Rival Companies', team: 4, styles: ['aurelian', 'ironhold', 'velscour', 'tidewright'], minDanger: 1, blurb: 'Corporate security fleets — neutral until provoked.' },
+  rival: { name: 'Rival Companies', team: 4, styles: ['aurelian', 'ironhold', 'aurelian', 'tidewright'], minDanger: 1, blurb: 'Corporate security fleets — neutral until provoked.' },
   rustborn: { name: 'Rustborn Scavengers', team: 5, styles: ['rustborn'], minDanger: 3, blurb: 'Welded from wrecks, hungry for yours.' },
   covenant: { name: 'Hollow Star Covenant', team: 3, styles: ['hollow'], minDanger: 8, blurb: 'Grown hulls that sing. They want what is inside you.' },
   brood: { name: 'Leviathan Brood', team: 7, styles: ['brood'], minDanger: 6, blurb: 'Void fauna — eels, rays, krakens, star-whales.' },
@@ -163,6 +163,20 @@ const GLOW_VARIANTS = {
   covenant: [0xff2040, 0xff40a0, 0xc02060], brood: [0x40ffd0, 0x60a0ff, 0xb070ff], silent: [0x9ff0ff, 0xffffff, 0xa0b0ff],
 };
 
+// what a role carries on its hull, so roles read at a glance
+export const ROLE_KIT = {
+  fireship: 'payload', minelayer: 'mines', minecruiser: 'mines', minelord: 'mines', minefield: 'mines',
+  boarder: 'grapple', assault: 'grapple', juggernaut: 'grapple', devourer: 'grapple',
+  spotter: 'dish', jammer: 'dish', tender: 'cranes', hivelord: 'cranes',
+  siege: 'barrel', siegeship: 'barrel', siegelord: 'barrel', siegeworld: 'barrel', gunship: 'barrel', bombardier: 'barrel',
+  escort: 'emitters', shieldship: 'emitters', fortress: 'emitters', fortressworld: 'emitters',
+  command: 'antenna', warlord: 'antenna', flagship: 'antenna', apex: 'antenna', apexworld: 'antenna',
+  interceptor: 'wings', harrier: 'wings', swarmer: 'wings', raider: 'wings', ionskiff: 'wings',
+  beamship: 'prism', beamlord: 'prism', beamworld: 'prism', lancer: 'prism', battlecruiser: 'prism',
+  lightcarrier: 'carrier', carrier: 'carrier', assaultcarrier: 'carrier', carrierlord: 'carrier',
+};
+export const ROLE_SHAPE = { hive: 'sphere', carrierworld: 'sphere' };
+
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 
 export const ENEMIES = [];
@@ -186,6 +200,7 @@ for (const [fk, F] of Object.entries(ENEMY_FACTIONS)) {
         ai: role.ai, weapons: role.w, specials: role.specials || [], pack: role.pack || 1,
         mul: { hull: size.hull * (role.hull || 1), shield: size.shield * (role.shield || 1), speed: role.speed || 1, turn: role.turn || 1, armor: role.armor || 0 },
         boss: size.boss || 0, phases: size.phases || null, minDanger, desc: role.desc,
+        kit: ROLE_KIT[role.k] || null, shape: ROLE_SHAPE[role.k] || null,
         seed: h,
       });
     });

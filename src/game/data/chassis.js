@@ -70,6 +70,21 @@ export const YARDS = {
   },
 };
 
+// Each class has its own silhouette (arch): bow length, number of gun decks, where the
+// castle sits, outrigger pods or side hulls, an armour belt, fins.
+export const ARCH = {
+  1: { prow: 0.75, decks: 1, castle: 'aft', castleScale: 0.7 },
+  2: { prow: 0.9, decks: 1, castle: 'aft', outrig: 'pods' },
+  3: { prow: 1.0, decks: 1, castle: 'mid' },
+  4: { prow: 1.45, decks: 1, castle: 'aft', castleScale: 0.8, torpBow: true },
+  5: { prow: 1.1, decks: 2, castle: 'twin', fins: 0.6 },
+  6: { prow: 1.0, decks: 2, castle: 'aft' },
+  7: { prow: 0.85, decks: 2, castle: 'aft', belt: true },
+  8: { prow: 1.3, decks: 2, castle: 'aft', fins: 1, castleScale: 0.9 },
+  9: { prow: 1.0, decks: 3, castle: 'aft', castleScale: 1.15 },
+  10: { prow: 1.05, decks: 3, castle: 'twin', outrig: 'hulls', castleScale: 1.2 },
+};
+
 export const CLASSES = [
   // tier, name, length, beam/len, crew, hull, shield, speed, turn(deg/s), slots
   { tier: 1, name: 'Cutter', len: 38, beam: 0.20, crew: [5, 12], hull: 900, shield: 600, speed: 96, turn: 46, slots: { broadside: 1, turret: 1, prow: 1, hangar: 0, module: 2 } },
@@ -110,7 +125,8 @@ for (const [yk, yard] of Object.entries(YARDS)) {
       speed: +(c.speed * mod.speed).toFixed(1), turn: +(c.turn * mod.turn).toFixed(1),
       slots, level: Math.max(1, (c.tier - 2) * 6 + 1 + (yk === 'hollow' ? 4 : 0)),
       price: Math.round(1200 * Math.pow(c.tier, 2.6) * (yk === 'hollow' ? 2 : 1)),
-      seed: (c.tier * 7919 + yk.length * 104729) >>> 0,
+      seed: (c.tier * 7919 + [...yk].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619), 2166136261)) >>> 0,
+      arch: ARCH[c.tier], carrier: yk === 'corsair' && [6, 8, 10].includes(c.tier),
     });
   });
 }

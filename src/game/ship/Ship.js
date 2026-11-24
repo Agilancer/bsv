@@ -100,7 +100,7 @@ export class Ship {
     this.weaponGroup = new THREE.Group();
     this.body.add(this.weaponGroup);
     this.weapons = [];
-    const s = this.dims.W * 0.42;
+    const s = this.dims.W * 0.72;   // gun scale: big enough to read at play zoom
     for (const hp of this.hardpoints) {
       const key = Ship.slotKey(hp);
       const item = this.loadout[key];

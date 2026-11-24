@@ -1,6 +1,6 @@
 // Turns a roster design (data/enemies.js) into a live Ship: a pseudo-chassis for the hull
 // builder and stats, a role loadout, size-class multipliers, AI archetype and specials.
-import { CLASSES } from './data/chassis.js';
+import { CLASSES, ARCH } from './data/chassis.js';
 import { ENEMY_FACTIONS, SIZES, designSlots } from './data/enemies.js';
 import { makeItem } from './data/items.js';
 import { slotKeys, slotType } from './Player.js';
@@ -18,6 +18,7 @@ export function enemyChassis(d) {
     hull: Math.round(base.hull * d.mul.hull), shield: Math.round(base.shield * d.mul.shield),
     speed: +(base.speed * d.mul.speed * (d.sizeIndex >= 4 ? 0.85 : 1)).toFixed(1), turn: +(base.turn * d.mul.turn).toFixed(1),
     slots: designSlots(d), level: 1, price: 0, seed: d.seed,
+    arch: { ...ARCH[d.tier], decks: Math.min(3, 1 + Math.floor(d.sizeIndex / 2)), outrig: d.sizeIndex >= 5 && d.role !== 'devourer' ? 'hulls' : ARCH[d.tier].outrig }, kit: d.kit, shape: d.shape,
   };
   chassisCache.set(d.id, c);
   return c;
