@@ -8,10 +8,10 @@ export class GroundFX {
   constructor(engine) {
     this.engine = engine;
     this.slots = [];
-    for (let i = 0; i < 6; i++) this.slots.push({ pos: uniform(new THREE.Vector4(0, 0, 1, 0)), col: uniform(new THREE.Color(0x58c8ff)), fill: uniform(0) });
+    for (let i = 0; i < 8; i++) this.slots.push({ pos: uniform(new THREE.Vector4(0, 0, 1, 0)), col: uniform(new THREE.Color(0x58c8ff)), fill: uniform(0) });
     this.uPulse = uniform(new THREE.Vector4(0, 0, -100, 0));
     this.uPulseCol = uniform(new THREE.Color(0x58c8ff));
-    this.tele = [];          // timed telegraphs in slots 3..5
+    this.tele = [];          // timed telegraphs in slots 3..7
   }
   // emissive contribution for a world position node p
   node(p) {
@@ -42,11 +42,12 @@ export class GroundFX {
   }
   pulse(x, z, hex = 0x58c8ff, strength = 1) { this.uPulse.value.set(x, z, this.engine.time, strength); this.uPulseCol.value.set(hex); }
   // a filling danger ring that lasts `time` seconds
-  telegraph(p, r, hex, time) {
+  // follow: an object whose .position / .pos the ring tracks (missile locks, priming kamikazes)
+  telegraph(p, r, hex, time, follow = null) {
     let slot = 3;
-    if (this.tele.length >= 3) { const old = this.tele.shift(); slot = old.slot; }
+    if (this.tele.length >= 5) { const old = this.tele.shift(); slot = old.slot; }
     else { const used = new Set(this.tele.map((t) => t.slot)); while (used.has(slot)) slot++; }
-    this.tele.push({ slot, x: p.x, z: p.z, r, hex, t: 0, time });
+    this.tele.push({ slot, x: p.x, z: p.z, r, hex, t: 0, time, follow });
   }
   update(dt) {
     for (let i = this.tele.length - 1; i >= 0; i--) {
@@ -54,8 +55,9 @@ export class GroundFX {
       T.t += dt;
       const f = T.t / T.time;
       if (f >= 1) { this.set(T.slot, 0, 0, 1, 0); this.tele.splice(i, 1); continue; }
+      if (T.follow) { const fp = T.follow.position || T.follow.pos; if (fp) { T.x = fp.x; T.z = fp.z; } }
       this.set(T.slot, T.x, T.z, T.r, 0.6 + f * 1.2, T.hex, f * 0.9);
     }
   }
-  clear() { for (let i = 0; i < 6; i++) this.set(i, 0, 0, 1, 0); this.tele.length = 0; }
+  clear() { for (let i = 0; i < this.slots.length; i++) this.set(i, 0, 0, 1, 0); this.tele.length = 0; }
 }

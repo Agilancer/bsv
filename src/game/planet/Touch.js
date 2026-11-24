@@ -2,11 +2,13 @@
 // fire under the right (tap to fire at a spot, drag to sweep), auto-target when the right thumb is
 // free, and big buttons for boost and mining (abilities + probe live on the HUD bar).
 import * as THREE from 'three/webgpu';
+import { isTouch } from '../../ui/mobile.js';
 
 const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
 
 export class TouchControls {
-  static wanted() { return (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) || new URLSearchParams(location.search).has('touch'); }
+  // same rule as space (coarse pointer, a window under 900 px, ?mobile), plus ?touch
+  static wanted() { return typeof matchMedia !== 'undefined' && (isTouch() || new URLSearchParams(location.search).has('touch')); }
   constructor(mode) {
     this.mode = mode;
     this.active = true;
