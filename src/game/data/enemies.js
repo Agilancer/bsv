@@ -5,6 +5,7 @@
 // larges besiege, snare and command; epics are mini-bosses with a signature attack;
 // legendaries are multi-phase bosses; gargantuans are set-piece raid fights against things
 // that dwarf a dreadnought. Pure data — importable in node.
+import { LIVERIES } from './liveries.js';
 
 export const SIZES = [
   { k: 'small', name: 'Small', tiers: [1, 2], len: [20, 46], hull: 0.55, shield: 0.5, xp: 0.6, loot: 0.6, minDanger: 1, color: '#c4cad6' },
@@ -174,11 +175,8 @@ const N = {
   ],
 };
 
-// tint / glow overrides so the same faction's ships vary across a roster
-const GLOW_VARIANTS = {
-  pirate: [0xff3050, 0xff7040, 0xffc040], rival: [0x58b8ff, 0xffd070, 0x7ad8ff, 0xffa030], rustborn: [0xffa040, 0xff7020, 0xffd060],
-  covenant: [0xff2040, 0xff40a0, 0xc02060], brood: [0x40ffd0, 0x60a0ff, 0xb070ff], silent: [0x9ff0ff, 0xffffff, 0xa0b0ff],
-};
+// glow overrides so the same faction's ships vary across a roster, inside the faction's livery
+const GLOW_VARIANTS = Object.fromEntries(Object.entries(LIVERIES).map(([k, l]) => [k, l.glows]));
 
 // what a role carries on its hull, so roles read at a glance
 export const ROLE_KIT = {
