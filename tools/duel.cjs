@@ -7,11 +7,12 @@ const { chromium } = require('playwright');
   const levels = (process.argv[2] || '5,15,30,50').split(',').map(Number);
   const stat = process.argv.includes('--static');   // player holds position, guns only (sustained output)
   const SAMPLES_ARG = +((process.argv.find((a) => a.startsWith('--samples=')) || '--samples=3').split('=')[1]);
+  const SIZES_ARG = ((process.argv.find((a) => a.startsWith('--sizes=')) || '--sizes=0,1,2,3,4,5').split('=')[1]).split(',').map(Number);   // e.g. --sizes=4,5 for bosses only
   const b = await chromium.launch({ args: ['--use-angle=swiftshader'] });
   const p = await b.newPage({ viewport: { width: 480, height: 270 } });
   await p.goto(`http://localhost:${process.env.PORT || 8420}/index.html?play&new&webgl&q=low`);
   await p.waitForTimeout(12000);
-  const raw = await p.evaluate(async ([levels, stat, SAMPLES]) => {
+  const raw = await p.evaluate(async ([levels, stat, SAMPLES, ONLY]) => {
     const g = __game, W = g.world;
     const { ENEMIES, SIZES } = await import('./src/game/data/enemies.js');
     const { expectedPlayer } = await import('./src/game/data/balance.js');
@@ -23,6 +24,7 @@ const { chromium } = require('playwright');
     for (const L of levels) {
       const E = expectedPlayer(L);
       for (let si = 0; si < 6; si++) for (let sample = 0; sample < SAMPLES; sample++) {
+        if (!ONLY.includes(si)) continue;
         for (const s of W.ships.slice()) if (s !== g.player) W.removeShip(s);
         g.data.level = L; g.data.ship.level = L; g.data.ship.chassis = `velscour_${E.tier}`;
         g.data.ship.loadout = starterLoadout({ ...(await import('./src/game/data/chassis.js')).CHASSIS_BY_ID[`velscour_${E.tier}`] }, L, new RNG(L + si + sample * 101), 'rare');
@@ -60,7 +62,7 @@ const { chromium } = require('playwright');
       }
     }
     return out;
-  }, [levels, stat, SAMPLES_ARG]);
+  }, [levels, stat, SAMPLES_ARG, SIZES_ARG]);
   // one row per (level, size): the median of its samples
   const med = (a) => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
   const rows = [];
