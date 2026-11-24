@@ -45,6 +45,8 @@ const { chromium } = require('playwright');
         { let a = (L * 7919 + si * 104729 + sample * 1299709) >>> 0; Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
         // warm start: abilities mid-cycle (seeded), as in the middle of real play — a fresh duel would
         // otherwise open with every cooldown ready and delete mid-size ships before they fire
+        // ...and from the same clock (game time carries a machine-dependent fraction from the frames drawn before this script)
+        __engine.time = Math.ceil((__engine.time + 1) / 1000) * 1000; __engine.uTime.value = __engine.time;
         g.cooldowns = {};
         for (const a of ABILITIES) g.cooldowns[a.k] = __engine.time + Math.random() * g.abilityCd(a);
         // samples: the brawler, then other pirate designs of the size (different roles)

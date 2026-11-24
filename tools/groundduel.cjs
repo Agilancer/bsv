@@ -31,6 +31,10 @@ async function dungeonRuns(cfg) {
       const g = __game, E = __engine;
       const GB = await import('./src/game/planet/groundBalance.js');
       if (g.sector && g.sector.director) g.sector.director.update = () => {};
+    // only the game (which steps the planet mode) and the particle layers keep running: the always-on
+    // modules (simulated population, crew, bridge...) tick on timers set by however many real frames this
+    // machine drew before now, and they draw from the same Math.random stream as the duel
+    for (const s of E.systems) if (s !== g && s.capacity === undefined) { if (s.update) s.update = () => {}; if (s.lateUpdate) s.lateUpdate = () => {}; }
       if (g.autoplay) g.toggleAutoplay();
       if (g.mode === 'planet' && g.planet.current) { g.planet.current.state = 'play'; g.exitMode && g.exitMode(); }
       const M = g.planet.debugDeploy('barren', { hazard: 2, level: L, features: ['nest'] });
@@ -105,6 +109,10 @@ async function dungeonRuns(cfg) {
     const { ENEMIES } = await import('./src/game/planet/enemies.js');
     const GB = await import('./src/game/planet/groundBalance.js');
     if (g.sector && g.sector.director) g.sector.director.update = () => {};
+    // only the game (which steps the planet mode) and the particle layers keep running: the always-on
+    // modules (simulated population, crew, bridge...) tick on timers set by however many real frames this
+    // machine drew before now, and they draw from the same Math.random stream as the duel
+    for (const s of E.systems) if (s !== g && s.capacity === undefined) { if (s.update) s.update = () => {}; if (s.lateUpdate) s.lateUpdate = () => {}; }
     if (g.autoplay) g.toggleAutoplay();
     const M = g.planet.debugDeploy('barren', { hazard: 1, features: ['nest'] });
     E.simulate(5, 1 / 20);
@@ -144,6 +152,9 @@ async function dungeonRuns(cfg) {
               const run = (shoot, secs) => {
                 // every run draws from its own seeded stream (same code => same answer)
                 { let a = (L * 7919 + si * 104729 + k * 1299709 + (shoot ? 1 : 2) * 15485863 + mode.length * 32452843) >>> 0; Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+                // ...and from the same clock: the page ran a machine-dependent number of real frames before this
+                // script, so game time carries an arbitrary fraction that flips cooldown comparisons by a frame
+                E.time = Math.ceil((E.time + 1) / 1000) * 1000; E.uTime.value = E.time;
                 M.creatures.list.length = 0; M.shots.clear(); M.timers.length = 0; M.ground.clear();
                 if (M.warnings) M.warnings.length = 0;
                 V.alive = true; V.setVisible(true); M.state = 'play';
