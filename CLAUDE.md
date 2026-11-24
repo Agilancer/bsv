@@ -33,7 +33,10 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   (autoplay pacing in the shipped config: kills per space-minute, idle share, planet share ≤30%,
   no hung goal; `--space` drops planet runs),
   `node tools/stalemate.cjs 2,8,20 --gate` (no silent manoeuvring duels),
-  `node tools/duel.cjs 5,15,30,50 --gate` (measured time-to-kill vs `balance.TTK`, per size class)
+  `node tools/duel.cjs 5,15,30,50 --gate` (measured time-to-kill vs `balance.TTK`, per size class;
+  seeded, 5 designs per cell, abilities off = sustained gunnery; `--sizes=4,5` to shard),
+  `node tools/groundduel.cjs 5,15,30,50 --gate` (surface: kiting and static explorer vs the ground
+  contract in `planet/groundBalance.js`; `--dungeon` for dungeons)
 - `python3 tools/serve.py 8420`, then `node tools/shot.cjs "index.html?play&new&webgl" out.png 15000`
   (`EVAL="…"`, `POSTWAIT=ms`). Headless WebGPU canvases screenshot black: use `&webgl` for
   pictures and `tools/gpuprobe.html` to verify the WebGPU path by pixel readback.
