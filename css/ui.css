@@ -153,6 +153,11 @@ button { font-family: var(--font); }
 #inventory { right: 16px; top: 70px; width: 720px; }
 #inventory .cols { display: grid; grid-template-columns: 330px 1fr; gap: 16px; }
 .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.hplan { margin: 4px 0 6px; }
+.hplan canvas { width: 100%; height: 230px; display: block; background: radial-gradient(ellipse at 50% 45%, rgba(40, 70, 160, 0.22), transparent 70%); border: 1px solid rgba(88, 184, 255, 0.15); }
+.hplan .label a { color: var(--cyan); }
+#inventory .cell.off { opacity: 0.22; }
+body.mobile .hplan canvas { height: 170px; }
 .slot, .cell { aspect-ratio: 1; border: 1px solid rgba(80, 120, 200, 0.35); background: rgba(6, 12, 28, 0.8); position: relative; cursor: pointer; }
 .slot .st { position: absolute; left: 3px; top: 1px; font-size: 9px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; font-family: var(--head); }
 .slot:hover, .cell:hover { border-color: var(--cyan); }

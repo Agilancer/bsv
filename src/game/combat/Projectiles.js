@@ -6,7 +6,7 @@ import { vec3, float, uv, positionLocal, smoothstep, abs } from 'three/tsl';
 import { hitShipsAlong } from './Combat.js';
 
 const Z = new THREE.Vector3(0, 0, 1);
-const _d = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _c = new THREE.Color();
+const _d = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _c = new THREE.Color(), _white = new THREE.Color(1, 1, 1);
 
 export class Projectiles {
   constructor(world, capacity = 4096) {
@@ -133,12 +133,13 @@ export class Beams {
       _q.setFromUnitVectors(Z, _d);
       const jitter = 1 + (Math.random() - 0.5) * 0.25;
       for (let k = 0; k < 2; k++) {
-        const wdt = (k === 0 ? b.width * 3.2 : b.width * 0.8) * (0.4 + 0.6 * f) * jitter;
+        // outer glow kept modest: close cameras (phones) were washed out by wide additive beams
+        const wdt = (k === 0 ? b.width * 2.3 : b.width * 0.8) * (0.4 + 0.6 * f) * jitter;
         _s.set(wdt, wdt, len);
         _m.compose(b.a, _q, _s);
         this.mesh.setMatrixAt(n, _m);
-        _c.copy(b.color).multiplyScalar(k === 0 ? 0.35 * f : 1.6 * f);
-        if (k === 1) _c.lerp(new THREE.Color(1, 1, 1), 0.5 * f);
+        _c.copy(b.color).multiplyScalar(k === 0 ? 0.28 * f : 1.6 * f);
+        if (k === 1) _c.lerp(_white, 0.5 * f);
         this.mesh.setColorAt(n, _c);
         n++;
       }

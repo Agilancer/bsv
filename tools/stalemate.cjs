@@ -58,10 +58,12 @@ const { chromium } = require('playwright');
     }
     return out;
   }, levels);
-  const bad = rows.filter((r) => r.toEnemy === 0 || r.toPlayer === 0);
+  // static duels may legitimately be one-sided (artillery and carriers out-range a captain who
+  // won't move); the gate is on manoeuvring duels, where both sides must trade fire
+  const bad = rows.filter((r) => r.mode === 'move' && (r.toEnemy === 0 || r.toPlayer === 0));
   console.table(rows.map((r) => ({ ...r, flag: r.toEnemy === 0 ? 'PLAYER SILENT' : r.toPlayer === 0 ? 'ENEMY SILENT' : '' })));
   if (errs.length) console.log('errors:', [...new Set(errs)].slice(0, 6).join('\n'));
   await b.close();
-  console.log(`${bad.length} silent duels of ${rows.length}`);
+  console.log(`${bad.length} silent manoeuvring duels (of ${rows.filter((r) => r.mode === 'move').length}); ${rows.filter((r) => r.mode === 'static' && (r.toEnemy === 0 || r.toPlayer === 0)).length} one-sided static duels (info)`);
   if (gate && bad.length) process.exit(1);
 })();

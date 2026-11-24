@@ -2,6 +2,7 @@
 // (brackets, health bars, damage numbers, loot labels, weapon arcs), and the windows.
 import * as THREE from 'three/webgpu';
 import { icon } from './icons.js';
+import { drawHullPlan } from './hullPlan.js';
 import { ABILITIES } from '../game/data/abilities.js';
 import { BASES, RARITY, describe, itemShipStats, weaponStats } from '../game/data/items.js';
 import { slotKeys, slotType, xpForLevel, shipXpForLevel, itemScore, INV_SIZE } from '../game/Player.js';
@@ -195,7 +196,8 @@ export class UI {
     const keys = slotKeys(chassis);
     const groups = {};
     for (const k of keys) (groups[slotType(k)] ||= []).push(k);
-    let left = '';
+    // the hull itself, mounts where they sit: hover for what's fitted, click to filter the hold
+    let left = ship ? `<div class="hplan"><canvas></canvas><div class="label">${chassis.fullName} · click a mount to see what fits${this.slotFilter ? ` · <a href="#" id="hpClear">show all</a>` : ''}</div></div>` : '';
     for (const [t, ks] of Object.entries(groups)) {
       left += `<div class="label" style="margin:8px 0 4px">${SLOT_LABEL[t]}s</div><div class="slots">`;
       for (const k of ks) {
@@ -210,12 +212,32 @@ export class UI {
       const it = P.inventory[i];
       let up = '';
       if (it) { const cur = g.worstEquipped(it.slot); if (!cur || itemScore(it) > itemScore(cur)) up = '<span class="up">▲</span>'; }
-      right += `<div class="cell" data-i="${i}">${it ? this.itemEl(it, up) : ''}</div>`;
+      const off = this.slotFilter && it && it.slot !== this.slotFilter;
+      right += `<div class="cell${off ? ' off' : ''}" data-i="${i}">${it ? this.itemEl(it, up) : ''}</div>`;
     }
     right += `</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
       <button class="btn" id="invBest">Equip best</button><button class="btn violet" id="invSalvage">Salvage commons</button><button class="btn bad" id="invSellJunk">Sell below rare</button></div>
       <div class="label" style="margin-top:10px">Click: equip / unequip · Right-click: salvage for credits · Drag to a slot</div>`;
     body.innerHTML = `<div class="cols"><div>${left}</div><div>${right}</div></div>`;
+    const cv = body.querySelector('.hplan canvas');
+    if (cv && ship) {
+      const hits = drawHullPlan(cv, ship, P.ship.loadout, this.slotFilter);
+      const at = (e) => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; return hits.find((h) => (h.x - x) ** 2 + (h.y - y) ** 2 < h.r * h.r); };
+      cv.addEventListener('mousemove', (e) => {
+        const h = at(e); cv.style.cursor = h ? 'pointer' : 'default';
+        if (!h) return this.hideTip();
+        const it = P.ship.loadout[h.key];
+        this.showTip(it ? this.itemTip(it) : `<div class="tn">Empty ${SLOT_LABEL[h.type] || h.type} mount</div><div class="tl">Click to show what fits</div>`, e);
+      });
+      cv.addEventListener('mouseleave', () => this.hideTip());
+      cv.addEventListener('click', (e) => {
+        const h = at(e); if (!h) return;
+        this.slotFilter = this.slotFilter === h.type ? null : h.type;
+        const sl = body.querySelector(`.slot[data-slot="${h.key}"]`); if (sl) sl.classList.add('pulse');
+        this.renderInventory();
+      });
+      const clr = body.querySelector('#hpClear'); if (clr) clr.onclick = (e) => { e.preventDefault(); this.slotFilter = null; this.renderInventory(); };
+    }
     const find = (uid) => P.inventory.find((x) => x && x.uid === uid) || Object.values(P.ship.loadout).find((x) => x && x.uid === uid);
     body.querySelectorAll('.item').forEach((el) => {
       const it = find(el.dataset.uid);

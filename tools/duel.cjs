@@ -47,6 +47,23 @@ const { chromium } = require('playwright');
     }
     return out;
   }, [levels, stat]);
-  console.table(rows);
+  // contract check: both directions within ±35% of balance.TTK (sizes that can appear at that rank)
+  const { TTK, SIZES_MIN } = await p.evaluate(async () => { const B = await import('./src/game/data/balance.js'); const E = await import('./src/game/data/enemies.js'); return { TTK: B.TTK, SIZES_MIN: E.SIZES.map((x) => x.minDanger || 0) }; });
+  const SIZE_I = { small: 0, mid: 1, large: 2, epic: 3, legendary: 4, gargantuan: 5 };
+  const tol = 0.35, bad = [];
+  for (const r of rows) {
+    const si = SIZE_I[r.size];
+    r.wantP = TTK.playerKills[si]; r.wantE = TTK.enemyKills[si];
+    const pk = typeof r.playerKillsIt === 'number' ? r.playerKillsIt : 999;
+    r.rP = +(pk / r.wantP).toFixed(2); r.rE = +(r.itKillsPlayer / r.wantE).toFixed(2);
+    const relevant = (SIZES_MIN[si] || 0) <= r.L + 6;
+    r.ok = !relevant ? 'n/a' : (Math.abs(r.rP - 1) <= tol && Math.abs(r.rE - 1) <= tol ? 'ok' : 'OUT');
+    if (r.ok === 'OUT') bad.push(`L${r.L} ${r.size}: you kill it in ${pk}s (want ${r.wantP}), it kills you in ${r.itKillsPlayer}s (want ${r.wantE})`);
+  }
+  console.table(rows.map(({ L, size, design, playerKillsIt, wantP, rP, itKillsPlayer, wantE, rE, ok }) => ({ L, size, design, playerKillsIt, wantP, rP, itKillsPlayer, wantE, rE, ok })));
   await b.close();
+  if (process.argv.includes('--gate')) {
+    if (bad.length) { console.log('GATE FAIL (±35% of balance.TTK):\n  ' + bad.join('\n  ')); process.exit(1); }
+    console.log('GATE PASS');
+  }
 })();

@@ -17,6 +17,11 @@ import { canLearn } from './data/talents.js';
 const canLearnQuiet = (g, k) => canLearn(g.data, k);
 
 const _v = new THREE.Vector3();
+const TALENT_BUILDS = {
+  broadside: ['gunDrill', 'hullUp', 'harmonics', 'reload', 'deadeye', 'homing', 'recharge', 'broadMaster', 'tactics', 'helm', 'burners', 'hydra', 'lineOfBattle', 'ablative', 'damageCtl', 'veteran', 'plunder', 'lastStand', 'merchant', 'tractor', 'evasivePro', 'wingCmd', 'admiral', 'slipstream', 'ram', 'bastion'],
+  carrier: ['tactics', 'hullUp', 'plunder', 'harmonics', 'merchant', 'veteran', 'wingCmd', 'carrierAdmiral', 'gunDrill', 'recharge', 'reload', 'ablative', 'deadeye', 'damageCtl', 'admiral', 'homing', 'lastStand', 'helm', 'burners', 'tractor', 'evasivePro', 'broadMaster', 'hydra', 'slipstream', 'ram'],
+  bastion: ['hullUp', 'harmonics', 'gunDrill', 'recharge', 'ablative', 'reload', 'damageCtl', 'bastion', 'deadeye', 'lastStand', 'tactics', 'homing', 'broadMaster', 'veteran', 'plunder', 'helm', 'hydra', 'lineOfBattle', 'merchant', 'burners', 'tractor', 'evasivePro', 'wingCmd', 'admiral', 'slipstream', 'ram'],
+};
 
 export class Autoplay {
   constructor(game) {
@@ -238,10 +243,11 @@ export class Autoplay {
     return g.useAbility(k);
   }
 
-  // a balanced broadside build, then the gunnery capstone
+  // a build that fits the hull: carriers go Command (wings, then the Carrier Admiral capstone),
+  // Ironhold walls go Defense (Bastion), everything else a broadside gunnery build
   spendTalents() {
     const g = this.game;
-    const ORDER = ['gunDrill', 'hullUp', 'harmonics', 'reload', 'deadeye', 'homing', 'recharge', 'broadMaster', 'tactics', 'helm', 'burners', 'hydra', 'lineOfBattle', 'ablative', 'damageCtl', 'veteran', 'plunder', 'lastStand', 'merchant', 'tractor', 'evasivePro', 'wingCmd', 'admiral', 'slipstream', 'ram', 'bastion'];
+    const ORDER = TALENT_BUILDS[this.buildFor()];
     let learned = 0;
     for (let guard = 0; guard < 80; guard++) {
       const k = ORDER.find((t) => g.learnTalent && canLearnQuiet(g, t));
@@ -249,6 +255,15 @@ export class Autoplay {
       g.learnTalent(k); learned++;
     }
     if (learned) this.log(`Spent ${learned} talent point${learned > 1 ? 's' : ''}`);
+  }
+
+  buildFor() {
+    const s = this.game.player, c = s && s.chassis;
+    if (!c) return 'broadside';
+    const bays = s.weapons.filter((w) => w.hp.type === 'hangar').length;
+    if (c.carrier || bays >= 2) return 'carrier';
+    if (c.yard === 'ironhold') return 'bastion';
+    return 'broadside';
   }
 
   // inventory: equip upgrades, keep the hold clear
