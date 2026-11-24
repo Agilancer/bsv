@@ -72,7 +72,9 @@ async function dungeonRuns(cfg) {
     rows.push(r);
   }
   await b.close();
-  const bad = rows.filter((r) => r.err || r.landed == null || r.landed < 0.2 || r.ttkRatio > 3 || r.ttkRatio < 1 / 3);
+  // trivial = the dungeon barely scratches the explorer (under 15% of hull + shield a minute, no
+  // deaths); kill times must stay within 3x of the paper TTK either way
+  const bad = rows.filter((r) => r.err || (r.hullPerMin < 0.15 && !r.deaths) || r.ttkRatio > 3 || r.ttkRatio < 1 / 3);
   console.table(rows);
   console.log('ttkRatio: median measured kill time (first hit to death, abilities and turrets included) / the creature\'s paper TTK vs this explorer; landed: damage taken / the engaged creatures\' contract dps; hullPerMin: hull+shield lost per minute');
   if (process.argv.includes('--gate')) {

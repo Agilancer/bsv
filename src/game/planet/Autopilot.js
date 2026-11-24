@@ -9,6 +9,8 @@ import { EXPLORER_BY_ID } from '../data/chassis.js';
 import { PLANET_ABILITIES } from './abilities.js';
 
 const _v = new THREE.Vector3(), _w = { x: 0, z: 0 };
+// creatures that bite up close: when one is on top of us it takes the guns before the apex
+const CLOSE_AI = { melee: 1, kamikaze: 1, charger: 1, brute: 1, burrow: 1 };
 
 export class PlanetPilot {
   constructor(mode) { this.mode = mode; this.t = 0; this.goal = null; this.stuck = 0; this.last = new THREE.Vector3(); this.wiggle = 0; }
@@ -25,7 +27,8 @@ export class PlanetPilot {
     let target = null, fight = null, stopAt = 6, wantMine = false;
     // nearest awake threat
     let best = null, bd = this.duel ? 1e6 : 70 * 70, lurk = null, ld = 45 * 45, boss = null, bsd = 0;
-    const gunR = st.guns.length ? Math.min(...st.guns.map((g) => g.ws.range)) : 40;
+    let gunR = st.guns.length ? Infinity : 40;
+    for (const g of st.guns) gunR = Math.min(gunR, g.ws.range);
     for (const e of M.creatures.list) {
       if (!e.alive) continue;
       const d2 = (e.pos.x - pos.x) ** 2 + (e.pos.z - pos.z) ** 2;
@@ -35,8 +38,7 @@ export class PlanetPilot {
     }
     // a shielder / healer propping up the fight goes first, then the apex in range, unless
     // something that bites is right on top of us
-    const CLOSE = { melee: 1, kamikaze: 1, charger: 1, brute: 1, burrow: 1 };
-    if (best && (bd > 18 * 18 || !CLOSE[best.def.ai])) {
+    if (best && (bd > 18 * 18 || !CLOSE_AI[best.def.ai])) {
       let sup = null, sd = gunR * gunR * 0.8;
       for (const e of M.creatures.list) {
         if (!e.alive || e.under || e.def.ai !== 'support' || e.mode !== 'hunt') continue;
@@ -66,7 +68,7 @@ export class PlanetPilot {
       if (M.atLander && (this.t > 420 || late || !M.level.nearestNode(pos, 400))) ctl.interact = true;
     } else if (kiteFrom) {
       // kite: hold a firing distance (a bit inside gun range), circling
-      const range = st.guns.length ? Math.min(...st.guns.map((g) => g.ws.range)) * 0.6 : 25;
+      const range = st.guns.length ? gunR * 0.6 : 25;
       const dx = pos.x - kiteFrom.pos.x, dz = pos.z - kiteFrom.pos.z, d = Math.hypot(dx, dz) || 1;
       const side = Math.sin(this.t * 0.3) > 0 ? 1 : -1;
       const want = Math.max(10, range);
@@ -135,7 +137,7 @@ export class PlanetPilot {
 const MISS_EVERY = 4;
 PlanetPilot.prototype.dodge = function (ctl, dt) {
   const M = this.mode, V = M.vehicle, p = V.position, now = M.engine.time;
-  let best = null, urg = Infinity;
+  let found = false, bx = 0, bz = 0, urg = Infinity;
   for (const w of M.warnings) {
     const age = now - w.t0, left = w.dur - age;
     if (left <= 0 || age < 0.3 || (w.n || 0) % MISS_EVERY === MISS_EVERY - 1) continue;
@@ -155,10 +157,10 @@ PlanetPilot.prototype.dodge = function (ctl, dt) {
       if (off > w.width + V.radius + 1.5) continue;
       if (off > 0.3) { ox = px / off; oz = pz / off; } else { ox = -w.dir.z; oz = w.dir.x; }
     }
-    if (left < urg) { urg = left; best = [ox, oz]; }
+    if (left < urg) { urg = left; bx = ox; bz = oz; found = true; }
   }
-  if (!best) { this.dodging = false; return false; }
-  ctl.mx = best[0]; ctl.mz = best[1]; ctl.boost = true;
+  if (!found) { this.dodging = false; return false; }
+  ctl.mx = bx; ctl.mz = bz; ctl.boost = true;
   const dash = PLANET_ABILITIES[0];
   if (urg < 0.45 && M.ex.level >= dash.unlock && (M.cooldowns[dash.k] || 0) <= now) ctl.abil[0] = true;
   if (!this.dodging) { this.dodging = true; this.dodges = (this.dodges || 0) + 1; }
