@@ -56,6 +56,7 @@ export class PlanetCamera {
     if (!inp.blocked) {
       if (m.wheel) this.distTarget = clamp(this.distTarget * Math.pow(1.12, m.wheel), this.minDist, this.maxDist);
       if (m.dragDX) this.yawTarget -= m.dragDX * 0.006;
+      if (m.twist) this.yawTarget += m.twist;
       if (inp.held('camLeft')) this.yawTarget += realDt * 1.6;
       if (inp.held('camRight')) this.yawTarget -= realDt * 1.6;
     }

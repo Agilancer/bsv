@@ -10,8 +10,16 @@ export class Audio {
     this.listener = { x: 0, y: 0, z: 0 };
     this.voices = {};
     this.intensity = 0;      // 0 calm .. 1 full battle
-    const unlock = () => { this.init(); removeEventListener('pointerdown', unlock); removeEventListener('keydown', unlock); };
-    addEventListener('pointerdown', unlock); addEventListener('keydown', unlock);
+    // Browsers only start audio from a user gesture, and on touch screens a pointerdown is not one
+    // (the finger lifting is): keep trying on every kind of activation until the context runs.
+    const EV = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
+    const unlock = () => {
+      this.init();
+      const c = this.ctx;
+      if (c && c.state === 'suspended' && !document.hidden && !this.paused) c.resume().catch(() => {});
+      if (!c || c.state === 'running') for (const e of EV) removeEventListener(e, unlock, true);
+    };
+    for (const e of EV) addEventListener(e, unlock, true);
   }
 
   init() {
@@ -30,6 +38,14 @@ export class Audio {
     this.verb.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(this.master);
     this.noise = this.makeNoise();
     this.startMusic();
+  }
+
+  // tab hidden / app in the background: stop the sound card, pick up where we left off
+  setPaused(on) {
+    this.paused = !!on;
+    const c = this.ctx; if (!c) return;
+    if (on && c.state === 'running') c.suspend().catch(() => {});
+    else if (!on && c.state === 'suspended') c.resume().catch(() => {});
   }
 
   makeNoise() {

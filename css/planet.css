@@ -146,26 +146,6 @@ body.planet-hud-hidden .toast:not(.legend) { display: none; }
 #pTouch .tmine { bottom: 270px; }
 #pTouch .tmine.on { border-color: var(--good); box-shadow: 0 0 18px rgba(74, 222, 128, 0.7); }
 
-/* compact: phones, tablets, narrow windows */
-#planetHud.compact #pGear, #planetHud.compact #pBanner #pObj, #planetHud.compact .pthreat, #planetHud.compact #pCargo .cres.bank, #planetHud.compact #pCargo .label { display: none; }
-#planetHud.compact #pStatus { width: 220px; padding: 8px 10px; transform: scale(0.9); transform-origin: 0 0; }
-#planetHud.compact #pStatus .label { display: none; }
-#planetHud.compact #pBanner { top: 8px; min-width: 0; max-width: 40vw; padding: 4px 10px; }
-#planetHud.compact #pBanner .psite { display: none; }
-#planetHud.compact #pMap { width: 140px; height: 140px; }
-#planetHud.compact #pCargo { top: 160px; bottom: auto; right: 16px; width: 140px; padding: 6px 8px; }
-#planetHud.compact #pCargo .cres { display: none; }
-#planetHud.compact #pAbilities { left: auto; right: 12px; transform: none; bottom: 12px; flex-direction: column; gap: 10px; padding: 8px; background: transparent; border: none; box-shadow: none; clip-path: none; }
-#planetHud.compact #pAbilities::before, #planetHud.compact #pAbilities::after { display: none; }
-#planetHud.compact #pAbilities { display: grid; grid-template-columns: repeat(3, 62px); direction: rtl; }
-#planetHud.compact .ab { width: 62px; height: 62px; border-radius: 50%; clip-path: none; }
-#planetHud.compact .ab svg { inset: 13px; }
-#planetHud.compact #pButtons { left: 12px; right: auto; top: 140px; bottom: auto; flex-direction: column; align-items: flex-start; }
-#planetHud.compact #pButtons .btn { font-size: 9px; padding: 6px 8px; }
-#planetHud.compact #pPrompt { bottom: auto; top: 54px; font-size: 11px; }
-#planetHud.compact #pBoss { bottom: auto; top: 60px; }
-#planetHud.compact #pTouch .tmine { right: 230px; bottom: 24px; }
-#planetHud.compact #pTouch .tboost { right: 310px; bottom: 24px; }
 @media (max-width: 900px) {
   .pwin, #pScanPanel { left: 8px; right: 8px; width: auto; transform: none; }
   .pcols { grid-template-columns: 1fr; }
@@ -177,19 +157,9 @@ body.planet-hud-hidden .toast:not(.legend) { display: none; }
 /* the surface can be bright (ice, desert): give the field HUD a denser backing than orbit's */
 #planetHud .holo { background: linear-gradient(160deg, rgba(16, 32, 74, 0.82), rgba(6, 12, 30, 0.9) 40%, rgba(10, 8, 34, 0.9)); }
 /* planet compact mode owns the small screen: park the orbit menubar */
-body:has(#planetHud.compact) #menubar, body:has(#planetHud.compact) #chat { display: none; }
+body:has(#planetHud.compact) #menubar:not(.open), body:has(#planetHud.compact) #chat { display: none; }
 /* on the surface the orbit menubar, tutorial objectives and space stick step aside */
-body.planet-mode #menubar, body.planet-mode #objectives, body.planet-mode #stick, body.planet-mode #mMenu, body.planet-mode #mChat, body.planet-mode #mStop, body.planet-mode #dockPrompt { display: none !important; }
-/* portrait phones: banner drops under the status/map row, smaller map, status panel takes the width it needs */
-@media (orientation: portrait) and (max-width: 600px) {
-  #planetHud.compact #pBanner { top: 244px; bottom: auto; left: 50%; transform: translateX(-50%); max-width: 80vw; padding: 4px 10px; }
-  #planetHud.compact #pBanner .title { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #planetHud.compact #pMap { width: 112px; height: 112px; }
-  #planetHud.compact #pMap canvas { width: 112px; height: 112px; }
-  #planetHud.compact #pStatus { max-width: calc(100vw - 140px); }
-  #planetHud.compact #pCargo { top: 136px; }
-  #planetHud.compact #pButtons { top: 150px; }
-}
+body.planet-mode #menubar:not(.open), body.planet-mode #objectives, body.planet-mode #stick, body.planet-mode #mChat, body.planet-mode #mTray, body.planet-mode #dockPrompt { display: none !important; }
 
 /* keyboard hints: shown with a keyboard, hidden on touch (the buttons and prompts say what they do) */
 #pButtons kbd { font: inherit; opacity: 0.6; }
@@ -203,9 +173,6 @@ body.planet-touch #pButtons kbd, body.planet-touch #pAbilities .key { display: n
   #planetHud:not(.compact) #pButtons { max-width: 300px; }
   #planetHud:not(.compact) #pCargo { right: auto; left: 16px; bottom: 150px; }
 }
-/* phones: the autoplay toggle sits beside the cargo panel, clear of it and of the ability pad */
-body.planet-mode.mobile #mAuto { top: 160px; bottom: auto; right: 166px; }
-@media (orientation: portrait) and (max-width: 600px) { body.planet-mode.mobile #mAuto { top: 136px; } }
 #pStatus .psub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* short windows (e.g. 1024 x 640): the bay and refinery use the full height, stats go two-up and
    slots shrink so the loadout (guns, tools, modules) fits; the rest scrolls with a visible bar */
@@ -220,10 +187,6 @@ body.planet-mode.mobile #mAuto { top: 160px; bottom: auto; right: 166px; }
 
 /* small and short windows: the orbit chat log steps aside on the surface (toasts carry the news) */
 @media (max-width: 1100px), (max-height: 700px) { body.planet-mode #chat { display: none; } }
-/* portrait phones: the lander prompt sat over the hull/shield bars — put it above the ability pad */
-@media (orientation: portrait) and (max-width: 600px) {
-  #planetHud.compact #pPrompt { top: auto; bottom: 250px; max-width: 86vw; white-space: normal; text-align: center; }
-}
 
 /* ---- the voice from orbit, streak callouts, discovery cards, expedition report ---- */
 #pComm { position: fixed; left: 16px; top: 212px; width: 320px; padding: 9px 12px; display: flex; gap: 10px; align-items: center; opacity: 0; transform: translateX(-14px); transition: opacity 0.3s, transform 0.3s; pointer-events: none !important; border-left: 2px solid var(--cc, var(--cyan)); }
@@ -263,5 +226,77 @@ body.planet-mode.mobile #mAuto { top: 160px; bottom: auto; right: 166px; }
 #pReport .rrow span { color: var(--text-dim); } #pReport .rrow b { font-family: var(--head); font-size: 12px; color: var(--white); }
 #pReport .rgot { font-family: var(--head); font-size: 12px; margin: 12px 0 14px; letter-spacing: 0.05em; }
 @keyframes reportIn { from { opacity: 0; transform: scale(1.04); } }
-#planetHud.compact #pComm { top: auto; bottom: 150px; left: 50%; transform: translateX(-50%); width: min(340px, 86vw); }
-#planetHud.compact #pStreak .sbig { font-size: 22px; }
+
+/* ================= compact: phones, tablets, narrow windows =================
+   Top row: menu + AUTO column, status, (banner), minimap. Under the map: cargo, zoom. Left under the
+   status: context + launch buttons. Bottom right: ability pad with BOOST / MINE beside or above it.
+   The bottom left stays empty: that is where the floating stick appears. Transient text (comm strip,
+   discovery card, prompt, boss bar) shares the band between the top row and the vehicle. */
+#pTouch .tz { display: none; }
+#planetHud.compact #pGear, #planetHud.compact #pBanner #pObj, #planetHud.compact .pthreat, #planetHud.compact #pCargo .cres, #planetHud.compact #pCargo .label, #planetHud.compact #pBanner .psite, #planetHud.compact #pStatus .label { display: none; }
+#planetHud.compact #pStatus { left: calc(var(--ml) + 54px); top: var(--mt); width: 204px; padding: 6px 10px; }
+#planetHud.compact #pStatus .prow { gap: 6px; margin-bottom: 3px; }
+#planetHud.compact #pStatus .plvl { font-size: 16px; min-width: 22px; }
+#planetHud.compact #pStatus .pname { font-size: 11px; }
+#planetHud.compact #pStatus .pcred { font-size: 11px; }
+#planetHud.compact #pStatus .bar { margin-top: 3px; height: 11px; }
+#planetHud.compact #pStatus .bar span { font-size: 9px; line-height: 10px; }
+#planetHud.compact #pBanner { left: calc(var(--ml) + 264px); right: calc(var(--mr) + 120px); top: var(--mt); transform: none; min-width: 0; max-width: none; padding: 5px 10px; }
+#planetHud.compact #pBanner .title { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#planetHud.compact #pMap { right: var(--mr); top: var(--mt); width: 112px; height: 112px; }
+#planetHud.compact #pMap .mlabel { font-size: 8px; left: 8px; bottom: 5px; }
+#planetHud.compact #pCargo { right: var(--mr); top: calc(var(--mt) + 118px); bottom: auto; left: auto; width: 112px; padding: 5px 8px 6px; }
+#planetHud.compact #pCargo .title { font-size: 9px; }
+#planetHud.compact #pCargo .bar { margin-top: 3px; height: 11px; }
+#planetHud.compact #pTouch .tz { display: block; right: var(--mr); top: calc(var(--mt) + 164px); bottom: auto; width: 44px; height: 44px; border-radius: 8px; font-size: 22px; line-height: 1; padding: 0; background: rgba(8, 16, 38, 0.6); }
+#planetHud.compact #pTouch .tzout { right: calc(var(--mr) + 50px); }
+#planetHud.compact #pButtons { left: var(--ml); right: auto; top: calc(var(--mt) + 116px); bottom: auto; flex-direction: column; align-items: flex-start; max-width: 170px; }
+#planetHud.compact #pButtons .btn { font-size: 9px; padding: 6px 10px; min-height: 40px; }
+#planetHud.compact #pButtons [data-a="bay"], #planetHud.compact #pButtons [data-a="refinery"] { display: none; }   /* in the menu sheet on touch */
+#planetHud.compact #pAbilities { left: auto; right: var(--mr); bottom: var(--mb); transform: none; display: grid; grid-template-columns: repeat(3, 54px); direction: rtl; gap: 8px; padding: 6px; background: transparent; border: none; box-shadow: none; clip-path: none; backdrop-filter: none; }
+#planetHud.compact #pAbilities::before, #planetHud.compact #pAbilities::after { display: none; }
+#planetHud.compact .ab { width: 54px; height: 54px; border-radius: 50%; clip-path: none; }
+#planetHud.compact .ab svg { inset: 11px; width: 32px; height: 32px; }
+#planetHud.compact #pTouch .tbtn:not(.tz) { width: 64px; height: 64px; font-size: 9px; }
+#planetHud.compact #pTouch .tmine { right: calc(var(--mr) + 204px); bottom: calc(var(--mb) + 8px); }
+#planetHud.compact #pTouch .tboost { right: calc(var(--mr) + 276px); bottom: calc(var(--mb) + 8px); }
+#planetHud.compact #pPrompt { left: calc(var(--ml) + 264px); right: calc(var(--mr) + 120px); transform: none; bottom: auto; top: calc(var(--mt) + 32px); font-size: 10px; padding: 5px 12px; white-space: normal; text-align: center; }
+#planetHud.compact #pBoss { left: calc(var(--ml) + 264px); right: calc(var(--mr) + 120px); transform: none; bottom: auto; top: calc(var(--mt) + 30px); width: auto; }
+#planetHud.compact #pBoss .bname { font-size: 12px; } #planetHud.compact #pBoss .bsub { font-size: 9px; letter-spacing: 0.08em; }
+#planetHud.compact.bossfight #pBanner, #planetHud.compact.bossfight #pComm { display: none; }
+#planetHud.compact.bossfight #pPrompt { top: calc(var(--mt) + 96px); bottom: auto; }
+#planetHud.compact #pComm { left: calc(var(--ml) + 264px); right: calc(var(--mr) + 120px); top: calc(var(--mt) + 82px); width: auto; padding: 6px 10px; transform: translateY(-8px); }
+#planetHud.compact #pComm.show { transform: none; }
+#planetHud.compact #pComm .ctext { font-size: 12px; min-height: 0; }
+#planetHud.compact #pCard { left: calc(var(--ml) + 264px); right: calc(var(--mr) + 120px); top: calc(var(--mt) + 82px); width: auto; padding: 8px 12px 10px; transform: translateY(-8px); }
+#planetHud.compact #pCard.show { transform: none; }
+#planetHud.compact #pCard .ktitle { font-size: 13px; } #planetHud.compact #pCard .ktext { font-size: 12px; }
+#planetHud.compact:has(#pCard.show) #pComm { opacity: 0; }
+#planetHud.compact .streak .sbig { font-size: 22px; }
+#planetHud.compact #pStrip { max-width: calc(100vw - 16px); flex-wrap: wrap; justify-content: center; white-space: normal; text-align: center; font-size: 10px; top: var(--mt); padding: 4px 8px; }
+#planetHud.compact #pStrip .btn { min-height: 36px; padding: 6px 10px; }
+#pReport .rcard { max-height: calc(100vh - 16px); overflow-y: auto; }
+#planetHud.compact #pReport .rcard { padding: 12px 16px; }
+#planetHud.compact #pReport .rtitle { font-size: 17px; margin: 4px 0 2px; }
+#planetHud.compact #pReport .rquip { margin-bottom: 8px; font-size: 13px; }
+#planetHud.compact #pReport .rgot { margin: 8px 0; }
+#planetHud.compact #pDeath .big { font-size: 26px; letter-spacing: 0.2em; text-align: center; }
+#planetHud.compact #pDeath .label { text-align: center; padding: 0 16px; }
+/* the orbit buttons that stay on the surface: menu top-left, AUTO under it */
+body.planet-mode.mobile #mAuto { left: var(--ml); right: auto; top: calc(var(--mt) + 54px); bottom: auto; width: 48px; min-width: 0; padding: 0; font-size: 9px; }
+body.planet-mode.mobile #toasts { top: calc(var(--mt) + 150px); }
+/* portrait phones: no banner (the map label names the site); the transient band sits under the buttons */
+@media (max-aspect-ratio: 1/1) {
+  #planetHud.compact #pBanner { display: none; }
+  #planetHud.compact #pStatus { right: calc(var(--mr) + 120px); width: auto; }
+  #planetHud.compact #pAbilities { grid-template-columns: repeat(3, 60px); }
+  #planetHud.compact .ab { width: 60px; height: 60px; }
+  #planetHud.compact .ab svg { inset: 13px; width: 34px; height: 34px; }
+  #planetHud.compact #pTouch .tmine { right: calc(var(--mr) + 6px); bottom: calc(var(--mb) + 158px); }
+  #planetHud.compact #pTouch .tboost { right: calc(var(--mr) + 78px); bottom: calc(var(--mb) + 158px); }
+  #planetHud.compact #pComm, #planetHud.compact #pCard { left: var(--ml); right: var(--mr); top: calc(var(--mt) + 218px); }
+  #planetHud.compact #pBoss { left: calc(var(--ml) + 8px); right: calc(var(--mr) + 8px); top: calc(var(--mt) + 218px); }
+  #planetHud.compact #pPrompt, #planetHud.compact.bossfight #pPrompt { left: 50%; right: auto; transform: translateX(-50%); top: auto; bottom: calc(var(--mb) + 236px); width: max-content; max-width: 86vw; }
+  #planetHud.compact .streak { top: 43%; }
+  body.planet-mode.mobile #toasts { top: calc(var(--mt) + 222px); }
+}
