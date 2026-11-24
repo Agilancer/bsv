@@ -139,9 +139,9 @@ export const SPECIALS = {
   },
   novaBurst: {
     cd: 15, range: 420,
-    run(W, s) {
+    run(W, s, tg) {
       const r = 200 + s.dims.L * 0.25;
-      const dur = dodge(tg, r - tg.position.distanceTo(s.position) + tg.dims.L * 0.4, 1.6, 6);
+      const dur = tg ? dodge(tg, r - tg.position.distanceTo(s.position) + tg.dims.L * 0.4, 1.6, 6) : 2.5;
       W.warn({ kind: 'circle', pos: s.position.clone(), r, dur, color: '#ffb040', follow: s });
       W.schedule(dur, () => {
         if (!s.alive) return;

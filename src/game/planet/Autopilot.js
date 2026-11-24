@@ -15,8 +15,9 @@ export class PlanetPilot {
 
   control(ctl, dt) {
     const M = this.mode, V = M.vehicle, st = V.stats;
-    this.t += dt;
+    this.t += dt; this.runT = (this.runT || 0) + dt;   // runT never resets: a whole surface run is capped
     if (M.state !== 'play' || !V.alive) return;
+    const late = this.runT > 480;
     const pos = V.position;
     let target = null, fight = null, stopAt = 6, wantMine = false;
     // nearest awake threat
@@ -39,9 +40,12 @@ export class PlanetPilot {
       if ((pack >= 4 || fight.boss || fight.def.size >= 3) && ready(3)) ctl.abil[3] = true;
     }
     if (M.probes.active() < M.probes.stats.count && M.level.nearestNode(pos, 200, (n) => !n.claimed)) ctl.probe = true;
-    // where to go
-    if (!M.dungeon && hpF < 0.3) target = M.lander.position;
-    else if (fight) {
+    // where to go: a full hold or a long run heads home through any fight (guns still track it)
+    const homeward = !M.dungeon && (hpF < 0.3 || cargoF >= 0.95 || this.t > 420 || late);
+    if (homeward) {
+      target = M.lander.position; stopAt = 4;
+      if (M.atLander && (this.t > 420 || late || !M.level.nearestNode(pos, 400))) ctl.interact = true;
+    } else if (fight) {
       // kite: keep at ~70% of gun range, circle
       const range = st.guns.length ? Math.min(...st.guns.map((g) => g.ws.range)) * 0.7 : 25;
       const dx = pos.x - fight.pos.x, dz = pos.z - fight.pos.z, d = Math.hypot(dx, dz) || 1;
@@ -51,7 +55,7 @@ export class PlanetPilot {
       target = _v; stopAt = 2;
     } else if (M.dungeon) {
       const D = M.dungeon;
-      if (D.cleared || this.t > 300) target = (D.exits[D.exits.length - 1] || D.exits[0]).pos;
+      if (D.cleared || this.t > 300 || late) target = (D.exits[D.exits.length - 1] || D.exits[0]).pos;
       else {
         const loot = M.level.drops.find((d) => d.type === 'item') || M.level.crates.find((c) => !c.opened);
         target = loot ? loot.pos : D.boss && D.boss.alive ? D.boss.pos : D.bossRoom ? _v.set(D.bossRoom.x, 0, D.bossRoom.z) : null;
@@ -86,8 +90,13 @@ export class PlanetPilot {
       if (d > stopAt) { ctl.mx = dx / d; ctl.mz = dz / d; }
       if (d > 120 && !fight) ctl.boost = true;
       // unstick
-      if (this.last.distanceToSquared(pos) < 0.5 && d > stopAt) this.stuck += dt; else this.stuck = 0;
-      this.last.copy(pos);
+      // stuck = under ~1.5 u/s of progress while trying to move (per second, not per frame)
+      this.sample = (this.sample || 0) + dt;
+      if (this.sample >= 0.5) {
+        const moved = Math.hypot(this.last.x - pos.x, this.last.z - pos.z);
+        if (moved < this.sample * 1.5 && d > stopAt && !wantMine) this.stuck += this.sample; else this.stuck = 0;
+        this.last.copy(pos); this.sample = 0;
+      }
       if (this.stuck > 1.2) { this.wiggle = 1.2; this.stuck = 0; this.wsign = Math.random() < 0.5 ? 1 : -1; }
       if (this.wiggle > 0) { this.wiggle -= dt; const a = Math.atan2(ctl.mx, ctl.mz) + this.wsign * 1.6; ctl.mx = Math.sin(a); ctl.mz = Math.cos(a); }
     }
@@ -129,18 +138,32 @@ export function makePlanetGoal(game) {
       const ex = ensureExplorer(g.data);
       const since = g.data.playtime - (ex.lastRunAt || -1e9);
       if (since < 300) return 0.05;
+      // only go down when the warship can be left alone: hull healthy, no raid inbound, nothing hostile close
+      const pl = g.player;
+      if (pl.hull < pl.maxHull * 0.6) return 0.05;
+      const pop = g.mmo || g.population;
+      if (pop && (pop.raidPending || pop.raid)) return 0.05;
+      if (g.world.ships.some((o) => o.alive && g.world.hostile(pl, o) && o.position.distanceToSquared(pl.position) < 1800 * 1800)) return 0.05;
       const any = g.sector.planets.some((p) => p.userData.info && p.userData.info.landable);
       return any ? 0.9 : 0;
     },
     update(dt) {
       const G = game, P = G.planet;
       if (!P) return true;
-      if (G.mode === 'planet') { goal.phase = 'surface'; return false; }
-      if (goal.phase === 'surface') { goal.phase = 'idle'; ensureExplorer(G.data).lastRunAt = G.data.playtime; autoSpend(G); return true; }
       const S = P.scanner, s = G.player;
-      if (!s || !s.alive) return true;
+      // the space sim (and this goal) pause while the explorer is on the ground, so a run is
+      // marked at deploy time and closed out on the first orbit-side tick after it
+      if (G.mode === 'planet') { goal.phase = 'surface'; return false; }
       if (S.state === 'drop' || S.state === 'entering' || S.state === 'scanning') return false;
-      if (S.state === 'panel') { S.siteIdx = 0; S.deploy(); return false; }
+      if (goal.phase === 'surface') {
+        goal.phase = 'idle'; goal.target = null; goal.t = 0;
+        ensureExplorer(G.data).lastRunAt = G.data.playtime;
+        if (S.state === 'panel') S.close();
+        autoSpend(G); return true;
+      }
+      if (!s || !s.alive) return true;
+      const launch = () => { S.siteIdx = 0; S.deploy(); goal.phase = 'surface'; };
+      if (S.state === 'panel') { launch(); return false; }
       if (!goal.target || !goal.target.parent) {
         const ex = ensureExplorer(G.data);
         const list = G.sector.planets.filter((p) => p.userData.info && p.userData.info.landable);
@@ -149,11 +172,12 @@ export function makePlanetGoal(game) {
         goal.target = list[0];
       }
       const tp = goal.target.position;
-      if (S.nearby() === goal.target) { s.throttle = 0; S.scan(); return false; }
+      // any landable world we're already over will do (a moon beside the target included)
+      if (S.nearby()) { s.throttle = 0; S.scan(); if (S.state === 'panel') launch(); return false; }
       const far = Math.hypot(tp.x - s.position.x, tp.z - s.position.z);
       const warping = G.isWarping && G.isWarping();
-      if (far > 2600 && G.warpTo && !warping) G.warpTo(new THREE.Vector3(tp.x + 120, 0, tp.z + 120));
-      else if (!warping) { s.throttle = 1; s.steerTo(new THREE.Vector3(tp.x, 0, tp.z), 100, 1); }
+      const warped = far > 2600 && G.warpTo && !warping && G.warpTo(new THREE.Vector3(tp.x + 120, 0, tp.z + 120));
+      if (!warped && !warping) { s.throttle = 1; s.steerTo(new THREE.Vector3(tp.x, 0, tp.z), 100, 1); }
       goal.t += dt;
       if (goal.t > 240) { goal.t = 0; goal.target = null; return true; }
       return false;

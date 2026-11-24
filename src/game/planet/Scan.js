@@ -69,11 +69,11 @@ export class Scanner {
     const G = this.game;
     if (!G.data || !G.ui) return;
     this.ensureDom();
-    const space = G.mode === 'space' && !G.hudHidden;
+    const space = G.mode === 'space';
     const near = space ? this.nearby() : null;
     if (this.state === 'scanning') this.animate(dt);
     else if (this.state === 'drop') this.animateDrop(dt);
-    if (near && this.state === 'idle') {
+    if (near && this.state === 'idle' && !G.hudHidden) {
       const info = near.userData.info, key = planetKey(G.data.system, info);
       const known = ensureExplorer(G.data).scanned[key];
       const txt = `◈ ${info.name} · ${(info.moon ? 'moon · ' : '') + biomeFor(info.type).name} — <b>[V]</b> ${known ? 'survey report' : 'scan'}`;

@@ -25,7 +25,8 @@ export class Director {
     this.world = sector.world;
     this.zones = sector.detail.zones.map((z) => ({ z, pos: new THREE.Vector3(z.x, 0, z.z), ships: [], active: false, wave: 0, respawnT: 0, nextWaveT: 0, cleared: 0 }));
     this.pois = sector.detail.pois.map((p) => ({ p, pos: new THREE.Vector3(p.x, 0, p.z), revealed: false, done: false }));
-    this.interceptT = 60 + Math.random() * 40;
+    // early systems: a patrol comes looking sooner and more often (the lanes still go quiet)
+    this.interceptT = (this.sector.sys.danger <= 5 ? 25 : 60) + Math.random() * 30;
     this.roamT = 600;
   }
 
@@ -56,17 +57,30 @@ export class Director {
     return out;
   }
 
+  // a hostile power for this system (Rivals are neutral unless provoked, so they never count)
+  foe() {
+    const opts = systemFactions(this.sector.sys).filter(([k]) => k !== 'rival');
+    return opts.length ? R.weighted(opts) : 'pirate';
+  }
+
   garrison(zs, wave) {
     const { z, pos } = zs;
-    const f = z.faction;
+    // a Rival-held zone is a contested site: Rival Company ships hold it against raiders.
+    // Their garrison is neutral (side with them or not); the raiders are what you clear.
+    const held = z.faction === 'rival';
+    const f = held ? this.foe() : z.faction;
     let ships = [];
+    if (held && wave === 0) {
+      for (const s of this.squad('rival', pos.clone().add(new THREE.Vector3(260, 0, -180)), 200)) { s.provoked = false; s.zoneAlly = true; s.ai.home.copy(pos); }
+    }
     switch (z.type) {
       case 'base':
         if (wave === 0) {
           // the base's anchor: a fortress or command ship that holds position
           const size = this.danger >= 13 ? 'epic' : this.danger >= 7 ? 'large' : 'mid';
           const roleOk = (e) => e.faction === f && e.size === size && ['fortress', 'command', 'shieldship', 'escort', 'warlord'].includes(e.role);
-          const d = ENEMIES.find(roleOk) || this.pick(f, size);
+          const pool = ENEMIES.filter(roleOk);
+          const d = pool.length ? pool[R.int(0, pool.length - 1)] : this.pick(f, size);
           const anchor = this.world.spawnDesign(d, this.level(2), pos.clone(), Math.random() * 6.28);
           anchor.ai.leash = 500; anchor.zoneAnchor = true;
           ships.push(anchor);
@@ -125,7 +139,7 @@ export class Director {
         zs.ships = []; zs.active = false; zs.respawnT = 30;
         continue;
       }
-      const hostile = zs.ships.filter((s) => s.team !== 1 && !s.zoneAlly);
+      const hostile = zs.ships.filter((s) => !s.zoneAlly && W.hostile(P, s));
       if (!hostile.length) {
         if (zs.wave + 1 < (WAVES[zs.z.type] || 1) + Math.floor(this.danger / 20) && d < 2000) {
           zs.nextWaveT += dt;
@@ -146,14 +160,15 @@ export class Director {
     // the lanes between zones are quiet; a patrol may still come looking for you
     this.interceptT -= dt;
     if (this.interceptT <= 0) {
-      this.interceptT = 70 + Math.random() * 60;
-      if (!nearZone && !(W.game && W.game.docked) && Math.random() < 0.45) {
-        const f = R.weighted(systemFactions(this.sector.sys));
+      const early = this.danger <= 5;
+      this.interceptT = (early ? 45 : 70) + Math.random() * (early ? 30 : 60);
+      if (!nearZone && !(W.game && W.game.docked) && Math.random() < (early ? 0.6 : 0.45)) {
+        const f = this.foe();
         const a = Math.random() * Math.PI * 2;
         const at = pp.clone().add(new THREE.Vector3(Math.sin(a) * 1300, 0, Math.cos(a) * 1300));
         const ships = this.squad(f, at, 200);
         for (const s of ships) s.ai.aggro = 2000;
-        if (f !== 'rival') W.toast('Contact: a patrol is moving to intercept', 'warn');
+        W.toast('Contact: a patrol is moving to intercept', 'warn');
       }
     }
     // very deep space: something enormous roams
@@ -195,7 +210,7 @@ export class Director {
           for (let i = 0; i < 2 + rng.int(0, 2); i++) W.loot.dropItem(rollItem(this.danger + 1, rng, { luck: 0.8 }), ps.pos);
           W.loot.dropCredits(80 * this.danger + 120, ps.pos);
           W.toast('Derelict salvaged', 'epic');
-          if (rng.chance(0.4)) { W.toast('Ambush!', 'bad'); this.squad(R.weighted(systemFactions(this.sector.sys)), ps.pos, 400); }
+          if (rng.chance(0.4)) { W.toast('Ambush!', 'bad'); this.squad(this.foe(), ps.pos, 400); }
           if (ps.mesh) setTimeout(() => ps.mesh && (ps.mesh.visible = false), 6000);
         }
       }
@@ -240,7 +255,7 @@ export class Director {
       const f = W.addShip({ chassis: c, loadout: starterLoadout(c, this.danger, rng, 'common'), team: 1, faction: 'player', name: `MV ${rng.pick(['Kestrel', 'Bright Margin', 'Sable Wake', 'Quiet Harvest', 'Halcyon Run', 'Old Promise'])}`, level: this.danger }, { aggro: 600, flee: 0.5 });
       f.position.copy(ps.pos); f.persistent = true; f.factionName = 'Civilian freighter'; f.dmgScale = 0.3;
       ps.freighter = f;
-      ps.raiders = this.squad(R.weighted(systemFactions(this.sector.sys).filter(([k]) => k !== 'rival')), ps.pos.clone().add(new THREE.Vector3(400, 0, 200)), 200);
+      ps.raiders = this.squad(this.foe(), ps.pos.clone().add(new THREE.Vector3(400, 0, 200)), 200);
       for (const s of ps.raiders) s.target = f;
     } else if (ps.p.type === 'anomaly') {
       const rng = new RNG(ps.p.seed);
