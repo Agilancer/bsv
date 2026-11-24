@@ -3,7 +3,7 @@
 // the orbit side for the autoplay captain: pick a world, fly over it, scan, deploy, then spend the
 // haul at the refinery. Exposed as game.planetAuto = { name, score(game), update(dt) -> done }.
 import * as THREE from 'three/webgpu';
-import { cargoTotal, SHIP_UPGRADES, upgradeCost, buyShipUpgrade, affordable, PROBE_UPGRADES, buyProbeUpgrade, buyChassis, chassisCost } from './economy.js';
+import { cargoTotal, SHIP_UPGRADES, upgradeCost, buyShipUpgrade, affordable, PROBE_UPGRADES, buyProbeUpgrade, buyChassis } from './economy.js';
 import { ensureExplorer, equipBestEx, setExChassis } from './explorerItems.js';
 import { EXPLORER_BY_ID } from '../data/chassis.js';
 import { PLANET_ABILITIES } from './abilities.js';

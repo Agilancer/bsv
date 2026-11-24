@@ -2,7 +2,7 @@
 // pooled list drawn as an instanced HDR streak (+ an instanced rock mesh for boulders), and the
 // explorer's guns (chaingun, scatter, rockets, plasma, flamer, rail, mortar, arc projector).
 import * as THREE from 'three/webgpu';
-import { vec3, float, positionLocal, smoothstep, texture, positionWorld, normalWorld, abs } from 'three/tsl';
+import { vec3, positionLocal, smoothstep, texture, positionWorld, normalWorld, abs } from 'three/tsl';
 import { rockGeometry } from './geo.js';
 import { tex } from './ptex.js';
 

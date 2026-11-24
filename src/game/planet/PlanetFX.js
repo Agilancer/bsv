@@ -2,7 +2,7 @@
 // dust, debris, fireballs, flame jets, ichor, shockwaves, orbital strikes; plus an instanced
 // HDR beam renderer (drills, rails, lightning, the strike lance) and a small pool of flash lights.
 import * as THREE from 'three/webgpu';
-import { vec3, float, uv, sin, abs, dot, normalView, positionViewDirection, smoothstep, pow } from 'three/tsl';
+import { vec3, uv, sin, abs, dot, normalView, positionViewDirection, pow } from 'three/tsl';
 import { FX } from '../../fx/Particles.js';
 
 const _c = new THREE.Color(), _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _s = new THREE.Vector3();

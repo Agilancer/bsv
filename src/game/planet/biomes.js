@@ -29,7 +29,7 @@ export const BIOMES = {
   arid: {
     name: 'Canyon world',
     tex: { flat: 'pl_clay', cliff: 'pl_canyon', alt: 'pl_ochre' }, flatScale: 1 / 9, cliffScale: 1 / 12,
-    tint: 0xe8b898, cliffTint: 0xe09878, altTint: 0xd8a070,
+    tint: 0xd8b8a0, cliffTint: 0xd09880, altTint: 0xc8a080,
     sky: 0xf0a880, fog: 0xd8987a, fogNear: 1.15, fogFar: 3.2, sun: 0xffe0c0, sunI: 3.5, hemi: [0xffc8a0, 0x5a3020, 1.1], exposure: 0.95,
     fluid: null,
     shape: { amp: 26, freq: 0.0045, ridge: 0.55, detail: 0.8, terrace: 6 },

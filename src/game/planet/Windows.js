@@ -3,9 +3,8 @@
 // from the planet HUD; exposed as game.modes.explorer / game.modes.refinery.
 import { icon } from '../../ui/icons.js';
 import { RARITY } from '../data/items.js';
-import { EXPLORERS, EXPLORER_BY_ID, EXPLORER_FRAMES } from '../data/chassis.js';
-import { slotKeys, slotType } from '../Player.js';
-import { CHASSIS_BY_ID } from '../data/chassis.js';
+import { EXPLORER_BY_ID, EXPLORER_FRAMES, CHASSIS_BY_ID } from '../data/chassis.js';
+import { slotKeys } from '../Player.js';
 import {
   EX_BASES, EX_INV_SIZE, EX_SLOT_LABEL, exSlotKeys, exDescribe, exItemScore, explorerStats, ensureExplorer, equipExItem, unequipExItem,
   equipBestEx, setExChassis, scrapYield, explorerXpForLevel,
@@ -14,7 +13,9 @@ import {
   RESOURCES, RES_KEYS, SHIP_UPGRADES, upgradeCost, buyShipUpgrade, refineryShipStats, reforgeCost, empowerCost, overchargeCost, imbueCost,
   workshop, canImbue, chassisCost, buyChassis, fabricateCost, fabricate, addResources, affordable, PROBE_UPGRADES, buyProbeUpgrade, probeStats, EMPOWER_MAX,
 } from './economy.js';
-import { ITEM_MAX_LVL, AFFIXES } from '../data/items.js';
+import { ITEM_MAX_LVL, AFFIXES, BASES } from '../data/items.js';
+
+const BASE_ICON = (it) => (BASES[it.base] ? BASES[it.base].icon : 'reactor');
 
 const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -238,6 +239,3 @@ export class PlanetWindows {
     body.querySelectorAll('[data-wk]').forEach((b) => b.addEventListener('click', () => run(b.dataset.wk)));
   }
 }
-
-import { BASES } from '../data/items.js';
-const BASE_ICON = (it) => BASES[it.base] ? BASES[it.base].icon : 'reactor';

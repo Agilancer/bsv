@@ -2,7 +2,7 @@
 // (aim reticle, extraction ring, strike target, attack telegraphs) drawn as rotating dashed rings
 // in the ground shader so they hug any slope, plus an expanding sonar pulse with a scan grid.
 import * as THREE from 'three/webgpu';
-import { uniform, vec2, float, length, smoothstep, abs, sin, exp, fract, max } from 'three/tsl';
+import { uniform, vec2, length, smoothstep, abs, sin, exp, fract, max } from 'three/tsl';
 
 export class GroundFX {
   constructor(engine) {

@@ -1,7 +1,7 @@
 // Static set pieces of a landing site: resource nodes (one look per resource), supply crates,
 // the lander / extraction beacon, Precursor ruins, pirate outpost huts, lair spikes.
 import * as THREE from 'three/webgpu';
-import { texture, positionWorld, normalWorld, attribute, vec3, float, abs, sin, uv, smoothstep, mix, positionLocal } from 'three/tsl';
+import { texture, positionWorld, normalWorld, attribute, vec3, float, abs, sin, uv, mix } from 'three/tsl';
 import { tex } from './ptex.js';
 import { GeoBuilder, rockGeometry } from './geo.js';
 

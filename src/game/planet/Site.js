@@ -7,7 +7,7 @@ import { RNG } from '../../engine/rng.js';
 import { RARITY } from '../data/items.js';
 import { rollExItem } from './explorerItems.js';
 import { RESOURCES, PLANET_RES, cargoTotal } from './economy.js';
-import { nodeGeometry, crateGeometry, texturedMat, landerGroup, beaconMaterial, ruinGeometry, outpostGeometry, lairGeometry } from './siteModels.js';
+import { nodeGeometry, crateGeometry, texturedMat, landerGroup, ruinGeometry, outpostGeometry, lairGeometry } from './siteModels.js';
 import { pickPack, pickBoss, pickEpic } from './enemies.js';
 import { dungeonEntrance, DUNGEON_THEMES } from './dungeonGen.js';
 

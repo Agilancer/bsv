@@ -3,9 +3,9 @@
 // Registered with game.enterMode('planet', mode) — Game calls update(dt, t, realDt) while active
 // and exit() when it ends (game.exitMode()).
 import * as THREE from 'three/webgpu';
-import { damp, clamp, RNG, wrapAngle } from '../../engine/rng.js';
+import { damp, clamp, RNG } from '../../engine/rng.js';
 import { RARITY } from '../data/items.js';
-import { EXPLORER_BY_ID } from '../data/chassis.js';
+
 import { biomeFor } from './biomes.js';
 import { heightSampler } from './terrainHeight.js';
 import { Terrain } from './Terrain.js';
@@ -438,6 +438,8 @@ export class PlanetMode {
   enter() {
     const G = this.game, E = this.engine;
     this.savedExposure = E.renderer.toneMappingExposure;
+    this.savedShadows = E.renderer.shadowMap.enabled;
+    if (this.sun.castShadow) { E.renderer.shadowMap.enabled = true; E.renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
     G.enterMode('planet', this);
     E.setView(this.scene, this.cam.camera);
     this.applyAtmosphere();
@@ -460,6 +462,7 @@ export class PlanetMode {
     this.hud.destroy();
     for (const l of [this.pfx.G, this.pfx.S, this.pfx.K]) E.remove(l);
     E.renderer.toneMappingExposure = this.savedExposure || 1.05;
+    E.renderer.shadowMap.enabled = !!this.savedShadows;
     this.terrain.dispose();
     this.disposed = true;
   }

@@ -2,8 +2,8 @@
 // over the planet, pulses from the hull, a sensor beam), read the survey (hazard, resources,
 // landing sites), drop an orbital probe, and launch the explorer in a drop pod.
 import * as THREE from 'three/webgpu';
-import { vec3, float, positionLocal, normalize, smoothstep, abs, sin, fract, uniform, max, dot, normalView, positionViewDirection, asin, atan } from 'three/tsl';
-import { surveyPlanet, planetKey, featureName, RESOURCES, RES_KEYS, ORBITAL_PROBE_COST, orbitalProbeYield, affordable, pay, addResources } from './economy.js';
+import { vec3, float, positionLocal, normalize, smoothstep, abs, sin, uniform, max, dot, normalView, positionViewDirection, asin, atan } from 'three/tsl';
+import { surveyPlanet, planetKey, featureName, RESOURCES, RES_KEYS, ORBITAL_PROBE_COST, orbitalProbeYield, pay, addResources } from './economy.js';
 import { ensureExplorer, explorerStats } from './explorerItems.js';
 import { biomeFor } from './biomes.js';
 import { PlanetMode } from './PlanetMode.js';

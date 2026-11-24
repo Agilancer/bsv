@@ -4,7 +4,7 @@
 // triplanar hull plating from the VECTORCLAD sheets, HDR glow strips for bloom.
 // Moving parts (wheels, legs, fans, turret, drill) are separate objects the controller animates.
 import * as THREE from 'three/webgpu';
-import { texture, positionLocal, normalLocal, float, vec3, abs, sin, attribute, mix, uv, smoothstep, length } from 'three/tsl';
+import { texture, positionLocal, normalLocal, float, vec3, abs, sin, attribute, smoothstep, length } from 'three/tsl';
 import { tex } from './ptex.js';
 import { GeoBuilder } from './geo.js';
 import { EX_BASES } from './explorerItems.js';

@@ -16,6 +16,10 @@ import {
   fabricate, bankCargo, loseCargo, cargoTotal, addResources, affordable, pay,
 } from '../src/game/planet/economy.js';
 import { heightSampler } from '../src/game/planet/terrainHeight.js';
+import { ENEMIES, ENEMY_BY_ID, SIZE_KEYS, ARCHETYPES, FAMILIES, spawnTable, pickPack, pickBoss, pickEpic } from '../src/game/planet/enemies.js';
+import { generateDungeon, DungeonNav, DUNGEON_THEMES, bfs, CELL } from '../src/game/planet/dungeonGen.js';
+import { probeStats, buyProbeUpgrade, PROBE_UPGRADES, orbitalProbeYield } from '../src/game/planet/economy.js';
+import { equipExItem, unequipExItem, equipBestEx, setExChassis } from '../src/game/planet/explorerItems.js';
 
 const richPlayer = () => {
   const p = newPlayer();
@@ -243,4 +247,126 @@ test('terrain height is deterministic, finite and flattened at the landing pad',
     const pad = h.height(0, 0);
     assert.ok(Math.abs(h.height(6, 4) - pad) < 0.6, `${type} pad is flat`);
   }
+});
+
+// ---------------- bestiary, dungeons, probes, loadout ----------------
+
+test('the bestiary holds 360 distinct named designs, 60 per size class', () => {
+  assert.equal(ENEMIES.length, 360);
+  assert.equal(new Set(ENEMIES.map((e) => e.name)).size, 360, 'every name unique');
+  assert.equal(new Set(ENEMIES.map((e) => e.id)).size, 360);
+  for (const k of SIZE_KEYS) assert.equal(ENEMIES.filter((e) => e.sizeClass === k).length, 60, k);
+  for (const e of ENEMIES) {
+    assert.ok(FAMILIES[e.family] && ARCHETYPES[e.archetype], e.id);
+    assert.ok(e.hp > 0 && e.dmg > 0 && e.radius > 0 && e.scale > 0, e.id);
+    assert.ok(e.planets.length >= 1 && e.role && e.vis && e.vis.plan, e.id);
+    assert.ok(e.levelBand[0] >= 1 && e.levelBand[1] >= e.levelBand[0]);
+  }
+  // no two designs share family + size + archetype + body + palette
+  const sig = new Set(ENEMIES.map((e) => [e.family, e.sizeClass, e.archetype, e.vis.plan, e.vis.color, e.vis.glow, e.vis.legs, e.vis.segs, e.vis.variant].join('|')));
+  assert.equal(sig.size, 360);
+});
+
+test('size classes scale up in toughness, presence and phases', () => {
+  const avg = (k, f) => { const L = ENEMIES.filter((e) => e.sizeClass === k); return L.reduce((a, e) => a + f(e), 0) / L.length; };
+  for (let i = 1; i < SIZE_KEYS.length; i++) {
+    assert.ok(avg(SIZE_KEYS[i], (e) => e.hp) > avg(SIZE_KEYS[i - 1], (e) => e.hp), 'hp rises');
+    assert.ok(avg(SIZE_KEYS[i], (e) => e.scale) > avg(SIZE_KEYS[i - 1], (e) => e.scale), 'size rises');
+  }
+  for (const e of ENEMIES.filter((x) => x.sizeClass === 'gargantuan')) assert.ok(e.boss && e.phases === 3 && e.weakPoints === 3);
+  for (const e of ENEMIES.filter((x) => x.sizeClass === 'legendary')) assert.ok(e.boss && e.phases === 2);
+  assert.ok(ENEMIES.filter((e) => e.sizeClass === 'small').every((e) => e.pack[1] >= 3), 'small ones come in swarms');
+});
+
+test('spawn tables respect planet type, hazard and context', () => {
+  const rng = new RNG(8);
+  for (const type of Object.keys(PLANET_RES)) {
+    const surf = spawnTable(type, 1, 'surface', 3);
+    assert.ok(surf.length > 10, `${type} has a roster`);
+    for (const [e] of surf) { assert.ok(e.planets.includes(type)); assert.ok(!e.boss, 'no bosses wander the open surface'); }
+    const pk = pickPack(rng, type, 3, 'surface', 6);
+    assert.ok(pk.count >= 1 && pk.level >= 1);
+    assert.equal(pickBoss(rng, type, 5, 'lair').sizeClass, 'gargantuan', 'harshest worlds get gargantuans');
+    assert.ok(['legendary', 'gargantuan'].includes(pickBoss(rng, type, 1, 'lair').sizeClass));
+    assert.equal(pickEpic(rng, type).sizeClass, 'epic');
+  }
+  const lowSurface = spawnTable('terran', 1, 'surface', 1).map(([e]) => e.sizeClass);
+  assert.ok(!lowSurface.includes('epic') && !lowSurface.includes('large'), 'level-1 open ground is small/mid only');
+  const vault = spawnTable('desert', 2, 'dungeon', 10, { guardian: 6 });
+  assert.ok(vault.some(([e]) => e.family === 'guardian'), 'dungeon themes bring their residents');
+  assert.equal(ENEMY_BY_ID.hive_small_0.name, 'Skitterling');
+});
+
+test('dungeons generate connected rooms with a start, a boss room and vaults', () => {
+  for (let depth = 1; depth <= 5; depth++) {
+    for (const seed of [1, 77, 4242]) {
+      const L = generateDungeon(seed * depth, depth);
+      assert.ok(L.rooms.length >= 6, 'enough rooms');
+      assert.equal(L.rooms.filter((r) => r.kind === 'start').length, 1);
+      assert.equal(L.rooms.filter((r) => r.kind === 'boss').length, 1);
+      assert.ok(L.rooms.some((r) => r.kind === 'vault'));
+      const d = bfs(L.grid, L.W, L.H, Math.floor(L.start.cx), Math.floor(L.start.cy));
+      for (const r of L.rooms) assert.ok(d[Math.floor(r.cy) * L.W + Math.floor(r.cx)] >= 0, 'every room reachable');
+      assert.ok(L.boss.dist >= Math.max(...L.rooms.map((r) => r.dist)), 'boss is the farthest room');
+      assert.deepEqual(generateDungeon(seed * depth, depth).grid, L.grid, 'deterministic');
+    }
+  }
+  assert.ok(Object.keys(DUNGEON_THEMES).length >= 5);
+});
+
+test('dungeon navigation: walls block, the flow field leads around them', () => {
+  const L = generateDungeon(99, 2);
+  const nav = new DungeonNav(L, { x: 0, z: 0 });
+  const s = nav.roomCenter(L.start), b = nav.roomCenter(L.boss);
+  assert.equal(nav.solid(s.x, s.z), false);
+  assert.equal(nav.solid(-L.W * CELL, 0), true, 'outside the map is rock');
+  nav.updateFlow(s.x, s.z);
+  const p = { x: b.x, z: b.z }, out = { x: 0, z: 0 };
+  let steps = 0;
+  while (Math.hypot(p.x - s.x, p.z - s.z) > CELL * 2 && steps < 4000) {
+    nav.steer(p, s.x, s.z, out);
+    const dx = out.x - p.x, dz = out.z - p.z, dl = Math.hypot(dx, dz) || 1;
+    p.x += dx / dl * 1.5; p.z += dz / dl * 1.5;
+    nav.collide(p, 1.2);
+    assert.equal(nav.solid(p.x, p.z), false, 'never inside a wall');
+    steps++;
+  }
+  assert.ok(steps < 4000, 'reached the start room');
+});
+
+test('probes upgrade through the refinery and orbital probes trickle resources', () => {
+  const p = richPlayer();
+  const s0 = probeStats(p);
+  assert.equal(s0.count, 1); assert.equal(s0.uplink, false);
+  for (const up of PROBE_UPGRADES) assert.equal(buyProbeUpgrade(p, up.k).ok, true, up.k);
+  const s1 = probeStats(p);
+  assert.ok(s1.count === 2 && s1.cap > s0.cap && s1.speed > s0.speed && s1.rate > s0.rate && s1.hp > s0.hp && s1.uplink);
+  assert.equal(buyProbeUpgrade(p, 'uplink').ok, false, 'uplink is a single rank');
+  const sys = galaxy().systems[3];
+  const planet = systemDetail(sys).planets.find((x) => x.landable);
+  const S = surveyPlanet(planet, sys);
+  const total = (y) => Object.values(y).reduce((a, b) => a + b, 0);
+  assert.equal(total(orbitalProbeYield(S, { t: 100, cap: 60 }, 100)), 0);
+  assert.equal(total(orbitalProbeYield(S, { t: 0, cap: 60 }, 120)), 20);
+  assert.equal(total(orbitalProbeYield(S, { t: 0, cap: 60 }, 1e6)), 60, 'capped');
+});
+
+test('explorer loadout: equip, unequip, best, and chassis swaps keep every item', () => {
+  const ex = starterExplorer();
+  const count = () => ex.inventory.length + Object.values(ex.loadout).filter(Boolean).length;
+  const n0 = count();
+  const big = makeExItem('rail', 30, 'legendary', new RNG(12));
+  ex.inventory.push(big);
+  equipBestEx(ex);
+  assert.equal(ex.loadout['gun:0'], big, 'the better gun goes in');
+  assert.equal(count(), n0 + 1);
+  assert.equal(unequipExItem(ex, 'gun:0'), true);
+  assert.equal(ex.loadout['gun:0'], undefined);
+  assert.equal(equipExItem(ex, big), true);
+  ex.owned.push('ex_skiff_1');
+  assert.equal(setExChassis(ex, 'ex_skiff_1'), true);
+  assert.equal(count(), n0 + 1, 'nothing lost on a frame with fewer slots');
+  const keys = exSlotKeys(EXPLORER_BY_ID.ex_skiff_1);
+  for (const k of Object.keys(ex.loadout)) assert.ok(keys.includes(k));
+  assert.equal(setExChassis(ex, 'ex_lancer_9'), false, 'cannot deploy an unowned frame');
 });
