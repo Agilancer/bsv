@@ -21,6 +21,12 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     hold triage), `crew/auto.js` (`game.crewAuto`: appoint / rebalance / hire / promote; also the
     Crew window's Auto-manage button), `planet/autoCraft.js` (`game.refineryAuto`: explorer bay,
     fabricator, refinery ranks, gear workshop, orbital probes, landing site + tool fit).
+  - `guild/` — guilds, alliances and PvP, all simulated (`game.guild`): `data.js` (pure rules: guild
+    level/perks/upgrades, invite and alliance acceptance, NPC guilds and blocs, zone capture and
+    control ticks, rating/tiers/matchmaking, rewards, vendor), `index.js` (runtime, autoplay
+    management, the `PvP sortie` goal), `zones.js` (contested Voidglass fields in the open galaxy),
+    `arena.js` (instanced modes), `bots.js` (PvP captains), `ui.js` + `css/guild.css`. Save:
+    `data.guild`, `data.pvp`, `data.diplo`. Hostile PvP captains use teams 8+ (`s.pvp`, `noLoot`).
   - `planet/` living layer: `lifeData.js` (pure data: fauna, curios, radio lines, streaks, weather,
     time of day, report rating), `Life.js` (wildlife herds, flyers, curios), `Weather.js` (fronts +
     telegraphed strikes), `Extras.js` (comm strip, streak callouts, discovery cards, expedition
@@ -79,6 +85,10 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - `data/balance.js` is the contract: `expectedPlayer(L)` builds the expected captain from the real
   item/talent/hull formulas (sheet DPS, EHP, armour, repair); `enemyTargets` sizes enemies from it
   with per-size engagement (`ENGAGE_BY_SIZE`) and repair share. Recalibrate with `tools/duel.cjs`.
+- PvP captains are sized from the same contract (`guild/data.js pvpTargets`: `BOT.kill`/`BOT.die`
+  seconds, `pvpEngage(L)`, per-mode `focus`); `node tools/pvp.cjs 4 --fixed` measures the autoplay
+  captain's win rate at equal rating (target ~50%). Guild perks are capped at +8% XP, +8% credits,
+  +1.5% hull per kill (`guildPerks`).
 - Telegraphed specials pass `TELEGRAPH` (Combat.js) as ws: their own per-hit budget, outside the
   `MIN_TTK` per-source window. Escorts a boss spawns set `capRoot` to share its window.
 
