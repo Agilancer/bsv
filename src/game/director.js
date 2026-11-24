@@ -19,6 +19,7 @@ import { RNG, rng as R } from '../engine/rng.js';
 const ZONE_NAMES = { patrol: 'Patrol lane', base: 'Raider base', belt: 'Mining belt', wrecks: 'Wreck field', front: 'Contested front', lair: 'Boss lair' };
 const WAVES = { patrol: 2, base: 3, belt: 2, wrecks: 1, front: 2, lair: 1 };
 
+const FLED_R = 3600;   // further than this from its zone, a garrison ship has left the fight
 export class Director {
   constructor(sector) {
     this.sector = sector;
@@ -140,6 +141,14 @@ export class Director {
         for (const s of zs.ships) if (!s.persistent) W.removeShip(s);
         zs.ships = []; zs.active = false; zs.respawnT = 30;
         continue;
+      }
+      // a defender that broke off and ran no longer holds the zone: without this a beaten pirate fleeing
+      // across the system kept its zone "contested" forever (no next wave, no clear, autopilots waiting)
+      for (let i = zs.ships.length - 1; i >= 0; i--) {
+        const o = zs.ships[i];
+        if (o.zoneAlly || o.persistent || o.position.distanceTo(zs.pos) < FLED_R) continue;
+        zs.ships.splice(i, 1);
+        if (o.position.distanceTo(pp) > 3200 && o !== P.target) W.removeShip(o);   // out of sight: gone for good
       }
       const hostile = zs.ships.filter((s) => !s.zoneAlly && W.hostile(P, s));
       if (!hostile.length) {

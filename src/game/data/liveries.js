@@ -62,7 +62,7 @@ export const LIVERIES = {
     name: 'White Script',
     palette: {},
     glows: [0x9ff0ff, 0xffffff, 0xa0b0ff],
-    paint: 0x20242e, paintTex: 'hull_graphite', mark: 0xe8f8ff, markMul: 1.7, glyph: 0xe8f4ff, glyphMul: 0.54,
+    paint: 0x20242e, paintTex: 'hull_graphite', mark: 0xe8f8ff, markMul: 1.3, glyph: 0xe8f4ff, glyphMul: 0.54,
     emblem: 'sigil', marks: ['glyphs'],
   },
 };

@@ -16,6 +16,17 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   - `combat/` — projectiles/beams (instanced), damage model, hangar craft. `ai/ShipAI.js`.
   - Feature modules install through `src/game/modules.js`: `station/`, `nav/`, `mmo/`,
     `autoplay/goals.js` (+ crew/bridge and planet modules).
+  - The autoplay captain's decisions are pure, node-tested modules called from one line each:
+    `autoplay/build.js` (talent builds), `autoplay/refit.js` (station market, reforge, old hulls,
+    hold triage), `crew/auto.js` (`game.crewAuto`: appoint / rebalance / hire / promote; also the
+    Crew window's Auto-manage button), `planet/autoCraft.js` (`game.refineryAuto`: explorer bay,
+    fabricator, refinery ranks, gear workshop, orbital probes, landing site + tool fit).
+  - `guild/` — guilds, alliances and PvP, all simulated (`game.guild`): `data.js` (pure rules: guild
+    level/perks/upgrades, invite and alliance acceptance, NPC guilds and blocs, zone capture and
+    control ticks, rating/tiers/matchmaking, rewards, vendor), `index.js` (runtime, autoplay
+    management, the `PvP sortie` goal), `zones.js` (contested Voidglass fields in the open galaxy),
+    `arena.js` (instanced modes), `bots.js` (PvP captains), `ui.js` + `css/guild.css`. Save:
+    `data.guild`, `data.pvp`, `data.diplo`. Hostile PvP captains use teams 8+ (`s.pvp`, `noLoot`).
   - `planet/` living layer: `lifeData.js` (pure data: fauna, curios, radio lines, streaks, weather,
     time of day, report rating), `Life.js` (wildlife herds, flyers, curios), `Weather.js` (fronts +
     telegraphed strikes), `Extras.js` (comm strip, streak callouts, discovery cards, expedition
@@ -59,6 +70,13 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - `python3 tools/serve.py 8420`, then `node tools/shot.cjs "index.html?play&new&webgl" out.png 15000`
   (`EVAL="…"`, `POSTWAIT=ms`). Headless WebGPU canvases screenshot black: use `&webgl` for
   pictures and `tools/gpuprobe.html` to verify the WebGPU path by pixel readback.
+- Touch / phones: `node tools/touch.cjs --gate [--shots=dir]` emulates 360x640 and 800x360 with
+  synthetic touches: pinch / twist / drag vs camera distance and yaw (space and surface), gestures vs
+  the sticks, HUD overlap / off-screen / 40 px tap targets, hold-to-inspect, rotation, resolution
+  governor. Touch layer: `ui/mobile.js` (tray, sheet, hold), `engine/gestures.js` (two-finger math),
+  `engine/Input.js` (view gestures), `planet/Touch.js`; phone layouts are the last blocks of
+  `css/ui.css` / `css/planet.css` (`--ml/--mr/--mt/--mb` = margins + safe-area insets). Anything
+  added to `#menubar` shows in the phone sheet; new fixed HUD panels need a slot in both orientations.
 - `tools/viewer.html?yard=velscour` lays hulls out for visual review (`&enemy=<size>&faction=`,
   comma lists, `also=`). Faction liveries: `data/liveries.js`; hull numbers (node-safe):
   `ship/hullPlan.js` (`sideProfile` feeds the crew cutaway).
@@ -67,6 +85,10 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - `data/balance.js` is the contract: `expectedPlayer(L)` builds the expected captain from the real
   item/talent/hull formulas (sheet DPS, EHP, armour, repair); `enemyTargets` sizes enemies from it
   with per-size engagement (`ENGAGE_BY_SIZE`) and repair share. Recalibrate with `tools/duel.cjs`.
+- PvP captains are sized from the same contract (`guild/data.js pvpTargets`: `BOT.kill`/`BOT.die`
+  seconds, `pvpEngage(L)`, per-mode `focus`); `node tools/pvp.cjs 4 --fixed` measures the autoplay
+  captain's win rate at equal rating (target ~50%). Guild perks are capped at +8% XP, +8% credits,
+  +1.5% hull per kill (`guildPerks`).
 - Telegraphed specials pass `TELEGRAPH` (Combat.js) as ws: their own per-hit budget, outside the
   `MIN_TTK` per-source window. Escorts a boss spawns set `capRoot` to share its window.
 

@@ -9,6 +9,11 @@ import { load } from './game/Player.js';
 import { Audio } from './engine/Audio.js';
 import { TitleScene } from './fx/TitleScene.js';
 import { captainName, shipName, cleanName, randomCaptain, randomShip, CAPTAIN_MAX, SHIP_MAX } from './game/data/naming.js';
+import { startLogoSparks } from './ui/logoSparks.js';
+
+// the logo is being welded back together from the first frame, loading bar and all
+const titleLogo = document.querySelector('#title .logo');
+const stopLogoSparks = titleLogo ? startLogoSparks(titleLogo) : () => {};
 
 export const VERSION = '0.1.0';
 const $ = (s) => document.querySelector(s);
@@ -43,7 +48,7 @@ async function boot() {
     title.dispose();
     game.start(fresh);
     engine.start();
-    setTimeout(() => $('#title').remove(), 900);
+    setTimeout(() => { stopLogoSparks(); $('#title').remove(); }, 900);
   };
   $('#btnContinue').onclick = () => go(false);
   // New Captain: name the captain and the flagship first (typed text is cleaned, and only ever shown as text)

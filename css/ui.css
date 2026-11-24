@@ -198,9 +198,10 @@ body.mobile .hplan canvas { height: 170px; }
 /* ---------- title ---------- */
 #title { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 60%, rgba(40, 20, 90, 0.25), rgba(2, 4, 12, 0.6) 70%); transition: opacity 0.8s; }
 #title.gone { opacity: 0; pointer-events: none; }
-#title .logo { font-family: var(--head); font-weight: 900; font-size: clamp(34px, 7vw, 92px); letter-spacing: 0.18em; color: #fff; text-shadow: 0 0 24px rgba(88, 200, 255, 0.9), 0 0 80px rgba(154, 107, 255, 0.6); text-align: center; line-height: 1; }
-#title .logo small { display: block; font-size: 0.28em; letter-spacing: 0.9em; color: var(--cyan); margin-bottom: 0.4em; font-weight: 400; }
-#title .tag { margin-top: 18px; font-size: 16px; letter-spacing: 0.4em; color: var(--text); text-transform: uppercase; }
+#title .logo { position: relative; isolation: isolate; width: min(88vw, 900px, 104vh); line-height: 0; user-select: none; }
+#title .logo img { display: block; width: 100%; height: auto; filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.75)); }
+/* the welding sparks: behind the letters, with room to fly past the edges */
+#title .logo canvas { position: absolute; left: -12%; top: -70%; width: 124%; height: 250%; z-index: -1; pointer-events: none; }
 #title .menu { margin-top: 48px; display: flex; flex-direction: column; gap: 12px; min-width: 280px; }
 #title .menu .btn { font-size: 13px; padding: 12px 18px; }
 #title .load { margin-top: 30px; width: 360px; }
@@ -379,3 +380,171 @@ body.win-open #objectives, body.hud-hidden #objectives, body[data-mode]:not([dat
 #station .cell.named .nm { word-break: normal; overflow-wrap: anywhere; hyphens: auto; }
 #station .cell.named { height: auto; min-height: 92px; display: flex; flex-direction: column; align-items: center; padding-bottom: 14px; }
 #station .cell.named .nm { font-size: 9.5px; line-height: 1.15; text-align: center; margin-top: 2px; max-height: 2.3em; overflow: hidden; padding: 0 2px; pointer-events: none; }
+
+/* ================= touch screens & phones ================= */
+/* The page itself never pans or zooms: the game owns two-finger gestures (pinch = camera zoom).
+   Real scroll containers (windows, chat, the menu sheet) still pan, because a pan is judged up to
+   the nearest scroller while a pinch is judged against the whole chain up to here. */
+:root { --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px); --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px);
+  --ml: calc(8px + var(--sal)); --mr: calc(8px + var(--sar)); --mt: calc(8px + var(--sat)); --mb: calc(8px + var(--sab)); }
+html, body { touch-action: none; overscroll-behavior: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+#view, #overlay { touch-action: none; }
+.win, .win .wbody, #menubar { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+#chat input, .opt input, .opt select { touch-action: manipulation; }
+
+/* helm tray + hold-to-inspect action bar (touch only) */
+#mTray { display: none; }
+.mbtn i { display: block; font-style: normal; font-size: 7px; letter-spacing: 0.1em; color: var(--text-dim); margin-top: 1px; }
+.mbtn { touch-action: none; line-height: 1; }
+.mbtn.mz { font-size: 22px; min-width: 44px; height: 44px; padding: 0; background: rgba(8, 16, 38, 0.6); }
+#tipActs { position: fixed; z-index: 11; display: none; gap: 6px; }
+#tipActs .btn { min-height: 44px; padding: 10px 16px; font-size: 12px; background-color: rgba(6, 12, 30, 0.96); }
+#menubar .mplanet { display: none !important; }
+body.planet-mode #menubar .mspace { display: none !important; }
+
+body.mobile #mTray { display: contents; }
+body.mobile #mTray .mbtn { width: 50px; min-width: 0; padding: 0; }
+body.mobile #mTray .mbtn.mz { width: 44px; }
+body.mobile #menubar button[data-w="options"]::after { content: ' OPTIONS'; }
+/* windows are opaque on small screens: the HUD showing through a full-screen panel is only noise */
+body.mobile .win { background: linear-gradient(160deg, rgba(14, 28, 66, 0.97), rgba(5, 10, 26, 0.98) 40%, rgba(9, 7, 30, 0.98)); backdrop-filter: none; }
+body.mobile .slots { grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); }
+body.mobile .grid { grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); }
+body.mobile #target { padding: 5px 10px 7px; }
+body.mobile #target .tname { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.mobile #target .tsub { font-size: 10px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.mobile #target .bar { margin-top: 3px; }
+body.mobile #status .bar, body.mobile #target .bar { height: 11px; }
+body.mobile #status .bar span, body.mobile #target .bar span { font-size: 9px; line-height: 10px; }
+body.mobile #menubar .monly { display: block; }
+body.mobile.planet-mode #menubar .mplanet { display: block !important; }
+body.mobile #mMenu { left: var(--ml); top: var(--mt); }
+body.mobile #mChat { left: calc(var(--ml) + 54px); top: var(--mt); }
+body.mobile #stick { left: calc(14px + var(--ml)); bottom: calc(14px + var(--mb)); }
+body.mobile #radar { top: var(--mt); right: var(--mr); }
+body.mobile #abilities { right: var(--mr); bottom: var(--mb); }
+body.mobile .ab .key { display: none; }
+body.mobile #target { cursor: pointer; }
+body.mobile #status .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.mobile #status .row:first-child > div:nth-child(2) { min-width: 0; }
+body.mobile #toasts { max-width: 92vw; }
+body.mobile .toast { text-align: center; }
+/* the sheet: two columns of thumb-sized buttons, scrolls if it has to */
+body.mobile #menubar { left: var(--ml); right: auto; top: calc(var(--mt) + 54px); bottom: auto; display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; width: min(340px, calc(100vw - var(--ml) - var(--mr))); max-height: calc(100vh - var(--mt) - var(--mb) - 58px); overflow-y: auto; z-index: 12; flex-direction: unset; touch-action: pan-y; }
+body.mobile #menubar.open { display: grid; }
+body.mobile #menubar button { min-height: 44px; font-size: 12px; padding: 8px 12px; text-align: left; clip-path: none; }
+body.mobile #menubar button i.k { display: none; }
+body.mobile #chat { z-index: 7; }
+/* windows: fill the screen under the menu row, close button a full thumb wide, body scrolls */
+body.mobile .win { left: var(--ml) !important; right: var(--mr) !important; top: calc(var(--mt) + 54px) !important; bottom: var(--mb); z-index: 5; touch-action: pan-y; }
+body.mobile .win .wtitle { font-size: 13px; }
+body.mobile .win .close { min-width: 44px; min-height: 40px; margin: -8px -6px -8px 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+body.mobile .btn { min-height: 40px; }
+body.mobile .ctabs .btn, body.mobile #hudPeek .btn { min-height: 36px; }
+body.mobile #chat .tabs b { padding: 8px 6px; }
+body.mobile #chat input { min-height: 36px; font-size: 16px; }   /* 16px: iOS does not zoom the page on focus */
+body.mobile .opt { min-height: 40px; }
+body.mobile .opt input[type=checkbox] { width: 24px; height: 24px; }
+body.mobile .opt select { min-height: 36px; font-size: 14px; }
+body.mobile .tal { min-height: 44px; }
+body.mobile #tooltip { max-width: calc(100vw - 16px); background: linear-gradient(160deg, rgba(16, 32, 74, 0.98), rgba(5, 10, 26, 0.98) 40%, rgba(10, 8, 34, 0.98)); backdrop-filter: none; }
+body.mobile #galaxy { bottom: var(--mb); }
+body.mobile #galaxy .wbody { inset: 44px 8px 8px 8px; overflow: hidden; }
+body.mobile #galaxy .gmap, body.mobile #system .smap { touch-action: none; }
+body.mobile #galaxy .ginfo { width: min(210px, 56vw); padding: 8px 10px; font-size: 12px; }
+body.mobile #galaxy .ginfo .label:last-child { display: none; }
+body.mobile #system .smap { max-height: calc(100vh - 190px); }
+
+/* portrait: buttons / status / radar on top, target under them; stick, helm row and abilities below */
+@media (max-aspect-ratio: 1/1) {
+  body.mobile #status { left: var(--ml); right: calc(var(--mr) + 126px); top: calc(var(--mt) + 54px); width: auto; }
+  body.mobile #status .row:first-child { flex-wrap: nowrap; gap: 6px; }
+  body.mobile #target { left: var(--ml); right: var(--mr); top: calc(var(--mt) + 122px); width: auto; transform: none; }
+  body.mobile #toasts { top: calc(var(--mt) + 196px); }
+  body.mobile #dockPrompt { top: calc(var(--mt) + 190px); bottom: auto !important; }
+  body.mobile #autoStatus { top: calc(var(--mt) + 232px) !important; bottom: auto !important; }
+  body.mobile #mStop { left: var(--ml); bottom: calc(var(--mb) + 164px); }
+  body.mobile #mTgt { left: calc(var(--ml) + 56px); bottom: calc(var(--mb) + 164px); }
+  body.mobile #mUp { left: calc(var(--ml) + 112px); bottom: calc(var(--mb) + 164px); }
+  body.mobile #mDown { left: calc(var(--ml) + 168px); bottom: calc(var(--mb) + 164px); }
+  body.mobile #mAuto { right: var(--mr); bottom: calc(var(--mb) + 220px); }
+  body.mobile #mZin { right: calc(var(--mr) + 76px); bottom: calc(var(--mb) + 222px); }
+  body.mobile #mZout { right: calc(var(--mr) + 126px); bottom: calc(var(--mb) + 222px); }
+  body.mobile #objectives { left: var(--ml); bottom: calc(var(--mb) + 222px); top: auto; width: 166px; }
+  body.mobile #chat.open { top: calc(var(--mt) + 126px); height: 34vh; }
+}
+/* landscape: one row across the top; helm block beside the stick; zoom beside AUTO over the abilities */
+@media (min-aspect-ratio: 1/1) {
+  body.mobile #status { left: calc(var(--ml) + 114px); top: var(--mt); width: 206px; }
+  body.mobile #status .bars { width: auto; }
+  body.mobile #target { left: calc(var(--ml) + 328px); right: auto; top: var(--mt); width: min(330px, calc(100vw - 470px - var(--sal) - var(--sar))); transform: none; }
+  body.mobile #toasts { top: calc(var(--mt) + 70px); }
+  body.mobile #dockPrompt { bottom: calc(var(--mb) + 62px) !important; }
+  body.mobile #autoStatus { bottom: calc(var(--mb) + 40px) !important; }
+  body.mobile #mStop { left: calc(var(--ml) + 164px); bottom: calc(var(--mb) + 58px); }
+  body.mobile #mTgt { left: calc(var(--ml) + 220px); bottom: calc(var(--mb) + 58px); }
+  body.mobile #mUp { left: calc(var(--ml) + 164px); bottom: calc(var(--mb) + 4px); }
+  body.mobile #mDown { left: calc(var(--ml) + 220px); bottom: calc(var(--mb) + 4px); }
+  body.mobile #mAuto { right: var(--mr); bottom: calc(var(--mb) + 116px); }
+  body.mobile #mZin { right: calc(var(--mr) + 76px); bottom: calc(var(--mb) + 118px); }
+  body.mobile #mZout { right: calc(var(--mr) + 126px); bottom: calc(var(--mb) + 118px); }
+  body.mobile #objectives { left: var(--ml); top: calc(var(--mt) + 72px); bottom: auto; width: 214px; }
+  body.mobile #inventory .cols { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); }
+  body.mobile .hplan canvas { height: 130px; }
+  body.mobile #menubar { grid-template-columns: repeat(4, minmax(0, 1fr)); width: min(640px, calc(100vw - var(--ml) - var(--mr))); }
+  /* windows keep the menu button reachable in a gutter on the left */
+  body.mobile .win { left: calc(var(--ml) + 56px) !important; top: var(--mt) !important; }
+  body.mobile.win-open #mChat { display: none; }
+  body.mobile #chat { left: calc(var(--ml) + 114px); right: calc(var(--mr) + 126px); top: calc(var(--mt) + 62px); height: 46vh; }
+}
+/* small landscape phones: no room beside the status panel, the target goes under it */
+@media (min-aspect-ratio: 1/1) and (max-width: 700px) {
+  body.mobile #target { left: calc(var(--ml) + 114px); top: calc(var(--mt) + 70px); width: 206px; }
+  body.mobile #objectives { display: none !important; }
+}
+/* other modes: the surface and the bridge bring their own sticks and pads */
+body.planet-mode #mTray, body[data-mode="bridge"] #stick, body[data-mode="bridge"] #mStop, body[data-mode="bridge"] #mTgt, body[data-mode="bridge"] #mAuto { display: none !important; }
+/* bridge on touch: its own helm pad sits bottom-right; the back button moves clear of the menu
+   buttons and the zoom pair (field of view) rides above the pad */
+body.mobile #bridgeHud .bh-back { left: calc(var(--ml) + 108px); top: var(--mt); min-height: 48px; }
+body.mobile[data-mode="bridge"] #mZin { right: var(--mr); bottom: calc(var(--mb) + 206px); }
+body.mobile[data-mode="bridge"] #mZout { right: calc(var(--mr) + 48px); bottom: calc(var(--mb) + 206px); }
+body.mobile[data-mode="bridge"] #mUp { left: auto; right: calc(var(--mr) + 152px); bottom: calc(var(--mb) + 204px); }
+body.mobile[data-mode="bridge"] #mDown { left: auto; right: calc(var(--mr) + 98px); bottom: calc(var(--mb) + 204px); }
+/* abilities 2–8 have no key on a phone: keep the pad on the bridge, bottom-left where the stick was */
+body.mobile[data-mode="bridge"] #abilities { visibility: visible !important; left: var(--ml); right: auto; }
+body.bridge-dlg #abilities, body.bridge-dlg #mUp, body.bridge-dlg #mDown { display: none !important; }
+body.mobile #bridgeHud .bh-touch { right: var(--mr); bottom: var(--mb); }
+body.mobile #bridgeHud .bh-crewl { top: calc(var(--mt) + 52px); left: var(--ml); }
+body.mobile #bridgeHud .bh-status { top: calc(var(--mt) + 110px); left: var(--ml); }
+body.bridge-dlg #mZin, body.bridge-dlg #mZout { display: none; }
+/* galaxy map in portrait: legend as a strip on top, system details as a strip at the bottom */
+@media (max-aspect-ratio: 1/1) {
+  body.mobile #galaxy .glegend { left: 0; right: 0; top: 0; bottom: auto; flex-direction: row; flex-wrap: wrap; gap: 2px 10px; padding: 4px 6px; }
+  body.mobile #galaxy .glegend .label { display: none; }
+  body.mobile #galaxy .ginfo { left: 0; right: 0; top: auto; bottom: 0; width: auto; }
+  body.mobile #galaxy .ginfo .statgrid { grid-template-columns: 1fr auto 1fr auto; gap: 2px 10px; }
+  body.mobile #galaxy .ginfo .label { margin: 2px 0 4px !important; }
+}
+/* title on touch screens (before the game has classified the device): no keyboard legend, big buttons */
+@media (pointer: coarse), (max-width: 900px) {
+  #title .keys { display: none; }
+  #title .menu { margin-top: 28px; min-width: min(280px, 80vw); }
+  #title .menu .btn { min-height: 48px; }
+  #title .load { width: min(360px, 80vw); }
+}
+/* quest tracker (css/quests.css puts it top-left): in portrait it takes the strip under the target
+   panel and the prompts move down a row; in landscape it sits under the buttons / the objectives */
+body.mobile #questTrack { left: var(--ml) !important; width: 206px; }
+@media (max-aspect-ratio: 1/1) {
+  body.mobile #questTrack { top: calc(var(--mt) + 198px) !important; width: min(250px, 70vw); }
+  body.mobile:has(#questTrack:not([style*="none"])) #toasts { top: calc(var(--mt) + 270px); }
+  body.mobile:has(#questTrack:not([style*="none"])) #dockPrompt { top: calc(var(--mt) + 270px); }
+  body.mobile:has(#questTrack:not([style*="none"])) #autoStatus { top: calc(var(--mt) + 300px) !important; }
+}
+@media (min-aspect-ratio: 1/1) {
+  body.mobile #questTrack { top: calc(var(--mt) + 72px) !important; }
+  body.mobile:has(#objectives:not([style*="none"])) #questTrack { display: none !important; }   /* first session: the tutorial has that corner */
+  body.mobile #questTrack .qt:nth-child(n+4) { display: none; }   /* two lines: the stick is just below */
+}
+@media (min-aspect-ratio: 1/1) and (max-width: 700px) { body.mobile #questTrack { display: none !important; } }

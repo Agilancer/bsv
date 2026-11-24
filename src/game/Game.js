@@ -80,7 +80,7 @@ export class Game {
     this.enterSystem(this.data.system || 0);
     this.engine.add(this);
     this.ui.chat('SYS', null, `Welcome aboard the ${this.data.ship.name}, Captain${this.data.name && this.data.name !== 'Captain' ? ' ' + this.data.name : ''}. ${this.engine.backend} renderer online.`, 'sys');
-    this.ui.chat('SYS', null, document.body.classList.contains('mobile') ? 'Left stick steers · tap a ship to target · tap space to sail · abilities on the right' : 'W/S throttle · A/D rudder · R/F altitude · Right-click sail · Tab target · 1-8 abilities · I cargo', 'sys');
+    this.ui.chat('SYS', null, document.body.classList.contains('mobile') ? 'Left stick steers · tap a ship to target · tap space to sail · pinch to zoom, twist or drag to turn the camera · hold anything for details' : 'W/S throttle · A/D rudder · R/F altitude · Right-click sail · Tab target · 1-8 abilities · I cargo', 'sys');
   }
 
   enterSystem(id) {
@@ -147,7 +147,7 @@ export class Game {
       if (d.ship === this.player && !d.shield && d.amount > this.player.maxHull * 0.04) { this.engine.flash(0.18, 0xff3020); this.cam.addShake(2); }
     });
     ev.on('kill', ({ ship, killer }) => {
-      if (ship === this.player) return this.onPlayerDeath();
+      if (ship === this.player) return this.onPlayerDeath(killer);
       if (ship.team !== 1 && (ship.playerTagged || (killer && killer.isPlayer))) this.reward(ship);
     });
     ev.on('collect', (d) => this.collect(d));
@@ -364,12 +364,15 @@ export class Game {
     if (this.npcChat) this.npcChat.reply(text);
   }
 
-  onPlayerDeath() {
+  onPlayerDeath(killer) {
+    // guild module: an arena handles its own deaths (true); a PvP loss in open space costs nothing ('waive')
+    const pvp = this.pvpDeath ? this.pvpDeath(killer) : false;
+    if (pvp === true) return;
     this.ui.death(true);
     this.autoplayWasOn = !!this.autoplay;
-    const lost = Math.min(Math.round(this.data.credits * 0.04), 500 + this.data.level * 150);
+    const lost = pvp ? 0 : Math.min(Math.round(this.data.credits * 0.04), 500 + this.data.level * 150);
     this.data.credits -= lost;
-    this.ui.chat('SYS', null, `Hull lost. Insurance deductible: ${lost} ¢`, 'sys');
+    this.ui.chat('SYS', null, pvp ? 'Hull lost to a rival captain. No insurance is charged for PvP.' : `Hull lost. Insurance deductible: ${lost} ¢`, 'sys');
     this.world.schedule(3.5, () => {
       this.ui.death(false);
       // hostiles near the wreck lose interest
@@ -499,7 +502,7 @@ export class Game {
       // fitMul adapts until both hulls sit inside the HUD-free area (any layout, any aspect)
       this.fitMul = this.fitMul || 1;
       this.cam.distFloor = framing ? Math.min(this.cam.maxDist, Math.max(tg.dims.L > 200 ? tg.dims.L * 1.5 + 250 : 0, sep * 1.3 + 220) * this.fitMul) : 0;
-      if (innerHeight > innerWidth) this.cam.distFloor = Math.max(this.cam.distFloor || 0, 720);   // portrait: see abeam
+      if (innerHeight > innerWidth && !this.cam.userZoomed) this.cam.distFloor = Math.max(this.cam.distFloor || 0, 720);   // portrait: see abeam (until the captain picks a zoom)
       // phones: never zoom out so far that your own hull is a speck — the threat arrows cover the rest
       if (document.body.classList.contains('mobile')) this.cam.distFloor = Math.min(this.cam.distFloor || 0, 1150);
       this.cam.update(dt, t, realDt);

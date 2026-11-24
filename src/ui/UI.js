@@ -7,7 +7,7 @@ import { ABILITIES } from '../game/data/abilities.js';
 import { BASES, RARITY, describe, itemShipStats, weaponStats } from '../game/data/items.js';
 import { slotKeys, slotType, xpForLevel, shipXpForLevel, itemScore, INV_SIZE } from '../game/Player.js';
 // HUD panels the camera frames around (hidden ones measure 0 and drop out)
-const SAFE_IDS = ['status', 'helm', 'radar', 'weapons', 'target', 'abilities', 'menubar', 'chat', 'objectives', 'hudPeek', 'stick', 'mStop'];
+const SAFE_IDS = ['status', 'helm', 'radar', 'weapons', 'target', 'abilities', 'menubar', 'chat', 'objectives', 'hudPeek', 'stick', 'mStop', 'mDown', 'mAuto'];
 import { CHASSIS_BY_ID, YARDS, YARD_TRAITS } from '../game/data/chassis.js';
 import { sheetDps } from '../game/data/balance.js';
 import { THROTTLE_STEPS } from '../game/ship/Ship.js';
@@ -200,7 +200,7 @@ export class UI {
     const groups = {};
     for (const k of keys) (groups[slotType(k)] ||= []).push(k);
     // the hull itself, mounts where they sit: hover for what's fitted, click to filter the hold
-    let left = ship ? `<div class="hplan"><canvas></canvas><div class="label">${chassis.fullName} · click a mount to see what fits${this.slotFilter ? ` · <a href="#" id="hpClear">show all</a>` : ''}</div></div>` : '';
+    let left = ship ? `<div class="hplan"><canvas></canvas><div class="label">${chassis.fullName} · ${document.body.classList.contains('mobile') ? 'tap' : 'click'} a mount to see what fits${this.slotFilter ? ` · <a href="#" id="hpClear">show all</a>` : ''}</div></div>` : '';
     for (const [t, ks] of Object.entries(groups)) {
       left += `<div class="label" style="margin:8px 0 4px">${SLOT_LABEL[t]}s</div><div class="slots">`;
       for (const k of ks) {
@@ -220,7 +220,7 @@ export class UI {
     }
     right += `</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
       <button class="btn" id="invBest">Equip best</button><button class="btn violet" id="invSalvage">Salvage commons</button><button class="btn bad" id="invSellJunk">Sell below rare</button></div>
-      <div class="label" style="margin-top:10px">Click: equip / unequip · Right-click: salvage for credits · Drag to a slot</div>`;
+      <div class="label" style="margin-top:10px">${document.body.classList.contains('mobile') ? 'Tap: equip / unequip · Hold: details, salvage · tap a mount on the plan, then an item, to fit it there' : 'Click: equip / unequip · Right-click: salvage for credits · Drag to a slot, or pick a mount on the plan first'}</div>`;
     body.innerHTML = `<div class="cols"><div>${left}</div><div>${right}</div></div>`;
     const cv = body.querySelector('.hplan canvas');
     if (cv && ship) {
@@ -235,11 +235,13 @@ export class UI {
       cv.addEventListener('mouseleave', () => this.hideTip());
       cv.addEventListener('click', (e) => {
         const h = at(e); if (!h) return;
-        this.slotFilter = this.slotFilter === h.type ? null : h.type;
+        // the mount tapped is also where the next item of that kind goes (drag-to-slot without a drag)
+        this.slotKey = this.slotFilter === h.type && this.slotKey === h.key ? null : h.key;
+        this.slotFilter = this.slotKey ? h.type : null;
         const sl = body.querySelector(`.slot[data-slot="${h.key}"]`); if (sl) sl.classList.add('pulse');
         this.renderInventory();
       });
-      const clr = body.querySelector('#hpClear'); if (clr) clr.onclick = (e) => { e.preventDefault(); this.slotFilter = null; this.renderInventory(); };
+      const clr = body.querySelector('#hpClear'); if (clr) clr.onclick = (e) => { e.preventDefault(); this.slotFilter = this.slotKey = null; this.renderInventory(); };
     }
     const find = (uid) => P.inventory.find((x) => x && x.uid === uid) || Object.values(P.ship.loadout).find((x) => x && x.uid === uid);
     body.querySelectorAll('.item').forEach((el) => {
@@ -251,7 +253,7 @@ export class UI {
       el.parentElement.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', it.uid); this.hideTip(); });
     });
     body.querySelectorAll('.cell').forEach((c) => {
-      c.addEventListener('click', () => { const it = P.inventory[+c.dataset.i]; if (it) { g.equip(it); this.hideTip(); } });
+      c.addEventListener('click', () => { const it = P.inventory[+c.dataset.i]; if (it) { g.equip(it, this.slotFilter === it.slot ? this.slotKey : undefined); this.hideTip(); } });
       c.addEventListener('contextmenu', (e) => { e.preventDefault(); const it = P.inventory[+c.dataset.i]; if (it) { g.salvage(it); this.hideTip(); } });
     });
     body.querySelectorAll('.slot').forEach((s) => {
@@ -400,7 +402,7 @@ export class UI {
       <label class="opt"><span>Hide interface during autoplay</span><input type="checkbox" id="oHide" ${g.settings().hideHudInAuto ? 'checked' : ''}></label>
       <label class="opt"><span>Autoplay ambition</span><select id="oAuto"><option value="full">Full campaign</option><option value="hold">Hold this system</option><option value="combat">Combat &amp; loot only</option></select></label>
       <label class="opt"><span>Autoplay keeps</span><select id="oKeep"><option value="uncommon">Uncommon+</option><option value="rare">Rare+</option><option value="epic">Epic+</option><option value="legendary">Legendary+</option></select></label>
-      <div class="label" style="margin:10px 0">Renderer: ${e.backend} · quality ${e.quality} · ${e.fps.toFixed(0)} fps</div>
+      <div class="label" style="margin:10px 0">Renderer: ${e.backend} · quality ${e.quality} · ${e.fps.toFixed(0)} fps${e.res && e.res.on ? ` · resolution ×${e.res.scale.toFixed(2)} (auto)` : ''}</div>
       <div style="display:flex;gap:8px"><button class="btn" id="oSave">Save now</button><button class="btn bad" id="oWipe">Delete save &amp; restart</button></div>`;
     const q = (id) => body.querySelector('#' + id);
     q('oMaster').oninput = (ev) => { if (a) { a.volume = ev.target.value / 100; if (a.master) a.master.gain.value = a.volume; } };

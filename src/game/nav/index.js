@@ -3,10 +3,13 @@
 import * as THREE from 'three/webgpu';
 import { galaxy, systemDetail, ARM_NAMES } from '../galaxy.js';
 import { save } from '../Player.js';
+import { TwoFinger } from '../../engine/gestures.js';
 
 const fmt = (n) => (n >= 1e4 ? (n / 1e3).toFixed(1) + 'k' : Math.round(n).toString());
 const STAR_HEX = { yellow: '#ffd890', orange: '#ffa060', red: '#ff5a40', white: '#e8f0ff', blue: '#80b0ff', violet: '#c080ff' };
 const _v = new THREE.Vector3(), _fwd = new THREE.Vector3(), _side = new THREE.Vector3();
+
+export const __views = { g: { k: 1, ox: 0, oy: 0, moved: false }, s: { k: 1, ox: 0, oy: 0, moved: false } };   // map pan / zoom (read by tools)
 
 export function unlockedDanger(P) { return P.level + 6; }
 
@@ -147,6 +150,46 @@ export function installNav(game) {
 
   // ---------------- galaxy map ----------------
   let gCanvas = null, hover = null;
+  // Map views: wheel or pinch zooms about the cursor / fingers, a drag pans (one finger or the
+  // mouse). k = zoom (1 = the whole map fits), ox / oy = pan in px. `moved` tells the click that
+  // follows a drag to do nothing.
+  const gView = __views.g, sView = __views.s;
+  function panZoom(cv, V, maxK) {
+    const pts = new Map(), two = new TwoFinger();
+    let travel = 0;
+    const zoomAt = (px, py, f) => {
+      const r = cv.getBoundingClientRect(), cx = r.width / 2, cy = r.height / 2;
+      const k = Math.max(1, Math.min(maxK, V.k * f)), g = k / V.k;
+      // keep the map point under (px, py) where it is
+      V.ox = (px - r.left - cx) - ((px - r.left - cx) - V.ox) * g; V.oy = (py - r.top - cy) - ((py - r.top - cy) - V.oy) * g;
+      V.k = k; clampView(r);
+    };
+    const clampView = (r) => { const mx = r.width / 2 * (V.k - 1) + 40 * (V.k > 1), my = r.height / 2 * (V.k - 1) + 40 * (V.k > 1); V.ox = Math.max(-mx, Math.min(mx, V.ox)); V.oy = Math.max(-my, Math.min(my, V.oy)); };
+    cv.addEventListener('wheel', (e) => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.pow(1.15, -Math.sign(e.deltaY))); }, { passive: false });
+    cv.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 1) { travel = 0; V.moved = false; }
+      if (pts.size === 2) { const [a, b] = [...pts.values()]; two.start(a.x, a.y, b.x, b.y); V.moved = true; }
+      try { cv.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointers cannot be captured */ }
+    });
+    cv.addEventListener('pointermove', (e) => {
+      const p = pts.get(e.pointerId); if (!p) return;
+      const dx = e.clientX - p.x, dy = e.clientY - p.y;
+      p.x = e.clientX; p.y = e.clientY;
+      if (pts.size >= 2 && two.active) {
+        const [a, b] = [...pts.values()];
+        two.move(a.x, a.y, b.x, b.y);
+        if (two.zoom !== 1) zoomAt(two.cx, two.cy, 1 / two.zoom);
+        if (two.panX || two.panY) { V.ox += two.panX; V.oy += two.panY; clampView(cv.getBoundingClientRect()); }
+      } else if (pts.size === 1) {
+        travel += Math.abs(dx) + Math.abs(dy);
+        if (travel > 8) { V.moved = true; V.ox += dx; V.oy += dy; clampView(cv.getBoundingClientRect()); }
+      }
+    });
+    const up = (e) => { pts.delete(e.pointerId); if (pts.size < 2) two.end(); };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  }
   function renderGalaxy() {
     const W = game.ui.windows.galaxy, body = W.querySelector('.wbody');
     if (!gCanvas) {
@@ -154,8 +197,9 @@ export function installNav(game) {
       body.innerHTML = `<div class="gwrap"><canvas class="gmap"></canvas><div class="ginfo holo" id="gInfo"></div><div class="glegend holo"><div class="label">Held by</div>${LEG.map(([, n, col]) => `<span><i style="border-color:${col}"></i>${n}</span>`).join('')}</div></div>`;
       gCanvas = body.querySelector('canvas');
       gCanvas.addEventListener('mousemove', (e) => { hover = pick(e); drawGalaxy(); });
-      gCanvas.addEventListener('click', (e) => { const p = pick(e); if (p) { selected = p.id; drawGalaxy(); info(); } });
+      gCanvas.addEventListener('click', (e) => { if (gView.moved) return; const p = pick(e); if (p) { selected = p.id; drawGalaxy(); info(); } });
       gCanvas.addEventListener('dblclick', (e) => { const p = pick(e); if (p) game.jumpTo(p.id); });
+      panZoom(gCanvas, gView, 6);
     }
     selected ??= game.data.system;
     loop();
@@ -166,8 +210,8 @@ export function installNav(game) {
     const r = gCanvas.getBoundingClientRect();
     const dpr = Math.min(devicePixelRatio, 2);
     if (gCanvas.width !== Math.round(r.width * dpr)) { gCanvas.width = Math.round(r.width * dpr); gCanvas.height = Math.round(r.height * dpr); }
-    const S = Math.min(r.width, r.height) / 1900;
-    return { w: r.width, h: r.height, dpr, S, cx: r.width / 2, cy: r.height / 2 };
+    const S = Math.min(r.width, r.height) / 1900 * gView.k;
+    return { w: r.width, h: r.height, dpr, S, cx: r.width / 2 + gView.ox, cy: r.height / 2 + gView.oy };
   }
   function pick(e) {
     const L = layout(), rect = gCanvas.getBoundingClientRect();
@@ -236,13 +280,14 @@ export function installNav(game) {
       if (s.id === P.system) { c.strokeStyle = '#58c8ff'; c.lineWidth = 2; const pr = r + 6 + Math.sin(t * 3) * 2; c.beginPath(); c.arc(x, y, pr, 0, Math.PI * 2); c.stroke(); }
       if (s.id === selected) { c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.strokeRect(x - r - 7, y - r - 7, (r + 7) * 2, (r + 7) * 2); }
       const near = S[P.system].links.includes(s.id) || (selected != null && S[selected].links.includes(s.id));
-      if (s === hover || s.id === selected || s.id === P.system || near || (P.visited.includes(s.id) && L.w > 900)) {
+      if (s === hover || s.id === selected || s.id === P.system || near || (P.visited.includes(s.id) && L.w > 900) || gView.k >= 2) {
         c.font = `${s === hover || s.id === selected ? 600 : 500} 11px Rajdhani, sans-serif`;
         c.fillStyle = locked ? '#6a7a9a' : s.danger > P.level + 3 ? '#ffb040' : '#b8c6e0';
         c.fillText(s.name + (locked ? ' 🔒' : ''), x, y - r - (s.id === selected ? 11 : 6));   // clear of the selection box
       }
       c.globalAlpha = 1;
     }
+    if (game.mapExtras) game.mapExtras.galaxy(c, L);   // guild module: contested zones
   }
   function info() {
     const el = document.getElementById('gInfo'); if (!el) return;
@@ -256,7 +301,7 @@ export function installNav(game) {
       <div class="statgrid"><span>Planets</span><b>${d.planets.length}</b><span>Moons</span><b>${d.planets.reduce((a, p) => a + p.moons.length, 0)}</b><span>Stations</span><b>${d.stations.length}</b><span>Belts</span><b>${d.belts.length}</b><span>Visited</span><b>${P.visited.includes(s.id) ? 'yes' : 'no'}</b>
       ${rt ? `<span>Jumps</span><b>${rt.length - 1}</b><span>Fuel</span><b>${fmt(jumpCost(rt, P))} ¢</b>` : ''}</div>
       <div style="margin-top:10px">${s.id === P.system ? '<div class="label">You are here</div>' : locked ? `<div class="label" style="color:var(--warn)">Requires commander rank ${s.danger - 6}</div>` : rt ? '<button class="btn" id="gJump">Engage jump drive</button>' : '<div class="label">No charted route</div>'}</div>
-      <div class="label" style="margin-top:12px">Double-click a system to jump · rings show who holds each system · higher danger, better loot</div>`;
+      <div class="label" style="margin-top:12px">${document.body.classList.contains('mobile') ? 'Pinch to zoom · drag to pan' : 'Double-click a system to jump · wheel zooms, drag pans'} · rings show who holds each system · higher danger, better loot</div>`;
     const b = document.getElementById('gJump'); if (b) b.onclick = () => game.jumpTo(s.id);
   }
 
@@ -267,9 +312,11 @@ export function installNav(game) {
     W.querySelector('.wtitle span').textContent = `${game.sector.sys.name} · danger ${game.sector.sys.danger}`;
     if (!sCanvas) {
       const LEG = [['⚔', 'patrol'], ['⛫', 'raider base'], ['◌', 'mining belt'], ['✕', 'wreck field'], ['⚑', 'contested'], ['☠', 'boss lair'], ['◆', 'derelict'], ['✚', 'distress'], ['✺', 'anomaly'], ['?', 'signal']];
-      body.innerHTML = `<canvas class="smap"></canvas><div class="slegend"><span class="label">Click to warp</span>${LEG.map(([g, n]) => `<span><b>${g}</b>${n}</span>`).join('')}</div>`;
+      body.innerHTML = `<canvas class="smap"></canvas><div class="slegend"><span class="label">${document.body.classList.contains('mobile') ? 'Tap to warp · pinch to zoom' : 'Click to warp · wheel zooms'}</span>${LEG.map(([g, n]) => `<span><b>${g}</b>${n}</span>`).join('')}</div>`;
       sCanvas = body.querySelector('canvas');
+      panZoom(sCanvas, sView, 8);
       sCanvas.addEventListener('click', (e) => {
+        if (sView.moved) return;
         const L = sLayout(), r = sCanvas.getBoundingClientRect();
         const x = (e.clientX - r.left - L.cx) / L.S, z = (e.clientY - r.top - L.cy) / L.S;
         game.warpTo(new THREE.Vector3(x, 0, z));
@@ -283,7 +330,7 @@ export function installNav(game) {
     if (sCanvas.width !== Math.round(r.width * dpr)) { sCanvas.width = Math.round(r.width * dpr); sCanvas.height = Math.round(r.height * dpr); }
     const D = game.sector.detail;
     const ext = Math.max(...D.planets.map((p) => p.orbit + p.radius * 3)) * 1.05;
-    return { w: r.width, h: r.height, dpr, S: Math.min(r.width, r.height) / 2 / ext, cx: r.width / 2, cy: r.height / 2 };
+    return { w: r.width, h: r.height, dpr, S: Math.min(r.width, r.height) / 2 / ext * sView.k, cx: r.width / 2 + sView.ox, cy: r.height / 2 + sView.oy };
   }
   function drawSystem() {
     const c = sCanvas.getContext('2d'), L = sLayout(), D = game.sector.detail, t = performance.now() / 1000;
@@ -341,6 +388,7 @@ export function installNav(game) {
       c.fillText(p.revealed ? ({ derelict: '◆', distress: '✚', anomaly: '✺' }[p.type]) : '?', x, y + 4);
     }
     if (game.raidMarker) { const x = X(game.raidMarker.x), y = Y(game.raidMarker.z); c.strokeStyle = '#ff9a2e'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 16 + Math.sin(t * 6) * 3, 0, Math.PI * 2); c.stroke(); c.fillStyle = '#ff9a2e'; c.fillText('☠ ARMADA', x, y - 22); }
+    if (game.mapExtras) game.mapExtras.system(c, X, Y, t);   // guild module: contested zone
     c.font = '500 11px Rajdhani, sans-serif';
     for (const st of game.stations) { const x = X(st.position.x), y = Y(st.position.z); c.fillStyle = '#58ffd8'; c.shadowColor = '#58ffd8'; c.shadowBlur = 8; c.fillRect(x - 5, y - 5, 10, 10); c.shadowBlur = 0; }
     for (const o of game.world.ships) { if (!o.alive || o === game.player) continue; c.fillStyle = o.team === 1 ? '#58c8ff' : '#ff4a6a'; c.fillRect(X(o.position.x) - 1.5, Y(o.position.z) - 1.5, 3, 3); }

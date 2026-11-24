@@ -159,8 +159,10 @@ export class Bridge {
   }
 
   listen(cv) {
-    let down = null;
-    this.onDown = (e) => { down = { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId }; this.introOn = false; };
+    // one pointer looks around; a second finger makes it a pinch (zoom arrives through the shared
+    // Input: wheel, pinch and the +/− buttons all land in mouse.wheel), so looking stops until all lift
+    let down = null, fingers = 0;
+    this.onDown = (e) => { fingers++; down = fingers > 1 ? null : { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId }; this.introOn = false; };
     this.onMove = (e) => {
       this.mouse = { x: e.clientX, y: e.clientY };
       if (down && e.pointerId === down.id) {
@@ -176,11 +178,12 @@ export class Bridge {
       if (down && e.pointerId === down.id && down.moved < 8) { const o = this.pickOfficer(e.clientX, e.clientY); if (o) this.openDialog(o.post); }
       down = null;
     };
-    this.onWheel = (e) => { this.camera.fov = clamp(this.camera.fov + Math.sign(e.deltaY) * 4, 38, 72); this.camera.updateProjectionMatrix(); };
+    this.onCancel = () => { fingers = 0; down = null; };
+    this.onLift = (e) => { if (e.target === cv) fingers = Math.max(0, fingers - 1); };
     cv.addEventListener('pointerdown', this.onDown);
     addEventListener('pointermove', this.onMove);
     addEventListener('pointerup', this.onUp);
-    cv.addEventListener('wheel', this.onWheel, { passive: true });
+    addEventListener('pointerup', this.onLift); addEventListener('pointercancel', this.onCancel);
     this.cv = cv;
     this.cvTouch = cv.style.touchAction; cv.style.touchAction = 'none';
   }
@@ -189,7 +192,7 @@ export class Bridge {
     cv.removeEventListener('pointerdown', this.onDown);
     removeEventListener('pointermove', this.onMove);
     removeEventListener('pointerup', this.onUp);
-    cv.removeEventListener('wheel', this.onWheel);
+    removeEventListener('pointerup', this.onLift); removeEventListener('pointercancel', this.onCancel);
     cv.style.touchAction = this.cvTouch || '';
     cv.style.cursor = '';
   }
@@ -234,6 +237,7 @@ export class Bridge {
     }
     // the battle carries on: helm keys steer (mouse clicks belong to the bridge), the sector and world tick
     const m = inp.mouse, c0 = m.clicked[0], c2 = m.clicked[2];
+    if (m.wheel && !inp.blocked) { this.camera.fov = clamp(this.camera.fov + m.wheel * 4, 38, 72); this.camera.updateProjectionMatrix(); }
     m.clicked[0] = m.clicked[2] = false;
     g.helm(dt);
     m.clicked[0] = c0; m.clicked[2] = c2;

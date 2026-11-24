@@ -10,6 +10,7 @@ import { LIVERIES } from '../data/liveries.js';
 import { RNG } from '../../engine/rng.js';
 import { hullMaterials, hotMaterial } from '../../fx/materials.js';
 import { hullPlan, sectionAt, deckHeights, spreadFree, sideProfile } from './hullPlan.js';
+import { addDetail } from './hullDetail.js';
 
 export { hullPlan, sideProfile };
 
@@ -130,15 +131,16 @@ function twoSided(g) {
     if (!att) continue;
     for (let c = 0; c < att.itemSize; c++) { const t = att.getComponent(i + 1, c); att.setComponent(i + 1, c, att.getComponent(i + 2, c)); att.setComponent(i + 2, c, t); }
   }
-  for (let i = 0; i < n.count; i++) n.setXYZ(i, -n.getX(i), -n.getY(i), -n.getZ(i));
+  // normals follow each face's winding, so a mirrored (starboard) blade is lit like its port twin
+  a.computeVertexNormals(); b.computeVertexNormals();
   return mergeGeometries([a, b], false);
 }
-// wing/fin placement shared by fins, interceptor wings and manta wings: span outward on side sx
+// wing/fin placement shared by fins, interceptor wings and manta wings: the shape's length runs aft
+// from the root at (x, y, z), its span outward on side sx; a positive roll (times sx) lifts the tip
 function wingMatrix(sx, x, y, z, roll = 0) {
   const m = new THREE.Matrix4().makeRotationZ(-Math.PI / 2);
   m.premultiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
   if (sx < 0) m.premultiply(new THREE.Matrix4().makeScale(-1, 1, 1));
-  m.premultiply(new THREE.Matrix4().makeRotationY(Math.PI));
   if (roll) m.premultiply(new THREE.Matrix4().makeRotationZ(roll));
   m.premultiply(new THREE.Matrix4().makeTranslation(x, y, z));
   return m;
@@ -647,7 +649,19 @@ export function buildHull(chassis) {
         { z: Z(u1 - 0.06), w: ow, ht: ow, hb: ow * 0.9, xo: sx * outX },
         { z: Z(u1), w: ow * 0.1, ht: ow * 0.2, hb: ow * 0.2, xo: sx * outX },
       ], 0.4));
-      for (const su of hull ? [0.2, 0.42, 0.62] : [0.12, 0.3]) P.box('trim', outX, W * 0.14, L * 0.025, sx * outX / 2, 0, Z(su));
+      for (const su of hull ? [0.2, 0.42, 0.62] : [0.12, 0.3]) {
+        P.box('trim', outX, W * 0.14, L * 0.025, sx * outX / 2, 0, Z(su));
+        // a dark fairing over each spar with a lit conduit along it
+        P.box('dark', outX * 0.56, W * 0.2, L * 0.017, sx * outX * 0.6, 0, Z(su));
+        P.box('glow', outX * 0.5, W * 0.03, W * 0.04, sx * outX * 0.6, W * 0.11, Z(su));
+      }
+      if (hull) {
+        // side hulls carry their own armoured spine and a tail fin
+        const sl = L * (u1 - u0);
+        P.box('trim', ow * 0.5, ow * 0.4, sl * 0.56, sx * outX, ow * 1.05, Z((u0 + u1) / 2));
+        P.box('glow', ow * 0.53, ow * 0.08, sl * 0.5, sx * outX, ow * 1.12, Z((u0 + u1) / 2));
+        P.add('trim', twoSided(finGeometry(sl * 0.26, ow * 1.7, 0.3).rotateY(Math.PI / 2).translate(sx * outX, ow * 0.9, Z(u0 + 0.13))));
+      }
       for (let i = 0; i < 5; i++) P.box('glow', ow * 0.08, ow * 0.1, L * (u1 - u0) * 0.08, sx * (outX + ow * 0.95), ow * 0.2, Z(u0 + (i + 0.6) / 5.4 * (u1 - u0)));
       P.cyl('engine', ow * 0.6, ow * 0.6, ow * 0.1, sx * outX, 0, Z(u0) - ow * 0.1, 'z', 10);
     }
@@ -661,6 +675,9 @@ export function buildHull(chassis) {
       const ring = (z, k) => ({ z, w: gw * k, ht: G.yTop * (0.5 + 0.5 * k), hb: -G.yBot * (0.5 + 0.5 * k), xo: sx * (G.xIn + gw * k) });
       P.add('hull', loft([ring(G.z0, 0.3), ring(G.z0 + ramp, 1), ring(G.z1 - ramp, 1), ring(G.z1, 0.3)], 0.05));
       P.box('trim', gw * 2.06, Ht * 0.1, gl - ramp * 1.6, sx * xc, G.yTop + Ht * 0.02, mid);
+      // the roof's armoured inset and its skylights
+      P.box('dark', gw * 1.45, Ht * 0.1, (gl - ramp * 1.6) * 0.93, sx * xc, G.yTop + Ht * 0.045, mid);
+      for (let k = -1; k <= 1; k++) P.box('glow', gw * 0.85, Ht * 0.03, (gl - 2 * ramp) * 0.045, sx * xc, G.yTop + Ht * 0.09, mid + k * (gl - 2 * ramp) * 0.31);
       for (const dy of decks) P.box('glow', W * 0.03, Ht * 0.06, (gl - 2 * ramp) * 0.94, sx * (G.xOut + W * 0.005), dy + Ht * 0.21, mid);
       const nr = 3 + Math.floor(gl / (W * 1.4));
       for (let i = 0; i <= nr; i++) {
@@ -724,8 +741,8 @@ export function buildHull(chassis) {
   }
   // central master spire / antenna mast
   if (plan.mast) {
-    P.cone('trim', W * 0.08, spireH * 1.5, 0, top, castle.crownZ, 8);
-    P.box('glow', W * 0.06, W * 0.06, W * 0.06, 0, top + spireH * 1.1, castle.crownZ);
+    P.cone('trim', W * 0.08, spireH * 1.5, castle.islandX, top, castle.crownZ, 8);
+    P.box('glow', W * 0.06, W * 0.06, W * 0.06, castle.islandX, top + spireH * 1.1, castle.crownZ);
   }
   if (y.castle === 'block') {
     for (const sx of [1, -1]) {
@@ -805,10 +822,11 @@ export function buildHull(chassis) {
     s.lineTo(0, -ph / 2);
     const g = flatUV(new THREE.ShapeGeometry(s, 2));
     g.rotateY(Math.PI / 2);
-    g.translate(0, top + spireH * 1.32 - ph / 2, castle.crownZ);
+    g.translate(castle.islandX, top + spireH * 1.32 - ph / 2, castle.crownZ);
     P.add('sail', g);
   }
   if (lv) addLivery(P, lv, plan, lrng);
+  addDetail(P, { loft, finGeometry, twoSided, wingMatrix, ringPoints }, { chassis, y, plan, G, outX });
 
   // ---- engines ----
   const engines = [];
@@ -827,9 +845,12 @@ export function buildHull(chassis) {
       engines.push({ pos: V(x * 0.6, yy * 0.6, Z(0.02)), r: er * 0.5 });
       continue;
     }
+    // housing, a collar where it leaves the hull, cooling fins, a flared bell and the fire in its throat
     P.cyl('dark', er * 0.95, er * 0.8, er * 2.4, x, yy, z + er * 0.4, 'z', 12);
-    P.cyl('trim', er * 1.05, er * 1.05, er * 0.25, x, yy, z - er * 0.6, 'z', 12);
-    P.cyl('engine', er * 0.7, er * 0.7, er * 0.1, x, yy, z - er * 0.82, 'z', 12);
+    P.cyl('trim', er * 1.03, er * 1.03, er * 0.2, x, yy, z + er * 1.25, 'z', 12);
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4; P.box('trim', er * 0.09, er * 0.42, er * 1.1, x + Math.cos(a) * er * 0.92, yy + Math.sin(a) * er * 0.92, z + er * 0.35, 0, 0, a - Math.PI / 2); }
+    P.cyl('trim', er * 0.8, er * 1.12, er * 0.62, x, yy, z - er * 0.7, 'z', 12);
+    P.cyl('engine', er * 0.9, er * 0.9, er * 0.08, x, yy, z - er * 0.99, 'z', 12);
     engines.push({ pos: V(x, yy, z - er * 0.9), r: er * 0.7 });
   }
 
@@ -880,6 +901,7 @@ export function buildHull(chassis) {
       yy = -Hb * 1.0;
     }
     P.cyl('dark', W * 0.22, W * 0.26, Ht * 0.12, x, yy, Z(u), 'y', 10);
+    if (dorsal) P.cyl('trim', W * 0.31, W * 0.36, Ht * 0.07, x, yy - Ht * 0.07, Z(u), 'y', 10);   // barbette ring
     hp.push({ type: 'turret', index: i, side: dorsal ? 'dorsal' : 'ventral', pos: V(x, yy + (dorsal ? Ht * 0.06 : -Ht * 0.06), Z(u)), dir: V(0, dorsal ? 1 : -1, 0) });
   }
   const np = chassis.slots.prow;
