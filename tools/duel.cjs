@@ -34,37 +34,45 @@ const { chromium } = require('playwright');
         // samples: the brawler, then other pirate designs of the size (different roles)
         const pool = ENEMIES.filter((e) => e.faction === 'pirate' && e.sizeIndex === si).sort((a, b) => (b.ai === 'brawler') - (a.ai === 'brawler'));
         const d = pool[sample % pool.length];
-        const en = W.spawnDesign(d, L, P.position.clone().add({ x: 500, y: 0, z: 0 }), 0);
-        en.persistent = true;
-        P.target = en; en.target = P; g.autoplay = null;
+        // small ships come in packs: three of them (targets scale: you kill all three, they share the kill)
+        const N = si === 0 ? 3 : 1;
+        const ens = [];
+        for (let k = 0; k < N; k++) { const e = W.spawnDesign(d, L, P.position.clone().add({ x: 500, y: 0, z: (k - (N - 1) / 2) * 120 }), 0); e.persistent = true; e.target = P; ens.push(e); }
+        P.target = ens[0]; g.autoplay = null;
         if (!stat) { g.toggleAutoplay(); g.data.autoplay = { mode: 'combat' }; } else { P.throttle = 0; P.autoFire = true; }
-        // 90 s window; time-to-kill extrapolated from the damage rates both ways.
-        //   gross: damage the enemy lands on the captain (after armour/shields), net: minus his regen
+        // 75 s window; time-to-kill extrapolated from the damage rates both ways.
+        //   gross: damage the enemies land on the captain (after armour/shields), net: minus his regen
         const startHp = P.maxHull + P.maxShield * 1.2 * 0.6;
-        const enPool = en.maxHull + en.maxShield * 1.2;
+        const poolOf = (e) => e.maxHull + e.maxShield * 1.2, hpOf = (e) => (e.alive ? e.hull + e.shieldTotal() : 0);
+        const enPool = ens.reduce((a, e) => a + poolOf(e), 0);
         let gross = 0;
         const hook = W.combat.damage.bind(W.combat);
         W.combat.damage = (ship, a, ty, pt, src, ws) => { const r = hook(ship, a, ty, pt, src, ws); if (ship === P && r > 0) gross += r; return r; };
-        let t = 0, net = 0, toEnemy = 0, lastP = P.hull + P.shieldTotal(), lastE = en.hull + en.shieldTotal(), killedAt = 0;
+        let t = 0, net = 0, lastP = P.hull + P.shieldTotal(), killedAt = 0, firing = 0;
         const WIN = 75;
         while (t < WIN && P.alive) {
           __engine.simulate(1); t += 1;
           const nowP = P.hull + P.shieldTotal(); if (nowP < lastP) net += lastP - nowP; lastP = nowP;
-          if (en.alive) { const nowE = en.hull + en.shieldTotal(); if (nowE < lastE) toEnemy += lastE - nowE; lastE = nowE; }
-          else if (!killedAt) { killedAt = t; toEnemy += lastE; }
-          if (!en.alive) break;
+          if (ens.some((e) => e.alive)) firing = t;                     // seconds the enemy side was still in the fight
+          if (!P.target || !P.target.alive) P.target = ens.find((e) => e.alive) || null;
+          if (ens.every((e) => !e.alive)) { killedAt = t; break; }
           if (P.hull < P.maxHull * 0.3) { P.hull = P.maxHull; lastP = P.hull + P.shieldTotal(); }   // keep the duel going
         }
         W.combat.damage = hook;
-        const pk = killedAt || +(enPool / Math.max(1e-3, toEnemy / t)).toFixed(1);
-        out.push({ L, size: SIZES[si].k, design: d.name, enPool: Math.round(enPool), playerKillsIt: pk, itKillsPlayer: +(startHp / Math.max(1e-3, net / t)).toFixed(1), grossTTK: +(startHp / Math.max(1e-3, gross / t)).toFixed(1), landed: +((gross / t) / Math.max(1, en.balanceDps)).toFixed(2), armor: Math.round(P.armor), regen: Math.round(P.maxHull * (P.hullRegen || 0)), expDps: Math.round(E.effDps), sheetDps: Math.round(E.dps) });
+        const left = ens.reduce((a, e) => a + hpOf(e), 0);
+        const pk = killedAt || +(enPool / Math.max(1e-3, (enPool - left) / t)).toFixed(1);
+        // the enemy side's reading only counts the time it was alive; under 3 s there is none
+        const span = Math.max(1, firing);
+        const reading = span >= 3;
+        const bd = ens.reduce((a, e) => a + (e.balanceDps || 0), 0);
+        out.push({ L, size: SIZES[si].k, design: d.name + (N > 1 ? ' x' + N : ''), enPool: Math.round(enPool), playerKillsIt: pk, itKillsPlayer: reading ? +(startHp / Math.max(1e-3, net / span)).toFixed(1) : null, grossTTK: reading ? +(startHp / Math.max(1e-3, gross / span)).toFixed(1) : null, landed: reading ? +((gross / span) / Math.max(1, bd)).toFixed(2) : null, armor: Math.round(P.armor), regen: Math.round(P.maxHull * (P.hullRegen || 0)), expDps: Math.round(E.effDps), sheetDps: Math.round(E.dps), N });
         if (!stat) g.toggleAutoplay();
       }
     }
     return out;
   }, [levels, stat, SAMPLES_ARG, SIZES_ARG]);
   // one row per (level, size): the median of its samples
-  const med = (a) => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
+  const med = (a) => { const b = a.filter((x) => x != null).sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : null; };
   const rows = [];
   for (const r of raw) {
     let row = rows.find((x) => x.L === r.L && x.size === r.size);
@@ -80,8 +88,9 @@ const { chromium } = require('playwright');
   const tol = 0.35, bad = [];
   for (const r of rows) {
     const si = SIZE_I[r.size];
-    r.wantP = TTK.playerKills[si]; r.wantE = TTK.enemyKills[si];
-    r.rP = +(r.playerKillsIt / r.wantP).toFixed(2); r.rE = +(r.itKillsPlayer / r.wantE).toFixed(2);
+    const N = r.N || 1;
+    r.wantP = TTK.playerKills[si] * N; r.wantE = +(TTK.enemyKills[si] / N).toFixed(1);
+    r.rP = +(r.playerKillsIt / r.wantP).toFixed(2); r.rE = r.itKillsPlayer == null ? null : +(r.itKillsPlayer / r.wantE).toFixed(2);
     r.rel = (SIZES_MIN[si] || 0) <= r.L + 6;
     r.ok = r.rel ? '' : 'n/a';
   }
@@ -89,12 +98,13 @@ const { chromium } = require('playwright');
   for (const size of Object.keys(SIZE_I)) {
     const rs = rows.filter((r) => r.size === size && r.rel);
     if (!rs.length) continue;
-    const rE = rs.filter((r) => r.playerKillsIt >= 3);   // died before its guns came to bear: no reading
-    const mP = gm(rs.map((r) => r.rP)), mE = rE.length ? gm(rE.map((r) => r.rE)) : 1;
+    const rE = rs.filter((r) => r.rE != null);   // died before its guns came to bear: no reading
+    if (!rE.length) { bad.push(`${size}: no enemy-side reading at any level (they die before firing)`); continue; }
+    const mP = gm(rs.map((r) => r.rP)), mE = gm(rE.map((r) => r.rE));
     const line = `${size}: you kill it at ${mP.toFixed(2)}x the target time, it kills you at ${mE.toFixed(2)}x`;
     console.log((Math.abs(Math.log(mP)) <= Math.log(1 + tol) && Math.abs(Math.log(mE)) <= Math.log(1 + tol) ? '  ok   ' : '  OUT  ') + line);
     if (Math.abs(Math.log(mP)) > Math.log(1 + tol) || Math.abs(Math.log(mE)) > Math.log(1 + tol)) bad.push(line);
-    for (const r of rs) { const far = r.rP > 3 || r.rP < 1 / 3 || (r.playerKillsIt >= 3 && (r.rE > 3 || r.rE < 1 / 3)); r.ok = far ? 'FAR' : 'ok'; if (far) bad.push(`L${r.L} ${size}: you ${r.playerKillsIt}s (want ${r.wantP}), it ${r.itKillsPlayer}s (want ${r.wantE})`); }
+    for (const r of rs) { const far = r.rP > 3 || r.rP < 1 / 3 || (r.rE != null && (r.rE > 3 || r.rE < 1 / 3)); r.ok = far ? 'FAR' : r.rE == null ? 'no reading' : 'ok'; if (far) bad.push(`L${r.L} ${size}: you ${r.playerKillsIt}s (want ${r.wantP}), it ${r.itKillsPlayer}s (want ${r.wantE})`); }
   }
   console.table(rows.map(({ L, size, design, playerKillsIt, wantP, rP, itKillsPlayer, grossTTK, wantE, rE, landed, armor, regen, ok }) => ({ L, size, design, playerKillsIt, wantP, rP, itKillsPlayer, grossTTK, wantE, rE, landed, armor, regen, ok })));
   await b.close();

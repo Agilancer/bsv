@@ -1,13 +1,13 @@
 // Autoplay soak: a fresh captain on autoplay for N simulated minutes. Reports kills per minute,
 // time share per autoplay state, the longest a single goal ran, and errors. Exits non-zero when
 // the pacing contract is broken (used as a gate: `node tools/soak.cjs 10 --gate`).
-//   node tools/soak.cjs [minutes=10] [--gate] [--planet]   (dev server on PORT, default 8420)
-//   --planet keeps the planet goal in (it is removed by default so space pacing is measured)
+//   node tools/soak.cjs [minutes=10] [--gate] [--space]   (dev server on PORT, default 8420)
+//   the shipped configuration (planet runs included); --space removes the planet goal
 const { chromium } = require('playwright');
 (async () => {
   const minutes = +(process.argv[2] || 10);
   const gate = process.argv.includes('--gate');
-  const keepPlanet = process.argv.includes('--planet');
+  const keepPlanet = !process.argv.includes('--space');
   const b = await chromium.launch({ args: ['--use-angle=swiftshader'] });
   const p = await b.newPage({ viewport: { width: 480, height: 270 } });
   const errs = [];
@@ -60,11 +60,15 @@ const { chromium } = require('playwright');
   await b.close();
   if (gate) {
     const bad = [];
-    // patrol = idle (nothing to do); travel = warping or sailing to a fight, signal or waking zone
-    const patrol = (r.states.patrol || 0) / total, between = patrol + (r.states.travel || 0) / total;
-    if (r.kills / minutes < 2) bad.push(`kills/min ${(r.kills / minutes).toFixed(1)} < 2`);
-    if (patrol > 0.25) bad.push(`idle patrol ${(100 * patrol).toFixed(0)}% > 25%`);
-    if (between > 0.4) bad.push(`patrol+travel ${(100 * between).toFixed(0)}% > 40%`);
+    // patrol = idle (nothing to do); travel = warping or sailing to a fight, signal or waking zone.
+    // Space pacing is judged on space time; the ground gets its own share check.
+    const ground = (r.states.planet || 0) / total, spaceT = Math.max(1, total - (r.states.planet || 0));
+    const patrol = (r.states.patrol || 0) / spaceT, between = patrol + (r.states.travel || 0) / spaceT;
+    const kpm = r.kills / (spaceT / 60);
+    if (kpm < 2) bad.push(`kills per space-minute ${kpm.toFixed(1)} < 2`);
+    if (patrol > 0.25) bad.push(`idle patrol ${(100 * patrol).toFixed(0)}% of space time > 25%`);
+    if (between > 0.4) bad.push(`patrol+travel ${(100 * between).toFixed(0)}% of space time > 40%`);
+    if (ground > 0.3) bad.push(`planet share ${(100 * ground).toFixed(0)}% > 30%`);
     for (const [k, v] of Object.entries(r.goalMax)) if (v > 240 && !k.startsWith('Explore')) bad.push(`goal "${k}" ran ${Math.round(v)} s > 240`);
     if (errs.length) bad.push(`${errs.length} page errors`);
     if (bad.length) { console.log('GATE FAIL: ' + bad.join('; ')); process.exit(1); }

@@ -146,7 +146,7 @@ export class Director {
           if (zs.nextWaveT > 6) { zs.nextWaveT = 0; zs.wave++; this.garrison(zs, zs.wave); W.toast(`${ZONE_NAMES[zs.z.type]}: reinforcements inbound`, 'warn'); }
         } else {
           zs.active = false; zs.cleared++;
-          zs.respawnT = this.danger <= 5 ? 60 + Math.random() * 40 : 110 + Math.random() * 70;
+          zs.respawnT = this.danger <= 5 ? 45 + Math.random() * 30 : 80 + Math.random() * 50;
           for (const s of zs.ships) s.ai.home.copy(s.position);
           if (d < 2200 && this.sector.world.game) {
             const g = this.sector.world.game;

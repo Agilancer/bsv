@@ -10,7 +10,13 @@ const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 const burst = (s, sec) => (s.balanceDps || 40 + s.level * 8) * sec;
 // how long a ship needs to sail `dist` units out of harm's way (bigger, slower hulls get longer warnings)
 // (0.8 s to react and get under way, then most of top speed; ceilings long enough for a dreadnought)
-const dodge = (tg, dist, min = 2.2, max = 7.5) => Math.max(min, Math.min(max, 0.8 + dist / Math.max(8, tg.maxSpeed * 0.65)));
+// how long a ship needs to sail `dist` out of harm's way: react, get under way (big hulls take
+// longer to gather way — acceleration is per-tier), then most of top speed
+const dodge = (tg, dist, min = 2.2, max = 7.5) => {
+  const tier = (tg.chassis && tg.chassis.tier) || 3;
+  const spinUp = Math.max(0, 1 - (tg.speed || 0) / Math.max(1, tg.maxSpeed)) * (0.6 + tier * 0.35);
+  return Math.max(min, Math.min(max, 0.8 + spinUp + dist / Math.max(8, tg.maxSpeed * 0.65)));
+};
 const hostilesNear = (W, s, p, r) => W.ships.filter((o) => o.alive && W.hostile(s, o) && o.position.distanceTo(p) < r + o.dims.W);
 const alliesNear = (W, s, r) => W.ships.filter((o) => o.alive && o !== s && o.team === s.team && o.position.distanceTo(s.position) < r);
 
@@ -101,10 +107,11 @@ export const SPECIALS = {
     run(W, s, tg) {
       const n = s.design && s.design.sizeIndex >= 4 ? 3 : 1;
       for (let i = 0; i < n; i++) {
-        const lead = tg.position.clone().addScaledVector(tg.velocity, 1.7).add(new THREE.Vector3((Math.random() - 0.5) * 160 * i, 0, (Math.random() - 0.5) * 160 * i));
         // shell radius shrinks for small, nimble targets (a corvette can't outrun a dreadnought-sized blast)
         const r = Math.min(70 + s.chassis.tier * 6, 45 + tg.dims.L * 0.6);
         const dur = dodge(tg, r + tg.dims.L * 0.5, 2.2, 7.5);
+        // aimed where the target will be when the shell lands: holding course is never safe
+        const lead = tg.position.clone().addScaledVector(tg.velocity, dur).add(new THREE.Vector3((Math.random() - 0.5) * 160 * i, 0, (Math.random() - 0.5) * 160 * i));
         W.warn({ kind: 'circle', pos: lead, r, dur, color: '#ff5a3a' });
         W.schedule(dur, () => {
           if (!s.alive) return;

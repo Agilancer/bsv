@@ -2,7 +2,7 @@
 // upgrade the hull, take contracts) and push on to harder systems when this one is
 // too easy. Each goal: { name, score(game) -> number, update(dt) -> true when done }.
 import * as THREE from 'three/webgpu';
-import { shipyardStock, acquireShip, makeContracts, canFly, repairCost } from '../station/services.js';
+import { shipyardStock, acquireShip, makeContracts, canFly, repairCost, overhaul, overhaulCost } from '../station/services.js';
 import { CHASSIS_BY_ID } from '../data/chassis.js';
 import { RARITY } from '../data/items.js';
 import { INV_SIZE } from '../Player.js';
@@ -98,6 +98,13 @@ export function resupplyGoal(ap) {
           const r = acquireShip(P, best.c.id, best.cost);
           if (r.ok) { if (best.bp) P.inventory.splice(P.inventory.indexOf(best.bp), 1); g.swapPlayerShip(); ap.log(`Bought a new flagship: ${best.c.fullName}`); }
         }
+        // refit yard: bring fitted gear up to rank (oldest first), keeping a reserve for the next hull
+        const next = shipyardStock(st.seed, danger, P, st.kind).filter(({ chassis: c }) => c.tier > CHASSIS_BY_ID[P.ship.chassis].tier).sort((a, b) => a.price - b.price)[0];
+        const reserve = next ? next.price * 0.6 : P.credits * 0.3;
+        const fitted = Object.values(P.ship.loadout).filter((it) => it && it.ilvl < P.level - 2).sort((a, b) => a.ilvl - b.ilvl);
+        let refits = 0;
+        for (const it of fitted) { if (P.credits - overhaulCost(it, P.level) < reserve) continue; if (overhaul(P, it).ok) refits++; }
+        if (refits) { g.refitPlayer(); ap.log(`Refit yard: overhauled ${refits} item${refits > 1 ? 's' : ''} to rank ${P.level}`); }
         P.contracts ||= [];
         for (const c of makeContracts(st.seed, danger, P, st.kind)) if (P.contracts.length < 3 && !P.contracts.some((a) => a.id === c.id)) P.contracts.push({ ...c, progress: 0 });
         if (g.crewAuto) g.crewAuto();          // crew module: hire/assign

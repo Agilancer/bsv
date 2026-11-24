@@ -142,7 +142,10 @@ export function makePlanetGoal(game) {
       const since = g.data.playtime - (ex.lastRunAt || -1e9);
       if (since < 300) return 0;
       // planets share the session with space: at most ~30% of it on the ground, counting the next run
-      if ((g.planetSessionTime || 0) > 0.3 * ((g.playtime || 0) + 360)) return 0;
+      // not before the first-session objectives are done (or a quarter hour in), and only if the
+      // session stays at most ~25% ground time once the coming run (~6 min) is counted
+      if ((g.data.tutorial || 0) < 7 && (g.data.playtime || 0) < 900) return 0;
+      if ((g.planetSessionTime || 0) + 360 > 0.25 * ((g.playtime || 0) + 360)) return 0;
       // only go down when the warship can be left alone: hull healthy, no raid inbound, nothing hostile close
       const pl = g.player;
       if (pl.hull < pl.maxHull * 0.6) return 0.05;

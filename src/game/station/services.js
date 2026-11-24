@@ -1,6 +1,6 @@
 // Station services as plain logic over the save data (testable in node).
 import { CHASSIS, CHASSIS_BY_ID, YARDS } from '../data/chassis.js';
-import { rollItem, RARITY, newUid } from '../data/items.js';
+import { rollItem, RARITY, newUid, makeItem, makeNamed, NAMED_REF } from '../data/items.js';
 import { slotKeys, slotType, INV_SIZE, SHIP_PREFIX } from '../Player.js';
 import { RNG } from '../../engine/rng.js';
 
@@ -116,3 +116,37 @@ export function progressContracts(P, ship) {
 }
 
 export { RARITY, INV_SIZE };
+
+// ---------------- refit yard: credits into gear you already love ----------------
+// Reforge rerolls an item's affixes (named legendaries keep their powers); overhaul rebuilds it at
+// the captain's rank. Both keep the item's identity and its earned mastery.
+export function reforgeCost(item) { return Math.round(item.value * (1.2 + RARITY[item.rarity].i * 0.6)); }
+export function overhaulCost(item, L) {
+  const gap = Math.max(0, L - item.ilvl);
+  return Math.round(item.value * gap * 0.35 * (1 + RARITY[item.rarity].i * 0.3));
+}
+function remake(item, ilvl, rng) {
+  const def = item.named && NAMED_REF.list.find((n) => n.name === item.name);
+  const fresh = def ? makeNamed(def, ilvl, rng, item.rarity) : makeItem(item.base, ilvl, item.rarity, rng);
+  fresh.uid = item.uid; fresh.xp = item.xp; fresh.lvl = item.lvl;
+  if (!def) { fresh.named = undefined; fresh.flavor = undefined; }
+  return fresh;
+}
+// returns { ok, msg, cost }; mutates the item in place (so loadout / hold references stay valid)
+export function reforge(P, item, rng = new RNG(Math.random() * 1e9)) {
+  if (!item || item.slot === 'blueprint') return { ok: false, msg: 'Nothing to reforge' };
+  const cost = reforgeCost(item);
+  if (P.credits < cost) return { ok: false, msg: `Reforging costs ${cost} ¢`, cost };
+  P.credits -= cost;
+  Object.assign(item, remake(item, item.ilvl, rng));
+  return { ok: true, cost };
+}
+export function overhaul(P, item, rng = new RNG(Math.random() * 1e9)) {
+  if (!item || item.slot === 'blueprint') return { ok: false, msg: 'Nothing to overhaul' };
+  if (item.ilvl >= P.level) return { ok: false, msg: 'Already at your rank' };
+  const cost = overhaulCost(item, P.level);
+  if (P.credits < cost) return { ok: false, msg: `Overhaul costs ${cost} ¢`, cost };
+  P.credits -= cost;
+  Object.assign(item, remake(item, P.level, rng));
+  return { ok: true, cost };
+}

@@ -150,7 +150,7 @@ export function installNav(game) {
   function renderGalaxy() {
     const W = game.ui.windows.galaxy, body = W.querySelector('.wbody');
     if (!gCanvas) {
-      const LEG = [['pirate', 'Corsair Pirates', '#ff6a5a'], ['rival', 'Rival Companies', '#ffb040'], ['rustborn', 'Rustborn', '#d89050'], ['covenant', 'Hollow Star Covenant', '#ff3b8a'], ['brood', 'Leviathan Brood', '#40ffd0'], ['silent', 'Silent Choir', '#bff0ff']];
+      const LEG = [['pirate', 'Corsair Pirates', '#ff6a5a'], ['rival', 'Rival Companies', '#ffd640'], ['rustborn', 'Rustborn', '#b06236'], ['covenant', 'Hollow Star Covenant', '#ff3b8a'], ['brood', 'Leviathan Brood', '#40ffd0'], ['silent', 'Silent Choir', '#bff0ff']];
       body.innerHTML = `<div class="gwrap"><canvas class="gmap"></canvas><div class="ginfo holo" id="gInfo"></div><div class="glegend holo"><div class="label">Held by</div>${LEG.map(([, n, col]) => `<span><i style="border-color:${col}"></i>${n}</span>`).join('')}</div></div>`;
       gCanvas = body.querySelector('canvas');
       gCanvas.addEventListener('mousemove', (e) => { hover = pick(e); drawGalaxy(); });
@@ -190,17 +190,20 @@ export function installNav(game) {
     const max = unlockedDanger(P);
     const rt = selected != null && selected !== P.system ? route(P.system, selected, P) : null;
     // territory: a soft wash of the holding power's colour under each system, then the arm names
-    const FCT = { pirate: '255,106,90', rival: '255,176,64', rustborn: '216,144,80', covenant: '255,59,138', brood: '64,255,208', silent: '191,240,255' };
+    const FCT = { pirate: '255,106,90', rival: '255,214,64', rustborn: '176,98,54', covenant: '255,59,138', brood: '64,255,208', silent: '191,240,255' };
     for (const s of S) {
       const x = L.cx + s.x * L.S, y = L.cy + s.y * L.S, rr = 70 * L.S + 14;
       const gg = c.createRadialGradient(x, y, 0, x, y, rr);
       gg.addColorStop(0, `rgba(${FCT[s.control] || '150,150,150'},0.10)`); gg.addColorStop(1, `rgba(${FCT[s.control] || '150,150,150'},0)`);
       c.fillStyle = gg; c.fillRect(x - rr, y - rr, rr * 2, rr * 2);
     }
-    c.save(); c.font = `600 ${Math.max(11, Math.round(15 * L.S * 2.2))}px Rajdhani, sans-serif`; c.textAlign = 'center';
+    c.save(); c.font = `600 ${Math.max(11, Math.round(15 * L.S * 2.2))}px Rajdhani, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
     for (let arm = 0; arm < 3; arm++) {
-      const tt = 0.86, r = 120 + tt * 820 + 70, a = arm * (Math.PI * 2 / 3) + tt * 4.2;
-      c.fillStyle = 'rgba(190,200,255,0.22)'; c.fillText(ARM_NAMES[arm].toUpperCase(), L.cx + Math.cos(a) * r * L.S, L.cy + Math.sin(a) * r * L.S);
+      // just outside the arm's outer systems, outlined so a nearby dot never hides it
+      const tt = 0.93, r = 120 + tt * 820 + 150, a = arm * (Math.PI * 2 / 3) + tt * 4.2;
+      const x = L.cx + Math.cos(a) * r * L.S, y = L.cy + Math.sin(a) * r * L.S;
+      c.lineWidth = 4; c.strokeStyle = 'rgba(4,8,20,0.85)'; c.strokeText(ARM_NAMES[arm].toUpperCase(), x, y);
+      c.fillStyle = 'rgba(190,200,255,0.42)'; c.fillText(ARM_NAMES[arm].toUpperCase(), x, y);
     }
     c.restore();
     // lanes
@@ -226,7 +229,7 @@ export function installNav(game) {
       c.globalAlpha = locked ? 0.35 : 1;
       c.fillStyle = STAR_HEX[star.k]; c.shadowColor = STAR_HEX[star.k]; c.shadowBlur = 12;
       c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
-      const FCG = { pirate: '#ff6a5a', rival: '#ffb040', rustborn: '#d89050', covenant: '#ff3b8a', brood: '#40ffd0', silent: '#bff0ff' };
+      const FCG = { pirate: '#ff6a5a', rival: '#ffd640', rustborn: '#b06236', covenant: '#ff3b8a', brood: '#40ffd0', silent: '#bff0ff' };
       c.strokeStyle = FCG[s.control] || '#888'; c.globalAlpha = locked ? 0.25 : 0.55; c.lineWidth = 2; c.beginPath(); c.arc(x, y, r + 4, 0, Math.PI * 2); c.stroke(); c.globalAlpha = locked ? 0.35 : 1;
       if (P.visited.includes(s.id)) { c.strokeStyle = 'rgba(200,220,255,0.5)'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, r + 7, 0, Math.PI * 2); c.stroke(); }
       if (s.id === P.system) { c.strokeStyle = '#58c8ff'; c.lineWidth = 2; const pr = r + 6 + Math.sin(t * 3) * 2; c.beginPath(); c.arc(x, y, pr, 0, Math.PI * 2); c.stroke(); }
@@ -318,7 +321,7 @@ export function installNav(game) {
         c.font = '500 10px Rajdhani, sans-serif'; label(txt, X(pl.position.x), Y(pl.position.z) + r + 13, '#7ee8a8', Y(pl.position.z) + r + 25); c.font = '500 11px Rajdhani, sans-serif';
       }
     }
-    const FC = { pirate: '#ff6a5a', rival: '#ffb040', rustborn: '#d89050', covenant: '#ff3b8a', brood: '#40ffd0', silent: '#bff0ff' };
+    const FC = { pirate: '#ff6a5a', rival: '#ffd640', rustborn: '#b06236', covenant: '#ff3b8a', brood: '#40ffd0', silent: '#bff0ff' };
     const ICON = { patrol: '⚔', base: '⛫', belt: '◌', wrecks: '✕', front: '⚑', lair: '☠' };
     const mk = mkz;
     c.font = '600 13px Rajdhani, sans-serif';
