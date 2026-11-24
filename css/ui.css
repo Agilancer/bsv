@@ -353,3 +353,7 @@ body.mobile .clist { grid-template-columns: 1fr; }
 #objectives .hint { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
 body.mobile #objectives { left: 8px; right: auto; top: auto; bottom: 176px; width: 210px; transform: none; font-size: 11px; padding: 6px 8px; }
 body.hud-hidden #objectives { display: none; }
+
+/* round-1 review fixes */
+#autoStatus { top: auto !important; bottom: 92px; left: 50%; transform: translateX(-50%); }
+body.win-open #objectives { display: none; }

@@ -479,6 +479,7 @@ export class Game {
       this.cam.frameWith = framing ? tg.position : null;
       this.cam.frameMix = this.autoplay && this.autoplay.active ? 0.5 : 0.42;
       this.cam.distFloor = framing ? Math.min(this.cam.maxDist, Math.max(tg.dims.L > 200 ? tg.dims.L * 1.5 + 250 : 0, sep * 1.3 + 220)) : 0;
+      if (innerHeight > innerWidth) this.cam.distFloor = Math.max(this.cam.distFloor || 0, 720);   // portrait: see abeam
       this.cam.update(dt, t, realDt);
     }
     if (this.audio) {

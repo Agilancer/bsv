@@ -121,6 +121,7 @@ export class UI {
     const w = this.windows[id]; if (!w) return false;
     const open = on ?? !w.classList.contains('open');
     w.classList.toggle('open', open);
+    document.body.classList.toggle('win-open', Object.values(this.windows).some((x) => x.classList.contains('open')));
     document.querySelectorAll(`#menubar button[data-w="${id}"]`).forEach((b) => b.classList.toggle('on', open));
     if (open) this.render(id);
     else this.hideTip();
@@ -556,6 +557,30 @@ export class UI {
         const col = bears ? '74,222,128' : '88,184,255';
         grd.addColorStop(0, `rgba(${col},0)`); grd.addColorStop(0.5, `rgba(${col},${bears ? 0.16 : 0.07})`); grd.addColorStop(1, `rgba(${col},0)`);
         ctx.fillStyle = grd; ctx.fill();
+      }
+    }
+    // your ship: a faint ring underneath so it never gets lost in the fireworks
+    if (s && s.alive) {
+      const c = proj(s.position);
+      if (c) {
+        const r = Math.max(18, s.dims.L * 0.55 * pxPerUnit);
+        ctx.strokeStyle = 'rgba(88,200,255,0.45)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(c.x, c.y, r, r * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = 'rgba(88,200,255,0.8)';
+        for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + g.engine.realTime * 0.6; ctx.fillRect(c.x + Math.cos(a) * r - 2, c.y + Math.sin(a) * r * 0.55 - 2, 4, 4); }
+      }
+      // hostiles shooting at us from off-screen: arrows on the edge
+      for (const o of world.ships) {
+        if (!o.alive || o.target !== s || o.cloaked) continue;
+        _p.copy(o.position).project(camera);
+        let x = (_p.x * 0.5 + 0.5) * innerWidth, y = (-_p.y * 0.5 + 0.5) * innerHeight;
+        if (_p.z > 1) { x = innerWidth - x; y = innerHeight - y; }
+        if (x > 30 && x < innerWidth - 30 && y > 30 && y < innerHeight - 30 && _p.z < 1) continue;
+        const cx = innerWidth / 2, cy = innerHeight / 2, a = Math.atan2(y - cy, x - cx);
+        const ex = cx + Math.cos(a) * (innerWidth / 2 - 28), ey = cy + Math.sin(a) * (innerHeight / 2 - 28);
+        ctx.save(); ctx.translate(Math.max(24, Math.min(innerWidth - 24, ex)), Math.max(24, Math.min(innerHeight - 24, ey))); ctx.rotate(a);
+        ctx.fillStyle = o.design && o.design.sizeIndex >= 3 ? 'rgba(255,154,46,0.9)' : 'rgba(255,90,110,0.85)';
+        ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-8, -8); ctx.lineTo(-4, 0); ctx.lineTo(-8, 8); ctx.closePath(); ctx.fill(); ctx.restore();
       }
     }
     // telegraphed attacks
