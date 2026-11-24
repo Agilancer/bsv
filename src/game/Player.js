@@ -9,8 +9,9 @@ import { RNG } from '../engine/rng.js';
 export const SHIP_PREFIX = 'DSV';
 export const MAX_LEVEL = 60;
 export const INV_SIZE = 60;
-export const xpForLevel = (l) => Math.round(120 * Math.pow(l, 1.85));
-export const shipXpForLevel = (l) => Math.round(90 * Math.pow(l, 1.7));
+// paced for ~10 kills a minute: rank 10 in about 40 minutes, the cap a long campaign away
+export const xpForLevel = (l) => Math.round(200 * Math.pow(l, 2.2));
+export const shipXpForLevel = (l) => Math.round(160 * Math.pow(l, 2.1));
 const SAVE_KEY = 'bsv.save.v1';
 
 export function slotKeys(chassis) {

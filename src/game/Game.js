@@ -47,12 +47,14 @@ export class Game {
     if (this.activeMode && this.activeMode.exit) this.activeMode.exit();
     this.mode = name; this.activeMode = mode;
     this.ui.setHud(name === 'space');
+    document.body.dataset.mode = name;   // css: hide space-only chrome (objectives, peek strip) in modes
   }
   exitMode() {
     if (this.activeMode && this.activeMode.exit) this.activeMode.exit();
     this.activeMode = null; this.mode = 'space';
     this.engine.setView(this.spaceScene, this.spaceCamera);
     this.ui.setHud(true);
+    document.body.dataset.mode = 'space';
   }
   extraStats() {
     const out = {};
@@ -150,6 +152,14 @@ export class Game {
     ev.on('legendaryDrop', (d) => this.ui.toast(`${RARITY[d.item.rarity].name} drop: ${d.item.name}`, 'legend'));
   }
 
+  // is a ship's hull (with a margin) outside the rect on screen?
+  offFrame(ship, r, margin) {
+    const p = this.cam.project(ship.position, this._fp || (this._fp = new THREE.Vector3()));
+    if (p.z > 1) return true;
+    const rad = 14 + margin;
+    return p.x < r.x + rad || p.x > r.x + r.w - rad || p.y < r.y + rad || p.y > r.y + r.h - rad;
+  }
+
   // ---------------- rewards ----------------
   reward(ship) {
     const P = this.data, W = this.world, s = this.player;
@@ -159,11 +169,11 @@ export class Game {
       P.codex ||= {};
       const first = !P.codex[ship.design.id];
       P.codex[ship.design.id] = (P.codex[ship.design.id] || 0) + 1;
-      if (first) { this.ui.toast(`Codex: ${ship.design.fullName} catalogued`, size.boss ? 'legend' : ''); this.gainXp(Math.round(50 * ship.level * size.xp)); }
+      if (first) { this.ui.toast(`Codex: ${ship.design.fullName} catalogued`, size.boss ? 'legend' : ''); this.gainXp(Math.round(30 * ship.level * size.xp)); }
     }
     if (ship.noLoot) { this.gainXp(Math.round(10 * ship.level * eliteMul)); return; }
     const st = s ? s.stats : {};
-    const xp = Math.round(28 * ship.level * (1 + ship.chassis.tier * 0.3) * eliteMul * (1 + (st.xp || 0)));
+    const xp = Math.round(20 * ship.level * (1 + ship.chassis.tier * 0.3) * eliteMul * (1 + (st.xp || 0)));
     P.kills++;
     if (ship.elite === 2 || (ship.design && ship.design.sizeIndex >= 4)) P.bossKills++;
     this.gainXp(xp);
@@ -179,7 +189,7 @@ export class Game {
       const it = rollItem(ship.level, rng, { luck, rarity: i < guaranteed ? rng.pick(size && size.i === 5 ? ['legendary', 'mythic'] : ['legendary', 'legendary', 'mythic']) : null });
       W.loot.dropItem(it, ship.position);
     }
-    W.loot.dropCredits(Math.round((12 + ship.level * 6) * Math.min(ship.chassis.tier, 6) * eliteMul * (1 + (st.credits || 0)) * (ship.trait === 'pirate' ? 1.5 : 1)), ship.position);
+    W.loot.dropCredits(Math.round((4 + ship.level * 1.6) * Math.min(ship.chassis.tier, 6) * eliteMul * (1 + (st.credits || 0)) * (ship.trait === 'pirate' ? 1.25 : 1)), ship.position);
     if (rng.chance(0.5)) W.loot.dropSalvage(ship.chassis.tier * (1 + ship.elite), ship.position);
     this.ui.chat('COMBAT', null, `${ship.name} destroyed (+${xp} XP)`, 'sys', 'combat');
   }
@@ -478,9 +488,18 @@ export class Game {
       // frame the fight: focus between the ships, pull back far enough to fit both
       this.cam.frameWith = framing ? tg.position : null;
       this.cam.frameMix = this.autoplay && this.autoplay.active ? 0.5 : 0.42;
-      this.cam.distFloor = framing ? Math.min(this.cam.maxDist, Math.max(tg.dims.L > 200 ? tg.dims.L * 1.5 + 250 : 0, sep * 1.3 + 220)) : 0;
+      // fitMul adapts until both hulls sit inside the HUD-free area (any layout, any aspect)
+      this.fitMul = this.fitMul || 1;
+      this.cam.distFloor = framing ? Math.min(this.cam.maxDist, Math.max(tg.dims.L > 200 ? tg.dims.L * 1.5 + 250 : 0, sep * 1.3 + 220) * this.fitMul) : 0;
       if (innerHeight > innerWidth) this.cam.distFloor = Math.max(this.cam.distFloor || 0, 720);   // portrait: see abeam
       this.cam.update(dt, t, realDt);
+      if (framing) {
+        const sf = this.cam.safe || { x: 0, y: 0, w: innerWidth, h: innerHeight };
+        const out = this.offFrame(s, sf, 36) || this.offFrame(tg, sf, 36);
+        const roomy = !this.offFrame(s, sf, sf.h * 0.22) && !this.offFrame(tg, sf, sf.h * 0.22);
+        if (out) this.fitMul = Math.min(2.6, this.fitMul * (1 + 1.6 * realDt));
+        else if (roomy) this.fitMul = Math.max(1, this.fitMul * (1 - 0.25 * realDt));
+      } else this.fitMul = Math.max(1, this.fitMul * (1 - 0.5 * realDt));
     }
     if (this.audio) {
       this.audio.setListener(this.cam.focus);

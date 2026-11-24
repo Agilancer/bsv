@@ -44,7 +44,49 @@ export class Autoplay {
     if (this.manageT <= 0) { this.manageT = 4; this.manage(); }
     this.think -= dt;
     if (this.think <= 0) { this.think = 0.25; this.decide(); }
+    if (g.mode === 'space' && this.dodgeWarnings()) { s.autoFire = true; return; }
     this.act(dt, t);
+  }
+
+  // telegraphed strikes: standing in a warning beats everything else — sail out first.
+  // Circles: leave along the current heading when that exit is short, else straight away
+  // from the centre. Lines: break sideways, keeping to the side we're already on.
+  dodgeWarnings() {
+    const g = this.game, s = g.player, W = g.world, now = W.engine.time;
+    const hx = Math.sin(s.heading), hz = Math.cos(s.heading);
+    let best = null, urg = Infinity;
+    for (const w of W.warnings) {
+      const left = w.dur - (now - w.t0);
+      if (left <= 0) continue;
+      let out = null;
+      if (w.kind === 'circle') {
+        const c = w.follow && w.follow.alive ? w.follow.position : w.pos;
+        const dx = s.position.x - c.x, dz = s.position.z - c.z, d = Math.hypot(dx, dz);
+        const R = w.r + s.dims.W + s.dims.L * 0.3;
+        if (d > R) continue;
+        // distance to the rim straight ahead: solve |p + t*h - c| = R
+        const b = dx * hx + dz * hz, ahead = -b + Math.sqrt(Math.max(0, b * b - (d * d - R * R)));
+        out = ahead < (R - d) * 1.6 + s.dims.L * 0.2 ? s.heading : Math.atan2(dx || 1e-3, dz);
+      } else if (w.kind === 'line') {
+        const rx = s.position.x - w.pos.x, rz = s.position.z - w.pos.z;
+        const along = rx * w.dir.x + rz * w.dir.z;
+        if (along < -s.dims.L || along > w.len + s.dims.L) continue;
+        const px = rx - w.dir.x * along, pz = rz - w.dir.z * along, off = Math.hypot(px, pz);
+        if (off > w.width + s.dims.W * 1.2 + s.dims.L * 0.3) continue;
+        if (off > w.width * 0.5) out = Math.atan2(px, pz);
+        else {
+          // near the centre line: whichever perpendicular is closer to where we already point
+          const a = Math.atan2(-w.dir.z, w.dir.x);
+          out = Math.abs(wrapAngle(a - s.heading)) < Math.PI / 2 ? a : wrapAngle(a + Math.PI);
+        }
+      }
+      if (out != null && left < urg) { urg = left; best = out; }
+    }
+    if (best == null) { this.dodging = false; return false; }
+    s.steerHeading(best, 1);
+    this.ability('evasive');
+    if (!this.dodging) { this.dodging = true; this.dodges = (this.dodges || 0) + 1; }
+    return true;
   }
 
   hostiles(r = 2400) {
@@ -85,7 +127,8 @@ export class Autoplay {
         if (mode === 'hold' && x.name.startsWith('Advance')) continue;
         const sc = x.score(g); if (sc > bscore) { bscore = sc; best = x; }
       }
-      if (best && (!this.goal || this.goal === best || bscore > 1)) { if (this.goal !== best) this.log(`Objective: ${best.name}`); this.goal = best; this.state = 'goal'; return; }
+      // a goal needs a real score to start (0.5+); one already under way only needs to stay positive
+      if (best && (this.goal === best ? bscore > 0 : bscore >= 0.5 && (!this.goal || bscore > 1))) { if (this.goal !== best) this.log(`Objective: ${best.name}`); this.goal = best; this.state = 'goal'; return; }
     }
     this.goal = null;
     if (hp < 0.22 && near.length && threat > might * 0.6) { if (this.state !== 'retreat') this.log('Hull critical — breaking off'); this.state = 'retreat'; return; }
@@ -128,18 +171,29 @@ export class Autoplay {
       s.steerTo(this.drop.pos, 10, 0.75);
       return;
     }
-    // patrol: head for the nearest zone with a garrison, warping across the system when it's far
+    // patrol: head for the nearest zone with a garrison, warping across the system when it's far.
+    // Nothing live? Check an unexplored signal, else wait just outside the zone that wakes first
+    // (the lanes are where intercept patrols find you).
     const D = g.sector.director;
     const live = D && D.nearestLive({ pos: s.position, game: g });
-    if (live) {
-      const d = live.pos.distanceTo(s.position);
-      if (d > 3200 && g.warpTo && !g.isWarping()) g.warpTo(live.pos.clone().add(s.position.clone().sub(live.pos).setY(0).setLength(1800)));
-      else if (!g.isWarping()) s.steerTo(live.pos, 300, 0.75);
-    } else {
-      const zones = g.sector.detail.zones;
-      if (!this.patrolPt || s.position.distanceTo(this.patrolPt) < 200) { const z = zones[Math.floor(Math.random() * zones.length)]; this.patrolPt = new THREE.Vector3(z.x, 0, z.z); }
-      s.steerTo(this.patrolPt, 150, 0.6);
-    }
+    const go = (pos, standoff, hold) => {
+      const d = pos.distanceTo(s.position);
+      if (g.isWarping && g.isWarping()) { this.travel = true; return; }
+      if (d > standoff + 900 && g.warpTo && g.warpTo(pos.clone().add(_v.copy(s.position).sub(pos).setY(0).setLength(standoff)))) { this.travel = true; return; }
+      // steerTo eases off over 4x its arrive distance: steer at the point, stop at the standoff ourselves
+      if (d > standoff * 1.05 + 40) { this.travel = true; s.steerTo(pos, 80, 1); }
+      else if (hold) { this.travel = false; s.throttle = 0; }
+      else { this.travel = true; s.steerTo(pos, 60, 1); }
+    };
+    if (live) return go(live.pos, 1100, false);
+    const poi = D && D.nextPoi && D.nextPoi(s.position);
+    if (poi) return go(poi.pos, 200, false);
+    const soon = D && D.nextWaking && D.nextWaking(s.position);
+    if (soon) return go(soon.pos, 3000, true);
+    this.travel = false;
+    const zones = g.sector.detail.zones;
+    if (!this.patrolPt || s.position.distanceTo(this.patrolPt) < 200) { const z = zones[Math.floor(Math.random() * zones.length)]; this.patrolPt = new THREE.Vector3(z.x, 0, z.z); }
+    s.steerTo(this.patrolPt, 150, 0.6);
     s.altTarget = 0;
   }
 

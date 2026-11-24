@@ -124,7 +124,15 @@ export function installStations(game) {
       if (docking) {
         game.moveTarget = docking.point;   // the helm sails us in
         if (game.autoplay && game.autoplay.active) s.steerTo(docking.point, 40, 0.7);
-        if (s.position.distanceTo(docking.point) < s.dims.L * 0.6 + 60) { game.moveTarget = null; game.dockingTarget = null; dockNow(docking.station); }
+        // after a few seconds on approach the station's tractor beam takes over (big hulls
+        // otherwise circle the berth on their turning radius)
+        docking.t = (docking.t || 0) + dt;
+        const d = s.position.distanceTo(docking.point);
+        if (docking.t > 4 && d < 1100) {
+          if (Math.random() < dt * 8) game.world.beams.add(docking.station.position, s.position, 0x58c8ff, 2, 0.25);
+          s.position.lerp(docking.point, Math.min(1, dt * 0.6)); s.throttle = Math.min(s.throttle, 0.2);
+        }
+        if (d < s.dims.L * 0.6 + 60) { game.moveTarget = null; game.dockingTarget = null; dockNow(docking.station); }
       }
       if (game.docked) {
         s.throttle = 0; s.rudder = 0; s.invuln = true;

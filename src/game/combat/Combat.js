@@ -6,6 +6,10 @@
 //    poor vs shields), ion (strips shields, barely scratches hull).
 import * as THREE from 'three/webgpu';
 import { dpsCapVs } from '../data/balance.js';
+// a single telegraphed strike may take up to this share of the captain's effective HP
+export const TELEGRAPH_HIT = 0.22;
+// weapon-stats tag for telegraphed special damage (no crit roll, no uniques)
+export const TELEGRAPH = { crit: -0.05, unique: [], telegraph: true };
 
 const TYPE = {
   kinetic: { shield: 0.8, hull: 1.15 },
@@ -134,14 +138,20 @@ export class Combat {
     if (source && source.buffs && source.buffs.command > now) dmg *= 1.25;     // command aura
     if (source && source.clipper && source.speed > source.maxSpeed * 0.7) dmg *= 1.25;   // Clipper Doctrine
     if (ship.spottedUntil > now) dmg *= 1.2;                                     // painted by a spotter
-    // boss contract: no single enemy can take the captain down faster than MIN_TTK
+    // boss contract: no single enemy (with the escorts it spawned) can take the captain down
+    // faster than MIN_TTK through untelegraphed fire. A telegraphed strike (a warning was drawn,
+    // the captain could sail out) has its own per-hit budget instead, so dodging matters.
     if (ship.isPlayer && source && source.team !== ship.team) {
       const ehp = ship.maxHull + ship.maxShield * 1.2 * 0.5;
-      const w = source._dmgWin || (source._dmgWin = { t: now, sum: 0 });
-      if (now - w.t > 1) { w.t = now; w.sum = 0; }
-      const allowed = Math.max(0, dpsCapVs(ehp) - w.sum);
-      if (dmg > allowed) dmg = allowed;
-      w.sum += dmg;
+      if (ws && ws.telegraph) dmg = Math.min(dmg, ehp * TELEGRAPH_HIT);
+      else {
+        const root = source.capRoot && source.capRoot.alive ? source.capRoot : source;
+        const w = root._dmgWin || (root._dmgWin = { t: now, sum: 0 });
+        if (now - w.t > 1) { w.t = now; w.sum = 0; }
+        const allowed = Math.max(0, dpsCapVs(ehp) - w.sum);
+        if (dmg > allowed) dmg = allowed;
+        w.sum += dmg;
+      }
       if (dmg <= 0) return 0;
     }
     const fi = this.facingFor(ship, point);

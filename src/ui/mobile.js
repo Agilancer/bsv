@@ -66,7 +66,9 @@ export function installMobile(game) {
       document.getElementById('mAuto').classList.toggle('on', !!game.autoplay);
       if (hide) {
         const p = game.player, P = game.data;
-        const txt = `AUTOPLAY · ${document.getElementById('autoStatus').textContent.replace('AUTOPLAY · ', '')} · Rank ${P.level} · Hull ${p ? Math.round(p.hull / p.maxHull * 100) : 0}% · ${Math.round(P.credits).toLocaleString()} ¢`;
+        const st = document.getElementById('autoStatus').textContent.replace('AUTOPLAY · ', ''), hull = p ? Math.round(p.hull / p.maxHull * 100) : 0;
+        // one line on phones: the short form
+        const txt = innerWidth < 700 ? `AUTO · ${st} · R${P.level} · ${hull}%` : `AUTOPLAY · ${st} · Rank ${P.level} · Hull ${hull}% · ${Math.round(P.credits).toLocaleString()} ¢`;
         const el = document.getElementById('peekTxt'); if (el.textContent !== txt) el.textContent = txt;
       }
     },

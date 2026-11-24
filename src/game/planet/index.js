@@ -79,6 +79,7 @@ export function install(game) {
       if (!game.data || !game.ui) return;
       if (!game.data.explorer || !game.data.refinery) ensureExplorer(game.data);
       P.scanner.update(dt);
+      if (game.mode === 'planet') game.planetSessionTime = (game.planetSessionTime || 0) + dt;   // autoplay's planet budget
       const A = game.autoplay;
       if (A && !Array.isArray(game.autoplayGoals) && Array.isArray(A.extra) && !A.extra.includes(game.planetAuto)) A.extra.push(game.planetAuto);
     },

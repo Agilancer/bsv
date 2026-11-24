@@ -6,7 +6,9 @@ import { ENEMIES } from './data/enemies.js';
 import { RARITY } from './data/items.js';
 
 const STEPS = [
-  { k: 'kill', title: 'Destroy a pirate ship', hint: 'Tab or click to target · Space fires a broadside', mhint: 'Tap a ship to target · ability 1 fires a broadside', done: (g) => g.data.kills >= 1 },
+  // the guns fire on their own; a full broadside is the captain's call — make the first lesson that
+  { k: 'volley', title: 'Fire a broadside', hint: 'Tab to target a pirate · turn side-on · Space fires every gun on that flank', mhint: 'Tap a pirate to target · turn side-on · ability 1 fires the broadside', done: (g) => g._tut.volley },
+  { k: 'kill', title: 'Destroy a pirate ship', hint: 'Keep your strong flank toward them · the shield rose shows each facing', done: (g) => g.data.kills >= 1 },
   { k: 'loot', title: 'Recover a loot drop', hint: 'Sail near the light pillar — the tractor beam does the rest', done: (g) => g._tut.looted },
   { k: 'equip', title: 'Fit an upgrade', hint: 'I opens Cargo · items marked ▲ beat what you have', mhint: 'Menu → Cargo · tap an item marked ▲', done: (g) => g._tut.equipped },
   { k: 'dock', title: 'Dock and sell your spare gear', hint: 'G near the station · Market tab · click to sell', mhint: 'Tap “Tap to dock”, then sell in the Market tab', done: (g) => g._tut.sold },
@@ -15,7 +17,9 @@ const STEPS = [
 ];
 
 export function installOnboarding(game) {
-  game._tut = { looted: false, equipped: false, sold: false };
+  game._tut = { looted: false, equipped: false, sold: false, volley: false };
+  const useAbility = game.useAbility.bind(game);
+  game.useAbility = (k, ...a) => { const r = useAbility(k, ...a); if (r && k === 'volley' && !(game.autoplay && game.autoplay.active)) game._tut.volley = true; return r; };
   const equip = game.equip.bind(game);
   game.equip = (...a) => { const r = equip(...a); if (r) game._tut.equipped = true; return r; };
 
@@ -23,6 +27,7 @@ export function installOnboarding(game) {
     start(fresh);
     const P = game.data;
     if (P.tutorial == null) P.tutorial = P.kills > 0 ? STEPS.length : 0;
+    if (!P.tutorialV2) { if (P.tutorial > 0 && P.tutorial < STEPS.length) P.tutorial++; P.tutorialV2 = 1; }   // the broadside lesson was added first
     game.world.events.on('collect', (d) => { if (d.type === 'item') game._tut.looted = true; });
     const sell = game.sellItem;
     if (sell) game.sellItem = (...a) => { game._tut.sold = true; return sell(...a); };

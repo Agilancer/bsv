@@ -24,6 +24,7 @@ const { chromium } = require('playwright');
         g.data.level = L; g.data.ship.level = L; g.data.ship.chassis = `velscour_${E.tier}`;
         g.data.ship.loadout = starterLoadout({ ...(await import('./src/game/data/chassis.js')).CHASSIS_BY_ID[`velscour_${E.tier}`] }, L, new RNG(L + si), 'rare');
         g.data.talents = {};
+        if (g.autoplay) g.toggleAutoplay(); if (g.cancelWarp) g.cancelWarp(); g.moveTarget = null;
         const P = g.swapPlayerShip(); P.invuln = false; P.position.set(40000, 0, 40000); P.heading = 0; P.speed = 0; P.velocity.set(0, 0, 0);
         const d = ENEMIES.find((e) => e.faction === 'pirate' && e.sizeIndex === si && e.ai === 'brawler') || ENEMIES.find((e) => e.faction === 'pirate' && e.sizeIndex === si);
         const en = W.spawnDesign(d, L, P.position.clone().add({ x: 500, y: 0, z: 0 }), 0);

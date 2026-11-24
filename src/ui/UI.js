@@ -5,6 +5,8 @@ import { icon } from './icons.js';
 import { ABILITIES } from '../game/data/abilities.js';
 import { BASES, RARITY, describe, itemShipStats, weaponStats } from '../game/data/items.js';
 import { slotKeys, slotType, xpForLevel, shipXpForLevel, itemScore, INV_SIZE } from '../game/Player.js';
+// HUD panels the camera frames around (hidden ones measure 0 and drop out)
+const SAFE_IDS = ['status', 'helm', 'radar', 'weapons', 'target', 'abilities', 'menubar', 'chat', 'objectives', 'hudPeek', 'stick', 'mStop'];
 import { CHASSIS_BY_ID, YARDS, YARD_TRAITS } from '../game/data/chassis.js';
 import { THROTTLE_STEPS } from '../game/ship/Ship.js';
 import { TREES, TALENTS, talentPoints, spentPoints, canLearn, treePoints } from '../game/data/talents.js';
@@ -47,10 +49,9 @@ export class UI {
         <div class="label">Shields</div><div class="bar shield" id="hShield"><i></i><span></span></div>
         <div class="label">Commander XP</div><div class="bar xp" id="hXp"><i></i><span></span></div>
       </div></div></div>`));
-    R.append(h(`<div id="menubar">
-      <button data-w="character">SHIP [C]</button><button data-w="inventory">CARGO [I]</button><button data-w="skills">SKILLS [T]</button>
-      <button data-w="crew">CREW [K]</button><button data-w="bridge">BRIDGE [B]</button><button data-w="galaxy">GALAXY [M]</button>
-      <button data-w="codex">CODEX</button><button class="auto" data-w="auto">AUTO [P]</button><button data-w="options">⚙</button></div>`));
+    // key hints sit in <i class="k"> so narrower screens can drop them (they stay in the tooltip)
+    const mb = [['character', 'SHIP', 'C'], ['inventory', 'CARGO', 'I'], ['skills', 'SKILLS', 'T'], ['crew', 'CREW', 'K'], ['bridge', 'BRIDGE', 'B'], ['galaxy', 'GALAXY', 'M'], ['codex', 'CODEX', ''], ['auto', 'AUTO', 'P'], ['options', '⚙', '']];
+    R.append(h(`<div id="menubar">${mb.map(([w, n, k]) => `<button data-w="${w}"${w === 'auto' ? ' class="auto"' : ''} title="${n}${k ? ' [' + k + ']' : ''}">${n}${k ? ` <i class="k">[${k}]</i>` : ''}</button>`).join('')}</div>`));
     R.querySelectorAll('#menubar button').forEach((b) => b.addEventListener('click', () => this.game.command(b.dataset.w)));
     R.append(h(`<div id="target" class="holo"><div class="tname" id="tName"></div><div class="tsub" id="tSub"></div>
       <div class="bar shield" id="tShield"><i></i><span></span></div><div class="bar hull" id="tHull"><i></i><span></span></div></div>`));
@@ -355,9 +356,42 @@ export class UI {
     this.numbers.push({ pos: pos.clone(), v: Math.round(amount), crit, shield, t: 0, dx: (Math.random() - 0.5) * 30, ship, own: ship && ship === this.game.player });
   }
 
+  // the part of the screen not covered by HUD panels that hug an edge. The camera puts its
+  // optical centre in the middle of it (so the fight isn't framed under the helm or the pad).
+  safeRect() {
+    const W = innerWidth, H = innerHeight, r = this._safe || (this._safe = { x: 0, y: 0, w: W, h: H });
+    let l = 0, rt = W, t = 0, b = H;
+    for (const id of SAFE_IDS) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const c = el.getBoundingClientRect();
+      if (c.width < 8 || c.height < 8 || c.right < 0 || c.left > W) continue;
+      if (getComputedStyle(el).visibility === 'hidden' || +getComputedStyle(el).opacity < 0.05) continue;
+      const dl = c.left, dr = W - c.right, dt = c.top, db = H - c.bottom, m = Math.min(dl, dr, dt, db);
+      if (m > 96) continue;                         // floating mid-screen: ignore (docked panels sit within ~90px)
+      // shrink along whichever axis costs the least screen
+      const opts = [];
+      if (dl === m || dl < 96) opts.push(['l', c.right * H]);
+      if (dr === m || dr < 96) opts.push(['r', (W - c.left) * H]);
+      if (dt === m || dt < 96) opts.push(['t', c.bottom * W]);
+      if (db === m || db < 96) opts.push(['b', (H - c.top) * W]);
+      opts.sort((a, z) => a[1] - z[1]);
+      const k = opts[0][0];
+      if (k === 'l') l = Math.max(l, c.right); else if (k === 'r') rt = Math.min(rt, c.left);
+      else if (k === 't') t = Math.max(t, c.bottom); else b = Math.min(b, c.top);
+    }
+    // never let the HUD squeeze the view below 55% of the screen on an axis
+    if (rt - l < W * 0.55) { const c = (l + rt) / 2; l = Math.max(0, c - W * 0.275); rt = Math.min(W, l + W * 0.55); }
+    if (b - t < H * 0.55) { const c = (t + b) / 2; t = Math.max(0, c - H * 0.275); b = Math.min(H, t + H * 0.55); }
+    r.x = l; r.y = t; r.w = rt - l; r.h = b - t;
+    return r;
+  }
+
   update(dt, realDt) {
     const g = this.game, s = g.player, P = g.data;
     if (!P) return;
+    this.safeT = (this.safeT || 0) - realDt;
+    if (this.safeT <= 0 && g.cam) { this.safeT = 0.5; g.cam.safe = g.mode === 'space' ? this.safeRect() : null; }
     // status
     const lvl = P.level;
     this.hud.lvl.textContent = lvl;

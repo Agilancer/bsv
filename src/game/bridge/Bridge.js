@@ -434,7 +434,7 @@ export class Bridge {
       <div class="bh-status holo scan" id="bhStatus"></div>
       <div class="bh-sub" id="bhSubt"></div>
       <div class="bh-dlg holo scan" id="bhDlg"></div>
-      <div class="bh-hint">Drag to look · click an officer to talk · W/S/A/D/R/F helm · Space volley · 1–8 abilities · Esc or B to leave</div>
+      <div class="bh-hint">Drag to look · click an officer to talk · W/S/A/D/R/F helm · Space: broadside · 1–8 abilities · Esc or B to leave</div>
       <div class="bh-touch" id="bhTouch">
         <span></span><button data-k="KeyW" data-tap="1">▲<span class="lab">AHEAD</span></button><span></span>
         <button data-k="KeyA">◀<span class="lab">PORT</span></button><button data-k="KeyX" data-tap="1">■<span class="lab">STOP</span></button><button data-k="KeyD">▶<span class="lab">STBD</span></button>

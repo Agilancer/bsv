@@ -3,12 +3,14 @@
 //   run(W, s, tg, t) -> true when it fired (then the cooldown starts)
 import * as THREE from 'three/webgpu';
 import { ENEMIES } from '../data/enemies.js';
+import { TELEGRAPH } from '../combat/Combat.js';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 // burst damage expressed as seconds of the ship's balanced damage output
 const burst = (s, sec) => (s.balanceDps || 40 + s.level * 8) * sec;
 // how long a ship needs to sail `dist` units out of harm's way (bigger, slower hulls get longer warnings)
-const dodge = (tg, dist, min = 1.4, max = 6) => Math.max(min, Math.min(max, dist / Math.max(8, tg.maxSpeed * 0.75)));
+// (0.8 s to react and get under way, then most of top speed; ceilings long enough for a dreadnought)
+const dodge = (tg, dist, min = 2.2, max = 7.5) => Math.max(min, Math.min(max, 0.8 + dist / Math.max(8, tg.maxSpeed * 0.65)));
 const hostilesNear = (W, s, p, r) => W.ships.filter((o) => o.alive && W.hostile(s, o) && o.position.distanceTo(p) < r + o.dims.W);
 const alliesNear = (W, s, r) => W.ships.filter((o) => o.alive && o !== s && o.team === s.team && o.position.distanceTo(s.position) < r);
 
@@ -88,7 +90,7 @@ export const SPECIALS = {
         const a = Math.random() * Math.PI * 2;
         const p = s.position.clone().add(new THREE.Vector3(Math.sin(a) * s.dims.L * 0.6, 0, Math.cos(a) * s.dims.L * 0.6));
         const c = W.spawnDesign(d, Math.max(1, s.level - 2), p, s.heading);
-        c.noLoot = true;
+        c.noLoot = true; c.capRoot = s;   // escorts share their parent's damage budget vs the captain
         s._children.push(c);
       }
       return true;
@@ -100,13 +102,14 @@ export const SPECIALS = {
       const n = s.design && s.design.sizeIndex >= 4 ? 3 : 1;
       for (let i = 0; i < n; i++) {
         const lead = tg.position.clone().addScaledVector(tg.velocity, 1.7).add(new THREE.Vector3((Math.random() - 0.5) * 160 * i, 0, (Math.random() - 0.5) * 160 * i));
-        const r = 70 + s.chassis.tier * 6;
-        const dur = dodge(tg, r + tg.dims.L * 0.5, 1.7, 4.5);
+        // shell radius shrinks for small, nimble targets (a corvette can't outrun a dreadnought-sized blast)
+        const r = Math.min(70 + s.chassis.tier * 6, 45 + tg.dims.L * 0.6);
+        const dur = dodge(tg, r + tg.dims.L * 0.5, 2.2, 7.5);
         W.warn({ kind: 'circle', pos: lead, r, dur, color: '#ff5a3a' });
         W.schedule(dur, () => {
           if (!s.alive) return;
           W.beams.add(lead.clone().setY(700), lead, s.yard.glow, 4, 0.35);
-          W.combat.splash({ splash: r, team: s.team, kind: 'shell', color: new THREE.Color(s.yard.glow), dmg: burst(s, 2.4), dmgType: 'explosive', owner: s, ws: { crit: 0, unique: [] } }, lead, null);
+          W.combat.splash({ splash: r, team: s.team, kind: 'shell', color: new THREE.Color(s.yard.glow), dmg: burst(s, 2.4), dmgType: 'explosive', owner: s, ws: TELEGRAPH }, lead, null);
         });
       }
       return true;
@@ -118,7 +121,8 @@ export const SPECIALS = {
       const from = s.position.clone();
       const dir = tg.position.clone().addScaledVector(tg.velocity, 0.8).sub(from).setY(0).normalize();
       const len = 1500, width = 26 + s.chassis.tier * 3;
-      const dur = Math.min(4.5, 1.6 + tg.dims.L / 110);
+      // sideways escape: the beam's half-width plus the hull's beam, more for a long hull that must turn
+      const dur = dodge(tg, width + tg.dims.W * 1.2 + tg.dims.L * 0.35, 2.0, 7.5);
       W.warn({ kind: 'line', pos: from, dir, len, width, dur, color: '#ff4a6a' });
       W.schedule(dur, () => {
         if (!s.alive) return;
@@ -131,7 +135,7 @@ export const SPECIALS = {
           const along = _w.dot(dir);
           if (along < 0 || along > len) continue;
           const off = _w.addScaledVector(dir, -along).length();
-          if (off < width + o.dims.W * 1.2) W.combat.damage(o, burst(s, 4.4), 'energy', o.position, s, null);
+          if (off < width + o.dims.W * 1.2) W.combat.damage(o, burst(s, 4.4), 'energy', o.position, s, TELEGRAPH);
         }
       });
       return true;
@@ -141,12 +145,12 @@ export const SPECIALS = {
     cd: 15, range: 420,
     run(W, s, tg) {
       const r = 200 + s.dims.L * 0.25;
-      const dur = tg ? dodge(tg, r - tg.position.distanceTo(s.position) + tg.dims.L * 0.4, 1.6, 6) : 2.5;
+      const dur = tg ? dodge(tg, r - tg.position.distanceTo(s.position) + tg.dims.L * 0.4, 2.0, 7.5) : 2.5;
       W.warn({ kind: 'circle', pos: s.position.clone(), r, dur, color: '#ffb040', follow: s });
       W.schedule(dur, () => {
         if (!s.alive) return;
         W.fx.ring(s.position, r, s.yard.glow, 96); W.fx.explosion(s.position, 1.5, s.yard.glow); W.cam.addShake(5);
-        for (const o of hostilesNear(W, s, s.position, r)) W.combat.damage(o, burst(s, 3.2), 'explosive', o.position, s, null);
+        for (const o of hostilesNear(W, s, s.position, r)) W.combat.damage(o, burst(s, 3.2), 'explosive', o.position, s, TELEGRAPH);
       });
       return true;
     },
@@ -163,7 +167,7 @@ export const SPECIALS = {
     cd: 14, range: 900,
     run(W, s, tg) {
       const at = tg.position.clone().addScaledVector(tg.velocity, 1.2);
-      const dur = dodge(tg, 230 + tg.dims.L * 0.4, 1.6, 5);
+      const dur = dodge(tg, 230 + tg.dims.L * 0.4, 2.2, 7.5);
       W.warn({ kind: 'circle', pos: at, r: 230, dur, color: '#b46bff' });
       W.schedule(dur, () => { if (s.alive) W.addField({ pos: at, t: 4.5, r: 230, team: s.team, owner: s, dps: burst(s, 0.25), kind: 'gravity' }); });
       return true;

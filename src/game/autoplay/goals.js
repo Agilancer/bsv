@@ -6,39 +6,74 @@ import { shipyardStock, acquireShip, makeContracts, canFly, repairCost } from '.
 import { CHASSIS_BY_ID } from '../data/chassis.js';
 import { RARITY } from '../data/items.js';
 import { INV_SIZE } from '../Player.js';
-import { galaxy } from '../galaxy.js';
+import { galaxy, systemDetail } from '../galaxy.js';
 import { route, jumpCost, unlockedDanger } from '../nav/index.js';
+
+// systems with a station to put in at (cached: systemDetail is deterministic)
+const stationCache = new Map();
+export function hasStation(id) {
+  if (!stationCache.has(id)) stationCache.set(id, systemDetail(galaxy().systems[id]).stations.length > 0);
+  return stationCache.get(id);
+}
+// the reachable system with a station that is fewest jumps away
+function nearestStationSystem(P) {
+  let best = null, bl = Infinity;
+  for (const s of galaxy().systems) {
+    if (s.id === P.system || !hasStation(s.id)) continue;
+    const r = route(P.system, s.id, P);
+    if (!r || jumpCost(r, P) > P.credits) continue;
+    if (r.length < bl || (r.length === bl && s.danger < best.danger)) { bl = r.length; best = s; }
+  }
+  return best;
+}
 
 export function resupplyGoal(ap) {
   const g = ap.game;
-  let phase = null, t = 0;
+  let phase = null, t = 0, jumping = null;
+  const need = () => {
+    const P = g.data, s = g.player;
+    let sc = 0;
+    if (P.inventory.length >= INV_SIZE - 6) sc += 3;
+    if (s.hull / s.maxHull < 0.45) sc += 2;
+    if ((g.playtime || 0) - (ap.lastDock || -1e9) > 900) sc += 1.2;   // drop in every ~15 minutes
+    return sc;
+  };
   return {
     name: 'Resupply at station',
     score() {
-      if (!g.stations || !g.stations.length || !g.player) return 0;
-      if (phase) return 5;
-      const P = g.data, s = g.player;
-      let sc = 0;
-      if (P.inventory.length >= INV_SIZE - 6) sc += 3;
-      if (s.hull / s.maxHull < 0.45) sc += 2;
-      if ((g.playtime || 0) - (ap.lastDock || -1e9) > 900) sc += 1.2;   // drop in every ~15 minutes
-      return sc;
+      if (!g.player) return 0;
+      if (phase || jumping != null) return 5;
+      // no station here: only worth a jump when the need is real (full hold, or hurt)
+      if (!g.stations || !g.stations.length) return need() >= 2 && g.jumpTo ? need() : 0;
+      return need();
     },
     update(dt) {
       const s = g.player, P = g.data;
       t += dt;
+      if (!g.stations || !g.stations.length) {
+        // head for the nearest system that has one
+        if (jumping != null && P.system === jumping) { jumping = null; return false; }
+        if (jumping == null) {
+          const to = nearestStationSystem(P);
+          if (!to || !g.jumpTo(to.id)) { jumping = null; phase = null; return true; }
+          jumping = to.id; ap.log(`No station here — jumping to ${to.name} to resupply`);
+        }
+        return false;
+      }
+      jumping = null;
       if (!phase) { phase = 'approach'; t = 0; }
       if (phase === 'approach') {
         const n = g.nearestStation();
         if (!n) { phase = null; return true; }
         if (n.dist > 2600 && !g.isWarping()) g.warpTo(n.station.position.clone().add(new THREE.Vector3(500, 0, 400)));
-        else if (n.dist <= 900 && !g.docked) { g.modes.dock(); phase = 'docking'; t = 0; }
-        else if (!g.isWarping()) s.steerTo(n.station.position, 300, 0.9);
+        else if (n.dist <= 900 && !g.docked) { g.modes.dock(); if (g.dockingTarget || g.docked) { phase = 'docking'; t = 0; } }
+        else if (!g.isWarping()) s.steerTo(n.station.position, 80, 1);
+        if (t > 120) { phase = null; return true; }
         return false;
       }
       if (phase === 'docking') {
-        if (g.dockingTarget) s.steerTo(g.dockingTarget.point, 40, 0.7);
         if (g.docked) { phase = 'services'; t = 0; }
+        else if (!g.dockingTarget) phase = 'approach';     // clearance lost (fire nearby): re-request
         else if (t > 40) { phase = null; return true; }
         return false;
       }
@@ -106,7 +141,9 @@ export function advanceGoal(ap) {
       if (s.danger > P.level + 1 || s.danger <= g.sector.sys.danger) continue;
       const r = route(P.system, s.id, P);
       if (!r || r.length > 4 || jumpCost(r, P) > P.credits * 0.5) continue;
-      if (!best || s.danger > best.danger) best = s;
+      // prefer systems with a station (somewhere to sell, repair and refit); then the hardest
+      const st = hasStation(s.id), bst = best && hasStation(best.id);
+      if (!best || (st && !bst) || (st === bst && s.danger > best.danger)) best = s;
     }
     return best ? best.id : null;
   }
