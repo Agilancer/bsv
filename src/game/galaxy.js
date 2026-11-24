@@ -20,6 +20,22 @@ const NEBULA = [
 ];
 const PLANET_POOL = ['terran', 'desert', 'arid', 'ice', 'lava', 'barren', 'toxic', 'crystal', 'gas', 'gasblue', 'gaspurple'];
 
+// arm -> [rim, mid, core] controlling faction
+export const REGION_CONTROL = [
+  ['pirate', 'rustborn', 'silent'],     // the Corsair Reach
+  ['rival', 'brood', 'covenant'],       // the Company Lanes
+  ['pirate', 'covenant', 'silent'],     // the Hollow Arm
+];
+export const ARM_NAMES = ['Corsair Reach', 'Company Lanes', 'Hollow Arm'];
+
+// faction odds in a system: its controller dominates, everyone else shows up
+export function systemFactions(sys) {
+  const d = sys.danger;
+  const w = { pirate: 3, rival: 1.5, rustborn: d >= 3 ? 1.5 : 0, brood: d >= 6 ? 1.2 : 0, covenant: d >= 8 ? 1.2 : 0, silent: d >= 12 ? 1 : 0 };
+  if (sys.control) w[sys.control] = (w[sys.control] || 0) + 8;
+  return Object.entries(w).filter(([, x]) => x > 0);
+}
+
 let cached = null;
 export function galaxy() {
   if (cached) return cached;
@@ -36,7 +52,10 @@ export function galaxy() {
     do { name = rng.pick(SYSTEM_PRE) + rng.pick(SYSTEM_SUF); } while (used.has(name));
     used.add(name);
     const danger = Math.max(1, Math.round(1 + (1 - t) * 58 + rng.float(-2, 2)));
-    systems.push({ id: i, name: i === 0 ? 'Velscour' : name, x: Math.cos(a) * r, y: Math.sin(a) * r, danger: i === 0 ? 1 : danger, seed: (GALAXY_SEED * 31 + i * 977) >>> 0, links: [] });
+    // who holds this region: each arm has its own succession of powers from rim to core
+    const band = t > 0.66 ? 0 : t > 0.33 ? 1 : 2;
+    const control = REGION_CONTROL[arm][band];
+    systems.push({ id: i, name: i === 0 ? 'Velscour' : name, x: Math.cos(a) * r, y: Math.sin(a) * r, danger: i === 0 ? 1 : danger, seed: (GALAXY_SEED * 31 + i * 977) >>> 0, links: [], arm, control: i === 0 ? 'pirate' : control });
   }
   // connect each system to its 2-3 nearest neighbours (jump lanes)
   for (const s of systems) {
@@ -83,10 +102,25 @@ export function systemDetail(sys) {
   }
   // combat zones: where the fighting is (positions relative to the system centre)
   const zones = [];
-  for (let i = 0; i < 4; i++) {
+  const fw = systemFactions(sys);
+  const ZONE_TYPES = [['patrol', 4], ['base', sys.danger >= 3 ? 2 : 0.5], ['belt', belts.length ? 2 : 0], ['wrecks', 1.5], ['front', sys.danger >= 6 ? 1.5 : 0], ['lair', sys.danger >= 18 ? 1 : 0]];
+  const nz = 4 + Math.min(3, Math.floor(sys.danger / 15));
+  for (let i = 0; i < nz; i++) {
     const p = planets[rng.int(0, planets.length - 1)];
     const a = rng.float(0, 6.28);
-    zones.push({ x: Math.cos(p.ang) * p.orbit + Math.cos(a) * (p.radius + 1500), z: Math.sin(p.ang) * p.orbit + Math.sin(a) * (p.radius + 1500), faction: rng.weighted([['pirate', 5], ['rival', 2], ['covenant', sys.danger > 15 ? 2 : 0.3]]) });
+    const type = i === 0 ? 'patrol' : rng.weighted(ZONE_TYPES.filter(([, w]) => w > 0));
+    let x = Math.cos(p.ang) * p.orbit + Math.cos(a) * (p.radius + 1500), z = Math.sin(p.ang) * p.orbit + Math.sin(a) * (p.radius + 1500);
+    if (type === 'belt' && belts.length) { const r = belts[0].r0 + belts[0].width / 2; x = Math.cos(a) * r; z = Math.sin(a) * r; }
+    const faction = sys.id === 0 ? 'pirate' : rng.weighted(fw);
+    zones.push({ id: i, x, z, faction: type === 'front' ? rng.pick(['pirate', 'rustborn', 'covenant']) : faction, rival: type === 'front' ? 'rival' : null, type });
   }
-  return { star, nebula, planets, belts, stations, zones };
+  // points of interest: derelicts, distress calls, anomalies (revealed when you sail near)
+  const pois = [];
+  const npoi = 2 + rng.int(0, 2);
+  for (let i = 0; i < npoi; i++) {
+    const p = planets[rng.int(0, planets.length - 1)];
+    const a = rng.float(0, 6.28), r = p.radius + rng.float(2200, 3600);
+    pois.push({ id: i, x: Math.cos(p.ang) * p.orbit + Math.cos(a) * r, z: Math.sin(p.ang) * p.orbit + Math.sin(a) * r, type: rng.weighted([['derelict', 3], ['distress', 2], ['anomaly', sys.danger >= 4 ? 1.5 : 0.3]]), seed: rng.int(0, 1e9) });
+  }
+  return { star, nebula, planets, belts, stations, zones, pois };
 }

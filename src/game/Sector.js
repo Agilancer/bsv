@@ -9,6 +9,8 @@ import { RNG, rng as R } from '../engine/rng.js';
 import { PIRATE_FIRST, PIRATE_SHIP, COVENANT_SHIP, RIVAL_CORPS } from './data/names.js';
 import { rollRarity } from './data/items.js';
 import { ENEMY_FACTIONS, ENEMIES, SIZE_BY_KEY, encounterSizes, designsFor } from './data/enemies.js';
+import { Director } from './director.js';
+import { systemFactions } from './galaxy.js';
 
 export const FACTIONS = Object.fromEntries(Object.entries(ENEMY_FACTIONS).map(([k, f]) => [k, { name: f.name, team: f.team }]));
 
@@ -28,7 +30,10 @@ export class Sector {
     this.planets = [];
     this.stations = [];
     this.build();
+    this.director = new Director(this);
   }
+
+  encounterSizes() { return encounterSizes(this.sys.danger); }
 
   build() {
     const W = this.world, D = this.detail, E = W.engine;
@@ -65,7 +70,7 @@ export class Sector {
   // where the captain arrives
   entryPoint() {
     const z = this.detail.zones[0];
-    return new THREE.Vector3(z ? z.x : 0, 0, z ? z.z : 0);
+    return new THREE.Vector3(z ? z.x + 2400 : 0, 0, z ? z.z + 2400 : 0);   // just outside the zone's activation radius
   }
 
   enemyLevel() { return Math.max(1, this.sys.danger + R.int(-1, 2)); }
@@ -114,15 +119,8 @@ export class Sector {
     const W = this.world, P = W.player;
     if (!P || !P.alive) return;
     this.groups = this.groups.filter((g) => g.ships.some((s) => s.alive));
-    const hostiles = W.ships.filter((s) => s.alive && s.team !== 1 && s.position.distanceTo(P.position) < 2600).length;
-    this.spawnT -= dt;
-    const want = 2 + Math.min(7, Math.floor(this.sys.danger / 5));
-    if (this.spawnT <= 0 && hostiles < want) {
-      this.spawnT = (this.sys.danger < 5 ? 12 : 6) + Math.random() * 8;
-      const z = this.detail.zones;
-      this.spawnGroup(R.weighted(factionWeights(this.sys.danger)), P.position, 1, this.enemyLevel());
-    }
-    // despawn far stragglers
-    for (const s of W.ships.slice()) if (s.alive && s.team !== 1 && s.position.distanceTo(P.position) > 4200 && !s.persistent) W.removeShip(s);
+    this.director.update(dt);
+    // despawn far stragglers that belong to nothing
+    for (const s of W.ships.slice()) if (s.alive && s.team !== 1 && !s.zone && !s.persistent && s.position.distanceTo(P.position) > 5200) W.removeShip(s);
   }
 }

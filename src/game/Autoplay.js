@@ -126,13 +126,18 @@ export class Autoplay {
       s.steerTo(this.drop.pos, 10, 0.75);
       return;
     }
-    // patrol: sail between the system's combat zones
-    const zones = g.sector.detail.zones;
-    if (!this.patrolPt || s.position.distanceTo(this.patrolPt) < 200) {
-      const z = zones[Math.floor(Math.random() * zones.length)];
-      this.patrolPt = new THREE.Vector3(z.x + (Math.random() - 0.5) * 800, 0, z.z + (Math.random() - 0.5) * 800);
+    // patrol: head for the nearest zone with a garrison, warping across the system when it's far
+    const D = g.sector.director;
+    const live = D && D.nearestLive({ pos: s.position, game: g });
+    if (live) {
+      const d = live.pos.distanceTo(s.position);
+      if (d > 3200 && g.warpTo && !g.isWarping()) g.warpTo(live.pos.clone().add(s.position.clone().sub(live.pos).setY(0).setLength(1800)));
+      else if (!g.isWarping()) s.steerTo(live.pos, 300, 0.75);
+    } else {
+      const zones = g.sector.detail.zones;
+      if (!this.patrolPt || s.position.distanceTo(this.patrolPt) < 200) { const z = zones[Math.floor(Math.random() * zones.length)]; this.patrolPt = new THREE.Vector3(z.x, 0, z.z); }
+      s.steerTo(this.patrolPt, 150, 0.6);
     }
-    s.steerTo(this.patrolPt, 150, 0.6);
     s.altTarget = 0;
   }
 

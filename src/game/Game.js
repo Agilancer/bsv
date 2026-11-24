@@ -354,6 +354,7 @@ export class Game {
     this.world.schedule(3.5, () => {
       this.ui.death(false);
       // hostiles near the wreck lose interest
+      if (this.sector.director) this.sector.director.standDown();
       for (const o of this.world.ships.slice()) if (o.team !== 1 && !o.persistent) this.world.removeShip(o);
       const p = this.spawnPlayer((this.respawnPoint && this.respawnPoint()) || this.safePoint());
       p.invuln = true;

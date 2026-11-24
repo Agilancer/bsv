@@ -102,7 +102,7 @@ export function installMMO(game) {
     const enter = game.enterSystem;
     game.enterSystem = (id) => {
       const party = pop.party.filter((s) => s.alive).map((s) => ({ name: s.name, guild: s.guild, level: s.level, chassis: s.chassis.id, loadout: s.loadout }));
-      pop.ships = []; pop.party = []; pop.raid = null; game.raidMarker = null;
+      pop.ships = []; pop.party = []; pop.raid = null; pop.raidPending = null; game.raidMarker = null;
       enter(id);
       for (const p of party) {
         const s = game.world.addShip({ chassis: CHASSIS_BY_ID[p.chassis], loadout: p.loadout, team: 1, faction: 'player', name: p.name, level: p.level }, { aggro: 1500, flee: 0.18 });
@@ -129,10 +129,10 @@ export function installMMO(game) {
   };
 
   // world event: a Dread Armada warps into one of the system's battle zones
-  function startRaid() {
+  function startRaid(zone) {
     const W = game.world, sec = game.sector, P = game.player;
     // never on top of the captain: the zone furthest away
-    const z = sec.detail.zones.reduce((b, z) => (!b || Math.hypot(z.x - P.position.x, z.z - P.position.z) > Math.hypot(b.x - P.position.x, b.z - P.position.z) ? z : b), null);
+    const z = zone || sec.detail.zones.reduce((b, z) => (!b || Math.hypot(z.x - P.position.x, z.z - P.position.z) > Math.hypot(b.x - P.position.x, b.z - P.position.z) ? z : b), null);
     const at = new THREE.Vector3(z.x, 0, z.z);
     const danger = sec.sys.danger;
     const size = danger >= 26 ? 'gargantuan' : danger >= 18 ? 'legendary' : danger >= 10 ? 'epic' : 'large';
@@ -232,7 +232,15 @@ export function installMMO(game) {
         say('WORLD', null, ev, 'sys');
       }
       pop.raidT -= dt;
-      if (pop.raidT <= 0 && !pop.raid && !game.docked) { pop.raidT = 480 + Math.random() * 300; startRaid(); }
+      if (pop.raidT <= 0 && !pop.raid && !pop.raidPending && !game.docked) {
+        pop.raidT = 480 + Math.random() * 300;
+        const P = game.player, z = game.sector.detail.zones.reduce((b, z) => (!b || Math.hypot(z.x - P.position.x, z.z - P.position.z) > Math.hypot(b.x - P.position.x, b.z - P.position.z) ? z : b), null);
+        pop.raidPending = { t: 60, z };
+        game.raidMarker = new THREE.Vector3(z.x, 0, z.z);
+        say('WORLD', null, `Long-range sensors: a Dread Armada will arrive in ${game.sector.sys.name} in 60 seconds. All captains, rally at the marked zone.`, 'sys');
+        game.ui.toast('Dread Armada inbound in 60s — marked on your radar and system map', 'legend');
+      }
+      if (pop.raidPending) { pop.raidPending.t -= dt; if (pop.raidPending.t <= 0) { const z = pop.raidPending.z; pop.raidPending = null; startRaid(z); } }
       raidTick(dt);
       pop.inviteT -= dt;
       if (pop.inviteT <= 0) {

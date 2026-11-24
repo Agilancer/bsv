@@ -210,7 +210,7 @@ export const ENEMY_BY_ID = Object.fromEntries(ENEMIES.map((e) => [e.id, e]));
 
 // Encounter composition by danger: which sizes show up, and how packs are built.
 export function encounterSizes(danger) {
-  const w = [['small', 6], ['mid', danger >= 2 ? 4 : 0], ['large', danger >= 7 ? 2.5 : 0], ['epic', danger >= 13 ? 0.7 : 0], ['legendary', danger >= 20 ? 0.12 : 0]];
+  const w = [['small', danger < 15 ? 6 - danger * 0.3 : 0.6], ['mid', danger >= 2 ? 4 : 0], ['large', danger >= 7 ? 2.5 + danger * 0.05 : 0], ['epic', danger >= 13 ? 0.7 + danger * 0.03 : 0], ['legendary', danger >= 20 ? 0.12 + danger * 0.004 : 0]];
   return w.filter(([, x]) => x > 0);
 }
 export function designsFor(faction, size, danger) {

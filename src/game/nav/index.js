@@ -1,7 +1,7 @@
 // Navigation: the galaxy map (jump between systems along lanes), the system map
 // (in-system warp), and the jump/warp drive with its spool-up, streaks and flash.
 import * as THREE from 'three/webgpu';
-import { galaxy, systemDetail } from '../galaxy.js';
+import { galaxy, systemDetail, ARM_NAMES } from '../galaxy.js';
 import { save } from '../Player.js';
 
 const fmt = (n) => (n >= 1e4 ? (n / 1e3).toFixed(1) + 'k' : Math.round(n).toString());
@@ -209,7 +209,9 @@ export function installNav(game) {
       c.globalAlpha = locked ? 0.35 : 1;
       c.fillStyle = STAR_HEX[star.k]; c.shadowColor = STAR_HEX[star.k]; c.shadowBlur = 12;
       c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
-      if (P.visited.includes(s.id)) { c.strokeStyle = 'rgba(200,220,255,0.5)'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, r + 3, 0, Math.PI * 2); c.stroke(); }
+      const FCG = { pirate: '#ff6a5a', rival: '#ffb040', rustborn: '#d89050', covenant: '#ff3b8a', brood: '#40ffd0', silent: '#bff0ff' };
+      c.strokeStyle = FCG[s.control] || '#888'; c.globalAlpha = locked ? 0.25 : 0.55; c.lineWidth = 2; c.beginPath(); c.arc(x, y, r + 4, 0, Math.PI * 2); c.stroke(); c.globalAlpha = locked ? 0.35 : 1;
+      if (P.visited.includes(s.id)) { c.strokeStyle = 'rgba(200,220,255,0.5)'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, r + 7, 0, Math.PI * 2); c.stroke(); }
       if (s.id === P.system) { c.strokeStyle = '#58c8ff'; c.lineWidth = 2; const pr = r + 6 + Math.sin(t * 3) * 2; c.beginPath(); c.arc(x, y, pr, 0, Math.PI * 2); c.stroke(); }
       if (s.id === selected) { c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.strokeRect(x - r - 7, y - r - 7, (r + 7) * 2, (r + 7) * 2); }
       const near = S[P.system].links.includes(s.id) || (selected != null && S[selected].links.includes(s.id));
@@ -228,11 +230,12 @@ export function installNav(game) {
     const rt = s.id !== P.system ? route(P.system, s.id, P) : null;
     const locked = s.danger > unlockedDanger(P);
     el.innerHTML = `<div class="title" style="color:${STAR_HEX[d.star.k]}">${s.name}</div>
-      <div class="label" style="margin:4px 0 8px">${d.star.k} star · danger ${s.danger}</div>
+      <div class="label" style="margin:4px 0 8px">${d.star.k} star · danger ${s.danger} · ${ARM_NAMES[s.arm] || ''}</div>
+      <div class="label" style="margin-bottom:8px">Held by: <span style="color:var(--white)">${({ pirate: 'Corsair Pirates', rival: 'Rival Companies', rustborn: 'Rustborn Scavengers', covenant: 'Hollow Star Covenant', brood: 'Leviathan Brood', silent: 'The Silent Choir' })[s.control]}</span></div>
       <div class="statgrid"><span>Planets</span><b>${d.planets.length}</b><span>Moons</span><b>${d.planets.reduce((a, p) => a + p.moons.length, 0)}</b><span>Stations</span><b>${d.stations.length}</b><span>Belts</span><b>${d.belts.length}</b><span>Visited</span><b>${P.visited.includes(s.id) ? 'yes' : 'no'}</b>
       ${rt ? `<span>Jumps</span><b>${rt.length - 1}</b><span>Fuel</span><b>${fmt(jumpCost(rt, P))} ¢</b>` : ''}</div>
       <div style="margin-top:10px">${s.id === P.system ? '<div class="label">You are here</div>' : locked ? `<div class="label" style="color:var(--warn)">Requires commander rank ${s.danger - 6}</div>` : rt ? '<button class="btn" id="gJump">Engage jump drive</button>' : '<div class="label">No charted route</div>'}</div>
-      <div class="label" style="margin-top:12px">Double-click a system to jump · higher danger, better loot</div>`;
+      <div class="label" style="margin-top:12px">Double-click a system to jump · rings show who holds each system · higher danger, better loot</div>`;
     const b = document.getElementById('gJump'); if (b) b.onclick = () => game.jumpTo(s.id);
   }
 
@@ -242,7 +245,7 @@ export function installNav(game) {
     const W = game.ui.windows.system, body = W.querySelector('.wbody');
     W.querySelector('.wtitle span').textContent = `${game.sector.sys.name} · danger ${game.sector.sys.danger}`;
     if (!sCanvas) {
-      body.innerHTML = `<canvas class="smap"></canvas><div class="label" style="margin-top:6px">Click anywhere to warp there · stations, planets and battle zones marked</div>`;
+      body.innerHTML = `<canvas class="smap"></canvas><div class="label" style="margin-top:6px">Click to warp · ⚔ patrol ⛫ raider base ◌ mining belt ✕ wreck field ⚑ contested front ☠ boss lair · ◆ derelict ✚ distress ✺ anomaly · ? unknown signal</div>`;
       sCanvas = body.querySelector('canvas');
       sCanvas.addEventListener('click', (e) => {
         const L = sLayout(), r = sCanvas.getBoundingClientRect();
@@ -285,7 +288,26 @@ export function installNav(game) {
       if (!info.moon) label(info.name, X(pl.position.x), Y(pl.position.z) - r - 4, '#b8c6e0');
       if (game.data.scanned && game.data.scanned[info.name]) { c.strokeStyle = '#4ade80'; c.beginPath(); c.arc(X(pl.position.x), Y(pl.position.z), r + 3, 0, Math.PI * 2); c.stroke(); }
     }
-    for (const z of D.zones) { const x = X(z.x), y = Y(z.z); c.strokeStyle = z.faction === 'covenant' ? '#ff3b5c' : z.faction === 'rival' ? '#ffb040' : '#ff7a6a'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x - 6, y); c.lineTo(x + 6, y); c.moveTo(x, y - 6); c.lineTo(x, y + 6); c.stroke(); c.beginPath(); c.arc(x, y, 9, 0, Math.PI * 2); c.stroke(); }
+    const FC = { pirate: '#ff6a5a', rival: '#ffb040', rustborn: '#d89050', covenant: '#ff3b8a', brood: '#40ffd0', silent: '#bff0ff' };
+    const ICON = { patrol: '⚔', base: '⛫', belt: '◌', wrecks: '✕', front: '⚑', lair: '☠' };
+    const mk = game.sector.director ? game.sector.director.markers() : { zones: D.zones, pois: [] };
+    c.font = '600 13px Rajdhani, sans-serif';
+    for (const z of mk.zones) {
+      const x = X(z.x), y = Y(z.z);
+      c.globalAlpha = z.cooling ? 0.35 : 1;
+      c.strokeStyle = FC[z.faction] || '#ff7a6a'; c.lineWidth = z.active ? 2.5 : 1.2;
+      c.beginPath(); c.arc(x, y, z.active ? 11 + Math.sin(t * 5) * 2 : 9, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = FC[z.faction] || '#ff7a6a'; c.fillText(ICON[z.type] || '⚔', x, y + 4);
+      c.globalAlpha = 1;
+    }
+    for (const p of mk.pois) {
+      if (p.done) continue;
+      const x = X(p.x), y = Y(p.z);
+      c.fillStyle = p.revealed ? '#ffd66a' : 'rgba(180,200,255,0.5)';
+      c.fillText(p.revealed ? ({ derelict: '◆', distress: '✚', anomaly: '✺' }[p.type]) : '?', x, y + 4);
+    }
+    if (game.raidMarker) { const x = X(game.raidMarker.x), y = Y(game.raidMarker.z); c.strokeStyle = '#ff9a2e'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 16 + Math.sin(t * 6) * 3, 0, Math.PI * 2); c.stroke(); c.fillStyle = '#ff9a2e'; c.fillText('☠ ARMADA', x, y - 22); }
+    c.font = '500 11px Rajdhani, sans-serif';
     for (const st of game.stations) { const x = X(st.position.x), y = Y(st.position.z); c.fillStyle = '#58ffd8'; c.shadowColor = '#58ffd8'; c.shadowBlur = 8; c.fillRect(x - 5, y - 5, 10, 10); c.shadowBlur = 0; }
     for (const o of game.world.ships) { if (!o.alive || o === game.player) continue; c.fillStyle = o.team === 1 ? '#58c8ff' : '#ff4a6a'; c.fillRect(X(o.position.x) - 1.5, Y(o.position.z) - 1.5, 3, 3); }
     const s = game.player;
