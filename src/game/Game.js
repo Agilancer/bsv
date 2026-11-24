@@ -63,7 +63,11 @@ export class Game {
   }
 
   start(fresh = false) {
-    this.data = (!fresh && load()) || newPlayer();
+    // a captain made on the title screen brings their own names (main.js sets game.newCaptain)
+    const nc = fresh && this.newCaptain;
+    this.data = (!fresh && load()) || newPlayer(nc && nc.name ? nc.name : undefined);
+    if (nc && nc.ship) this.data.ship.name = nc.ship;
+    this.newCaptain = null;
     this.statProviders.push((g) => talentStats(g.data));
     this.spaceScene = this.engine.scene; this.spaceCamera = this.engine.camera;
     this.world = new World(this.engine, this.cam);
@@ -75,7 +79,7 @@ export class Game {
     this.wireEvents();
     this.enterSystem(this.data.system || 0);
     this.engine.add(this);
-    this.ui.chat('SYS', null, `Welcome aboard, Captain. ${this.engine.backend} renderer online.`, 'sys');
+    this.ui.chat('SYS', null, `Welcome aboard the ${this.data.ship.name}, Captain${this.data.name && this.data.name !== 'Captain' ? ' ' + this.data.name : ''}. ${this.engine.backend} renderer online.`, 'sys');
     this.ui.chat('SYS', null, document.body.classList.contains('mobile') ? 'Left stick steers · tap a ship to target · tap space to sail · abilities on the right' : 'W/S throttle · A/D rudder · R/F altitude · Right-click sail · Tab target · 1-8 abilities · I cargo', 'sys');
   }
 
