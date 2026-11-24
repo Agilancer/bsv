@@ -9,7 +9,7 @@ import { YARDS } from '../data/chassis.js';
 import { LIVERIES } from '../data/liveries.js';
 import { RNG } from '../../engine/rng.js';
 import { hullMaterials, hotMaterial } from '../../fx/materials.js';
-import { hullPlan, sectionAt, deckHeights, spreadFree, sideProfile } from './hullPlan.js';
+import { hullPlan, sectionAt, deckHeights, spreadFree, sideProfile, MAST_K } from './hullPlan.js';
 import { addDetail } from './hullDetail.js';
 
 export { hullPlan, sideProfile };
@@ -516,10 +516,20 @@ export function buildHull(chassis) {
 
   // ---- main hull ----
   P.add('hull', loft(plan.S, y.hullRound));
+  // These are spacecraft: pressure hulls, closed all round. An armoured carapace covers the crown and
+  // shoulders of every built hull, so from above it is plate from rail to rail, not a dark well
+  // between two gunwales (grown hulls and void fauna have their own skin).
+  if (!y.organic) {
+    P.add('trim', loft(plan.S.map((c) => ({ z: c.z, w: c.w * 0.97, ht: c.ht * 1.06, hb: c.ht * 0.2, yo: c.yo || 0 })), y.hullRound));
+    // plate seams across the carapace and a lit spine conduit down the centreline
+    for (let i = 1; i < plan.S.length - 1; i++) { const c = plan.S[i]; P.box('dark', c.w * 1.5, c.ht * 0.035, L * 0.006, 0, (c.yo || 0) + c.ht * 1.062, c.z); }
+    for (const u of [0.2, 0.34, 0.48, 0.62]) if (u < taperStart) P.box('dark', W * 1.5, Ht * 0.035, L * 0.006, 0, Ht * 1.062, Z(u));
+  }
 
-  // fork prongs: two lofted tines reaching past the bow
+  // fork prows: two lofted blades reaching past the bow, with solid armour between them (no open jaw)
   if (plan.tines) {
     for (const sx of [1, -1]) P.add('trim', loft(plan.tines.map((t) => ({ ...t, xo: sx * t.xo })), 0.3));
+    if (!y.organic) P.add('hull', loft(plan.tines.map((t) => ({ z: t.z, w: Math.max(t.xo, t.w * 0.5), ht: t.ht * 0.72, hb: t.hb * 0.72, yo: t.yo || 0 })), 0.15));
     P.box('glow', W * 0.7, Ht * 0.1, W * 0.1, 0, 0, Z(0.86) + W * 0.04);
   }
   if (plan.bowsprit) {
@@ -612,7 +622,7 @@ export function buildHull(chassis) {
     P.box('hull', f.w, fh, f.l, 0, Ht + fh / 2, f.z);
     P.box('trim', f.w * 1.06, fh * 0.1, f.l * 1.05, 0, Ht + fh, f.z);
     P.box('glow', f.w * 1.01, fh * 0.12, f.l * 0.8, 0, Ht + fh * 0.55, f.z);
-    P.cone('trim', W * 0.07, Ht * 1.4, 0, Ht + fh, f.z, 6);
+    P.cone('trim', W * 0.11, Ht * 1.4 * MAST_K, 0, Ht + fh, f.z, 6);
   }
   // forward command spire: three stepped tiers on flying braces, a needle mast with a burning crown
   if (plan.foreSpire) {
@@ -622,17 +632,18 @@ export function buildHull(chassis) {
       P.box('trim', l.w * 1.08, l.h * 0.08, l.l * 1.06, f.x, l.y1, l.z);
       P.box('glow', l.w * 1.02, l.h * 0.13, l.l * 0.78, f.x, l.y0 + l.h * 0.6, l.z);
     });
-    if (!carrier) for (const sx of [1, -1]) for (const dz of [-0.3, 0.3]) P.box('trim', W * 0.1, Ht * 1.05, L * 0.014, sx * W * 0.64, Ht * 1.08, f.z + dz * f.levels[0].l, 0, 0, sx * 0.6);
+    if (!carrier) for (const sx of [1, -1]) P.box('trim', W * 0.1, Ht * 1.05, f.levels[0].l * 0.9, sx * W * 0.64, Ht * 1.08, f.z, 0, 0, sx * 0.6);
     // corner pinnacles on the first tier, lit at the tips
     const l0 = f.levels[0];
     for (const sx of [1, -1]) for (const sz of [1, -1]) {
       const px = f.x + sx * l0.w * 0.42, pz = l0.z + sz * l0.l * 0.4;
-      P.cone('trim', W * 0.09, Ht * 1.1, px, l0.y1, pz, 6);
-      P.box('glow', W * 0.06, Ht * 0.12, W * 0.06, px, l0.y1 + Ht * 0.45, pz);
+      P.cone('trim', W * 0.12, Ht * 0.55, px, l0.y1, pz, 6);
+      P.box('glow', W * 0.06, Ht * 0.1, W * 0.06, px, l0.y1 + Ht * 0.24, pz);
     }
-    P.cone('trim', W * 0.1, f.needle, f.x, f.top, f.z, 8);
-    P.add('glow', new THREE.TorusGeometry(Math.max(W * 0.3, f.levels[2].w * 0.75), W * 0.05, 6, 20).rotateX(Math.PI / 2).translate(f.x, f.top + f.needle * 0.3, f.z));
-    P.box('glow', W * 0.09, W * 0.09, W * 0.09, f.x, f.top + f.needle * 0.78, f.z);
+    // a stout sensor pylon with a lit collar (not a needle mast)
+    P.cone('trim', W * 0.16, f.needle * MAST_K, f.x, f.top, f.z, 8);
+    P.add('glow', new THREE.TorusGeometry(W * 0.2, W * 0.045, 6, 16).rotateX(Math.PI / 2).translate(f.x, f.top + f.needle * MAST_K * 0.22, f.z));
+    P.box('glow', W * 0.09, W * 0.09, W * 0.09, f.x, f.top + f.needle * MAST_K * 0.8, f.z);
   }
   // swept fins (battlecruisers, light cruisers)
   if (A.fins && !y.organic) for (const sx of [1, -1]) P.add('trim', twoSided(finGeometry(L * 0.22 * A.fins, W * 1.6 * A.fins, 0.25).applyMatrix4(wingMatrix(sx, sx * W * 0.9, Ht * 0.4, Z(0.22), sx * 0.35))));
@@ -649,12 +660,14 @@ export function buildHull(chassis) {
         { z: Z(u1 - 0.06), w: ow, ht: ow, hb: ow * 0.9, xo: sx * outX },
         { z: Z(u1), w: ow * 0.1, ht: ow * 0.2, hb: ow * 0.2, xo: sx * outX },
       ], 0.4));
-      for (const su of hull ? [0.2, 0.42, 0.62] : [0.12, 0.3]) {
-        P.box('trim', outX, W * 0.14, L * 0.025, sx * outX / 2, 0, Z(su));
-        // a dark fairing over each spar with a lit conduit along it
-        P.box('dark', outX * 0.56, W * 0.2, L * 0.017, sx * outX * 0.6, 0, Z(su));
-        P.box('glow', outX * 0.5, W * 0.03, W * 0.04, sx * outX * 0.6, W * 0.11, Z(su));
-      }
+      // a solid wing joins each side hull to the main hull over its whole length: no spars, no daylight
+      // between them. Thick at the root, plated on top, with lit conduits running fore and aft.
+      const wz0 = Z(u0 + 0.03), wz1 = Z(u1 - 0.07), wl = wz1 - wz0, th = ow * (hull ? 0.62 : 0.5), hw = outX / 2;
+      const wsec = (z, k, t) => ({ z, w: hw * k, ht: th * t, hb: th * t, xo: sx * (outX - hw * k) });
+      P.add('hull', loft([wsec(wz0, 0.55, 0.5), wsec(wz0 + wl * 0.12, 1, 1), wsec(wz1 - wl * 0.2, 1, 1), wsec(wz1, 0.5, 0.45)], 0.12));
+      P.box('trim', outX * 0.62, th * 0.16, wl * 0.62, sx * outX * 0.52, th * 0.98, wz0 + wl * 0.47);
+      P.box('dark', outX * 0.5, th * 0.1, wl * 0.5, sx * outX * 0.52, th * 1.08, wz0 + wl * 0.47);
+      for (const k of [0.3, 0.7]) P.box('glow', outX * 0.03, th * 0.06, wl * 0.5, sx * outX * (0.3 + k * 0.45), th * 1.14, wz0 + wl * 0.47);
       if (hull) {
         // side hulls carry their own armoured spine and a tail fin
         const sl = L * (u1 - u0);
@@ -716,13 +729,11 @@ export function buildHull(chassis) {
   addKit(P, kit, { plan, L, W, Ht, Hb, Z, tier, taperStart, top, rng });
   // flying buttresses from hull flanks up to the first tier
   if (y.buttress) {
-    const t0 = towers[0];
-    const nb = 2 + Math.floor(tier / 3);
-    for (let i = 0; i < nb; i++) {
-      const u = castle.u0 + (i + 0.5) / nb * (castle.u1 - castle.u0);
-      for (const sx of [1, -1]) {
-        P.box('trim', W * 0.08, Ht * 1.2, L * 0.018, sx * W * 0.82, t0.y1 - Ht * 0.25, Z(u), 0, 0, sx * 0.55);
-      }
+    // (one continuous sloped plate per side from the flank to the first tier: armour, not flying bars)
+    const t0 = towers[0], bl = L * (castle.u1 - castle.u0) * 0.92;
+    for (const sx of [1, -1]) {
+      P.box('trim', W * 0.1, Ht * 1.2, bl, sx * W * 0.82, t0.y1 - Ht * 0.25, Z((castle.u0 + castle.u1) / 2), 0, 0, sx * 0.55);
+      P.box('glow', W * 0.03, Ht * 0.06, bl * 0.86, sx * W * 0.9, t0.y1 - Ht * 0.2, Z((castle.u0 + castle.u1) / 2), 0, 0, sx * 0.55);
     }
   }
   // spires
@@ -735,14 +746,14 @@ export function buildHull(chassis) {
     if (y.castle === 'organic') {
       P.cone('hull', W * 0.12, spireH * rng.float(0.6, 1.3), sx * t.w * 0.4, t.y1, sz, 5, rng.float(-0.5, 0.2), sx * rng.float(0.2, 0.7));
     } else {
-      P.cone('trim', W * 0.1, spireH * (0.6 + (i % 3) * 0.2), sx * t.w * 0.42, t.y1, sz, 6, y.castle === 'swept' ? -0.6 : 0, 0);
-      P.box('glow', W * 0.05, Ht * 0.12, W * 0.05, sx * t.w * 0.42, t.y1 + spireH * 0.25, sz);
+      P.cone('trim', W * 0.15, spireH * MAST_K * (0.6 + (i % 3) * 0.2), sx * t.w * 0.42, t.y1, sz, 6, y.castle === 'swept' ? -0.6 : 0, 0);
+      P.box('glow', W * 0.05, Ht * 0.12, W * 0.05, sx * t.w * 0.42, t.y1 + spireH * MAST_K * 0.3, sz);
     }
   }
   // central master spire / antenna mast
   if (plan.mast) {
-    P.cone('trim', W * 0.08, spireH * 1.5, castle.islandX, top, castle.crownZ, 8);
-    P.box('glow', W * 0.06, W * 0.06, W * 0.06, castle.islandX, top + spireH * 1.1, castle.crownZ);
+    P.cone('trim', W * 0.14, spireH * 1.5 * MAST_K, castle.islandX, top, castle.crownZ, 8);
+    P.box('glow', W * 0.06, W * 0.06, W * 0.06, castle.islandX, top + spireH * 1.1 * MAST_K, castle.crownZ);
   }
   if (y.castle === 'block') {
     for (const sx of [1, -1]) {
@@ -770,10 +781,10 @@ export function buildHull(chassis) {
       const g = finGeometry(L * 0.2, fh, 0.15);
       g.rotateY(Math.PI / 2);
       g.translate(0, Ht * 0.8, Z(u) + L * 0.1);
-      P.add('sail', g);
+      P.add('trim', twoSided(g));   // opaque hide, not a see-through membrane
     }
     // manta wings: root along the flank, tip swept back and out
-    for (const sx of [1, -1]) P.add('sail', finGeometry(L * 0.5, W * 2.6, 0.35).applyMatrix4(wingMatrix(sx, sx * W * 0.85, -Ht * 0.15, Z(0.72))));
+    for (const sx of [1, -1]) P.add('trim', twoSided(finGeometry(L * 0.5, W * 2.6, 0.35).applyMatrix4(wingMatrix(sx, sx * W * 0.85, -Ht * 0.15, Z(0.72)))));
     // trailing tentacles: lofted tubes that taper and curl behind the body
     const nt = 4 + Math.floor(tier / 2);
     for (let i = 0; i < nt; i++) {
@@ -792,39 +803,27 @@ export function buildHull(chassis) {
     // eyes
     for (const sx of [1, -1]) P.add('engine', new THREE.SphereGeometry(W * 0.12, 8, 6).translate(sx * W * 0.45, Ht * 0.35, Z(0.84)));
   } else if (y.sails) {
+    // No masts, no canvas. Where the old yards stepped a sail these hulls carry a solid dorsal blade:
+    // a thick swept radiator fin with a lit trailing edge (the livery's colour runs along it).
     for (const { u, h: mh, sw } of plan.sailMasts) {
-      P.cyl('trim', W * 0.05, W * 0.08, mh, 0, Ht + mh / 2, Z(u), 'y', 6);
-      const sh = mh * 0.8;
-      const g = rags ? raggedSail(sw, sh, lrng) : new THREE.PlaneGeometry(sw, sh);
-      g.rotateY(Math.PI / 2);
-      g.translate(0, Ht + mh * 0.55, Z(u) - sw * 0.1);
-      P.add('sail', g);
-      // yards (cross spars)
-      for (let k = 0; k < 3; k++) P.box('trim', W * 0.05, W * 0.05, sw * 1.05, 0, Ht + mh * (0.2 + k * 0.33), Z(u) - sw * 0.1);
+      const fh = mh * 0.3, fl = sw * 1.25, z0 = Z(u) - fl * 0.6;
+      P.add('trim', loft([
+        { z: z0, w: W * 0.05, ht: fh * 0.25, hb: fh * 0.25, yo: Ht + fh * 0.25 },
+        { z: z0 + fl * 0.3, w: W * 0.1, ht: fh * 0.5, hb: fh * 0.5, yo: Ht + fh * 0.5 },
+        { z: z0 + fl * 0.75, w: W * 0.09, ht: fh * 0.36, hb: fh * 0.36, yo: Ht + fh * 0.36 },
+        { z: z0 + fl, w: W * 0.03, ht: fh * 0.08, hb: fh * 0.08, yo: Ht + fh * 0.08 },
+      ], 0.2));
+      P.box('glow', W * 0.22, fh * 0.07, fl * 0.5, 0, Ht + fh * 0.5, z0 + fl * 0.34);
     }
-    // side solar outriggers
+    // stub wings on the bigger hulls: solid wedges with a lit leading edge
     if (tier >= 4) for (const sx of [1, -1]) {
-      const g = rags ? raggedSail(L * 0.3, W * 1.2, lrng) : new THREE.PlaneGeometry(L * 0.3, W * 1.2);
-      g.rotateX(-Math.PI / 2); g.rotateY(Math.PI / 2);
-      g.rotateZ(sx * 0.25);
-      g.translate(sx * W * 1.9, Ht * 0.5, Z(0.4));
-      P.add('sail', g);
-      P.box('trim', W * 1.2, W * 0.06, W * 0.06, sx * W * 1.4, Ht * 0.45, Z(0.4));
+      const wl = L * 0.26, ws = W * 0.95, z0 = Z(0.4) - wl / 2;
+      const sec = (z, k) => ({ z, w: ws * k / 2, ht: W * 0.1 * (0.4 + 0.6 * k), hb: W * 0.1 * (0.4 + 0.6 * k), xo: sx * (W * 0.9 + ws * k / 2), yo: Ht * 0.3 });
+      P.add('trim', loft([sec(z0, 0.35), sec(z0 + wl * 0.3, 1), sec(z0 + wl * 0.7, 0.8), sec(z0 + wl, 0.2)], 0.1));
+      P.box('glow', W * 0.05, W * 0.05, wl * 0.5, sx * (W * 0.9 + ws * 0.86), Ht * 0.3, z0 + wl * 0.42);
     }
   }
-  // a long pennant streaming aft from the master mast
-  if (lv && lv.marks.includes('pennant') && plan.mast) {
-    const pl = L * 0.2, ph = Math.max(W * 0.45, Ht * 0.5), s = new THREE.Shape();
-    s.moveTo(0, ph / 2);
-    for (let i = 1; i <= 6; i++) s.lineTo(pl * i / 6 * 0.86, ph / 2 * (1 - i / 6 * 0.55) + Math.sin(i * 1.3) * ph * 0.12);
-    s.lineTo(pl, ph * 0.18); s.lineTo(pl * 0.8, 0); s.lineTo(pl, -ph * 0.15);
-    for (let i = 6; i >= 1; i--) s.lineTo(pl * i / 6 * 0.86, -ph / 2 * (1 - i / 6 * 0.55) + Math.sin(i * 1.3) * ph * 0.12);
-    s.lineTo(0, -ph / 2);
-    const g = flatUV(new THREE.ShapeGeometry(s, 2));
-    g.rotateY(Math.PI / 2);
-    g.translate(castle.islandX, top + spireH * 1.32 - ph / 2, castle.crownZ);
-    P.add('sail', g);
-  }
+  // (no pennants either: nothing streams in vacuum)
   if (lv) addLivery(P, lv, plan, lrng);
   addDetail(P, { loft, finGeometry, twoSided, wingMatrix, ringPoints }, { chassis, y, plan, G, outX });
 

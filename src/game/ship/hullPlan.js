@@ -6,6 +6,9 @@
 import { YARDS } from '../data/chassis.js';
 import { LIVERIES } from '../data/liveries.js';
 
+// Masts and spires are sensor pylons on a spacecraft: this share of the old needle height (and stouter).
+export const MAST_K = 0.45;
+
 export function deckHeights(n, Ht) { return n === 1 ? [0] : n === 2 ? [Ht * 0.32, -Ht * 0.3] : [Ht * 0.52, 0, -Ht * 0.5]; }
 
 // n points spread evenly over [a, b] with the blocked [x0, x1] intervals cut out of it, so centreline
@@ -307,10 +310,11 @@ export function sideProfile(chassis, samples = 120) {
   }
   const hullStations = stations.filter((z) => z >= P.S[0].z && z <= P.stem.z);
   const lines = [];
-  if (P.mast) lines.push({ kind: 'mast', z0: P.mast.z, y0: P.mast.y0, z1: P.mast.z, y1: P.mast.y1 });
-  if (P.foreSpire) lines.push({ kind: 'mast', z0: P.foreSpire.z, y0: P.foreSpire.top, z1: P.foreSpire.z, y1: P.foreSpire.top + P.foreSpire.needle });
-  if (P.forecastle) lines.push({ kind: 'mast', z0: P.forecastle.z, y0: P.Ht + P.forecastle.h, z1: P.forecastle.z, y1: P.Ht + P.forecastle.h + P.Ht * 1.4 });
-  for (const m of P.sailMasts) lines.push({ kind: 'sail', z0: m.z, y0: P.Ht, z1: m.z, y1: P.Ht + m.h, sw: m.sw });
+  // sensor pylons (the old masts, at MAST_K of their height) and the solid dorsal blades where sails stood
+  if (P.mast) lines.push({ kind: 'mast', z0: P.mast.z, y0: P.mast.y0, z1: P.mast.z, y1: P.mast.y0 + (P.mast.y1 - P.mast.y0) * MAST_K });
+  if (P.foreSpire) lines.push({ kind: 'mast', z0: P.foreSpire.z, y0: P.foreSpire.top, z1: P.foreSpire.z, y1: P.foreSpire.top + P.foreSpire.needle * MAST_K });
+  if (P.forecastle) lines.push({ kind: 'mast', z0: P.forecastle.z, y0: P.Ht + P.forecastle.h, z1: P.forecastle.z, y1: P.Ht + P.forecastle.h + P.Ht * 1.4 * MAST_K });
+  for (const m of P.sailMasts) lines.push({ kind: 'fin', z0: m.z, y0: P.Ht, z1: m.z, y1: P.Ht + m.h * 0.3, sw: m.sw * 1.25 });
   if (P.bowsprit) lines.push({ kind: 'bowsprit', z0: P.bowsprit.z0, y0: P.bowsprit.y, z1: P.bowsprit.z1, y1: P.bowsprit.y });
   const c = P.castle;
   return {
