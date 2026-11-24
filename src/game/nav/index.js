@@ -287,6 +287,7 @@ export function installNav(game) {
       }
       c.globalAlpha = 1;
     }
+    if (game.mapExtras) game.mapExtras.galaxy(c, L);   // guild module: contested zones
   }
   function info() {
     const el = document.getElementById('gInfo'); if (!el) return;
@@ -387,6 +388,7 @@ export function installNav(game) {
       c.fillText(p.revealed ? ({ derelict: '◆', distress: '✚', anomaly: '✺' }[p.type]) : '?', x, y + 4);
     }
     if (game.raidMarker) { const x = X(game.raidMarker.x), y = Y(game.raidMarker.z); c.strokeStyle = '#ff9a2e'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 16 + Math.sin(t * 6) * 3, 0, Math.PI * 2); c.stroke(); c.fillStyle = '#ff9a2e'; c.fillText('☠ ARMADA', x, y - 22); }
+    if (game.mapExtras) game.mapExtras.system(c, X, Y, t);   // guild module: contested zone
     c.font = '500 11px Rajdhani, sans-serif';
     for (const st of game.stations) { const x = X(st.position.x), y = Y(st.position.z); c.fillStyle = '#58ffd8'; c.shadowColor = '#58ffd8'; c.shadowBlur = 8; c.fillRect(x - 5, y - 5, 10, 10); c.shadowBlur = 0; }
     for (const o of game.world.ships) { if (!o.alive || o === game.player) continue; c.fillStyle = o.team === 1 ? '#58c8ff' : '#ff4a6a'; c.fillRect(X(o.position.x) - 1.5, Y(o.position.z) - 1.5, 3, 3); }

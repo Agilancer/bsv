@@ -198,9 +198,10 @@ body.mobile .hplan canvas { height: 170px; }
 /* ---------- title ---------- */
 #title { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 60%, rgba(40, 20, 90, 0.25), rgba(2, 4, 12, 0.6) 70%); transition: opacity 0.8s; }
 #title.gone { opacity: 0; pointer-events: none; }
-#title .logo { font-family: var(--head); font-weight: 900; font-size: clamp(34px, 7vw, 92px); letter-spacing: 0.18em; color: #fff; text-shadow: 0 0 24px rgba(88, 200, 255, 0.9), 0 0 80px rgba(154, 107, 255, 0.6); text-align: center; line-height: 1; }
-#title .logo small { display: block; font-size: 0.28em; letter-spacing: 0.9em; color: var(--cyan); margin-bottom: 0.4em; font-weight: 400; }
-#title .tag { margin-top: 18px; font-size: 16px; letter-spacing: 0.4em; color: var(--text); text-transform: uppercase; }
+#title .logo { position: relative; isolation: isolate; width: min(88vw, 900px, 104vh); line-height: 0; user-select: none; }
+#title .logo img { display: block; width: 100%; height: auto; filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.75)); }
+/* the welding sparks: behind the letters, with room to fly past the edges */
+#title .logo canvas { position: absolute; left: -12%; top: -70%; width: 124%; height: 250%; z-index: -1; pointer-events: none; }
 #title .menu { margin-top: 48px; display: flex; flex-direction: column; gap: 12px; min-width: 280px; }
 #title .menu .btn { font-size: 13px; padding: 12px 18px; }
 #title .load { margin-top: 30px; width: 360px; }
@@ -531,7 +532,6 @@ body.bridge-dlg #mZin, body.bridge-dlg #mZout { display: none; }
   #title .menu { margin-top: 28px; min-width: min(280px, 80vw); }
   #title .menu .btn { min-height: 48px; }
   #title .load { width: min(360px, 80vw); }
-  #title .tag { font-size: 12px; letter-spacing: 0.3em; text-align: center; }
 }
 /* quest tracker (css/quests.css puts it top-left): in portrait it takes the strip under the target
    panel and the prompts move down a row; in landscape it sits under the buttons / the objectives */
