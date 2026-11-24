@@ -13,6 +13,8 @@ import { wrapAngle, clamp } from '../engine/rng.js';
 import { ABILITY_BY_KEY } from './data/abilities.js';
 import { RARITY } from './data/items.js';
 import { itemScore, INV_SIZE } from './Player.js';
+import { canLearn } from './data/talents.js';
+const canLearnQuiet = (g, k) => canLearn(g.data, k);
 
 const _v = new THREE.Vector3();
 
@@ -26,7 +28,8 @@ export class Autoplay {
     this.side = 1;
     this.manageT = 2;
     this.patrolPt = null;
-    this.extra = [];          // [{name, score(game) -> number, update(dt) -> done?}]
+    this.lastDock = game.playtime || 0;
+    this.extra = (game.autoplayGoals || []).map((f) => f(this));   // [{name, score(game), update(dt) -> done?}]
     this.goal = null;
     this.log = (m) => game.ui.chat('AUTO', null, m, 'sys');
   }
@@ -47,7 +50,7 @@ export class Autoplay {
   hostiles(r = 2400) {
     const s = this.game.player;
     const W = this.game.world;
-    return W.ships.filter((o) => o.alive && W.hostile(s, o) && o.position.distanceTo(s.position) < r);
+    return W.ships.filter((o) => o.alive && !o.cloaked && W.hostile(s, o) && o.position.distanceTo(s.position) < r);
   }
 
   // threat-weighted target choice: finish the weak, prefer what is shooting us, kill bosses last unless alone
@@ -76,7 +79,12 @@ export class Autoplay {
     // extension goals (docking, travel, exploring) get a say when nothing is shooting
     if (!near.length) {
       let best = null, bscore = 0;
-      for (const x of this.extra) { const sc = x.score(g); if (sc > bscore) { bscore = sc; best = x; } }
+      const mode = (g.data.autoplay && g.data.autoplay.mode) || 'full';
+      for (const x of this.extra) {
+        if (mode === 'combat') break;
+        if (mode === 'hold' && x.name.startsWith('Advance')) continue;
+        const sc = x.score(g); if (sc > bscore) { bscore = sc; best = x; }
+      }
       if (best && (!this.goal || this.goal === best || bscore > 1)) { if (this.goal !== best) this.log(`Objective: ${best.name}`); this.goal = best; this.state = 'goal'; return; }
     }
     this.goal = null;
@@ -120,13 +128,18 @@ export class Autoplay {
       s.steerTo(this.drop.pos, 10, 0.75);
       return;
     }
-    // patrol: sail between the system's combat zones
-    const zones = g.sector.detail.zones;
-    if (!this.patrolPt || s.position.distanceTo(this.patrolPt) < 200) {
-      const z = zones[Math.floor(Math.random() * zones.length)];
-      this.patrolPt = new THREE.Vector3(z.x + (Math.random() - 0.5) * 800, 0, z.z + (Math.random() - 0.5) * 800);
+    // patrol: head for the nearest zone with a garrison, warping across the system when it's far
+    const D = g.sector.director;
+    const live = D && D.nearestLive({ pos: s.position, game: g });
+    if (live) {
+      const d = live.pos.distanceTo(s.position);
+      if (d > 3200 && g.warpTo && !g.isWarping()) g.warpTo(live.pos.clone().add(s.position.clone().sub(live.pos).setY(0).setLength(1800)));
+      else if (!g.isWarping()) s.steerTo(live.pos, 300, 0.75);
+    } else {
+      const zones = g.sector.detail.zones;
+      if (!this.patrolPt || s.position.distanceTo(this.patrolPt) < 200) { const z = zones[Math.floor(Math.random() * zones.length)]; this.patrolPt = new THREE.Vector3(z.x, 0, z.z); }
+      s.steerTo(this.patrolPt, 150, 0.6);
     }
-    s.steerTo(this.patrolPt, 150, 0.6);
     s.altTarget = 0;
   }
 
@@ -171,16 +184,31 @@ export class Autoplay {
     return g.useAbility(k);
   }
 
+  // a balanced broadside build, then the gunnery capstone
+  spendTalents() {
+    const g = this.game;
+    const ORDER = ['gunDrill', 'hullUp', 'harmonics', 'reload', 'deadeye', 'homing', 'recharge', 'broadMaster', 'tactics', 'helm', 'burners', 'hydra', 'lineOfBattle', 'ablative', 'damageCtl', 'veteran', 'plunder', 'lastStand', 'merchant', 'tractor', 'evasivePro', 'wingCmd', 'admiral', 'slipstream', 'ram', 'bastion'];
+    let learned = 0;
+    for (let guard = 0; guard < 80; guard++) {
+      const k = ORDER.find((t) => g.learnTalent && canLearnQuiet(g, t));
+      if (!k) break;
+      g.learnTalent(k); learned++;
+    }
+    if (learned) this.log(`Spent ${learned} talent point${learned > 1 ? 's' : ''}`);
+  }
+
   // inventory: equip upgrades, keep the hold clear
   manage() {
     const g = this.game, P = g.data;
+    this.spendTalents();
     const before = Object.values(P.ship.loadout).map((i) => i && i.uid).join();
     g.equipBest();
     const after = Object.values(P.ship.loadout).map((i) => i && i.uid).join();
     if (before !== after) this.log('Refitted with better gear');
     if (P.inventory.length > INV_SIZE - 8) {
       // salvage the weakest non-legendaries until there's room
-      const junk = P.inventory.filter((i) => RARITY[i.rarity].i < 3).sort((a, b) => itemScore(a) - itemScore(b)).slice(0, 15);
+      const keep = RARITY[(P.autoplay && P.autoplay.keep) || 'rare'].i;
+      const junk = P.inventory.filter((i) => i.slot !== 'blueprint' && RARITY[i.rarity].i < Math.max(keep, 1)).sort((a, b) => itemScore(a) - itemScore(b)).slice(0, 15);
       if (junk.length) { const set = new Set(junk); g.salvageWhere((i) => set.has(i)); }
     }
   }

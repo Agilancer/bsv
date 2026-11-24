@@ -59,6 +59,7 @@ export class Projectiles {
       }
       p.prev.copy(p.pos);
       p.pos.addScaledVector(p.vel, dt);
+      if (p.kind === 'mine' && (W.engine.frame + i) % 24 === 0) fx.trailPuff(p.pos, 0xff3040, 9, 0.5);
       // trails
       if (p.trail && W.engine.frame % 1 === 0) {
         if (p.kind === 'torpedo') { fx.engineTrail(p.prev, _d.copy(p.vel).normalize().negate(), p.color.getHex(), 0.6, 5 * p.size); if (Math.random() < 0.3) fx.smokePuff(p.prev, 3 * p.size); }

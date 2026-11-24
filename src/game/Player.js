@@ -4,6 +4,9 @@ import { CHASSIS_BY_ID, CHASSIS } from './data/chassis.js';
 import { makeItem, BASES } from './data/items.js';
 import { RNG } from '../engine/rng.js';
 
+// Registry prefix for the captain's ships: Dominion Star Vessel. (The old 'BSV' stood for
+// Battleship Velscour, which made 'BSV Velscour' say Velscour twice.)
+export const SHIP_PREFIX = 'DSV';
 export const MAX_LEVEL = 60;
 export const INV_SIZE = 60;
 export const xpForLevel = (l) => Math.round(120 * Math.pow(l, 1.85));
@@ -52,10 +55,10 @@ export function newPlayer(name = 'Captain') {
   };
   return {
     version: 1, name, credits: 500, salvage: 0, level: 1, xp: 0,
-    ship: { chassis: chassis.id, level: 1, xp: 0, loadout, name: 'BSV Velscour' },
+    ship: { chassis: chassis.id, level: 1, xp: 0, loadout, name: `${SHIP_PREFIX} Velscour` },
     fleet: [],
     inventory: [makeItem('plasma', 2, 'uncommon', rng), makeItem('thrusters', 2, 'common', rng)],
-    crew: null, explorer: null, resources: {}, talents: {}, blueprints: [],
+    crew: null, explorer: null, resources: {}, talents: {}, blueprints: [], contracts: [], scanned: {}, visited: [0],
     system: 0, kills: 0, bossKills: 0, playtime: 0,
     autoplay: { sellBelow: 'rare', keepSets: true },
   };

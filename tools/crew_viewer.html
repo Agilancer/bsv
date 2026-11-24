@@ -1,0 +1,100 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Crew viewer</title>
+<base href="../">
+<style>html,body{margin:0;background:#05070f;overflow:hidden;color:#9cf;font:12px monospace}#info{position:fixed;left:8px;top:8px;white-space:pre;text-shadow:0 0 3px #000}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.webgpu.js","three/webgpu":"./vendor/three/three.webgpu.js","three/tsl":"./vendor/three/three.tsl.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head><body><div id="info"></div>
+<script type="module">
+// The reskinned crew bodies (assets/crew/, tools/reskin_crew.py) playing bm's folk clips on their own skeletons.
+//   tools/crew_viewer.html?clip=idle&dept=tactical      a lineup of every body (dept=cycle: each a different division)
+//   tools/crew_viewer.html?mode=portraits               the portrait sheet: 10 bodies x 4 divisions, 160 px cells
+//     node tools/shot.cjs "tools/crew_viewer.html?mode=portraits&webgl" out.png 9000 1600 640  (then tools/crew_portraits.py)
+import * as THREE from 'three/webgpu';
+import { spawnCrew, crewModelNames } from './src/game/bridge/crewmodels.js';
+import { LOOKS } from './src/game/crew/data.js';
+
+const q = new URLSearchParams(location.search);
+const mode = q.get('mode') || 'lineup';
+const renderer = new THREE.WebGPURenderer({ antialias: true, forceWebGL: q.has('webgl') });
+renderer.setPixelRatio(1);
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+await renderer.init();
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(mode === 'portraits' ? 0x0a1226 : 0x070a16);
+const key = new THREE.DirectionalLight(0xfff0e0, mode === 'portraits' ? 4.2 : 3.2); key.position.set(-1, 2.2, 4); scene.add(key);
+const rim = new THREE.DirectionalLight(0x6ab8ff, 2.6); rim.position.set(2, 2, -3); scene.add(rim);
+const rim2 = new THREE.DirectionalLight(0xb080ff, 1.4); rim2.position.set(-3, 1, -2); scene.add(rim2);
+scene.add(new THREE.HemisphereLight(0x8090c0, 0x201830, 1.4));
+
+const names = (await crewModelNames()).filter((n) => !q.get('only') || q.get('only').split(',').includes(n));
+const DIVS = ['command', 'tactical', 'engineering', 'sensors'];
+const crew = [];
+const info = document.getElementById('info');
+let camera;
+if (mode === 'portraits') {
+  // one body per cell, each framed head-and-shoulders by its own camera: column = body, row = division
+  const cols = LOOKS.length, rows = DIVS.length, cw = innerWidth / cols, ch = innerHeight / rows;
+  camera = new THREE.PerspectiveCamera(22, cw / ch, 0.05, 20);
+  const cells = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const m = await spawnCrew(LOOKS[c].k, DIVS[r], { clip: 'idle_ual' });
+    m.pose.play('idle_ual', { fade: 0, t: 0.4, restart: true });
+    m.pose.wantYaw = m.pose.lookYaw = 0.18; m.pose.wantPitch = m.pose.lookPitch = -0.05;
+    m.pose.apply();
+    m.root.rotation.y = 0.3;
+    m.root.position.x = c * 3; m.root.position.z = r * 3;
+    scene.add(m.root);
+    m.root.updateMatrixWorld(true);
+    const head = m.rig.bones[m.rig.head].getWorldPosition(new THREE.Vector3());
+    cells.push({ m, head, r, c });
+    crew.push(m);
+  }
+  window.__ready = true;
+  info.textContent = '';
+  renderer.setScissorTest(true);
+  window.renderCells = () => {
+    for (const cl of cells) {
+      for (const o of cells) o.m.root.visible = o === cl;
+      const x = cl.c * cw, y = cl.r * ch;   // (viewport origin is the top left)
+      renderer.setViewport(x, y, cw, ch); renderer.setScissor(x, y, cw, ch);
+      camera.position.set(cl.head.x + 0.28, cl.head.y + 0.04, cl.head.z + 1.22);
+      camera.lookAt(cl.head.x + 0.03, cl.head.y - 0.01, cl.head.z);
+      renderer.render(scene, camera);
+    }
+  };
+} else {
+  camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 100);
+  const dept = q.get('dept') || 'cycle', clip = q.get('clip') || 'idle';
+  let i = 0;
+  for (const name of names) {
+    const d = dept === 'cycle' ? DIVS[i % 4] : dept;
+    const m = await spawnCrew(name, d, { clip });
+    m.root.position.set((i - (names.length - 1) / 2) * 0.85, 0, 0);
+    scene.add(m.root);
+    crew.push(m);
+    i++;
+  }
+  if (q.get('orig')) {
+    const t = await new THREE.TextureLoader().loadAsync('assets/crew/' + q.get('orig'));
+    t.flipY = !q.has('noflip'); t.colorSpace = THREE.SRGBColorSpace;
+    crew[+(q.get('oi') || 0)].mesh.material = new THREE.MeshStandardNodeMaterial({ map: t, roughness: 0.8 });
+  }
+  const d = +(q.get('d') || 10), yaw = +(q.get('yaw') || 0), h = +(q.get('h') || 1.1);
+  camera.position.set(Math.sin(yaw) * d, h + 0.4, Math.cos(yaw) * d);
+  camera.lookAt(0, h, 0);
+  info.textContent = `${names.length} bodies · clip ${clip}`;
+  window.__ready = true;
+}
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(0.05, clock.getDelta());
+  if (mode === 'portraits') { window.renderCells(); return; }
+  for (const m of crew) { m.pose.step(dt); m.pose.apply(); }
+  renderer.render(scene, camera);
+});
+window.crewView = { crew, play: (c) => crew.forEach((m) => m.pose.play(c)) };
+</script>
+</body></html>

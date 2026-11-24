@@ -5,6 +5,7 @@
 //  - Damage types: kinetic (good vs hull), energy (good vs shields), explosive (great vs hull,
 //    poor vs shields), ion (strips shields, barely scratches hull).
 import * as THREE from 'three/webgpu';
+import { dpsCapVs } from '../data/balance.js';
 
 const TYPE = {
   kinetic: { shield: 0.8, hull: 1.15 },
@@ -82,6 +83,16 @@ export class Combat {
 
   projectileHit(p, ship, point) {
     p.hitAlready = true;
+    // Brood Mother: warheads burst into six homing bomblets
+    if (!p.isBomblet && p.ws && p.ws.unique && p.ws.unique.includes('clusterTorp')) {
+      const W = this.world;
+      for (let i = 0; i < 6; i++) {
+        let tg = null, bd = 600 * 600;
+        for (const s of W.ships) if (s.alive && s.team !== p.team) { const d = s.position.distanceToSquared(point) + Math.random() * 40000; if (d < bd) { bd = d; tg = s; } }
+        const a = (i / 6) * Math.PI * 2;
+        W.projectiles.spawn({ pos: point, vel: new THREE.Vector3(Math.sin(a) * 160, 0, Math.cos(a) * 160), kind: 'missile', team: p.team, owner: p.owner, target: tg, homing: 1, dmg: p.dmg * 0.22, dmgType: 'explosive', ws: { crit: 0, unique: [] }, life: 2.5, splash: 14, color: 0xffc040, size: 0.8, len: 3, trail: 1, turn: 4, isBomblet: true });
+      }
+    }
     if (p.splash > 0) this.splash(p, point, ship);
     else this.damage(ship, p.dmg, p.dmgType, point, p.owner, p.ws);
   }
@@ -90,6 +101,7 @@ export class Combat {
     const W = this.world;
     const r = p.splash || 20;
     W.fx.explosion(point, Math.max(0.25, r / 90), p.kind === 'torpedo' ? 0xff8a40 : p.color.getHex());
+    if (W.audio) W.audio.play(r > 40 ? 'explosion' : 'hit', point, Math.min(1, 0.3 + r / 80));
     if (r > 40) W.cam.addShake(r / 40 * (W.player && point.distanceTo(W.player.position) < 400 ? 1 : 0.2));
     for (const s of W.ships) {
       if (!s.alive || s.team === p.team) continue;
@@ -118,13 +130,27 @@ export class Combat {
       if (Math.random() < critChance) { crit = true; dmg *= 1.6 + (ws.critDmg || 0) + (srcStats ? srcStats.critDmg || 0 : 0); }
     }
     if (srcStats) dmg *= srcStats.dmgMul || 1;
+    const now = W.engine.time;
+    if (source && source.buffs && source.buffs.command > now) dmg *= 1.25;     // command aura
+    if (source && source.clipper && source.speed > source.maxSpeed * 0.7) dmg *= 1.25;   // Clipper Doctrine
+    if (ship.spottedUntil > now) dmg *= 1.2;                                     // painted by a spotter
+    // boss contract: no single enemy can take the captain down faster than MIN_TTK
+    if (ship.isPlayer && source && source.team !== ship.team) {
+      const ehp = ship.maxHull + ship.maxShield * 1.2 * 0.5;
+      const w = source._dmgWin || (source._dmgWin = { t: now, sum: 0 });
+      if (now - w.t > 1) { w.t = now; w.sum = 0; }
+      const allowed = Math.max(0, dpsCapVs(ehp) - w.sum);
+      if (dmg > allowed) dmg = allowed;
+      w.sum += dmg;
+      if (dmg <= 0) return 0;
+    }
     const fi = this.facingFor(ship, point);
     let shieldDealt = 0, hullDealt = 0;
     const ignoreShield = ws && ws.unique && ws.unique.includes('shieldbreak') ? 0.4 : 0;
     // shields
     const sh = ship.shields[fi];
     if (sh > 0 && !ignoreShield) {
-      const sMul = T.shield * (1 + (ws ? ws.shieldDmg || 0 : 0));
+      const sMul = T.shield * (1 + (ws ? ws.shieldDmg || 0 : 0)) * (source && source.trait === 'covenant' ? 1.25 : 1);
       const want = dmg * sMul;
       const take = Math.min(sh, want);
       ship.shields[fi] -= take; shieldDealt = take;
@@ -141,7 +167,8 @@ export class Combat {
     if (dmg > 0.01) {
       const hMul = T.hull * (1 + (ws ? ws.hullDmg || 0 : 0));
       let h = dmg * hMul;
-      h = Math.max(h * 0.25, h - ship.armor);
+      if (ship.yardTrait === 'ironhold' && fi >= 2) h *= 0.8;   // armoured broadside facings
+      h *= 100 / (100 + Math.max(0, ship.armor));
       ship.hull -= h; hullDealt = h;
       ship.lastHullHit = W.engine.time;
       W.fx.impact(point, 0xffb060, 1, false);
@@ -156,6 +183,8 @@ export class Combat {
       for (const s of W.ships) if (s !== ship && s.alive && s.team === ship.team && s.position.distanceTo(point) < 60) this.damage(s, amount * 0.8, 'explosive', point, source, null);
     }
     if (source && source.alive && source.stats && (source.stats.u_vampiric || (ws && ws.unique && ws.unique.includes('vampiric')))) source.repair(total * 0.04);
+    if (source && source.alive && source.trait === 'covenant') source.repair(total * 0.08);   // the Covenant feed
+    ship.recentDmg = (ship.recentDmg || 0) + total;
     W.events.emit('damage', { ship, amount: total, crit, shield: hullDealt < 0.01, point, source });
     if (ship.hull <= 0) W.kill(ship, source);
     return total;

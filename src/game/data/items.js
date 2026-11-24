@@ -1,6 +1,7 @@
 // Diablo-style itemisation: base types per slot, rarities, affixes, unique powers, item XP.
 // An item is plain data (serialisable): { uid, base, slot, rarity, ilvl, affixes:[{k,v}], unique, xp, lvl, name }
 import { RNG } from '../../engine/rng.js';
+import { NAMED } from './uniques.js';
 
 export const RARITIES = [
   { k: 'common', name: 'Common', color: '#c4cad6', affixes: [0, 0], weight: 520, mult: 1.0 },
@@ -17,16 +18,16 @@ export const RARITY = Object.fromEntries(RARITIES.map((r, i) => [r.k, { ...r, i 
 export const BASES = {
   // ---- broadside (side-firing batteries) ----
   macrocannon: { slot: 'broadside', name: 'Macrocannon Battery', kind: 'shell', dmgType: 'kinetic', dmg: 26, rof: 0.55, range: 520, speed: 420, barrels: 3, spread: 0.05, color: 0xffb060, icon: 'cannon' },
-  lance: { slot: 'broadside', name: 'Lance Battery', kind: 'beam', dmgType: 'energy', dmg: 58, rof: 0.32, range: 560, barrels: 1, color: 0x7ad8ff, icon: 'lance' },
-  plasma: { slot: 'broadside', name: 'Plasma Broadside', kind: 'bolt', dmgType: 'energy', dmg: 34, rof: 0.45, range: 460, speed: 360, barrels: 2, splash: 26, color: 0x6affc8, icon: 'plasma' },
-  railgun: { slot: 'broadside', name: 'Railgun Battery', kind: 'bolt', dmgType: 'kinetic', dmg: 72, rof: 0.22, range: 700, speed: 1100, barrels: 1, pierce: 1, color: 0xc8b4ff, icon: 'rail' },
-  carronade: { slot: 'broadside', name: 'Carronade Deck', kind: 'shell', dmgType: 'explosive', dmg: 20, rof: 0.7, range: 330, speed: 380, barrels: 5, spread: 0.12, color: 0xff8040, icon: 'cannon' },
+  lance: { slot: 'broadside', name: 'Lance Battery', kind: 'beam', dmgType: 'energy', dmg: 70, rof: 0.5, range: 560, barrels: 1, color: 0x7ad8ff, icon: 'lance' },
+  plasma: { slot: 'broadside', name: 'Plasma Broadside', kind: 'bolt', dmgType: 'energy', dmg: 34, rof: 0.5, range: 460, speed: 360, barrels: 2, splash: 26, color: 0x6affc8, icon: 'plasma' },
+  railgun: { slot: 'broadside', name: 'Railgun Battery', kind: 'bolt', dmgType: 'kinetic', dmg: 95, rof: 0.38, range: 700, speed: 1100, barrels: 1, pierce: 1, color: 0xc8b4ff, icon: 'rail' },
+  carronade: { slot: 'broadside', name: 'Carronade Deck', kind: 'shell', dmgType: 'explosive', dmg: 15, rof: 0.65, range: 330, speed: 380, barrels: 5, spread: 0.12, color: 0xff8040, icon: 'cannon' },
   // ---- turrets (dorsal / ventral, wide arcs) ----
-  autocannon: { slot: 'turret', name: 'Autocannon Turret', kind: 'shell', dmgType: 'kinetic', dmg: 9, rof: 3.2, range: 420, speed: 520, barrels: 2, spread: 0.04, color: 0xffd080, icon: 'turret' },
-  laser: { slot: 'turret', name: 'Pulse Laser Turret', kind: 'bolt', dmgType: 'energy', dmg: 12, rof: 2.4, range: 460, speed: 900, barrels: 2, color: 0xff5a7a, icon: 'laser' },
-  missile: { slot: 'turret', name: 'Missile Rack', kind: 'missile', dmgType: 'explosive', dmg: 30, rof: 0.8, range: 620, speed: 230, barrels: 2, homing: 1, splash: 18, color: 0xffc040, icon: 'missile' },
-  flak: { slot: 'turret', name: 'Flak Battery', kind: 'flak', dmgType: 'kinetic', dmg: 7, rof: 2.6, range: 300, speed: 480, barrels: 3, splash: 22, pd: 1, color: 0xffe0a0, icon: 'flak' },
-  ion: { slot: 'turret', name: 'Ion Disruptor', kind: 'beam', dmgType: 'ion', dmg: 18, rof: 0.9, range: 420, barrels: 1, color: 0x58a8ff, icon: 'ion' },
+  autocannon: { slot: 'turret', name: 'Autocannon Turret', kind: 'shell', dmgType: 'kinetic', dmg: 5.5, rof: 3.2, range: 420, speed: 520, barrels: 2, spread: 0.04, color: 0xffd080, icon: 'turret' },
+  laser: { slot: 'turret', name: 'Pulse Laser Turret', kind: 'bolt', dmgType: 'energy', dmg: 7.5, rof: 2.4, range: 460, speed: 900, barrels: 2, color: 0xff5a7a, icon: 'laser' },
+  missile: { slot: 'turret', name: 'Missile Rack', kind: 'missile', dmgType: 'explosive', dmg: 19, rof: 0.8, range: 620, speed: 230, barrels: 2, homing: 1, splash: 18, color: 0xffc040, icon: 'missile' },
+  flak: { slot: 'turret', name: 'Flak Battery', kind: 'flak', dmgType: 'kinetic', dmg: 4.5, rof: 2.6, range: 300, speed: 480, barrels: 3, splash: 22, pd: 1, color: 0xffe0a0, icon: 'flak' },
+  ion: { slot: 'turret', name: 'Ion Disruptor', kind: 'beam', dmgType: 'ion', dmg: 12, rof: 0.9, range: 420, barrels: 1, color: 0x58a8ff, icon: 'ion' },
   // ---- prow (forward heavy weapons) ----
   torpedo: { slot: 'prow', name: 'Torpedo Tubes', kind: 'torpedo', dmgType: 'explosive', dmg: 160, rof: 0.18, range: 900, speed: 150, barrels: 2, homing: 0.4, splash: 45, color: 0xff7030, icon: 'torpedo' },
   nova: { slot: 'prow', name: 'Nova Cannon', kind: 'shell', dmgType: 'explosive', dmg: 260, rof: 0.08, range: 1100, speed: 340, barrels: 1, splash: 110, color: 0xfff0a0, icon: 'nova' },
@@ -43,6 +44,8 @@ export const BASES = {
   targeting: { slot: 'module', name: 'Targeting Matrix', kind: 'module', stats: { crit: 0.05, range: 0.08 }, icon: 'sensor' },
   tractor: { slot: 'module', name: 'Tractor Array', kind: 'module', stats: { pickup: 0.6, lootFind: 0.06 }, icon: 'tractor' },
   repair: { slot: 'module', name: 'Damage Control Bay', kind: 'module', stats: { hullRegen: 0.008, crewEff: 0.05 }, icon: 'repair' },
+  // not equippable: hull blueprints, redeemed at shipyards
+  blueprint: { slot: 'blueprint', name: 'Hull Blueprint', kind: 'blueprint', icon: 'hangar', noRoll: true },
 };
 
 // affix pool. scope: 'weapon' only on weapons, 'any' anywhere, 'module' modules/hangars.
@@ -87,7 +90,7 @@ export const UNIQUES = {
 };
 
 export const BASE_KEYS_BY_SLOT = {};
-for (const [k, b] of Object.entries(BASES)) (BASE_KEYS_BY_SLOT[b.slot] ||= []).push(k);
+for (const [k, b] of Object.entries(BASES)) if (!b.noRoll) (BASE_KEYS_BY_SLOT[b.slot] ||= []).push(k);
 
 let uidCounter = Date.now() % 1e7;
 export function newUid() { return 'i' + (uidCounter++).toString(36); }
@@ -139,19 +142,38 @@ function itemName(item, rng) {
 }
 
 export function rollItem(ilvl, rng, { luck = 0, slot = null, rarity = null } = {}) {
-  const keys = slot ? BASE_KEYS_BY_SLOT[slot] : Object.keys(BASES);
+  const keys = slot ? BASE_KEYS_BY_SLOT[slot] : Object.keys(BASES).filter((k) => !BASES[k].noRoll);
   const weights = keys.map((k) => [k, BASES[k].slot === 'module' ? 1.1 : BASES[k].slot === 'hangar' ? 0.5 : 1]);
-  return makeItem(rng.weighted(weights), ilvl, rarity || rollRarity(rng, luck), rng);
+  const r = rarity || rollRarity(rng, luck);
+  if ((r === 'legendary' || r === 'mythic') && NAMED_REF.list && rng.chance(0.6)) {
+    const pool = NAMED_REF.list.filter((n) => !slot || BASES[n.base].slot === slot);
+    if (pool.length) return makeNamed(rng.pick(pool), ilvl, rng, r);
+  }
+  return makeItem(rng.weighted(weights), ilvl, r, rng);
+}
+// filled by data/uniques.js consumers (avoids a circular import)
+export const NAMED_REF = { list: NAMED };
+
+// a named legendary from data/uniques.js (fixed powers, guaranteed affixes, flavour)
+export function makeNamed(def, ilvl, rng, rarity = 'legendary') {
+  const it = makeItem(def.base, ilvl, rarity, rng);
+  it.name = def.name; it.named = true; it.flavor = def.flavor;
+  it.unique = def.powers.slice();
+  const have = new Set(it.affixes.map((a) => a.k));
+  for (const k of def.affixes) if (!have.has(k) && AFFIXES[k]) it.affixes.unshift({ k, v: round(AFFIXES[k].v(ilvl, rng) * 1.15) });
+  it.affixes = it.affixes.slice(0, Math.max(def.affixes.length, RARITY[rarity].affixes[1]));
+  it.value = Math.round(it.value * 1.4);
+  return it;
 }
 
-// item XP: equipped gear learns from kills. Each level is +4% to its main power, up to 20.
+// item XP: equipped gear learns from kills. Each level is +2% to its main power, up to 20.
 export const ITEM_MAX_LVL = 20;
-export function itemXpNeeded(lvl) { return Math.round(60 * Math.pow(lvl, 1.6)); }
+export function itemXpNeeded(lvl, ilvl = 1) { return Math.round(60 * Math.pow(lvl, 1.6) * (1 + ilvl * 0.06)); }
 export function grantItemXp(item, xp) {
   if (item.lvl >= ITEM_MAX_LVL) return false;
   item.xp += xp;
   let up = false;
-  while (item.lvl < ITEM_MAX_LVL && item.xp >= itemXpNeeded(item.lvl)) { item.xp -= itemXpNeeded(item.lvl); item.lvl++; up = true; }
+  while (item.lvl < ITEM_MAX_LVL && item.xp >= itemXpNeeded(item.lvl, item.ilvl)) { item.xp -= itemXpNeeded(item.lvl, item.ilvl); item.lvl++; up = true; }
   return up;
 }
 
@@ -159,7 +181,7 @@ export function grantItemXp(item, xp) {
 export function weaponStats(item) {
   const b = BASES[item.base];
   const r = RARITY[item.rarity];
-  const scale = (1 + item.ilvl * 0.11) * r.mult * (1 + (item.lvl - 1) * 0.04);
+  const scale = (1 + item.ilvl * 0.11) * r.mult * (1 + (item.lvl - 1) * 0.02);
   const s = {
     kind: b.kind, dmgType: b.dmgType, color: b.color, barrels: b.barrels || 1,
     dmg: b.dmg * scale, rof: b.rof, range: b.range, speed: b.speed || 0, spread: b.spread || 0,
@@ -189,11 +211,13 @@ export function itemShipStats(item, out) {
   const b = BASES[item.base];
   const r = RARITY[item.rarity];
   if (b.stats) {
-    const m = r.mult * (1 + item.ilvl * 0.02) * (1 + (item.lvl - 1) * 0.04);
+    const m = r.mult * (1 + item.ilvl * 0.02) * (1 + (item.lvl - 1) * 0.02);
     for (const [k, v] of Object.entries(b.stats)) out[k] = (out[k] || 0) + (k === 'armor' ? v * (1 + item.ilvl * 0.1) : v * m);
   }
+  const isWeapon = b.kind !== 'module' && b.kind !== 'hangar' && b.kind !== 'blueprint';
   for (const a of item.affixes) {
     if (AFFIXES[a.k].scope === 'weapon') continue;
+    if (isWeapon && (a.k === 'crit' || a.k === 'critDmg')) continue;   // already in this weapon's own stats
     out[a.k] = (out[a.k] || 0) + a.v;
   }
   for (const u of item.unique || []) out['u_' + u] = 1;
@@ -203,7 +227,9 @@ export function itemShipStats(item, out) {
 export function describe(item) {
   const b = BASES[item.base], r = RARITY[item.rarity];
   const lines = [];
-  if (b.kind !== 'module') {
+  if (b.kind === 'blueprint') {
+    lines.push('Redeem at any shipyard to build this hull', 'for 40% of its list price.');
+  } else if (b.kind !== 'module') {
     const s = weaponStats(item);
     if (b.kind === 'hangar') lines.push(`${s.count} ${s.craft}s · rebuild ${s.rebuild}s`, s.heal ? `Repairs ${s.heal.toFixed(0)} hull/s` : `${s.dmg.toFixed(0)} damage per strike`);
     else {
@@ -215,7 +241,7 @@ export function describe(item) {
     const st = {}; itemShipStats({ ...item, affixes: [], unique: [] }, st);
     for (const [k, v] of Object.entries(st)) lines.push(fmtStat(k, v));
   }
-  return { title: item.name, rarity: r, base: b.name, lines, affixes: item.affixes.map((a) => AFFIXES[a.k].fmt(a.v)), uniques: (item.unique || []).map((u) => UNIQUES[u]) };
+  return { title: item.name, flavor: item.flavor, rarity: r, base: b.name, lines, affixes: item.affixes.map((a) => AFFIXES[a.k].fmt(a.v)), uniques: (item.unique || []).map((u) => UNIQUES[u]) };
 }
 export function fmtStat(k, v) {
   const P = (x) => `+${(x * 100).toFixed(0)}%`;
