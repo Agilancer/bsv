@@ -169,7 +169,7 @@ export function expectedPlayer(L) {
 // Share of sheet DPS that lands, by enemy size, in a fight joined mid-cooldown-cycle: small craft
 // are hard to hit; big hulls can't get out of the way and eat ability bursts — volleys, torpedo
 // spreads, overcharge — so their factor exceeds 1 (calibrated with tools/duel.cjs).
-export const ENGAGE_BY_SIZE = [0.6, 0.45, 1.2, 0.8, 0.21, 0.2];
+export const ENGAGE_BY_SIZE = [0.6, 0.45, 1.2, 0.8, 0.21, 0.12];
 // share of the captain's hull repair each enemy must also cover: escorts fight in packs, bosses alone
 export const REGEN_SHARE_BY_SIZE = [0.35, 0.35, 0.5, 0.7, 1, 1];
 
