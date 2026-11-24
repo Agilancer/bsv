@@ -82,6 +82,37 @@ export function galaxy() {
 }
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
+// Outposts: the smaller, odder stations. Every system has somewhere to put in, and most of the
+// galaxy's work is posted at places like these. They draw from their own seeded stream (and are
+// appended after the charted stations) so the rest of a system — and each older station's own
+// seed — stays exactly where it was.
+const OUTPOST_NAMES = {
+  research: ['Observatory', 'Institute', 'Array', 'Annex', 'Lab'],
+  mining: ['Depot', 'Smelter', 'Foundry', 'Diggings', 'Refinery'],
+  relay: ['Relay', 'Beacon', 'Waypoint', 'Lantern', 'Switch'],
+  haven: ['Den', 'Roost', 'Backdoor', 'Hollow', 'Free Dock'],
+  shrine: ['Vigil', 'Shrine', 'Reliquary', 'Chapel', 'Watch'],
+};
+const OUTPOST_OWNERS = ['Old Ketch\'s', 'Mother Halloran\'s', 'Blind Yevgeny\'s', 'The Widow\'s', 'Three-Finger', 'Saint Orra\'s', 'Last Chance', 'Lucky Seventh', 'Nobody\'s', 'The Auditor\'s', 'Quiet Tam\'s', 'Second-Best', 'Honest Dregg\'s'];
+function addOutposts(sys, planets, belts, stations) {
+  const rng = new RNG((sys.seed ^ 0x5ca1ab1e) >>> 0);
+  // home gets a neighbour to run errands to; an empty system always gets one; a third of the rest get an extra
+  const extra = (stations.length === 0 ? 1 : 0) + (sys.id === 0 ? 1 : rng.chance(stations.length ? 0.4 : 0.25) ? 1 : 0);
+  const d = sys.danger;
+  for (let i = 0; i < extra; i++) {
+    const kind = sys.id === 0 ? 'relay' : rng.weighted([
+      ['research', 2 + (planets.length > 4 ? 1 : 0)], ['mining', belts.length ? 3.5 : 1.2], ['relay', 3.5],
+      ['haven', sys.control === 'pirate' || sys.control === 'rustborn' ? 3 : 1], ['shrine', sys.control === 'covenant' || sys.control === 'silent' ? 3.5 : d >= 8 ? 1 : 0.3],
+    ].filter(([k]) => !stations.some((s) => s.kind === k)));
+    const free = planets.filter((p, j) => !stations.some((s) => s.planet === j));
+    const p = free.length ? rng.pick(free) : rng.pick(planets);
+    const words = OUTPOST_NAMES[kind], word = rng.pick(words);
+    // owner names are dealt out by system id (13 owners x 5 words: no two systems share one)
+    const name = rng.chance(0.3) ? `${OUTPOST_OWNERS[sys.id % 13]} ${words[Math.floor(sys.id / 13) % 5]}` : rng.chance(0.5) ? `${sys.name} ${word}` : `${word} ${sys.name}`;
+    stations.push({ name, planet: planets.indexOf(p), offset: p.radius * 2.2 + 600, ang: rng.float(0, 6.28), kind });
+  }
+}
+
 // The contents of one system (deterministic from its seed).
 export function systemDetail(sys) {
   const rng = new RNG(sys.seed);
@@ -109,6 +140,7 @@ export function systemDetail(sys) {
     const p = planets[rng.int(0, planets.length - 1)];
     stations.push({ name: `${rng.pick(['Port', 'Bastion', 'Haven', 'Spire', 'Anchorage', 'Citadel'])} ${sys.name}${i ? ' ' + (i + 1) : ''}`, planet: planets.indexOf(p), offset: p.radius * 2.2 + 600, ang: rng.float(0, 6.28), kind: rng.pick(['trade', 'military', 'shipyard']) });
   }
+  addOutposts(sys, planets, belts, stations);
   // combat zones: where the fighting is (positions relative to the system centre)
   const zones = [];
   const fw = systemFactions(sys);
