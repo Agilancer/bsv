@@ -9,6 +9,7 @@ import { installOnboarding } from './onboarding.js';
 import { install as installCrew } from './crew/index.js';
 import { install as installPlanets } from './planet/index.js';
 import { install as installFlavor } from './flavor/index.js';
+import { installQuests } from './quests/index.js';
 
 export function install(game) {
   game.modes = game.modes || {};
@@ -21,4 +22,5 @@ export function install(game) {
   installCrew(game);
   installPlanets(game);
   installFlavor(game);
+  installQuests(game);   // after stations, nav and planets: it wraps enterSystem and reads their state
 }

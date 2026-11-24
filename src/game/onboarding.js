@@ -12,7 +12,7 @@ const STEPS = [
   { k: 'loot', title: 'Recover a loot drop', hint: 'Sail near the light pillar — the tractor beam does the rest', done: (g) => g._tut.looted },
   { k: 'equip', title: 'Fit an upgrade', hint: 'I opens Cargo · items marked ▲ beat what you have', mhint: 'Menu → Cargo · tap an item marked ▲', done: (g) => g._tut.equipped },
   { k: 'dock', title: 'Dock and sell your spare gear', hint: 'G near the station · Market tab · click to sell', mhint: 'Tap “Tap to dock”, then sell in the Market tab', done: (g) => g._tut.sold },
-  { k: 'contract', title: 'Take a contract', hint: 'Contracts tab on the station board', done: (g) => (g.data.contracts || []).length > 0 },
+  { k: 'contract', title: 'Take a quest', hint: 'Quests tab on the station board · J opens your quest log', mhint: 'Quests tab on the station board · Menu → Quests is your log', done: (g) => (g.data.contracts || []).length > 0 || ((g.data.questLog || {}).done || 0) > 0 },
   { k: 'jump', title: 'Jump to a new system', hint: 'M opens the galaxy map · double-click a neighbour', mhint: 'Menu → Galaxy · double-tap a neighbour', done: (g) => (g.data.visited || []).length >= 2 },
 ];
 
