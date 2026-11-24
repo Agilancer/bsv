@@ -202,7 +202,6 @@ body.mobile .hplan canvas { height: 170px; }
 #title .logo img { display: block; width: 100%; height: auto; filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.75)); }
 /* the welding sparks: behind the letters, with room to fly past the edges */
 #title .logo canvas { position: absolute; left: -12%; top: -70%; width: 124%; height: 250%; z-index: -1; pointer-events: none; }
-#title .tag { margin-top: 18px; font-size: 16px; letter-spacing: 0.4em; color: var(--text); text-transform: uppercase; }
 #title .menu { margin-top: 48px; display: flex; flex-direction: column; gap: 12px; min-width: 280px; }
 #title .menu .btn { font-size: 13px; padding: 12px 18px; }
 #title .load { margin-top: 30px; width: 360px; }
@@ -533,7 +532,6 @@ body.bridge-dlg #mZin, body.bridge-dlg #mZout { display: none; }
   #title .menu { margin-top: 28px; min-width: min(280px, 80vw); }
   #title .menu .btn { min-height: 48px; }
   #title .load { width: min(360px, 80vw); }
-  #title .tag { font-size: 12px; letter-spacing: 0.3em; text-align: center; }
 }
 /* quest tracker (css/quests.css puts it top-left): in portrait it takes the strip under the target
    panel and the prompts move down a row; in landscape it sits under the buttons / the objectives */
