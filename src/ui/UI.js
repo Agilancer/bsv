@@ -14,6 +14,7 @@ import { THROTTLE_STEPS } from '../game/ship/Ship.js';
 import { TREES, TALENTS, talentPoints, spentPoints, canLearn, treePoints } from '../game/data/talents.js';
 import { ENEMIES, SIZES, ENEMY_FACTIONS } from '../game/data/enemies.js';
 import { ENEMIES as GROUND, SIZE_CLASSES as GSIZES, FAMILIES as GFAM } from '../game/planet/enemies.js';
+import { FAUNA, CURIOS, CURIO_KINDS } from '../game/planet/lifeData.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -328,8 +329,9 @@ export class UI {
     const body = this.windows.codex.querySelector('.wbody');
     this.codexSize ??= 'small'; this.codexFaction ??= 'all'; this.codexWorld ??= 'space';
     const gcount = Object.keys(P.groundCodex || {}).length;
-    const top = `<div class="ctabs"><button class="btn ${this.codexWorld === 'space' ? '' : 'violet'}" data-world="space">Space · ${Object.keys(codex).length}/${ENEMIES.length}</button><button class="btn ${this.codexWorld === 'ground' ? '' : 'violet'}" data-world="ground">Ground · ${gcount}/${GROUND.length}</button></div>`;
+    const top = `<div class="ctabs"><button class="btn ${this.codexWorld === 'space' ? '' : 'violet'}" data-world="space">Space · ${Object.keys(codex).length}/${ENEMIES.length}</button><button class="btn ${this.codexWorld === 'ground' ? '' : 'violet'}" data-world="ground">Ground · ${gcount}/${GROUND.length}</button><button class="btn ${this.codexWorld === 'notes' ? '' : 'violet'}" data-world="notes">Field notes · ${Object.keys(P.faunaCodex || {}).length + Object.keys(P.curios || {}).length}/${Object.keys(FAUNA).length + CURIO_KINDS.length}</button></div>`;
     if (this.codexWorld === 'ground') return this.renderGroundCodex(body, top);
+    if (this.codexWorld === 'notes') return this.renderFieldNotes(body, top);
     const known = Object.keys(codex).length;
     let h = top + `<div class="label" style="margin-bottom:8px">${known} / ${ENEMIES.length} designs catalogued · first kill of a design grants bonus XP</div>
       <div class="ctabs">${SIZES.map((s) => `<button class="btn ${s.k === this.codexSize ? '' : 'violet'}" data-size="${s.k}" style="border-color:${s.color}">${s.name} ${ENEMIES.filter((e) => e.size === s.k && codex[e.id]).length}/60</button>`).join('')}</div>
@@ -344,6 +346,26 @@ export class UI {
     body.innerHTML = h + '</div>';
     body.querySelectorAll('[data-size]').forEach((b) => b.onclick = () => { this.codexSize = b.dataset.size; this.renderCodex(); });
     body.querySelectorAll('[data-fac]').forEach((b) => b.onclick = () => { this.codexFaction = b.dataset.fac; this.renderCodex(); });
+    body.querySelectorAll('[data-world]').forEach((b) => b.onclick = () => { this.codexWorld = b.dataset.world; this.renderCodex(); });
+  }
+
+  // field notes: the harmless wildlife met on the surface and the curiosities scanned there
+  renderFieldNotes(body, top) {
+    const P = this.game.data, fc = P.faunaCodex || {}, cu = P.curios || {};
+    const hex = (n) => '#' + (n >>> 0).toString(16).padStart(6, '0');
+    let h = top + `<div class="label" style="margin-bottom:8px">Harmless wildlife · met by driving near a herd on its home world</div><div class="clist">`;
+    for (const [world, f] of Object.entries(FAUNA)) {
+      const r = fc[f.id];
+      h += r ? `<div class="centry"><div class="cn" style="color:${hex(f.glow)}">${f.name}</div><div class="label">${world} worlds · harmless</div><div class="cd">${f.note}</div><div class="label">${r.punts ? `Launched ${r.punts} · record ${r.best} m` : 'Never launched. Commendable restraint.'}</div></div>`
+        : `<div class="centry unknown"><div class="cn">???</div><div class="label">${world} worlds</div><div class="cd">Something small is hopping about down there.</div></div>`;
+    }
+    h += `</div><div class="label" style="margin:12px 0 8px">Curiosities · scanned from the explorer (five on every landing site)</div><div class="clist">`;
+    for (const k of CURIO_KINDS) {
+      const c = CURIOS[k], n = cu[k] || 0;
+      h += n ? `<div class="centry"><div class="cn" style="color:${hex(c.hex)}">${c.name}</div><div class="label">Scanned ${n}</div>${c.lore.slice(0, Math.min(c.lore.length, n)).map((l) => `<div class="cd">${l}</div>`).join('')}${n < c.lore.length ? `<div class="label">${c.lore.length - n} more ${c.lore.length - n > 1 ? 'entries' : 'entry'} to uncover</div>` : ''}</div>`
+        : `<div class="centry unknown"><div class="cn">???</div><div class="cd">Unexplained. Look for violet beacons on the surface.</div></div>`;
+    }
+    body.innerHTML = h + '</div>';
     body.querySelectorAll('[data-world]').forEach((b) => b.onclick = () => { this.codexWorld = b.dataset.world; this.renderCodex(); });
   }
 

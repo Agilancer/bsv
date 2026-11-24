@@ -121,6 +121,15 @@ export const RADIO = {
   wave: [['ops', 'Movement all around you. A lot of it. Mostly teeth.'], ['ops', 'Company\'s coming, and it didn\'t bring a dish.']],
   idle: [['ops', 'Captain? Still with us? The explorer hasn\'t moved and the crew is taking bets.'], ['eng', 'If you\'re just going to park, at least turn the engine off.'], ['sci', 'While you\'re stationary — the small round locals are staring at you. All of them.']],
   extract: [['ops', 'Dropship is burning hard for your position. Do not die in the next eight seconds.'], ['xo', 'Hold that ground. Preferably the part you\'re standing on.']],
+  weather: [['ops', 'Weather front on top of you. We can see it from orbit. It\'s quite pretty from here.'], ['eng', 'She\'s weatherproof. Weather-resistant. Weather-aware.']],
+  weather_storm: [['sci', 'Lightning seeks the tallest metal object for kilometres. Captain, that\'s you.'], ['ops', 'Storm cell overhead. If your hair stands up, move.']],
+  weather_acid: [['eng', 'Acid rain. That\'s the paint gone, then.'], ['sci', 'pH of 1.4 and falling. Do not catch it on your tongue.']],
+  weather_sand: [['eng', 'Close the vents! ...there are a lot of vents. Close most of the vents!'], ['ops', 'We\'ve lost visual on you. We assume you\'re the beige thing.']],
+  weather_blizzard: [['ops', 'Whiteout. Lander beacon is your friend.'], ['eng', 'Wipers are for rain, Captain. This is weather with ambitions.']],
+  weather_ash: [['sci', 'The volcano is clearing its throat. Rocks first, apologies never.'], ['xo', 'Things are falling from the sky that used to be the ground. Adjust accordingly.']],
+  weather_meteors: [['sci', 'Meteor shower! Make a wish. Wish for a harder roof.'], ['qm', 'Free ore, delivered at orbital velocity. Collect it after it stops.']],
+  weather_resonance: [['sci', 'The crystals are discharging in harmony. It\'s beautiful. It\'s also 40,000 volts.'], ['ops', 'Whole valley just lit up on sensors. Tread carefully.']],
+  honk: [['xo', 'Was that the horn? In a combat zone? Captain.'], ['sci', 'Fascinating. Every creature within a kilometre now knows exactly where you are.'], ['eng', 'Horn works, then. I\'ll tick it off the list.']],
   curious: [['sci', 'The wildlife has gathered to watch you. Do something impressive.'], ['ops', 'You have an audience, Captain. Small. Round. Unblinking.']],
 };
 export function radioLine(event, rnd = Math.random) {
@@ -155,6 +164,26 @@ export function timeOfDay(seed) {
   const k = rng.weighted(Object.entries(TIMES_OF_DAY).map(([id, t]) => [id, t.w]));
   return { id: k, ...TIMES_OF_DAY[k] };
 }
+
+// ---------------------------------------------------------------- weather fronts
+// fall: the particle kind; fog/dim: how far the haze closes in and the sun drops at full strength;
+// strike: telegraphed hits {kind, every (s), r, lead (s), dmg (share of explorer hull), hex}.
+export const WEATHER = {
+  terran: { id: 'storm', name: 'Thunderstorm', warn: 'lightning incoming, stay out of the rings', fall: 'rain', rate: 14, col: [1.3, 1.8, 2.6], fog: 0.3, dim: 0.45,
+    strike: { kind: 'bolt', every: 3.2, r: 6, lead: 1.3, dmg: 0.07, hex: 0xbfd8ff } },
+  toxic: { id: 'acid', name: 'Acid squall', warn: 'caustic lightning, mind the rings', fall: 'rain', rate: 12, col: [1.5, 2.6, 0.6], fog: 0.3, dim: 0.35,
+    strike: { kind: 'bolt', every: 3.6, r: 6, lead: 1.3, dmg: 0.07, hex: 0xb0ff50 } },
+  desert: { id: 'sand', name: 'Sandstorm', warn: 'visibility dropping', fall: 'sand', rate: 2.2, col: [0.5, 0.4, 0.27], fog: 0.5, dim: 0.35, strike: null },
+  arid: { id: 'sand', name: 'Dust storm', warn: 'visibility dropping', fall: 'sand', rate: 2.0, col: [0.48, 0.32, 0.24], fog: 0.45, dim: 0.3, strike: null },
+  ice: { id: 'blizzard', name: 'Blizzard', warn: 'whiteout conditions', fall: 'snow', rate: 10, col: [2.3, 2.5, 2.8], fog: 0.45, dim: 0.3, strike: null },
+  lava: { id: 'ash', name: 'Eruption', warn: 'lava bombs falling, watch the rings', fall: 'ash', rate: 4, col: [2.4, 0.8, 0.25], fog: 0.25, dim: 0.2,
+    strike: { kind: 'bomb', every: 3.4, r: 7, lead: 1.5, dmg: 0.08, hex: 0xff6a20 } },
+  barren: { id: 'meteors', name: 'Meteor shower', warn: 'impacts incoming — they leave ore behind', fall: 'none', rate: 0, col: [1, 1, 1], fog: 0, dim: 0,
+    strike: { kind: 'meteor', every: 2.6, r: 7, lead: 1.5, dmg: 0.08, hex: 0xffb060 } },
+  crystal: { id: 'resonance', name: 'Resonance storm', warn: 'the crystals are discharging', fall: 'glints', rate: 5, col: [2.4, 1.6, 3.2], fog: 0.15, dim: 0.25,
+    strike: { kind: 'bolt', every: 3.0, r: 6, lead: 1.3, dmg: 0.07, hex: 0xd890ff } },
+};
+export function weatherFor(type) { return WEATHER[type] || null; }
 
 // ---------------------------------------------------------------- expedition report
 // One title per run, first match wins: the funniest true thing about how it went.

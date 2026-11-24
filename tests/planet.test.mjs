@@ -503,3 +503,13 @@ test('the expedition report always finds a title', () => {
   assert.equal(expeditionRating({ curios: 5, curioTotal: 5 })[0], 'Tourist of the Year');
   for (const r of [{}, { kills: 3, banked: 10 }, { punts: 9 }, { bosses: 1 }]) { const [t, q] = expeditionRating(r); assert.ok(t && q); }
 });
+
+import { WEATHER, weatherFor } from '../src/game/planet/lifeData.js';
+test('every biome has a weather front with a radio line; strikes are telegraphed and survivable', () => {
+  for (const type of Object.keys(LIFE_BIOMES)) {
+    const w = weatherFor(type); assert.ok(w && w.name && w.warn, type);
+    assert.ok(RADIO['weather_' + w.id], w.id);
+    assert.ok(w.fog >= 0 && w.fog <= 0.6 && w.dim <= 0.5);
+    if (w.strike) { assert.ok(w.strike.lead >= 1.2, 'time to drive out of the ring'); assert.ok(w.strike.dmg <= 0.1); assert.ok(w.strike.every >= 2.5); }
+  }
+});

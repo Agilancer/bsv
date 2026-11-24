@@ -34,6 +34,7 @@ import { setCheapTextures } from './ptex.js';
 import { Wildlife, Flyers, Curios } from './Life.js';
 import { PlanetExtras } from './Extras.js';
 import { timeOfDay } from './lifeData.js';
+import { Weather } from './Weather.js';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _r = new THREE.Ray(), _a = new THREE.Vector3();
 const _c1 = new THREE.Color(), _c2 = new THREE.Color();
@@ -154,6 +155,7 @@ export class PlanetMode {
     this.flyers = this.type === 'barren' ? null : new Flyers(this);
     this.curios = new Curios(this);
     this.extras = new PlanetExtras(this);
+    this.weather = new Weather(this);
     this.pilot = new PlanetPilot(this);
     this.touch = TouchControls.wanted() ? new TouchControls(this) : null;
   }
@@ -503,7 +505,7 @@ export class PlanetMode {
     tint.multiplyScalar(Math.min(2.5, lum(fog) / lum(tint)));
     fog.lerp(tint, T.fogMix);
     this.scene.fog.color.copy(fog); this.scene.background.copy(fog);
-    this.sun.color.set(B.sun).multiply(_c2.set(T.sun)); this.sun.intensity = B.sunI * T.sunMul;
+    this.sun.color.set(B.sun).multiply(_c2.set(T.sun)); this.sunBase = this.sun.intensity = B.sunI * T.sunMul;
     this.hemi.color.set(B.hemi[0]); this.hemi.groundColor.set(B.hemi[1]); this.hemi.intensity = B.hemi[2] * T.hemiMul;
     this.engine.renderer.toneMappingExposure = 1.05 * (B.exposure || 1);
   }
@@ -530,7 +532,7 @@ export class PlanetMode {
     this.ex.runs = (this.ex.runs || 0) + 1;
     this.sfx('jump', null, 0.8);
     G.ui.chat('SYS', null, `Explorer deploying to ${this.survey.name} · ${this.siteInfo.name} · hazard ${this.survey.hazardName}`, 'sys');
-    G.ui.chat('SYS', null, 'WASD drive · Mouse aim · LMB fire · RMB/F mine · Shift boost · 1-4 abilities · X probe · R interact · L explorer bay · U refinery', 'sys');
+    G.ui.chat('SYS', null, 'WASD drive · Mouse aim · LMB fire · RMB/F mine · Shift boost · 1-4 abilities · X probe · R interact · H horn · L explorer bay · U refinery', 'sys');
   }
 
   exit() {
@@ -543,7 +545,7 @@ export class PlanetMode {
     E.renderer.toneMappingExposure = this.savedExposure || 1.05;
     E.renderer.shadowMap.enabled = !!this.savedShadows;
     this.terrain.dispose();
-    this.wildlife.dispose(); if (this.flyers) this.flyers.dispose(); this.curios.dispose();
+    this.weather.dispose(); this.wildlife.dispose(); if (this.flyers) this.flyers.dispose(); this.curios.dispose();
     this.disposed = true;
   }
 
@@ -630,6 +632,7 @@ export class PlanetMode {
       this.wildlife.update(dt);
       if (this.flyers) this.flyers.update(dt);
       this.curios.update(dt);
+      this.weather.update(dt);
     } else {
       this.dungeon.update(dt, this.torchLights);
     }
@@ -647,8 +650,9 @@ export class PlanetMode {
     this.cam.update(realDt, focusTarget, _w);
     // fog tracks zoom so the play area stays crisp
     const B = this.biome, D = this.cam.distance;
-    this.scene.fog.near = D * (this.dungeon ? 0.9 : B.fogNear);
-    this.scene.fog.far = D * (this.dungeon ? 2.2 : B.fogFar);
+    const wf = this.dungeon ? 0 : this.weather.fog;   // weather closes the haze in
+    this.scene.fog.near = D * (this.dungeon ? 0.9 : B.fogNear * (1 - wf * 0.55));
+    this.scene.fog.far = D * (this.dungeon ? 2.2 : B.fogFar * (1 - wf * 0.6));
     // the key light (and its shadow frustum) follows the explorer
     const f = this.cam.focus;
     this.sun.position.copy(f).addScaledVector(this.sunDir, 160);
@@ -677,6 +681,7 @@ export class PlanetMode {
       ctl.boost = k('ShiftLeft') || k('ShiftRight');
       for (let i = 0; i < 4; i++) ctl.abil[i] = h('Digit' + (i + 1));
       ctl.probe = h('KeyX'); ctl.interact = h('KeyR');
+      if (h('KeyH')) this.honk();
       this.pickAim(m.nx, m.ny);
     }
     if (auto) { this.pilot.control(ctl, dt); }
@@ -717,6 +722,23 @@ export class PlanetMode {
       }
       this.aimEnemy = best;
     }
+  }
+
+  // the horn: scatters the wildlife, wakes the neighbours, achieves nothing else
+  honk() {
+    const V = this.vehicle, now = this.engine.time;
+    if (!V.alive || this.state !== 'play' || now < (this.honkT || 0)) return;
+    this.honkT = now + 1.2;
+    this.sfx('honk', null, 1);
+    this.ground.pulse(V.position.x, V.position.z, 0xffd66a, 0.7);
+    this.pfx.ring(V.position, 10, 0xffd66a, 40);
+    if (!this.dungeon) this.wildlife.startle(V.position, 48);
+    let woke = 0;
+    this.creatures.forInRadius(V.position, 70, (e) => { if (e.mode !== 'hunt') { this.creatures.aggro(e); woke++; } });
+    this.noise(0.02);
+    this.honks = (this.honks || 0) + 1;
+    if (this.honks === 1) this.toast(woke ? `HONK. ${woke} hostile${woke > 1 ? 's' : ''} noticed.` : 'HONK.', woke ? 'warn' : '');
+    if (this.honks === 2 || woke >= 3) this.extras.radio('honk', false, true);
   }
 
   // ---------------- mining ----------------
