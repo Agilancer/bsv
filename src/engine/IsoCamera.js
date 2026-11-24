@@ -16,6 +16,8 @@ export class IsoCamera {
     this.distTarget = 430;
     this.minDist = 140; this.maxDist = 2600;
     this.shake = 0;
+    this.manualT = 0;              // seconds the last manual zoom still overrides distFloor
+    this.userZoomed = false;       // the captain has picked a zoom (default floors stop applying)
     this.follow = null;            // object with .position
     this.lead = new THREE.Vector3();
     this._off = new THREE.Vector3();
@@ -26,13 +28,22 @@ export class IsoCamera {
   update(dt, t, realDt) {
     const inp = this.input, m = inp.mouse;
     if (!inp.blocked) {
-      if (m.wheel) this.distTarget = clamp(this.distTarget * Math.pow(1.12, m.wheel), this.minDist, this.maxDist);
+      // wheel / pinch: zoom from what is on screen now, and hold the captain's choice against the
+      // automatic framing floor for a while (otherwise a pinch in a fight would do nothing)
+      if (m.wheel) {
+        const from = this.manualT > 0 ? this.distTarget : Math.max(this.distTarget, Math.min(this.distance, this.distFloor || 0));
+        this.distTarget = clamp(from * Math.pow(1.12, m.wheel), this.minDist, this.maxDist);
+        this.manualT = 12; this.userZoomed = true;
+      }
       if (m.dragDX) this.yawTarget -= m.dragDX * 0.006;
+      if (m.twist) this.yawTarget += m.twist;   // two-finger twist: the world turns with the fingers
       if (inp.held('camLeft')) this.yawTarget += realDt * 1.6;
       if (inp.held('camRight')) this.yawTarget -= realDt * 1.6;
     }
     this.yaw = damp(this.yaw, this.yawTarget, 8, realDt);
-    this.distance = damp(this.distance, Math.max(this.distTarget, this.distFloor || 0), this.distFloor > this.distTarget ? 2 : 6, realDt);
+    if (this.manualT > 0) this.manualT -= realDt;
+    const floor = this.manualT > 0 ? 0 : this.distFloor || 0;
+    this.distance = damp(this.distance, Math.max(this.distTarget, floor), floor > this.distTarget ? 2 : 6, realDt);
     if (this.follow) {
       this.target.copy(this.follow.position);
       if (this.follow.velocity) this.lead.lerp(this._off.copy(this.follow.velocity).multiplyScalar(0.9), 1 - Math.exp(-2 * realDt));
