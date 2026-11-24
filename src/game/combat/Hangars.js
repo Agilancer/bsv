@@ -134,11 +134,12 @@ export class Hangars {
         const d = c.pos.distanceTo(tg.position);
         if (c.cd <= 0 && d < 260) {
           c.cd = 1 / c.ws.rof;
+          // (Combat.damage applies the owner's damage multiplier: owner is the source)
           const dir = tg.position.clone().sub(c.pos).normalize();
           if (c.type === 'fighter') {
-            W.projectiles.spawn({ pos: c.pos, vel: dir.multiplyScalar(700), kind: 'bolt', team: c.team, owner: own, dmg: c.ws.dmg * (own.stats.dmgMul || 1), dmgType: 'energy', ws: c.ws, life: 0.6, color: c.color.getHex() === 0xbfe0ff ? 0x9fd8ff : 0xff5a5a, size: 0.5, len: 6 });
+            W.projectiles.spawn({ pos: c.pos, vel: dir.multiplyScalar(700), kind: 'bolt', team: c.team, owner: own, dmg: c.ws.dmg, dmgType: 'energy', ws: c.ws, life: 0.6, color: c.color.getHex() === 0xbfe0ff ? 0x9fd8ff : 0xff5a5a, size: 0.5, len: 6 });
           } else if (c.type === 'bomber' && d < 140) {
-            W.projectiles.spawn({ pos: c.pos, vel: dir.multiplyScalar(160), kind: 'torpedo', team: c.team, owner: own, target: tg, homing: 1, dmg: c.ws.dmg * (own.stats.dmgMul || 1), dmgType: 'explosive', ws: c.ws, life: 3, splash: 30, color: 0xff8040, size: 1.4, len: 4, trail: 1, turn: 2 });
+            W.projectiles.spawn({ pos: c.pos, vel: dir.multiplyScalar(160), kind: 'torpedo', team: c.team, owner: own, target: tg, homing: 1, dmg: c.ws.dmg, dmgType: 'explosive', ws: c.ws, life: 3, splash: 30, color: 0xff8040, size: 1.4, len: 4, trail: 1, turn: 2 });
             c.state = 'home';
           }
         }
