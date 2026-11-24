@@ -46,7 +46,7 @@ export class Input {
     addEventListener('blur', () => this.down.clear());
     el.addEventListener('mousemove', (e) => this.move(e));
     el.addEventListener('mousedown', (e) => {
-      this.mouse.buttons = e.buttons; this.move(e);
+      this.mouse.buttons = e.buttons; this.move(e); this.mouse.touch = false;
       this.mouse.clicked[e.button] = true;
       if (e.button === 1) e.preventDefault();
     });
@@ -55,7 +55,7 @@ export class Input {
     el.addEventListener('wheel', (e) => { this.mouse.wheel += Math.sign(e.deltaY); e.preventDefault(); }, { passive: false });
     // touch: one finger = move/target tap, two fingers = pinch zoom
     el.addEventListener('touchstart', (e) => {
-      const t = e.touches[0]; this.move(t);
+      const t = e.touches[0]; this.move(t); this.mouse.touch = true;
       if (e.touches.length === 1) this.mouse.clicked[2] = true;
       this._pinch = e.touches.length === 2 ? this.pinchDist(e) : 0;
     }, { passive: true });

@@ -9,6 +9,7 @@ import { Hangars } from './combat/Hangars.js';
 import { Loot } from './Loot.js';
 import { Debris } from '../fx/Debris.js';
 import { ELITE_MODS } from './data/eliteMods.js';
+import { spawnDesign } from './enemyFactory.js';
 import { Ship } from './ship/Ship.js';
 import { ShipAI } from './ai/ShipAI.js';
 import { ABILITY_BY_KEY } from './data/abilities.js';
@@ -29,6 +30,7 @@ export class World {
     this.ais = [];
     this.timers = [];
     this.fields = [];
+    this.warnings = [];      // telegraphed attacks: {kind:'circle'|'line', pos, r|dir,len,width, dur, t0, color, follow}
     this.bodies = [];        // celestial objects with update
     this.backdrop = engine.add(new SpaceBackdrop(engine));
     this.lights = new SpaceLights(engine.scene);
@@ -66,6 +68,9 @@ export class World {
     return true;
   }
 
+  warn(w) { w.t0 = this.engine.time; this.warnings.push(w); }
+  spawnDesign(d, level, pos, heading, opts) { return spawnDesign(this, d, level, pos, heading, opts); }
+
   schedule(delay, fn) { this.timers.push({ t: this.engine.time + delay, fn }); }
   addField(f) { f.age = 0; this.fields.push(f); }
   camNear(p, d) { return this.engine.camera.position.distanceToSquared(p) < (d + this.cam.distance) * (d + this.cam.distance); }
@@ -97,6 +102,9 @@ export class World {
       if (this.camNear(ship.position, 300)) this.cam.addShake(2 + big * 2);
       this.engine.flash(0.08 * big, 0xffc080);
       this.debris.burst(ship);
+      for (const o of this.ships) if (o.alive && o.trait === 'rustborn' && o.position.distanceTo(ship.position) < 700) {
+        o.repair(o.maxHull * 0.15); this.beams.add(o.position, ship.position, 0xffa040, 1.2, 0.8);
+      }
       this.events.emit('destroyed', { ship, killer });
       this.removeShip(ship);
     });
@@ -126,6 +134,7 @@ export class World {
     this.loot.update(dt, t);
     this.debris.update(dt);
     this.updateFields(dt, t);
+    if (this.warnings.length) this.warnings = this.warnings.filter((w) => t - w.t0 < w.dur);
     for (const b of this.bodies) {
       if (b.userData.spin && b.userData.body) b.userData.body.rotation.y += b.userData.spin * dt;
       if (b.userData.clouds) b.userData.clouds.rotation.y += b.userData.clouds.userData.spin * dt;
@@ -185,7 +194,7 @@ export class World {
   clearAll(keepPlayer = true) {
     for (const s of this.ships.slice()) if (!(keepPlayer && s === this.player)) this.removeShip(s);
     this.projectiles.clear(); this.beams.clear(); this.hangars.clear(); this.loot.clear(); this.debris.clear();
-    this.timers.length = 0; this.fields.length = 0;
+    this.timers.length = 0; this.fields.length = 0; this.warnings.length = 0;
     for (const b of this.bodies) this.engine.scene.remove(b);
     this.bodies.length = 0;
   }

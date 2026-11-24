@@ -13,6 +13,8 @@ import { wrapAngle, clamp } from '../engine/rng.js';
 import { ABILITY_BY_KEY } from './data/abilities.js';
 import { RARITY } from './data/items.js';
 import { itemScore, INV_SIZE } from './Player.js';
+import { canLearn } from './data/talents.js';
+const canLearnQuiet = (g, k) => canLearn(g.data, k);
 
 const _v = new THREE.Vector3();
 
@@ -48,7 +50,7 @@ export class Autoplay {
   hostiles(r = 2400) {
     const s = this.game.player;
     const W = this.game.world;
-    return W.ships.filter((o) => o.alive && W.hostile(s, o) && o.position.distanceTo(s.position) < r);
+    return W.ships.filter((o) => o.alive && !o.cloaked && W.hostile(s, o) && o.position.distanceTo(s.position) < r);
   }
 
   // threat-weighted target choice: finish the weak, prefer what is shooting us, kill bosses last unless alone
@@ -126,13 +128,18 @@ export class Autoplay {
       s.steerTo(this.drop.pos, 10, 0.75);
       return;
     }
-    // patrol: sail between the system's combat zones
-    const zones = g.sector.detail.zones;
-    if (!this.patrolPt || s.position.distanceTo(this.patrolPt) < 200) {
-      const z = zones[Math.floor(Math.random() * zones.length)];
-      this.patrolPt = new THREE.Vector3(z.x + (Math.random() - 0.5) * 800, 0, z.z + (Math.random() - 0.5) * 800);
+    // patrol: head for the nearest zone with a garrison, warping across the system when it's far
+    const D = g.sector.director;
+    const live = D && D.nearestLive({ pos: s.position, game: g });
+    if (live) {
+      const d = live.pos.distanceTo(s.position);
+      if (d > 3200 && g.warpTo && !g.isWarping()) g.warpTo(live.pos.clone().add(s.position.clone().sub(live.pos).setY(0).setLength(1800)));
+      else if (!g.isWarping()) s.steerTo(live.pos, 300, 0.75);
+    } else {
+      const zones = g.sector.detail.zones;
+      if (!this.patrolPt || s.position.distanceTo(this.patrolPt) < 200) { const z = zones[Math.floor(Math.random() * zones.length)]; this.patrolPt = new THREE.Vector3(z.x, 0, z.z); }
+      s.steerTo(this.patrolPt, 150, 0.6);
     }
-    s.steerTo(this.patrolPt, 150, 0.6);
     s.altTarget = 0;
   }
 
@@ -177,9 +184,23 @@ export class Autoplay {
     return g.useAbility(k);
   }
 
+  // a balanced broadside build, then the gunnery capstone
+  spendTalents() {
+    const g = this.game;
+    const ORDER = ['gunDrill', 'hullUp', 'harmonics', 'reload', 'deadeye', 'homing', 'recharge', 'broadMaster', 'tactics', 'helm', 'burners', 'hydra', 'lineOfBattle', 'ablative', 'damageCtl', 'veteran', 'plunder', 'lastStand', 'merchant', 'tractor', 'evasivePro', 'wingCmd', 'admiral', 'slipstream', 'ram', 'bastion'];
+    let learned = 0;
+    for (let guard = 0; guard < 80; guard++) {
+      const k = ORDER.find((t) => g.learnTalent && canLearnQuiet(g, t));
+      if (!k) break;
+      g.learnTalent(k); learned++;
+    }
+    if (learned) this.log(`Spent ${learned} talent point${learned > 1 ? 's' : ''}`);
+  }
+
   // inventory: equip upgrades, keep the hold clear
   manage() {
     const g = this.game, P = g.data;
+    this.spendTalents();
     const before = Object.values(P.ship.loadout).map((i) => i && i.uid).join();
     g.equipBest();
     const after = Object.values(P.ship.loadout).map((i) => i && i.uid).join();

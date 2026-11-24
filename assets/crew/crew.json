@@ -1,0 +1,139 @@
+{
+ "models": {
+  "dukeservant": {
+   "sex": "m",
+   "age": "young",
+   "note": "double-breasted coat, clean-shaven",
+   "glb": "dukeservant.glb",
+   "c": "dukeservant_c.webp",
+   "n": "dukeservant_n.webp",
+   "m": "dukeservant_m.webp",
+   "height": 1.74,
+   "upright": true,
+   "fold": 0.1,
+   "source": "bm/assets/game/folk/dukeservant"
+  },
+  "gateclerk": {
+   "sex": "m",
+   "age": "senior",
+   "note": "long uniform coat, spectacles",
+   "glb": "gateclerk.glb",
+   "c": "gateclerk_c.webp",
+   "n": "gateclerk_n.webp",
+   "m": "gateclerk_m.webp",
+   "height": 1.68,
+   "upright": true,
+   "fold": 0.4,
+   "source": "bm/assets/game/folk/gateclerk"
+  },
+  "barber": {
+   "sex": "m",
+   "age": "adult",
+   "note": "wrap coat, trimmed beard",
+   "glb": "barber.glb",
+   "c": "barber_c.webp",
+   "n": "barber_n.webp",
+   "m": "barber_m.webp",
+   "height": 1.73,
+   "upright": true,
+   "fold": 0.2,
+   "source": "bm/assets/game/folk/barber"
+  },
+  "offduty": {
+   "sex": "m",
+   "age": "adult",
+   "note": "belted tunic",
+   "glb": "offduty.glb",
+   "c": "offduty_c.webp",
+   "n": "offduty_n.webp",
+   "m": "offduty_m.webp",
+   "height": 1.8,
+   "upright": true,
+   "fold": 0.3,
+   "source": "bm/assets/game/folk/offduty"
+  },
+  "majordomo": {
+   "sex": "m",
+   "age": "senior",
+   "note": "greatcoat, grey hair",
+   "glb": "majordomo.glb",
+   "c": "majordomo_c.webp",
+   "n": "majordomo_n.webp",
+   "m": "majordomo_m.webp",
+   "height": 1.8,
+   "upright": true,
+   "fold": 0.1,
+   "source": "bm/assets/game/folk/majordomo"
+  },
+  "cardsharp": {
+   "sex": "m",
+   "age": "adult",
+   "note": "waistcoat and shirt sleeves",
+   "glb": "cardsharp.glb",
+   "c": "cardsharp_c.webp",
+   "n": "cardsharp_n.webp",
+   "m": "cardsharp_m.webp",
+   "height": 1.74,
+   "upright": true,
+   "fold": 0.3,
+   "source": "bm/assets/game/folk/cardsharp"
+  },
+  "magestudent": {
+   "sex": "f",
+   "age": "young",
+   "note": "fitted coat, short dark hair",
+   "glb": "magestudent.glb",
+   "c": "magestudent_c.webp",
+   "n": "magestudent_n.webp",
+   "m": "magestudent_m.webp",
+   "height": 1.65,
+   "upright": true,
+   "fold": 0.1,
+   "source": "bm/assets/game/folk/magestudent"
+  },
+  "furnacewoman": {
+   "sex": "f",
+   "age": "adult",
+   "note": "work jacket, grey hair",
+   "glb": "furnacewoman.glb",
+   "c": "furnacewoman_c.webp",
+   "n": "furnacewoman_n.webp",
+   "m": "furnacewoman_m.webp",
+   "height": 1.7,
+   "upright": true,
+   "fold": 0.2,
+   "source": "bm/assets/game/folk/furnacewoman"
+  },
+  "sorrel_b": {
+   "sex": "f",
+   "age": "young",
+   "note": "fitted jacket, auburn hair",
+   "glb": "sorrel_b.glb",
+   "c": "sorrel_b_c.webp",
+   "n": "sorrel_b_n.webp",
+   "m": "sorrel_b_m.webp",
+   "height": 1.64,
+   "upright": true,
+   "fold": 0.2,
+   "source": "bm/assets/game/folk/sorrel_b"
+  },
+  "dockhand": {
+   "sex": "f",
+   "age": "adult",
+   "note": "sleeveless jumpsuit, dark hair",
+   "glb": "dockhand.glb",
+   "c": "dockhand_c.webp",
+   "n": "dockhand_n.webp",
+   "m": "dockhand_m.webp",
+   "height": 1.72,
+   "upright": true,
+   "fold": 0,
+   "source": "bm/assets/game/folk/dockhand"
+  }
+ },
+ "clips": {
+  "json": "clips.json",
+  "bin": "clips.bin",
+  "source": "bm/assets/game/folk/clips.*"
+ }
+}

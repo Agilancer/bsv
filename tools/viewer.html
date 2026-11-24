@@ -14,6 +14,8 @@ import { SpaceBackdrop } from './src/fx/Space.js';
 import { CHASSIS } from './src/game/data/chassis.js';
 import { hullFor } from './src/game/ship/HullBuilder.js';
 import { SpaceLights } from './src/fx/lighting.js';
+import { ENEMIES } from './src/game/data/enemies.js';
+import { enemyChassis } from './src/game/enemyFactory.js';
 const e = await new Engine(document.body).init();
 initMaterials(e);
 await preload(['hull_naval','hull_graphite','hull_gold','hull_glacier','hull_dropship','hull_apc','hull_mech','hull_alien','glow_alien']);
@@ -21,14 +23,20 @@ const sky = e.add(new SpaceBackdrop(e));
 new SpaceLights(e.scene);
 const q = new URLSearchParams(location.search);
 const yard = q.get('yard'), only = q.get('id'), tmax = +(q.get('tmax') || 10);
-const list = CHASSIS.filter(c => (!yard || c.yard === yard) && (!only || c.id === only) && c.tier <= tmax);
-const yards = [...new Set(list.map(c => c.yard))];
+// ?enemy=<size> (all factions in rows) or ?enemy=<size>&faction=<f>
+const esize = q.get('enemy'), efac = q.get('faction');
+const list = esize ? ENEMIES.filter(e => e.size === esize && (!efac || e.faction === efac)).map(e => ({ ...enemyChassis(e), yard: e.faction })) .map((c, i) => c)
+  : CHASSIS.filter(c => (!yard || c.yard === yard) && (!only || c.id === only) && c.tier <= tmax);
+if (esize) list.forEach((c, i) => { c.row = ENEMIES.find(e => 'en_' + e.id === c.id).faction; c.yard = ENEMIES.find(e => 'en_' + e.id === c.id).style; });
+const rowKey = (c) => c.row || c.yard;
+const yards = [...new Set(list.map(rowKey))];
+const rowGap = esize ? Math.max(...list.map(c => c.len)) * 0.45 + 40 : 110;
 yards.forEach((yk, yi) => {
   let xx = 0;
-  list.filter(c => c.yard === yk).forEach((c) => {
+  list.filter(c => rowKey(c) === yk).forEach((c) => {
     const h = hullFor(c);
     h.group.rotation.y = Math.PI / 2;
-    h.group.position.set(xx + c.len / 2, 0, yi * 110);
+    h.group.position.set(xx + c.len / 2, 0, yi * rowGap);
     xx += c.len * 1.15 + 20;
     e.scene.add(h.group);
   });

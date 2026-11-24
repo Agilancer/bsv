@@ -38,7 +38,7 @@ export const ABILITIES = [
       const tg = s.target; if (!tg || !tg.alive) return false;
       const fwd = new THREE.Vector3(Math.sin(s.heading), 0, Math.cos(s.heading));
       const p = s.position.clone().addScaledVector(fwd, s.dims.L * 0.5);
-      const dmg = 120 * (1 + s.level * 0.12) * (s.stats.dmgMul || 1);
+      const dmg = (s.weaponDps || 100) * 0.9;   // five torpedoes: ~4.5 s of the ship's firepower
       for (let i = -2; i <= 2; i++) {
         const d = fwd.clone().applyAxisAngle(THREE.Object3D.DEFAULT_UP, i * 0.22);
         W.projectiles.spawn({ pos: p, vel: d.multiplyScalar(170), kind: 'torpedo', team: s.team, owner: s, target: tg, homing: 1, dmg, dmgType: 'explosive', ws: { crit: 0.1, unique: [] }, life: 7, splash: 45, color: 0xff7030, size: 2.4, len: 9, trail: 1, turn: 1.6 });
@@ -68,7 +68,7 @@ export const ABILITIES = [
     desc: 'Tear open a singularity at the target: drags ships in and crushes them for 6s.',
     run(W, s) {
       const tg = s.target; if (!tg || !tg.alive) return false;
-      W.addField({ pos: tg.position.clone(), t: 6, r: 320, team: s.team, owner: s, dps: 60 * (1 + s.level * 0.1) * (s.stats.dmgMul || 1), kind: 'gravity' });
+      W.addField({ pos: tg.position.clone(), t: 6, r: 320, team: s.team, owner: s, dps: (s.weaponDps || 100) * 0.45, kind: 'gravity' });
       return true;
     },
   },
@@ -77,7 +77,7 @@ export const ABILITIES = [
     desc: 'Call down an orbital barrage: twelve shells in a ring around the target.',
     run(W, s) {
       const tg = s.target; if (!tg || !tg.alive) return false;
-      const dmg = 160 * (1 + s.level * 0.12) * (s.stats.dmgMul || 1);
+      const dmg = (s.weaponDps || 100) * 0.6;   // twelve shells: ~7 s of firepower spread over an area
       for (let i = 0; i < 12; i++) {
         const a = (i / 12) * Math.PI * 2, r = 40 + Math.random() * 90;
         const at = tg.position.clone().add(new THREE.Vector3(Math.sin(a) * r, 0, Math.cos(a) * r));

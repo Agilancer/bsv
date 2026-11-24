@@ -5,6 +5,8 @@ import { installStations } from './station/index.js';
 import { installNav } from './nav/index.js';
 import { installMMO } from './mmo/index.js';
 import { resupplyGoal, advanceGoal } from './autoplay/goals.js';
+import { installOnboarding } from './onboarding.js';
+import { install as installCrew } from './crew/index.js';
 
 export function install(game) {
   game.modes = game.modes || {};
@@ -13,4 +15,6 @@ export function install(game) {
   installStations(game);
   installNav(game);
   installMMO(game);
+  installOnboarding(game);
+  installCrew(game);
 }

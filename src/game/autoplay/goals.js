@@ -37,6 +37,7 @@ export function resupplyGoal(ap) {
         return false;
       }
       if (phase === 'docking') {
+        if (g.dockingTarget) s.steerTo(g.dockingTarget.point, 40, 0.7);
         if (g.docked) { phase = 'services'; t = 0; }
         else if (t > 40) { phase = null; return true; }
         return false;
@@ -54,7 +55,7 @@ export function resupplyGoal(ap) {
         for (const { chassis: c, price } of shipyardStock(st.seed, danger, P)) {
           const bp = bps.find((b) => b.bp === c.id);
           const cost = bp ? Math.round(price * 0.4) : price;
-          if (c.tier <= cur.tier || !canFly(P, c) || cost > P.credits * 0.75) continue;
+          if (c.tier <= cur.tier || !canFly(P, c) || cost > P.credits * 0.9) continue;
           if (!best || c.tier > best.c.tier || (c.tier === best.c.tier && cost < best.cost)) best = { c, cost, bp };
         }
         if (best) {
@@ -86,7 +87,7 @@ export function advanceGoal(ap) {
       const P = g.data, sys = g.sector && g.sector.sys;
       if (!sys || !g.jumpTo) return 0;
       if (target != null) return 4;
-      if (P.level < sys.danger + 4) return 0;
+      if (P.level < sys.danger + (sys.danger < 5 ? 1 : 3)) return 0;
       if (P.inventory.length >= INV_SIZE - 6) return 0;      // resupply first
       return pick() != null ? 1.5 : 0;
     },

@@ -3,7 +3,7 @@
 import * as THREE from 'three/webgpu';
 import { Station } from './Station.js';
 import { marketStock, shipyardStock, buyPrice, sellPrice, acquireShip, switchShip, repairCost, makeContracts, progressContracts, makeBlueprint, canFly } from './services.js';
-import { CHASSIS_BY_ID, YARDS } from '../data/chassis.js';
+import { CHASSIS_BY_ID, CHASSIS, YARDS } from '../data/chassis.js';
 import { RARITY, rollItem, describe } from '../data/items.js';
 import { INV_SIZE, itemScore, save } from '../Player.js';
 import { RNG } from '../../engine/rng.js';
@@ -15,6 +15,7 @@ const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? (n / 1e3).
 export function installStations(game) {
   game.stations = [];
   game.docked = null;
+  game.atStation = null;   // crew recruiting and other services need a station
   let docking = null;
   let tab = 'market';
   let stock = null, yardStock = null, contracts = null;
@@ -36,7 +37,7 @@ export function installStations(game) {
     // a new captain starts beside the home station
     if (game.stations.length && id === 0 && game.data.kills === 0) {
       const st = game.stations[0];
-      game.player.position.copy(st.position).add(new THREE.Vector3(500, 0, 300));
+      game.player.position.copy(st.position).add(new THREE.Vector3(1300, 0, 800));   // outside the turrets' reach
       game.cam.focus.copy(game.player.position);
     }
   };
@@ -56,6 +57,7 @@ export function installStations(game) {
     if (!n || n.dist > 900) { game.ui.toast(n ? `Too far from ${n.station.name}` : 'No station in this system', 'warn'); return; }
     if (game.world.ships.some((o) => o.alive && game.world.hostile(game.player, o) && o.position.distanceTo(game.player.position) < 500)) { game.ui.toast('Cannot dock under fire', 'bad'); return; }
     docking = { station: n.station, point: n.station.dockPoint(game.player.position) };
+    game.dockingTarget = docking;
     game.ui.toast(`Docking clearance granted · ${n.station.name}`);
   };
 
@@ -104,7 +106,9 @@ export function installStations(game) {
     game.world.events.on('kill', ({ ship }) => {
       if (!ship.playerTagged || !ship.elite) return;
       if (Math.random() < (ship.elite === 2 ? 0.5 : 0.12)) {
-        const bp = makeBlueprint(ship.chassis);
+        const yard = YARDS[ship.chassis.yard] && !YARDS[ship.chassis.yard].enemyOnly ? ship.chassis.yard : ['velscour', 'aurelian', 'tidewright', 'ironhold', 'corsair'][Math.floor(Math.random() * 5)];
+        const tier = Math.max(1, Math.min(10, ship.chassis.tier + (ship.elite ? 1 : 0)));
+        const bp = makeBlueprint(CHASSIS_BY_ID[`${yard}_${tier}`] || CHASSIS[0]);
         game.world.loot.dropItem(bp, ship.position);
       }
     });
@@ -119,7 +123,8 @@ export function installStations(game) {
       if (!s || !s.alive) return;
       if (docking) {
         game.moveTarget = docking.point;   // the helm sails us in
-        if (s.position.distanceTo(docking.point) < s.dims.L * 0.6 + 60) { game.moveTarget = null; dockNow(docking.station); }
+        if (game.autoplay && game.autoplay.active) s.steerTo(docking.point, 40, 0.7);
+        if (s.position.distanceTo(docking.point) < s.dims.L * 0.6 + 60) { game.moveTarget = null; game.dockingTarget = null; dockNow(docking.station); }
       }
       if (game.docked) {
         s.throttle = 0; s.rudder = 0; s.invuln = true;
@@ -132,11 +137,12 @@ export function installStations(game) {
       if (prompt) {
         const show = n && n.dist < 900 && !game.docked && !docking;
         prompt.style.display = show ? 'block' : 'none';
-        if (show) prompt.textContent = `[G] Dock at ${n.station.name}`;
+        if (show) prompt.textContent = document.body.classList.contains('mobile') ? `Tap to dock at ${n.station.name}` : `[G] Dock at ${n.station.name}`;
       }
     },
   });
-  document.getElementById('ui').insertAdjacentHTML('beforeend', '<div id="dockPrompt" class="toast" style="position:fixed;left:50%;bottom:96px;transform:translateX(-50%);display:none;animation:none"></div>');
+  document.getElementById('ui').insertAdjacentHTML('beforeend', '<div id="dockPrompt" class="toast" style="position:fixed;left:50%;bottom:96px;transform:translateX(-50%);display:none;animation:none;cursor:pointer"></div>');
+  document.getElementById('dockPrompt').onclick = () => game.modes.dock();
 
   function render() {
     const W = game.ui.windows.station; if (!W) return;

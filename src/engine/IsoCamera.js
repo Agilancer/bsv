@@ -32,11 +32,12 @@ export class IsoCamera {
       if (inp.held('camRight')) this.yawTarget -= realDt * 1.6;
     }
     this.yaw = damp(this.yaw, this.yawTarget, 8, realDt);
-    this.distance = damp(this.distance, this.distTarget, 6, realDt);
+    this.distance = damp(this.distance, Math.max(this.distTarget, this.distFloor || 0), this.distFloor > this.distTarget ? 2 : 6, realDt);
     if (this.follow) {
       this.target.copy(this.follow.position);
       if (this.follow.velocity) this.lead.lerp(this._off.copy(this.follow.velocity).multiplyScalar(0.9), 1 - Math.exp(-2 * realDt));
-      this.target.add(this.lead);
+      this.target.add(this.lead.clone().multiplyScalar(this.frameWith ? 0.3 : 1));
+      if (this.frameWith) this.target.lerp(this._off.copy(this.frameWith), this.frameMix || 0.32);
     }
     this.focus.x = damp(this.focus.x, this.target.x, 5, realDt);
     this.focus.y = damp(this.focus.y, this.target.y * 0.6, 5, realDt);

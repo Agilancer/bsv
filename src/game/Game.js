@@ -8,11 +8,14 @@ import { ABILITIES, ABILITY_BY_KEY } from './data/abilities.js';
 import { RARITY, rollItem, grantItemXp, BASES } from './data/items.js';
 import { newPlayer, load, save, wipe, xpForLevel, shipXpForLevel, MAX_LEVEL, INV_SIZE, slotKeys, slotType, itemScore } from './Player.js';
 import { THROTTLE_STEPS } from './ship/Ship.js';
+import { SIZES } from './data/enemies.js';
 import { galaxy } from './galaxy.js';
 import { talentStats, talentWeaponMod, rank, canLearn, TALENT_BY_KEY } from './data/talents.js';
 import { RNG, clamp } from '../engine/rng.js';
 import { PLAYER_NAMES, CHAT } from './data/names.js';
 import { Audio } from '../engine/Audio.js';
+import { installMobile, stickHeading } from '../ui/mobile.js';
+import { SHIP_PREFIX } from './Player.js';
 
 const _v = new THREE.Vector3();
 
@@ -27,6 +30,16 @@ export class Game {
     this.mode = 'space';
     this.activeMode = null;      // {update(dt,t,realDt), exit()} for non-space modes (planet, bridge...)
     this.statProviders = [];     // fns(game) -> {stat: value}, merged into the player's ship
+    this.shipPrefix = SHIP_PREFIX;
+    this.hudHidden = false;
+  }
+
+  // persistent preferences (live in the save)
+  settings() {
+    const d = this.data || {};
+    d.settings ||= {};
+    if (d.settings.hideHudInAuto === undefined) d.settings.hideHudInAuto = true;   // default on
+    return d.settings;
   }
 
   // Enter a full-screen mode with its own scene (planet surface, bridge). Space sim pauses.
@@ -56,11 +69,12 @@ export class Game {
     this.audio = this.audio || new Audio();
     this.world.audio = this.audio;
     this.ui = new UI(this);
+    installMobile(this);
     this.wireEvents();
     this.enterSystem(this.data.system || 0);
     this.engine.add(this);
     this.ui.chat('SYS', null, `Welcome aboard, Captain. ${this.engine.backend} renderer online.`, 'sys');
-    this.ui.chat('SYS', null, 'W/S throttle · A/D rudder · R/F altitude · Right-click sail · Tab target · 1-8 abilities · I cargo', 'sys');
+    this.ui.chat('SYS', null, document.body.classList.contains('mobile') ? 'Left stick steers · tap a ship to target · tap space to sail · abilities on the right' : 'W/S throttle · A/D rudder · R/F altitude · Right-click sail · Tab target · 1-8 abilities · I cargo', 'sys');
   }
 
   enterSystem(id) {
@@ -81,6 +95,7 @@ export class Game {
     s.position.copy(pos);
     s.persistent = true;
     s.extraStats = this.extraStats(); s.weaponMod = talentWeaponMod(P); s.refit(); s.hull = s.maxHull;
+    s.clipper = !!rank(P, 'clipper'); if (rank(P, 'bastion')) s.stats.u_aegis = 2;
     this.player = s; this.world.player = s;
     this.cam.follow = s;
     this.cam.focus.copy(pos);
@@ -101,12 +116,26 @@ export class Game {
     return s;
   }
 
+  // the battle zone furthest from anything hostile (respawns without a station)
+  safePoint() {
+    const hostiles = this.world.ships.filter((o) => o.alive && o.team !== 1);
+    let best = null, bd = -1;
+    for (const z of this.sector.detail.zones) {
+      let d = 1e9;
+      for (const o of hostiles) d = Math.min(d, Math.hypot(o.position.x - z.x, o.position.z - z.z));
+      if (this.mmo && this.mmo.raid) d = Math.min(d, this.mmo.raid.at.distanceTo(new THREE.Vector3(z.x, 0, z.z)) * 0.5);
+      if (d > bd) { bd = d; best = z; }
+    }
+    return best ? new THREE.Vector3(best.x, 0, best.z) : this.sector.entryPoint();
+  }
+
   wireEvents() {
     const W = this.world, ev = W.events;
     ev.on('damage', (d) => {
       if (d.source === this.player || (d.source && d.source.team === 1 && d.source.isPlayer)) d.ship.playerTagged = true;
       if (d.ship === this.player || d.source === this.player || d.ship.playerTagged) {
-        if (d.amount >= 1 && this.world.camNear(d.point, 200)) this.ui.damageNumber(d.point, d.amount, d.crit, d.shield);
+        const own = d.ship === this.player;
+        if (d.amount >= 1 && this.world.camNear(d.point, 200) && (!own || d.amount > this.player.maxHull * 0.02)) this.ui.damageNumber(d.point, d.amount, d.crit, d.shield, d.ship);
       }
       if (d.ship === this.player && !d.shield && d.amount > this.player.maxHull * 0.04) { this.engine.flash(0.18, 0xff3020); this.cam.addShake(2); }
     });
@@ -124,25 +153,33 @@ export class Game {
   // ---------------- rewards ----------------
   reward(ship) {
     const P = this.data, W = this.world, s = this.player;
-    const eliteMul = [1, 3.5, 12][ship.elite];
+    const size = ship.design ? SIZES[ship.design.sizeIndex] : null;
+    const eliteMul = size ? size.xp * (ship.elite ? 2.5 : 1) : [1, 3.5, 12][ship.elite];
+    if (ship.design) {
+      P.codex ||= {};
+      const first = !P.codex[ship.design.id];
+      P.codex[ship.design.id] = (P.codex[ship.design.id] || 0) + 1;
+      if (first) { this.ui.toast(`Codex: ${ship.design.fullName} catalogued`, size.boss ? 'legend' : ''); this.gainXp(Math.round(50 * ship.level * size.xp)); }
+    }
+    if (ship.noLoot) { this.gainXp(Math.round(10 * ship.level * eliteMul)); return; }
     const st = s ? s.stats : {};
     const xp = Math.round(28 * ship.level * (1 + ship.chassis.tier * 0.3) * eliteMul * (1 + (st.xp || 0)));
     P.kills++;
-    if (ship.elite === 2) P.bossKills++;
+    if (ship.elite === 2 || (ship.design && ship.design.sizeIndex >= 4)) P.bossKills++;
     this.gainXp(xp);
     if (s && st.salvage) s.repair(s.maxHull * st.salvage);
     // loot
     const rng = new RNG(Math.random() * 1e9);
     const luck = (st.lootFind || 0) + ship.elite * 0.6;
-    let n = rng.chance(0.45 + ship.chassis.tier * 0.03) ? 1 : 0;
-    if (ship.elite === 1) n += rng.int(2, 3);
-    if (ship.elite === 2) n += rng.int(4, 6);
-    if (ship.faction === 'covenant') n += 1;
+    let n;
+    if (size) { n = Math.floor(size.loot) + (rng.chance(size.loot % 1) ? 1 : 0) + (ship.elite ? rng.int(2, 3) : 0); }
+    else { n = rng.chance(0.45 + ship.chassis.tier * 0.03) ? 1 : 0; if (ship.elite === 1) n += rng.int(2, 3); if (ship.elite === 2) n += rng.int(4, 6); }
+    const guaranteed = size ? Math.max(0, size.i - 3) * (size.i === 5 ? 2 : 1) : (ship.elite === 2 ? 1 : 0);
     for (let i = 0; i < n; i++) {
-      const it = rollItem(ship.level, rng, { luck, rarity: ship.elite === 2 && i === 0 ? rng.pick(['legendary', 'legendary', 'mythic']) : null });
+      const it = rollItem(ship.level, rng, { luck, rarity: i < guaranteed ? rng.pick(size && size.i === 5 ? ['legendary', 'mythic'] : ['legendary', 'legendary', 'mythic']) : null });
       W.loot.dropItem(it, ship.position);
     }
-    W.loot.dropCredits(Math.round((12 + ship.level * 6) * ship.chassis.tier * eliteMul * (1 + (st.credits || 0))), ship.position);
+    W.loot.dropCredits(Math.round((12 + ship.level * 6) * Math.min(ship.chassis.tier, 6) * eliteMul * (1 + (st.credits || 0)) * (ship.trait === 'pirate' ? 1.5 : 1)), ship.position);
     if (rng.chance(0.5)) W.loot.dropSalvage(ship.chassis.tier * (1 + ship.elite), ship.position);
     this.ui.chat('COMBAT', null, `${ship.name} destroyed (+${xp} XP)`, 'sys', 'combat');
   }
@@ -256,7 +293,7 @@ export class Game {
     this.ui.refresh();
   }
   refitPlayer() {
-    if (this.player) { const p = this.player; p.loadout = this.data.ship.loadout; p.extraStats = this.extraStats(); p.weaponMod = talentWeaponMod(this.data); p.refit(); }
+    if (this.player) { const p = this.player; p.loadout = this.data.ship.loadout; p.extraStats = this.extraStats(); p.weaponMod = talentWeaponMod(this.data); p.refit(); p.clipper = !!rank(this.data, 'clipper'); if (rank(this.data, 'bastion')) p.stats.u_aegis = 2; }
     this.ui.refresh();
   }
 
@@ -312,14 +349,18 @@ export class Game {
   onPlayerDeath() {
     this.ui.death(true);
     this.autoplayWasOn = !!this.autoplay;
-    const lost = Math.round(this.data.credits * 0.08);
+    const lost = Math.min(Math.round(this.data.credits * 0.04), 500 + this.data.level * 150);
     this.data.credits -= lost;
     this.ui.chat('SYS', null, `Hull lost. Insurance deductible: ${lost} ¢`, 'sys');
     this.world.schedule(3.5, () => {
       this.ui.death(false);
       // hostiles near the wreck lose interest
+      if (this.sector.director) this.sector.director.standDown();
       for (const o of this.world.ships.slice()) if (o.team !== 1 && !o.persistent) this.world.removeShip(o);
-      this.spawnPlayer((this.respawnPoint && this.respawnPoint()) || this.sector.entryPoint());
+      const p = this.spawnPlayer((this.respawnPoint && this.respawnPoint()) || this.safePoint());
+      p.invuln = true;
+      this.world.schedule(8, () => { if (p.alive && !this.docked) p.invuln = false; });
+      this.ui.toast('Repair crews have patched the hull · 8s grace', '');
       save(this.data);
     });
   }
@@ -330,7 +371,7 @@ export class Game {
     if (!s || !s.alive) return;
     if (this.autoplay && this.autoplay.active) {
       // manual input takes the wheel for a moment
-      if (inp.held('turnLeft') || inp.held('turnRight') || inp.hit('throttleUp') || inp.hit('throttleDown') || m.clicked[2]) this.autoplay.yield(4);
+      if (inp.held('turnLeft') || inp.held('turnRight') || inp.hit('throttleUp') || inp.hit('throttleDown') || m.clicked[2] || (this.stick && this.stick.active)) this.autoplay.yield(4);
       else return;
     }
     let ti = THROTTLE_STEPS.findIndex((t) => Math.abs(t - s.throttle) < 0.01);
@@ -341,10 +382,17 @@ export class Game {
     const manualTurn = (inp.held('turnLeft') ? 1 : 0) - (inp.held('turnRight') ? 1 : 0);
     if (manualTurn) { this.moveTarget = null; s.rudder = manualTurn; }
     else if (!this.moveTarget) s.rudder = 0;
+    const st = stickHeading(this);
+    if (st) {
+      this.moveTarget = null;
+      if (st.heading === null) { s.rudder = 0; s.throttle = 0; }
+      else s.steerHeading(st.heading, st.throttle);
+    }
     if (inp.held('climb')) s.altTarget = Math.min(80, s.altTarget + dt * 40);
     if (inp.held('dive')) s.altTarget = Math.max(-80, s.altTarget - dt * 40);
     if (inp.hit('autoFire')) { s.autoFire = !s.autoFire; this.ui.toast(`Auto-fire ${s.autoFire ? 'on' : 'off'}`); }
     // mouse: right click sails, left click targets
+    if (m.clicked[2] && !inp.blocked && m.touch && this.clickTarget(m.x, m.y)) m.clicked[2] = false;   // tap on a ship targets it
     if (m.clicked[2] && !inp.blocked) {
       const p = this.cam.pick(m.nx, m.ny, s.position.y, _v);
       if (p) { this.moveTarget = p.clone(); this.ui.marker = { p: p.clone(), t: 1 }; }
@@ -364,17 +412,18 @@ export class Game {
   clickTarget(x, y) {
     let best = null, bd = 60 * 60;
     for (const o of this.world.ships) {
-      if (!o.alive || o === this.player) continue;
+      if (!o.alive || o === this.player || o.cloaked) continue;
       this.cam.project(o.position, _v);
       const d = (_v.x - x) ** 2 + (_v.y - y) ** 2;
       const r = Math.max(30, o.dims.L * 0.4 * innerHeight / (2 * Math.tan(this.engine.camera.fov * Math.PI / 360) * this.cam.distance));
       if (d < Math.max(bd, r * r) && d < r * r * 1.5) { bd = d; best = o; }
     }
     if (best) this.player.target = best;
+    return best;
   }
   cycleTarget() {
     const s = this.player;
-    const list = this.world.ships.filter((o) => o.alive && this.world.hostile(s, o) && o.position.distanceTo(s.position) < 2000).sort((a, b) => a.position.distanceTo(s.position) - b.position.distanceTo(s.position));
+    const list = this.world.ships.filter((o) => o.alive && !o.cloaked && this.world.hostile(s, o) && o.position.distanceTo(s.position) < 2000).sort((a, b) => a.position.distanceTo(s.position) - b.position.distanceTo(s.position));
     if (!list.length) return;
     const i = list.indexOf(s.target);
     s.target = list[(i + 1) % list.length];
@@ -421,7 +470,18 @@ export class Game {
       if (this.npcs) this.npcs.update(dt, t);
     }
     else if (this.activeMode) this.activeMode.update(dt, t, realDt);
-    if (this.mode === 'space') this.cam.update(dt, t, realDt);
+    if (this.mode === 'space') {
+      // pull the camera back for things that dwarf us
+      const s = this.player, tg = s && s.target && s.target.alive ? s.target : null;
+      const sep = tg ? tg.position.distanceTo(s.position) : 0;
+      const framing = tg && sep < 1600;
+      // frame the fight: focus between the ships, pull back far enough to fit both
+      this.cam.frameWith = framing ? tg.position : null;
+      this.cam.frameMix = this.autoplay && this.autoplay.active ? 0.5 : 0.42;
+      this.cam.distFloor = framing ? Math.min(this.cam.maxDist, Math.max(tg.dims.L > 200 ? tg.dims.L * 1.5 + 250 : 0, sep * 1.3 + 220)) : 0;
+      if (innerHeight > innerWidth) this.cam.distFloor = Math.max(this.cam.distFloor || 0, 720);   // portrait: see abeam
+      this.cam.update(dt, t, realDt);
+    }
     if (this.audio) {
       this.audio.setListener(this.cam.focus);
       const s = this.player;

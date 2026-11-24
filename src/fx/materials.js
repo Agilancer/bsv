@@ -27,9 +27,10 @@ export function windowsNode(winHex, density = 0.45, scale = 1) {
   return hdr(winHex, 2.2).mul(win).mul(on.add(flick).min(1)).mul(side);
 }
 
-export function hullMaterials(yardKey) {
-  if (cache.has(yardKey)) return cache.get(yardKey);
-  const y = YARDS[yardKey];
+export function hullMaterials(yardKey, glowOverride = null) {
+  const key = glowOverride == null ? yardKey : `${yardKey}:${glowOverride}`;
+  if (cache.has(key)) return cache.get(key);
+  const y = glowOverride == null ? YARDS[yardKey] : { ...YARDS[yardKey], glow: glowOverride, window: glowOverride, engine: glowOverride };
   const scale = float(1 / 16);
   const plate = (name, tint, rough, metal, windows = false) => {
     const m = new THREE.MeshStandardNodeMaterial();
@@ -38,10 +39,11 @@ export function hullMaterials(yardKey) {
     // large-scale grime/variation so long hulls don't tile visibly
     const p = positionLocal.mul(0.02);
     const varn = hash(floor(p.x.mul(3).add(500)).add(floor(p.z.mul(3).add(500)).mul(17))).mul(0.25).add(0.85);
-    m.colorNode = base.rgb.mul(vec3(t.r, t.g, t.b)).mul(varn);
+    const tm = name === y.hull ? (y.tintMul || 1) : 1;
+    m.colorNode = base.rgb.mul(vec3(t.r * tm, t.g * tm, t.b * tm)).mul(varn);
     m.roughnessNode = float(rough).add(base.r.mul(0.2));
     m.metalnessNode = float(metal);
-    if (windows) m.emissiveNode = windowsNode(y.window, yardKey === 'ironhold' ? 0.6 : 0.42);
+    if (windows) m.emissiveNode = windowsNode(y.window, yardKey === 'ironhold' ? 0.6 : yardKey === 'silent' ? 0.2 : 0.42);
     if (y.alienGlow && name === y.hull) {
       const g = triplanarTexture(texture(tex('glow_alien')), null, null, scale);
       m.emissiveNode = g.rgb.mul(hdr(y.glow, 3.5)).mul(sin(engineRef.uTime.mul(1.7).add(positionLocal.z.mul(0.08))).mul(0.35).add(0.75));
@@ -66,7 +68,7 @@ export function hullMaterials(yardKey) {
     dark: plate(y.dark, 0x8a8e98, 0.55, 0.3),
     glow, engine: engineMat, sail,
   };
-  cache.set(yardKey, mats);
+  cache.set(key, mats);
   return mats;
 }
 
@@ -108,7 +110,8 @@ export function shieldMaterial(hex) {
   const hex6 = fract(q.x.add(q.z.mul(0.577))).mul(fract(q.z.mul(1.155))).mul(fract(q.y.add(q.x.mul(0.5))));
   const pattern = smoothstep(0.03, 0.0, hex6).mul(0.6).add(0.4);
   const c = new THREE.Color(hex);
-  const base = fres.pow(1.5).mul(0.05).mul(level);
+  // the bubble is only visible for a few seconds after it's struck
+  const base = fres.pow(1.5).mul(0.08).mul(level).mul(exp(age.mul(-0.7)));
   const hit = ring.mul(1.6).add(core.mul(2.5)).mul(pattern);
   m.colorNode = vec3(c.r, c.g, c.b).mul(base.add(hit).mul(1.6));
   m.opacityNode = float(1);

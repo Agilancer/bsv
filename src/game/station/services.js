@@ -1,7 +1,7 @@
 // Station services as plain logic over the save data (testable in node).
 import { CHASSIS, CHASSIS_BY_ID, YARDS } from '../data/chassis.js';
 import { rollItem, RARITY, newUid } from '../data/items.js';
-import { slotKeys, slotType, INV_SIZE } from '../Player.js';
+import { slotKeys, slotType, INV_SIZE, SHIP_PREFIX } from '../Player.js';
 import { RNG } from '../../engine/rng.js';
 
 const merchant = (P) => (P.talents && P.talents.merchant) || 0;
@@ -13,7 +13,7 @@ export function marketStock(stationSeed, danger, P) {
   const ilvl = Math.max(1, Math.round((danger + P.level) / 2));
   const out = [];
   for (let i = 0; i < 14; i++) {
-    const rarity = rng.weighted([['common', 30], ['uncommon', 35], ['rare', 24], ['epic', 9], ['legendary', 2]]);
+    const rarity = rng.weighted([['common', 30], ['uncommon', 36], ['rare', 25], ['epic', 9]]);   // legendaries are found, not bought
     out.push(rollItem(ilvl + rng.int(-1, 2), rng, { rarity }));
   }
   return out;
@@ -54,7 +54,8 @@ export function acquireShip(P, chassisId, price, name) {
   const old = P.ship;
   const loadout = transferLoadout(old.loadout, c, P.inventory);
   P.fleet.push({ ...old, loadout: {} });
-  P.ship = { chassis: c.id, level: Math.max(1, Math.floor(old.level * 0.5)), xp: 0, loadout, name: name || `BSV ${c.name}` };
+  // the crew carry their experience to the new hull: ship level transfers
+  P.ship = { chassis: c.id, level: old.level, xp: old.xp, loadout, name: name || `${SHIP_PREFIX} ${c.name}` };
   return { ok: true, msg: `${c.fullName} commissioned` };
 }
 

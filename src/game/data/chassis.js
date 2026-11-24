@@ -41,11 +41,58 @@ export const YARDS = {
   },
   hollow: {
     name: 'Hollow Star Covenant', short: 'HSC', blurb: 'Grown, not built. Chitinous hulls lit from within by something red.',
-    hull: 'hull_alien', trim: 'hull_graphite', dark: 'hull_alien', tint: 0xb0a0a8, trimTint: 0x904050,
+    hull: 'hull_alien', trim: 'hull_graphite', dark: 'hull_alien', tint: 0xb0a0a8, trimTint: 0x904050, tintMul: 1.35,
     glow: 0xff2040, window: 0xff3050, engine: 0xff1050, alienGlow: true,
     prow: 'fork', castle: 'organic', spires: 6, sails: 0, buttress: true, keel: 1.1, sponsons: 0.4, hullRound: 0.6,
     names: ['Thornmaw', 'Hive Lantern', 'Choir of Teeth', 'Marrowbloom', 'Hollowheart', 'Carrion Psalm', 'Starveling', 'Nest Eternal', 'Void Cantor', 'The Unmaking'],
   },
+  // ---- enemy-only design languages (not sold at shipyards) ----
+  rustborn: {
+    name: 'Rustborn Scavengers', short: 'RST', enemyOnly: true, blurb: 'Welded from wrecks.',
+    hull: 'hull_apc', trim: 'hull_mech', dark: 'hull_dropship', tint: 0xd8a070, trimTint: 0xd09060, tintMul: 1.7,
+    glow: 0xffa040, window: 0xffc070, engine: 0xff8030,
+    prow: 'blunt', castle: 'scrap', spires: 1, sails: 0, buttress: true, keel: 0.6, sponsons: 1.2, hullRound: 0.05,
+    names: [],
+  },
+  silent: {
+    name: 'The Silent Choir', short: 'SIL', enemyOnly: true, blurb: 'Black glass and white light.',
+    hull: 'hull_graphite', trim: 'hull_glacier', dark: 'hull_graphite', tint: 0x50586e, trimTint: 0xe0f0ff, tintMul: 1.2,
+    glow: 0x9ff0ff, window: 0xbff8ff, engine: 0x9ff0ff,
+    prow: 'needle', castle: 'swept', spires: 3, sails: 0, buttress: false, keel: 0.3, sponsons: 0, hullRound: 0.0,
+    names: [],
+  },
+  brood: {
+    name: 'Leviathan Brood', short: 'BRD', enemyOnly: true, blurb: 'Void fauna.',
+    hull: 'hull_alien', trim: 'hull_alien', dark: 'hull_alien', tint: 0x88b8c0, trimTint: 0x6a90a0, alienGlow: true,
+    glow: 0x40ffd0, window: 0x40ffd0, engine: 0x60fff0,
+    prow: 'fork', castle: 'organic', spires: 5, sails: 2, buttress: false, keel: 1.4, sponsons: 0, hullRound: 0.9, organic: true, tintMul: 1.6,
+    names: [],
+  },
+};
+
+// Shipyard signatures: what flying a yard's hull feels like
+export const YARD_TRAITS = {
+  velscour: 'Cathedral Batteries — broadsides +12% damage, +5 armour.',
+  aurelian: 'Shield Overcharge — shields keep regenerating under fire (40%).',
+  tidewright: 'Solar Sails — +25% speed after 4 s without firing.',
+  ironhold: 'Armoured Flanks — port and starboard facings take 20% less hull damage.',
+  corsair: 'Boarding Crews — +1 craft per hangar, +15% better loot.',
+  hollow: 'Living Hull — regenerates 0.4% hull per second.',
+};
+
+// Each class has its own silhouette (arch): bow length, number of gun decks, where the
+// castle sits, outrigger pods or side hulls, an armour belt, fins.
+export const ARCH = {
+  1: { prow: 0.75, decks: 1, castle: 'aft', castleScale: 0.7 },
+  2: { prow: 0.9, decks: 1, castle: 'aft', outrig: 'pods' },
+  3: { prow: 1.0, decks: 1, castle: 'mid' },
+  4: { prow: 1.45, decks: 1, castle: 'aft', castleScale: 0.8, torpBow: true },
+  5: { prow: 1.1, decks: 2, castle: 'twin', fins: 0.6 },
+  6: { prow: 1.0, decks: 2, castle: 'aft' },
+  7: { prow: 0.85, decks: 2, castle: 'aft', belt: true },
+  8: { prow: 1.3, decks: 2, castle: 'aft', fins: 1, castleScale: 0.9 },
+  9: { prow: 1.0, decks: 3, castle: 'aft', castleScale: 1.15 },
+  10: { prow: 1.05, decks: 3, castle: 'twin', outrig: 'hulls', castleScale: 1.2 },
 };
 
 export const CLASSES = [
@@ -54,12 +101,12 @@ export const CLASSES = [
   { tier: 2, name: 'Corvette', len: 50, beam: 0.19, crew: [10, 22], hull: 1500, shield: 950, speed: 88, turn: 38, slots: { broadside: 2, turret: 1, prow: 1, hangar: 0, module: 3 } },
   { tier: 3, name: 'Frigate', len: 64, beam: 0.18, crew: [18, 36], hull: 2300, shield: 1400, speed: 80, turn: 31, slots: { broadside: 2, turret: 2, prow: 1, hangar: 1, module: 3 } },
   { tier: 4, name: 'Destroyer', len: 80, beam: 0.17, crew: [30, 52], hull: 3300, shield: 1900, speed: 74, turn: 26, slots: { broadside: 3, turret: 2, prow: 1, hangar: 1, module: 4 } },
-  { tier: 5, name: 'Light Cruiser', len: 98, beam: 0.17, crew: [44, 72], hull: 4600, shield: 2600, speed: 66, turn: 21, slots: { broadside: 3, turret: 3, prow: 1, hangar: 1, module: 4 } },
-  { tier: 6, name: 'Cruiser', len: 118, beam: 0.17, crew: [60, 96], hull: 6200, shield: 3400, speed: 60, turn: 17, slots: { broadside: 4, turret: 3, prow: 2, hangar: 2, module: 5 } },
-  { tier: 7, name: 'Heavy Cruiser', len: 140, beam: 0.18, crew: [80, 124], hull: 8200, shield: 4300, speed: 54, turn: 14, slots: { broadside: 4, turret: 4, prow: 2, hangar: 2, module: 5 } },
-  { tier: 8, name: 'Battlecruiser', len: 165, beam: 0.17, crew: [104, 150], hull: 10500, shield: 5400, speed: 52, turn: 12, slots: { broadside: 5, turret: 4, prow: 2, hangar: 2, module: 6 } },
-  { tier: 9, name: 'Battleship', len: 195, beam: 0.18, crew: [130, 178], hull: 13500, shield: 6600, speed: 44, turn: 10, slots: { broadside: 6, turret: 5, prow: 2, hangar: 3, module: 6 } },
-  { tier: 10, name: 'Dreadnought', len: 235, beam: 0.18, crew: [160, 200], hull: 17500, shield: 8200, speed: 38, turn: 8, slots: { broadside: 7, turret: 6, prow: 3, hangar: 3, module: 7 } },
+  { tier: 5, name: 'Light Cruiser', len: 98, beam: 0.17, crew: [44, 72], hull: 4600, shield: 2600, speed: 66, turn: 22, slots: { broadside: 3, turret: 3, prow: 1, hangar: 1, module: 4 } },
+  { tier: 6, name: 'Cruiser', len: 118, beam: 0.17, crew: [60, 96], hull: 6200, shield: 3400, speed: 60, turn: 18, slots: { broadside: 4, turret: 3, prow: 2, hangar: 2, module: 5 } },
+  { tier: 7, name: 'Heavy Cruiser', len: 140, beam: 0.18, crew: [80, 124], hull: 8200, shield: 4300, speed: 54, turn: 15, slots: { broadside: 4, turret: 4, prow: 2, hangar: 2, module: 5 } },
+  { tier: 8, name: 'Battlecruiser', len: 165, beam: 0.17, crew: [104, 150], hull: 10500, shield: 5400, speed: 52, turn: 13, slots: { broadside: 5, turret: 4, prow: 2, hangar: 2, module: 6 } },
+  { tier: 9, name: 'Battleship', len: 195, beam: 0.18, crew: [130, 178], hull: 13500, shield: 6600, speed: 44, turn: 11.5, slots: { broadside: 6, turret: 5, prow: 2, hangar: 3, module: 6 } },
+  { tier: 10, name: 'Dreadnought', len: 235, beam: 0.18, crew: [160, 200], hull: 17500, shield: 8200, speed: 38, turn: 10, slots: { broadside: 7, turret: 6, prow: 3, hangar: 3, module: 7 } },
 ];
 
 // per-yard handling modifiers (multipliers)
@@ -74,6 +121,7 @@ const YARD_MOD = {
 
 export const CHASSIS = [];
 for (const [yk, yard] of Object.entries(YARDS)) {
+  if (yard.enemyOnly) continue;
   const mod = YARD_MOD[yk];
   CLASSES.forEach((c, i) => {
     const slots = { ...c.slots };
@@ -86,8 +134,9 @@ for (const [yk, yard] of Object.entries(YARDS)) {
       hull: Math.round(c.hull * mod.hull), shield: Math.round(c.shield * mod.shield),
       speed: +(c.speed * mod.speed).toFixed(1), turn: +(c.turn * mod.turn).toFixed(1),
       slots, level: Math.max(1, (c.tier - 2) * 6 + 1 + (yk === 'hollow' ? 4 : 0)),
-      price: Math.round(1200 * Math.pow(c.tier, 2.6) * (yk === 'hollow' ? 2 : 1)),
-      seed: (c.tier * 7919 + yk.length * 104729) >>> 0,
+      price: Math.round(450 * Math.pow(c.tier, 2.35) * (yk === 'hollow' ? 1.8 : 1) / 50) * 50,
+      seed: (c.tier * 7919 + [...yk].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619), 2166136261)) >>> 0,
+      arch: ARCH[c.tier], carrier: yk === 'corsair' && [6, 8, 10].includes(c.tier),
     });
   });
 }

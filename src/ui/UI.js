@@ -5,9 +5,10 @@ import { icon } from './icons.js';
 import { ABILITIES } from '../game/data/abilities.js';
 import { BASES, RARITY, describe, itemShipStats, weaponStats } from '../game/data/items.js';
 import { slotKeys, slotType, xpForLevel, shipXpForLevel, itemScore, INV_SIZE } from '../game/Player.js';
-import { CHASSIS_BY_ID, YARDS } from '../game/data/chassis.js';
+import { CHASSIS_BY_ID, YARDS, YARD_TRAITS } from '../game/data/chassis.js';
 import { THROTTLE_STEPS } from '../game/ship/Ship.js';
-import { TREES, TALENTS, talentPoints, spentPoints, canLearn } from '../game/data/talents.js';
+import { TREES, TALENTS, talentPoints, spentPoints, canLearn, treePoints } from '../game/data/talents.js';
+import { ENEMIES, SIZES, ENEMY_FACTIONS } from '../game/data/enemies.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -49,7 +50,7 @@ export class UI {
     R.append(h(`<div id="menubar">
       <button data-w="character">SHIP [C]</button><button data-w="inventory">CARGO [I]</button><button data-w="skills">SKILLS [T]</button>
       <button data-w="crew">CREW [K]</button><button data-w="bridge">BRIDGE [B]</button><button data-w="galaxy">GALAXY [M]</button>
-      <button class="auto" data-w="auto">AUTO [P]</button><button data-w="options">⚙</button></div>`));
+      <button data-w="codex">CODEX</button><button class="auto" data-w="auto">AUTO [P]</button><button data-w="options">⚙</button></div>`));
     R.querySelectorAll('#menubar button').forEach((b) => b.addEventListener('click', () => this.game.command(b.dataset.w)));
     R.append(h(`<div id="target" class="holo"><div class="tname" id="tName"></div><div class="tsub" id="tSub"></div>
       <div class="bar shield" id="tShield"><i></i><span></span></div><div class="bar hull" id="tHull"><i></i><span></span></div></div>`));
@@ -96,6 +97,8 @@ export class UI {
     this.windows.character = this.addWindow('character', 'Ship');
     this.windows.skills = this.addWindow('skills', 'Captain Abilities');
     this.windows.options = this.addWindow('options', 'Options');
+    this.windows.codex = this.addWindow('codex', 'Codex · Known Hostiles');
+    this.renderers.codex = () => this.renderCodex();
     this.renderers.options = () => this.renderOptions();
     this.hud = { hull: $('#hHull'), shield: $('#hShield'), xp: $('#hXp'), lvl: $('#hLvl'), name: $('#hName'), cls: $('#hClass'), cred: $('#hCred'), rose: $('#shieldRose').getContext('2d'), thr: [...document.querySelectorAll('#thr i')], spd: $('#spd'), alt: $('#alt'), afire: $('#afire'), target: $('#target'), radar: $('#radar canvas').getContext('2d') };
     this.abEls = Object.fromEntries([...document.querySelectorAll('#abilities .ab')].map((e) => [e.dataset.k, e]));
@@ -118,6 +121,7 @@ export class UI {
     const w = this.windows[id]; if (!w) return false;
     const open = on ?? !w.classList.contains('open');
     w.classList.toggle('open', open);
+    document.body.classList.toggle('win-open', Object.values(this.windows).some((x) => x.classList.contains('open')));
     document.querySelectorAll(`#menubar button[data-w="${id}"]`).forEach((b) => b.classList.toggle('on', open));
     if (open) this.render(id);
     else this.hideTip();
@@ -167,6 +171,7 @@ export class UI {
     s += d.lines.map((l) => `<div class="tl">${l}</div>`).join('');
     s += d.affixes.map((a) => `<div class="ta">${a}</div>`).join('');
     s += d.uniques.map((u) => `<div class="tu"><b>${u.name}:</b> ${u.desc}</div>`).join('');
+    if (d.flavor) s += `<div class="tx" style="font-style:italic;color:#d8b890">“${d.flavor}”</div>`;
     s += `<div class="tx">Fits: ${SLOT_LABEL[item.slot]} · Value ${fmt(item.value)} ¢</div>`;
     if (compareTo && compareTo !== item) {
       const a = itemScore(item), b = itemScore(compareTo);
@@ -244,7 +249,8 @@ export class UI {
     body.innerHTML = `
       <div class="title" style="color:var(--cyan)">${esc(P.ship.name)}</div>
       <div class="label" style="margin:2px 0 10px">${ch.fullName} · ${y.name}</div>
-      <div style="font-size:13px;margin-bottom:10px">${y.blurb}</div>
+      <div style="font-size:13px;margin-bottom:6px">${y.blurb}</div>
+      <div style="font-size:13px;margin-bottom:10px;color:var(--cyan)">${YARD_TRAITS[ch.yard] || ''}</div>
       <div class="label">Ship level ${P.ship.level}</div><div class="bar xp" style="margin:4px 0 12px"><i style="width:${(P.ship.xp / shipXpForLevel(P.ship.level) * 100).toFixed(1)}%"></i></div>
       <div class="statgrid">
         ${row('Commander rank', P.level)}
@@ -277,9 +283,9 @@ export class UI {
     } else {
       html += `<div class="talents">` + TREES.map((tr) => `<div class="tree"><div class="title" style="color:${tr.color};margin-bottom:8px">${tr.name}</div>` +
         TALENTS.filter((t) => t.tree === tr.k).map((t) => {
-          const r = (P.talents || {})[t.k] || 0, ok = canLearn(P, t.k), locked = P.level < t.req;
+          const r = (P.talents || {})[t.k] || 0, ok = canLearn(P, t.k), locked = P.level < t.req || (t.treeReq && treePoints(P, t.tree) < t.treeReq);
           return `<div class="tal ${locked ? 'locked' : ''} ${ok ? 'can' : ''} ${r ? 'has' : ''}" data-k="${t.k}" style="--tc:${tr.color}">
-            <div class="ti">${icon(t.icon)}</div><div class="tt"><div class="tn">${t.name}</div><div class="tr">${locked ? 'Rank ' + t.req : r + ' / ' + t.max}</div></div></div>`;
+            <div class="ti">${icon(t.icon)}</div><div class="tt"><div class="tn">${t.capstone ? '★ ' : ''}${t.name}</div><div class="tr">${locked ? (t.treeReq ? t.treeReq + ' pts in tree' : 'Rank ' + t.req) : r + ' / ' + t.max}</div></div></div>`;
         }).join('') + `</div>`).join('') + `</div>`;
     }
     body.innerHTML = html;
@@ -293,12 +299,33 @@ export class UI {
     });
   }
 
+  renderCodex() {
+    const g = this.game, P = g.data, codex = P.codex || {};
+    const body = this.windows.codex.querySelector('.wbody');
+    this.codexSize ??= 'small'; this.codexFaction ??= 'all';
+    const known = Object.keys(codex).length;
+    let h = `<div class="label" style="margin-bottom:8px">${known} / ${ENEMIES.length} designs catalogued · first kill of a design grants bonus XP</div>
+      <div class="ctabs">${SIZES.map((s) => `<button class="btn ${s.k === this.codexSize ? '' : 'violet'}" data-size="${s.k}" style="border-color:${s.color}">${s.name} ${ENEMIES.filter((e) => e.size === s.k && codex[e.id]).length}/60</button>`).join('')}</div>
+      <div class="ctabs">${['all', ...Object.keys(ENEMY_FACTIONS)].map((f) => `<button class="btn ${f === this.codexFaction ? '' : 'violet'}" data-fac="${f}">${f === 'all' ? 'All' : ENEMY_FACTIONS[f].name}</button>`).join('')}</div><div class="clist">`;
+    for (const e of ENEMIES) {
+      if (e.size !== this.codexSize || (this.codexFaction !== 'all' && e.faction !== this.codexFaction)) continue;
+      const n = codex[e.id] || 0;
+      const sz = SIZES[e.sizeIndex];
+      h += n ? `<div class="centry"><div class="cn" style="color:${sz.color}">${e.name}</div><div class="label">${e.roleName} · ${ENEMY_FACTIONS[e.faction].name} · ${e.len * 10} m</div><div class="cd">${e.desc}</div><div class="label">Destroyed ${n} · seen from danger ${e.minDanger}</div></div>`
+        : `<div class="centry unknown"><div class="cn">???</div><div class="label">${e.roleName} · ${ENEMY_FACTIONS[e.faction].name}</div><div class="cd">Uncatalogued. Appears from danger ${e.minDanger}.</div></div>`;
+    }
+    body.innerHTML = h + '</div>';
+    body.querySelectorAll('[data-size]').forEach((b) => b.onclick = () => { this.codexSize = b.dataset.size; this.renderCodex(); });
+    body.querySelectorAll('[data-fac]').forEach((b) => b.onclick = () => { this.codexFaction = b.dataset.fac; this.renderCodex(); });
+  }
+
   renderOptions() {
     const g = this.game, a = g.audio, e = g.engine;
     const body = this.windows.options.querySelector('.wbody');
     const sl = (id, label, v) => `<label class="opt"><span>${label}</span><input type="range" id="${id}" min="0" max="100" value="${Math.round(v * 100)}"></label>`;
     body.innerHTML = `${sl('oMaster', 'Master volume', a ? a.volume : 0.7)}${sl('oMusic', 'Music', a ? a.musicVolume : 0.45)}${sl('oBloom', 'Bloom', e.bloomStrength.value / 1.6)}
       <label class="opt"><span>Broadside arcs</span><input type="checkbox" id="oArcs" ${g.showArcs ? 'checked' : ''}></label>
+      <label class="opt"><span>Hide interface during autoplay</span><input type="checkbox" id="oHide" ${g.settings().hideHudInAuto ? 'checked' : ''}></label>
       <label class="opt"><span>Autoplay ambition</span><select id="oAuto"><option value="full">Full campaign</option><option value="hold">Hold this system</option><option value="combat">Combat &amp; loot only</option></select></label>
       <label class="opt"><span>Autoplay keeps</span><select id="oKeep"><option value="uncommon">Uncommon+</option><option value="rare">Rare+</option><option value="epic">Epic+</option><option value="legendary">Legendary+</option></select></label>
       <div class="label" style="margin:10px 0">Renderer: ${e.backend} · quality ${e.quality} · ${e.fps.toFixed(0)} fps</div>
@@ -308,6 +335,7 @@ export class UI {
     q('oMusic').oninput = (ev) => { if (a) { a.musicVolume = ev.target.value / 100; if (a.music) a.music.gain.value = a.musicVolume; } };
     q('oBloom').oninput = (ev) => { e.bloomStrength.value = ev.target.value / 100 * 1.6; };
     q('oArcs').onchange = (ev) => { g.showArcs = ev.target.checked; };
+    q('oHide').onchange = (ev) => { g.settings().hideHudInAuto = ev.target.checked; };
     const AP = (g.data.autoplay ||= {});
     q('oAuto').value = AP.mode || 'full'; q('oKeep').value = AP.keep || 'rare';
     q('oAuto').onchange = (ev) => { AP.mode = ev.target.value; };
@@ -317,9 +345,14 @@ export class UI {
   }
 
   // ---------------- per-frame ----------------
-  damageNumber(pos, amount, crit, shield) {
-    if (this.numbers.length > 120) this.numbers.shift();
-    this.numbers.push({ pos: pos.clone(), v: Math.round(amount), crit, shield, t: 0, dx: (Math.random() - 0.5) * 30 });
+  damageNumber(pos, amount, crit, shield, ship = null) {
+    // hits on the same ship within a quarter second merge into one number
+    if (ship) for (let i = this.numbers.length - 1; i >= 0; i--) {
+      const n = this.numbers[i];
+      if (n.ship === ship && n.t < 0.25 && n.shield === shield) { n.v += Math.round(amount); n.crit = n.crit || crit; n.pos.lerp(pos, 0.3); return; }
+    }
+    if (this.numbers.length > 60) this.numbers.shift();
+    this.numbers.push({ pos: pos.clone(), v: Math.round(amount), crit, shield, t: 0, dx: (Math.random() - 0.5) * 30, ship, own: ship && ship === this.game.player });
   }
 
   update(dt, realDt) {
@@ -349,8 +382,8 @@ export class UI {
     this.hud.target.style.display = t ? 'block' : 'none';
     if (t) {
       const tn = $('#tName'); tn.textContent = (t.elite === 2 ? '☠ ' : t.elite ? '★ ' : '') + t.name;
-      tn.style.color = t.team === 1 ? 'var(--cyan)' : t.elite === 2 ? '#ff9a2e' : t.elite ? '#ffd66a' : '#ff8a9a';
-      $('#tSub').innerHTML = `Lv ${t.level} ${t.chassis.cls} · ${t.factionName || t.faction}` + (t.mods ? '<br>' + t.mods.map((m) => `<span style="color:${this.game.world.eliteMods[m].color}">${this.game.world.eliteMods[m].name}</span>`).join(' · ') : '');
+      tn.style.color = t.team === 1 ? 'var(--cyan)' : t.elite ? '#ffd66a' : t.design && t.design.sizeIndex >= 2 ? SIZES[t.design.sizeIndex].color : '#ff8a9a';
+      $('#tSub').innerHTML = `Lv ${t.level} ${t.design ? SIZES[t.design.sizeIndex].name + ' ' : ''}${t.chassis.cls} · ${t.factionName || t.faction}` + (t.mods ? '<br>' + t.mods.map((m) => `<span style="color:${this.game.world.eliteMods[m].color}">${this.game.world.eliteMods[m].name}</span>`).join(' · ') : '');
       this.setBar($('#tShield'), t.shieldTotal() / (t.maxShield * 1.2), fmt(t.shieldTotal()));
       this.setBar($('#tHull'), t.hull / t.maxHull, `${fmt(Math.max(0, t.hull))} / ${fmt(t.maxHull)}`);
     }
@@ -474,7 +507,7 @@ export class UI {
       c.fillStyle = '#ff9a2e'; c.font = '700 18px Orbitron, sans-serif'; c.textAlign = 'center'; c.fillText('☠', x, y + 6);
     }
     for (const o of world.ships) {
-      if (!o.alive || o === s) continue;
+      if (!o.alive || o === s || o.cloaked) continue;
       const [x, y] = map(o.position);
       c.fillStyle = o.team === 1 ? '#58c8ff' : o.elite === 2 ? '#ff9a2e' : o.elite ? '#ffd66a' : '#ff4a6a';
       const r = 2.5 + Math.min(5, o.dims.L / 40);
@@ -526,10 +559,58 @@ export class UI {
         ctx.fillStyle = grd; ctx.fill();
       }
     }
+    // your ship: a faint ring underneath so it never gets lost in the fireworks
+    if (s && s.alive) {
+      const c = proj(s.position);
+      if (c) {
+        const r = Math.max(18, s.dims.L * 0.55 * pxPerUnit);
+        ctx.strokeStyle = 'rgba(88,200,255,0.45)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(c.x, c.y, r, r * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = 'rgba(88,200,255,0.8)';
+        for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + g.engine.realTime * 0.6; ctx.fillRect(c.x + Math.cos(a) * r - 2, c.y + Math.sin(a) * r * 0.55 - 2, 4, 4); }
+      }
+      // hostiles shooting at us from off-screen: arrows on the edge
+      for (const o of world.ships) {
+        if (!o.alive || o.target !== s || o.cloaked) continue;
+        _p.copy(o.position).project(camera);
+        let x = (_p.x * 0.5 + 0.5) * innerWidth, y = (-_p.y * 0.5 + 0.5) * innerHeight;
+        if (_p.z > 1) { x = innerWidth - x; y = innerHeight - y; }
+        if (x > 30 && x < innerWidth - 30 && y > 30 && y < innerHeight - 30 && _p.z < 1) continue;
+        const cx = innerWidth / 2, cy = innerHeight / 2, a = Math.atan2(y - cy, x - cx);
+        const ex = cx + Math.cos(a) * (innerWidth / 2 - 28), ey = cy + Math.sin(a) * (innerHeight / 2 - 28);
+        ctx.save(); ctx.translate(Math.max(24, Math.min(innerWidth - 24, ex)), Math.max(24, Math.min(innerHeight - 24, ey))); ctx.rotate(a);
+        ctx.fillStyle = o.design && o.design.sizeIndex >= 3 ? 'rgba(255,154,46,0.9)' : 'rgba(255,90,110,0.85)';
+        ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-8, -8); ctx.lineTo(-4, 0); ctx.lineTo(-8, 8); ctx.closePath(); ctx.fill(); ctx.restore();
+      }
+    }
+    // telegraphed attacks
+    const now = g.engine.time;
+    for (const w of world.warnings) {
+      const k = Math.min(1, (now - w.t0) / w.dur);
+      const pulse = 0.35 + 0.35 * Math.sin(g.engine.realTime * 18);
+      ctx.strokeStyle = w.color; ctx.fillStyle = w.color; ctx.lineWidth = 2;
+      if (w.kind === 'circle') {
+        const c = w.follow ? w.follow.position : w.pos;
+        ctx.beginPath();
+        for (let i = 0; i <= 40; i++) { const a = (i / 40) * Math.PI * 2; const pt = proj(_q.set(c.x + Math.sin(a) * w.r, c.y, c.z + Math.cos(a) * w.r)); if (pt) i ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y); }
+        ctx.globalAlpha = 0.9; ctx.stroke();
+        ctx.globalAlpha = 0.12 + k * 0.25 * pulse; ctx.fill();
+        ctx.globalAlpha = 0.5; ctx.beginPath();
+        for (let i = 0; i <= 40; i++) { const a = (i / 40) * Math.PI * 2; const pt = proj(_q.set(c.x + Math.sin(a) * w.r * k, c.y, c.z + Math.cos(a) * w.r * k)); if (pt) i ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y); }
+        ctx.stroke(); ctx.globalAlpha = 1;
+      } else if (w.kind === 'line') {
+        const side = _p.set(-w.dir.z, 0, w.dir.x);
+        const pts = [[0, -1], [w.len, -1], [w.len, 1], [0, 1]].map(([a, b]) => proj(_q.copy(w.pos).addScaledVector(w.dir, a).addScaledVector(side, b * w.width)));
+        if (pts.every(Boolean)) {
+          ctx.beginPath(); pts.forEach((pt, i) => (i ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y))); ctx.closePath();
+          ctx.globalAlpha = 0.12 + k * 0.3 * pulse; ctx.fill(); ctx.globalAlpha = 0.8; ctx.stroke(); ctx.globalAlpha = 1;
+        }
+      }
+    }
     // ships: health bars + brackets + names
     ctx.textAlign = 'center';
     for (const o of world.ships) {
-      if (!o.alive || o === s) continue;
+      if (!o.alive || o === s || o.cloaked) continue;
       const sp = proj(o.position); if (!sp) continue;
       if (sp.x < -100 || sp.x > innerWidth + 100 || sp.y < -100 || sp.y > innerHeight + 100) continue;
       const rad = Math.max(16, o.dims.L * 0.55 * pxPerUnit);
@@ -550,9 +631,9 @@ export class UI {
         ctx.fillStyle = '#58b8ff'; ctx.fillRect(sp.x - bw / 2, by, bw * Math.min(1, o.shieldTotal() / (o.maxShield * 1.2)), 2.5);
         ctx.fillStyle = hostile ? '#ff7a50' : '#7affb0'; ctx.fillRect(sp.x - bw / 2, by + 3.5, bw * Math.max(0, o.hull / o.maxHull), 2.5);
         ctx.font = '600 11px Rajdhani, sans-serif';
-        ctx.fillStyle = !hostile ? '#9fdcff' : o.elite === 2 ? '#ff9a2e' : o.elite ? '#ffd66a' : 'rgba(255,170,180,0.9)';
+        ctx.fillStyle = !hostile ? '#9fdcff' : o.elite ? '#ffd66a' : o.design && o.design.sizeIndex >= 2 ? SIZES[o.design.sizeIndex].color : 'rgba(255,170,180,0.9)';
         const label = (o.guild ? `<${o.guild}> ` : '') + o.name + (hostile ? ` · ${o.level}` : '');
-        if (isT || o.elite || !hostile || recent) ctx.fillText(label, sp.x, by - 4);
+        if (isT || o.elite || !hostile || recent || (o.design && o.design.sizeIndex >= 3)) ctx.fillText(label, sp.x, by - 4);
         if (o.mods && (isT || recent)) { ctx.font = '600 10px Rajdhani, sans-serif'; ctx.fillStyle = 'rgba(255,214,106,0.85)'; ctx.fillText(o.mods.map((m) => world.eliteMods[m].name).join(' · '), sp.x, by - 16); }
       }
     }
@@ -583,7 +664,7 @@ export class UI {
       const a = n.t < 0.8 ? 1 : 1 - (n.t - 0.8) / 0.3;
       const scale = n.crit ? 1.6 - Math.min(0.5, n.t * 2) : 1;
       ctx.font = `${n.crit ? 800 : 700} ${Math.round(15 * scale)}px Orbitron, Rajdhani, sans-serif`;
-      ctx.fillStyle = n.shield ? `rgba(120,200,255,${a})` : n.crit ? `rgba(255,220,90,${a})` : `rgba(255,255,255,${a})`;
+      ctx.fillStyle = n.own ? `rgba(255,110,110,${a})` : n.shield ? `rgba(120,200,255,${a})` : n.crit ? `rgba(255,220,90,${a})` : `rgba(255,255,255,${a})`;
       ctx.strokeStyle = `rgba(0,0,0,${a * 0.8})`; ctx.lineWidth = 3;
       const y = sp.y - 20 - n.t * 46, x = sp.x + n.dx * n.t;
       const txt = (n.crit ? n.v + '!' : n.v);
