@@ -132,11 +132,12 @@ export function installStations(game) {
       if (prompt) {
         const show = n && n.dist < 900 && !game.docked && !docking;
         prompt.style.display = show ? 'block' : 'none';
-        if (show) prompt.textContent = `[G] Dock at ${n.station.name}`;
+        if (show) prompt.textContent = document.body.classList.contains('mobile') ? `Tap to dock at ${n.station.name}` : `[G] Dock at ${n.station.name}`;
       }
     },
   });
-  document.getElementById('ui').insertAdjacentHTML('beforeend', '<div id="dockPrompt" class="toast" style="position:fixed;left:50%;bottom:96px;transform:translateX(-50%);display:none;animation:none"></div>');
+  document.getElementById('ui').insertAdjacentHTML('beforeend', '<div id="dockPrompt" class="toast" style="position:fixed;left:50%;bottom:96px;transform:translateX(-50%);display:none;animation:none;cursor:pointer"></div>');
+  document.getElementById('dockPrompt').onclick = () => game.modes.dock();
 
   function render() {
     const W = game.ui.windows.station; if (!W) return;

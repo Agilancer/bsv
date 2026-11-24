@@ -1,7 +1,7 @@
 // Station services as plain logic over the save data (testable in node).
 import { CHASSIS, CHASSIS_BY_ID, YARDS } from '../data/chassis.js';
 import { rollItem, RARITY, newUid } from '../data/items.js';
-import { slotKeys, slotType, INV_SIZE } from '../Player.js';
+import { slotKeys, slotType, INV_SIZE, SHIP_PREFIX } from '../Player.js';
 import { RNG } from '../../engine/rng.js';
 
 const merchant = (P) => (P.talents && P.talents.merchant) || 0;
@@ -54,7 +54,7 @@ export function acquireShip(P, chassisId, price, name) {
   const old = P.ship;
   const loadout = transferLoadout(old.loadout, c, P.inventory);
   P.fleet.push({ ...old, loadout: {} });
-  P.ship = { chassis: c.id, level: Math.max(1, Math.floor(old.level * 0.5)), xp: 0, loadout, name: name || `BSV ${c.name}` };
+  P.ship = { chassis: c.id, level: Math.max(1, Math.floor(old.level * 0.5)), xp: 0, loadout, name: name || `${SHIP_PREFIX} ${c.name}` };
   return { ok: true, msg: `${c.fullName} commissioned` };
 }
 

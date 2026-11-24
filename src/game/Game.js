@@ -13,6 +13,8 @@ import { talentStats, talentWeaponMod, rank, canLearn, TALENT_BY_KEY } from './d
 import { RNG, clamp } from '../engine/rng.js';
 import { PLAYER_NAMES, CHAT } from './data/names.js';
 import { Audio } from '../engine/Audio.js';
+import { installMobile, stickHeading } from '../ui/mobile.js';
+import { SHIP_PREFIX } from './Player.js';
 
 const _v = new THREE.Vector3();
 
@@ -27,6 +29,16 @@ export class Game {
     this.mode = 'space';
     this.activeMode = null;      // {update(dt,t,realDt), exit()} for non-space modes (planet, bridge...)
     this.statProviders = [];     // fns(game) -> {stat: value}, merged into the player's ship
+    this.shipPrefix = SHIP_PREFIX;
+    this.hudHidden = false;
+  }
+
+  // persistent preferences (live in the save)
+  settings() {
+    const d = this.data || {};
+    d.settings ||= {};
+    if (d.settings.hideHudInAuto === undefined) d.settings.hideHudInAuto = true;   // default on
+    return d.settings;
   }
 
   // Enter a full-screen mode with its own scene (planet surface, bridge). Space sim pauses.
@@ -56,6 +68,7 @@ export class Game {
     this.audio = this.audio || new Audio();
     this.world.audio = this.audio;
     this.ui = new UI(this);
+    installMobile(this);
     this.wireEvents();
     this.enterSystem(this.data.system || 0);
     this.engine.add(this);
@@ -330,7 +343,7 @@ export class Game {
     if (!s || !s.alive) return;
     if (this.autoplay && this.autoplay.active) {
       // manual input takes the wheel for a moment
-      if (inp.held('turnLeft') || inp.held('turnRight') || inp.hit('throttleUp') || inp.hit('throttleDown') || m.clicked[2]) this.autoplay.yield(4);
+      if (inp.held('turnLeft') || inp.held('turnRight') || inp.hit('throttleUp') || inp.hit('throttleDown') || m.clicked[2] || (this.stick && this.stick.active)) this.autoplay.yield(4);
       else return;
     }
     let ti = THROTTLE_STEPS.findIndex((t) => Math.abs(t - s.throttle) < 0.01);
@@ -341,10 +354,17 @@ export class Game {
     const manualTurn = (inp.held('turnLeft') ? 1 : 0) - (inp.held('turnRight') ? 1 : 0);
     if (manualTurn) { this.moveTarget = null; s.rudder = manualTurn; }
     else if (!this.moveTarget) s.rudder = 0;
+    const st = stickHeading(this);
+    if (st) {
+      this.moveTarget = null;
+      if (st.heading === null) { s.rudder = 0; s.throttle = 0; }
+      else s.steerHeading(st.heading, st.throttle);
+    }
     if (inp.held('climb')) s.altTarget = Math.min(80, s.altTarget + dt * 40);
     if (inp.held('dive')) s.altTarget = Math.max(-80, s.altTarget - dt * 40);
     if (inp.hit('autoFire')) { s.autoFire = !s.autoFire; this.ui.toast(`Auto-fire ${s.autoFire ? 'on' : 'off'}`); }
     // mouse: right click sails, left click targets
+    if (m.clicked[2] && !inp.blocked && m.touch && this.clickTarget(m.x, m.y)) m.clicked[2] = false;   // tap on a ship targets it
     if (m.clicked[2] && !inp.blocked) {
       const p = this.cam.pick(m.nx, m.ny, s.position.y, _v);
       if (p) { this.moveTarget = p.clone(); this.ui.marker = { p: p.clone(), t: 1 }; }
@@ -371,6 +391,7 @@ export class Game {
       if (d < Math.max(bd, r * r) && d < r * r * 1.5) { bd = d; best = o; }
     }
     if (best) this.player.target = best;
+    return best;
   }
   cycleTarget() {
     const s = this.player;
