@@ -436,7 +436,7 @@ body.mobile #menubar button i.k { display: none; }
 body.mobile #chat { z-index: 7; }
 /* windows: fill the screen under the menu row, close button a full thumb wide, body scrolls */
 body.mobile .win { left: var(--ml) !important; right: var(--mr) !important; top: calc(var(--mt) + 54px) !important; bottom: var(--mb); z-index: 5; touch-action: pan-y; }
-body.mobile .win .wtitle { margin-bottom: 6px; font-size: 13px; }
+body.mobile .win .wtitle { font-size: 13px; }
 body.mobile .win .close { min-width: 44px; min-height: 40px; margin: -8px -6px -8px 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
 body.mobile .btn { min-height: 40px; }
 body.mobile .ctabs .btn, body.mobile #hudPeek .btn { min-height: 36px; }
@@ -446,7 +446,7 @@ body.mobile .opt { min-height: 40px; }
 body.mobile .opt input[type=checkbox] { width: 24px; height: 24px; }
 body.mobile .opt select { min-height: 36px; font-size: 14px; }
 body.mobile .tal { min-height: 44px; }
-body.mobile #tooltip { max-width: calc(100vw - 16px); }
+body.mobile #tooltip { max-width: calc(100vw - 16px); background: linear-gradient(160deg, rgba(16, 32, 74, 0.98), rgba(5, 10, 26, 0.98) 40%, rgba(10, 8, 34, 0.98)); backdrop-filter: none; }
 body.mobile #galaxy { bottom: var(--mb); }
 body.mobile #galaxy .wbody { inset: 44px 8px 8px 8px; overflow: hidden; }
 body.mobile #galaxy .gmap, body.mobile #system .smap { touch-action: none; }
@@ -498,8 +498,8 @@ body.mobile #system .smap { max-height: calc(100vh - 190px); }
 }
 /* small landscape phones: no room beside the status panel, the target goes under it */
 @media (min-aspect-ratio: 1/1) and (max-width: 700px) {
-  body.mobile #target { left: calc(var(--ml) + 114px); top: calc(var(--mt) + 62px); width: 206px; }
-  body.mobile #objectives { display: none; }
+  body.mobile #target { left: calc(var(--ml) + 114px); top: calc(var(--mt) + 70px); width: 206px; }
+  body.mobile #objectives { display: none !important; }
 }
 /* other modes: the surface and the bridge bring their own sticks and pads */
 body.planet-mode #mTray, body[data-mode="bridge"] #stick, body[data-mode="bridge"] #mStop, body[data-mode="bridge"] #mTgt, body[data-mode="bridge"] #mAuto { display: none !important; }
@@ -514,6 +514,8 @@ body.mobile[data-mode="bridge"] #mDown { left: auto; right: calc(var(--mr) + 98p
 body.mobile[data-mode="bridge"] #abilities { visibility: visible !important; left: var(--ml); right: auto; }
 body.bridge-dlg #abilities, body.bridge-dlg #mUp, body.bridge-dlg #mDown { display: none !important; }
 body.mobile #bridgeHud .bh-touch { right: var(--mr); bottom: var(--mb); }
+body.mobile #bridgeHud .bh-crewl { top: calc(var(--mt) + 52px); left: var(--ml); }
+body.mobile #bridgeHud .bh-status { top: calc(var(--mt) + 110px); left: var(--ml); }
 body.bridge-dlg #mZin, body.bridge-dlg #mZout { display: none; }
 /* galaxy map in portrait: legend as a strip on top, system details as a strip at the bottom */
 @media (max-aspect-ratio: 1/1) {

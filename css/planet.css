@@ -276,10 +276,10 @@ body.planet-touch #pButtons kbd, body.planet-touch #pAbilities .key { display: n
 #planetHud.compact #pStrip { max-width: calc(100vw - 16px); flex-wrap: wrap; justify-content: center; white-space: normal; text-align: center; font-size: 10px; top: var(--mt); padding: 4px 8px; }
 #planetHud.compact #pStrip .btn { min-height: 36px; padding: 6px 10px; }
 #pReport .rcard { max-height: calc(100vh - 16px); overflow-y: auto; }
-#planetHud.compact #pReport .rcard { padding: 12px 16px; }
-#planetHud.compact #pReport .rtitle { font-size: 17px; margin: 4px 0 2px; }
-#planetHud.compact #pReport .rquip { margin-bottom: 8px; font-size: 13px; }
-#planetHud.compact #pReport .rgot { margin: 8px 0; }
+body.mobile #pReport .rcard { padding: 12px 16px; }
+body.mobile #pReport .rtitle { font-size: 17px; margin: 4px 0 2px; }
+body.mobile #pReport .rquip { margin-bottom: 8px; font-size: 13px; }
+body.mobile #pReport .rgot { margin: 8px 0; }
 #planetHud.compact #pDeath .big { font-size: 26px; letter-spacing: 0.2em; text-align: center; }
 #planetHud.compact #pDeath .label { text-align: center; padding: 0 16px; }
 /* the orbit buttons that stay on the surface: menu top-left, AUTO under it */
@@ -300,3 +300,5 @@ body.planet-mode.mobile #toasts { top: calc(var(--mt) + 150px); }
   #planetHud.compact .streak { top: 43%; }
   body.planet-mode.mobile #toasts { top: calc(var(--mt) + 222px); }
 }
+body.mobile #pReport { background: radial-gradient(ellipse, rgba(4, 8, 22, 0.8), rgba(0, 0, 0, 0.55) 80%); }
+body.mobile #pReport .rcard { background: linear-gradient(160deg, rgba(14, 28, 66, 0.97), rgba(5, 10, 26, 0.98) 40%, rgba(9, 7, 30, 0.98)); backdrop-filter: none; }

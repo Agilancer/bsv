@@ -280,7 +280,7 @@ export function installNav(game) {
       if (s.id === P.system) { c.strokeStyle = '#58c8ff'; c.lineWidth = 2; const pr = r + 6 + Math.sin(t * 3) * 2; c.beginPath(); c.arc(x, y, pr, 0, Math.PI * 2); c.stroke(); }
       if (s.id === selected) { c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.strokeRect(x - r - 7, y - r - 7, (r + 7) * 2, (r + 7) * 2); }
       const near = S[P.system].links.includes(s.id) || (selected != null && S[selected].links.includes(s.id));
-      if (s === hover || s.id === selected || s.id === P.system || near || (P.visited.includes(s.id) && L.w > 900)) {
+      if (s === hover || s.id === selected || s.id === P.system || near || (P.visited.includes(s.id) && L.w > 900) || gView.k >= 2) {
         c.font = `${s === hover || s.id === selected ? 600 : 500} 11px Rajdhani, sans-serif`;
         c.fillStyle = locked ? '#6a7a9a' : s.danger > P.level + 3 ? '#ffb040' : '#b8c6e0';
         c.fillText(s.name + (locked ? ' 🔒' : ''), x, y - r - (s.id === selected ? 11 : 6));   // clear of the selection box
