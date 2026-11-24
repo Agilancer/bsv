@@ -9,6 +9,8 @@
 .cw-tabs button:hover { color: var(--white); }
 .cw-tabs button.on { color: var(--cyan); border-bottom-color: var(--cyan); text-shadow: 0 0 10px rgba(88, 200, 255, 0.6); }
 .cw-tabs .sp { flex: 1; }
+.cw-tabs #cwAuto { color: var(--violet, #b46bff); white-space: nowrap; }
+.cw-tabs #cwAuto:hover { color: var(--white); text-shadow: 0 0 10px rgba(180, 107, 255, 0.7); }
 .cw-body { flex: 1; min-height: 0; display: flex; gap: 12px; }
 .cw-col { display: flex; flex-direction: column; min-height: 0; }
 .cw-scroll { overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--edge) transparent; }
@@ -159,6 +161,8 @@ body.on-bridge #menubar button[data-w="bridge"] { border-color: var(--cyan); col
 @media (max-width: 900px), (pointer: coarse) {
   #crewWin { top: 8px; left: 8px; right: 8px; width: auto; transform: none; height: calc(100vh - 16px); padding: 10px; }
   .cw-tabs button { padding: 12px 10px; font-size: 11px; flex: 1; }
+  .cw-tabs .sp { display: none; }
+  .cw-tabs #cwAuto { white-space: normal; padding: 6px 6px; letter-spacing: 0.08em; }
   .cw-body { flex-direction: column; overflow-y: auto; }
   .cw-depts, .cw-detail, .cw-sec { width: auto; }
   #crewWin .wtitle { flex-wrap: nowrap; align-items: flex-start; }

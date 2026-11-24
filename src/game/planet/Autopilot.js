@@ -3,9 +3,9 @@
 // the orbit side for the autoplay captain: pick a world, fly over it, scan, deploy, then spend the
 // haul at the refinery. Exposed as game.planetAuto = { name, score(game), update(dt) -> done }.
 import * as THREE from 'three/webgpu';
-import { cargoTotal, SHIP_UPGRADES, upgradeCost, buyShipUpgrade, affordable, PROBE_UPGRADES, buyProbeUpgrade, buyChassis } from './economy.js';
-import { ensureExplorer, equipBestEx, setExChassis } from './explorerItems.js';
-import { EXPLORER_BY_ID } from '../data/chassis.js';
+import { cargoTotal, surveyPlanet } from './economy.js';
+import { ensureExplorer } from './explorerItems.js';
+import { autoCraft, fitExplorer, landingWeights, pickSite, orbitalProbeAuto, needWeights, worldAppeal } from './autoCraft.js';
 import { PLANET_ABILITIES } from './abilities.js';
 
 const _v = new THREE.Vector3(), _w = { x: 0, z: 0 };
@@ -62,8 +62,15 @@ export class PlanetPilot {
     }
     if (!this.duel && M.probes.active() < M.probes.stats.count && M.level.nearestNode(pos, 200, (n) => !n.claimed)) ctl.probe = true;
     // where to go: a full hold or a long run heads home through any fight (guns still track it)
-    const homeward = !this.duel && !M.dungeon && (hpF < 0.3 || cargoF >= 0.95 || this.t > 420 || late);
+    // (a hurt explorer with a good haul aboard banks it before it can be lost: dying costs half)
+    // (on a site well above its level it banks early and often)
+    const risky = M.siteInfo.level > M.ex.level + 2;
+    const homeward = !this.duel && !M.dungeon && (hpF < 0.3 || (hpF < 0.5 && cargoF > 0.5) || (risky && cargoF >= 0.4 && hpF < 0.8) || cargoF >= 0.95 || this.t > 420 || late);
     if (homeward) {
+      if (hpF < 0.3) this.note('hull', 'Explorer: hull critical — falling back to the lander');
+      else if ((hpF < 0.5 && cargoF > 0.5) || (risky && cargoF < 0.95 && !late && this.t <= 420)) this.note('bank', 'Explorer: hurt with a good haul aboard — banking it before it can be lost');
+      else if (cargoF >= 0.95) this.note('full', 'Explorer: hold full — back to the lander to bank it');
+      else this.note('time', 'Explorer: run time is up — heading for the lander');
       target = M.lander.position; stopAt = 4;
       if (M.atLander && (this.t > 420 || late || !M.level.nearestNode(pos, 400))) ctl.interact = true;
     } else if (kiteFrom) {
@@ -85,24 +92,39 @@ export class PlanetPilot {
     } else {
       const runLong = this.t > 420;
       const nearNode = M.level.nearestNode(pos, 400);
-      const loot = M.level.drops.find((d) => d.type === 'item' && d.pos.distanceTo(pos) < 150);
+      // everything that fell (gear, ore, credits), nearest first: kills are made at gun range, so
+      // what they drop has to be driven over
+      // (measured duels keep the plain rules they were calibrated with: first gear drop in reach,
+      // nearest deposit, the short curio detour)
+      const loot = this.duel ? M.level.drops.find((d) => d.type === 'item' && d.pos.distanceTo(pos) < 150) : this.nearestDrop(pos, 150, cargoF >= 1);
       const crate = M.level.crates.find((c) => !c.opened && c.pos.distanceTo(pos) < 120);
-      const curio = M.curios ? M.curios.nearestOpen(pos, 90, (c) => (c.autoT || 0) < 25) : null;
-      const mouth = M.dungeons.find((d) => !(d.dungeon && d.dungeon.cleared) && !d.tried);
-      const lair = M.lairs.find((l) => !l.cleared && M.ex.level + 3 >= (l.boss.levelBand ? M.siteInfo.level : 0));
+      // deposits: the one that pays best for the trip (tool bonus x what the resource is worth)
+      const dig = this.duel ? nearNode : this.bestNode(pos, 400);
+      // curiosities: a short detour while there is digging to do, a real trip when there is not,
+      // and the last one of a site is always worth it (a fully surveyed site drops a bonus cache)
+      const curio = M.curios ? M.curios.nearestOpen(pos, this.duel ? 90 : !dig ? 400 : M.curios.total - M.curios.done <= 1 ? 250 : 90, (c) => (c.autoT || 0) < 25) : null;
+      // dungeons and lairs only when the explorer is a match for the site, healthy, and there is
+      // run time left to make it count
+      const fit = this.duel || (M.ex.level + 2 >= M.siteInfo.level && hpF > 0.6);
+      const mouth = fit && (this.duel || this.runT < 130) ? M.dungeons.find((d) => !(d.dungeon && d.dungeon.cleared) && !d.tried) : null;
+      const lair = fit && (this.duel || this.runT < 150) ? M.lairs.find((l) => !l.cleared && M.ex.level + 3 >= (l.boss.levelBand ? M.siteInfo.level : 0)) : null;
       if (cargoF >= 0.95 || runLong) {
         target = M.lander.position; stopAt = 4;
         if (M.atLander && (runLong || !nearNode)) ctl.interact = true;
-      } else if (loot) target = loot.pos;
+      } else if (loot) { target = loot.pos; loot.autoT = (loot.autoT || 0) + dt; }   // (given up on if it can't be reached)
       else if (crate) target = crate.pos;
       else if (curio) { target = curio.pos; stopAt = 10; curio.autoT = (curio.autoT || 0) + dt; }   // a short detour to scan an oddity (given up on if it can't be reached)
-      else if (nearNode && (cargoF < 0.95)) {
-        target = nearNode.pos; stopAt = Math.max(6, (st.tools[0] ? st.tools[0].ts.range : 12) * 0.7);
-        if (Math.hypot(nearNode.pos.x - pos.x, nearNode.pos.z - pos.z) < stopAt + 4) { wantMine = true; M.aimPoint.copy(nearNode.pos); }
+      else if (dig && (cargoF < 0.95)) {
+        // every tool aboard works a deposit inside the longest tool's reach
+        let reach = st.tools.length ? 0 : 12;
+        for (const tl of st.tools) { reach = Math.max(reach, tl.ts.range); if (this.duel) break; }
+        target = dig.pos; stopAt = Math.max(6, reach * 0.7);
+        if (Math.hypot(dig.pos.x - pos.x, dig.pos.z - pos.z) < stopAt + 4) { wantMine = true; M.aimPoint.copy(dig.pos); }
       } else if (mouth && this.t > 60) {
         target = _v.set(mouth.x, 0, mouth.z); stopAt = 3;
+        if (this.noted !== 'dungeon') this.note('dungeon', `Explorer: surface is worked out here — going into ${mouth.name || 'the dungeon'}`);
         if (M.nearMouth === mouth) { mouth.tried = true; ctl.interact = true; this.t = 0; }
-      } else if (lair) target = _v.set(lair.x, 0, lair.z);
+      } else if (lair) { target = _v.set(lair.x, 0, lair.z); if (this.noted !== 'lair') this.note('lair', `Explorer: hunting the apex, ${lair.boss.name}`); }
       else { target = M.lander.position; if (M.atLander) ctl.interact = true; }
     }
     // telegraphed strikes: standing in a warning beats everything else — get out first
@@ -131,6 +153,53 @@ export class PlanetPilot {
     else { M.aimEnemy = null; if (target) M.aimPoint.set(target.x, pos.y, target.z); }
   }
 }
+
+// say a decision once (to the autopilot's log) when it changes; measured duels stay silent
+PlanetPilot.prototype.note = function (key, msg) {
+  if (this.noted === key) return;
+  this.noted = key;
+  const A = this.mode.game.autoplay;
+  if (A && A.log && !this.duel) A.log(msg);
+};
+
+// the nearest thing on the ground worth driving over (resources only while there is room for them)
+PlanetPilot.prototype.nearestDrop = function (pos, maxD, full) {
+  let best = null, bd = maxD * maxD;
+  for (const d of this.mode.level.drops) {
+    if ((d.type === 'res' && full) || d.autoT > 15) continue;
+    const d2 = (d.pos.x - pos.x) ** 2 + (d.pos.z - pos.z) ** 2;
+    if (d2 < bd) { bd = d2; best = d; }
+  }
+  return best;
+};
+
+// The deposit worth going to: distance against what it pays. A deposit the fitted tools have a
+// bonus on mines faster, and relics / data cores are worth more than ore (autoCraft RES_VALUE).
+PlanetPilot.prototype.bestNode = function (pos, maxD) {
+  const M = this.mode, tools = M.vehicle.stats.tools;
+  if (this.worthOf !== tools) {
+    // per resource: mining rate with these tools relative to their plain power, times what the
+    // resource is worth to the bank as it stood at planetfall (scarce kinds count for more)
+    this.worthOf = tools; this.worth = {};
+    const value = this.value || (this.value = needWeights(M.data));
+    for (const k of Object.keys(value)) {
+      let num = 0, den = 0;
+      for (const t of tools) { num += t.ts.power * (t.ts.bonus[k] || 1); den += t.ts.power; }
+      this.worth[k] = (den ? num / den : 1) * value[k];
+    }
+  }
+  let best = null, bc = Infinity;
+  const max2 = maxD * maxD;
+  for (const n of M.level.nodes) {
+    if (!n.alive) continue;
+    const d2 = (n.pos.x - pos.x) ** 2 + (n.pos.z - pos.z) ** 2;
+    if (d2 > max2) continue;
+    const c = (Math.sqrt(d2) + 40) / (this.worth[n.res] || 1) - (n === this.digging ? 25 : 0);
+    if (c < bc) { bc = c; best = n; }
+  }
+  this.digging = best;
+  return best;
+};
 
 // Circles: leave straight away from the centre (a lock that follows us: break sideways); lines:
 // step off the lane on the side we're already on. Reacts after a short human-ish beat, boosts,
@@ -169,24 +238,19 @@ PlanetPilot.prototype.dodge = function (ctl, dt) {
   return true;
 };
 
-// spend banked resources sensibly: explorer upgrades first, then the warship
+// spend banked resources sensibly (planet/autoCraft.js): explorer chassis, fabricated gear and
+// loadout first, then permanent warship and probe ranks, then the gear workshop with what is left.
+// Called after every surface run and by stations while resupplying; what it did goes to the
+// autopilot's log.
 export function autoSpend(game) {
-  const D = game.data, ex = ensureExplorer(D);
-  equipBestEx(ex);
-  // next mark of the current frame
-  const ch = EXPLORER_BY_ID[ex.chassis];
-  const nextId = `ex_${ch.frame}_${ch.tier + 1}`;
-  if (EXPLORER_BY_ID[nextId] && !ex.owned.includes(nextId) && buyChassis(D, nextId).ok) { setExChassis(ex, nextId); game.ui.toast(`Autopilot built the ${EXPLORER_BY_ID[nextId].fullName}`, 'epic'); }
-  for (let guard = 0; guard < 30; guard++) {
-    const opts = [];
-    for (const up of PROBE_UPGRADES) { const r = (D.refinery.probe || {})[up.k] || 0; if (r < up.max && affordable(D, upgradeCost(up, r))) opts.push(['p', up.k, r]); }
-    for (const up of SHIP_UPGRADES) { const r = D.refinery.ranks[up.k] || 0; if (r < up.max && affordable(D, upgradeCost(up, r))) opts.push(['s', up.k, r]); }
-    if (!opts.length) break;
-    opts.sort((a, b) => a[2] - b[2]);
-    const [kind, k] = opts[0];
-    if (kind === 'p') buyProbeUpgrade(D, k); else buyShipUpgrade(D, k);
+  const D = game.data;
+  const r = autoCraft(D);
+  if (r.log.length) {
+    const text = `Refinery: ${r.log.join('; ')}`;
+    if (game.autoplay && game.autoplay.log) game.autoplay.log(text); else game.ui.toast(text, 'epic');
   }
-  game.refitPlayer();
+  if (r.ship) game.refitPlayer();
+  return r;
 }
 
 // the orbit-side goal for the autoplay captain
@@ -246,13 +310,34 @@ export function makePlanetGoal(game) {
         autoSpend(G); return true;
       }
       if (!s || !s.alive) return true;
-      const launch = () => { S.siteIdx = 0; S.deploy(); goal.phase = 'surface'; };
+      // before the drop: collect / leave the orbital probe, pick the richest site the explorer is a
+      // match for, and fit its tools to what this world carries
+      const launch = () => {
+        const ex = ensureExplorer(G.data), sv = S.survey, say = (m) => G.autoplay && G.autoplay.log && G.autoplay.log(m);
+        const op = orbitalProbeAuto(G.data, sv, G.data.playtime);
+        if (op) say(`Orbit: ${op}`);
+        S.siteIdx = pickSite(sv, ex.level);
+        const refit = fitExplorer(ex, landingWeights(sv, G.data));
+        const site = sv.sites[S.siteIdx];
+        say(`Landing on ${sv.name}, site ${site.name} (threat ${site.level}, explorer level ${ex.level})${refit ? ' — tools refitted for this world' : ''}`);
+        S.deploy(); goal.phase = 'surface';
+      };
       if (S.state === 'panel') { launch(); return false; }
       if (!goal.target || !goal.target.parent) {
         const ex = ensureExplorer(G.data);
         const list = G.sector.planets.filter((p) => p.userData.info && p.userData.info.landable);
         if (!list.length) return true;
-        list.sort((a, b) => (a.position.distanceTo(s.position) + (ex.scanned[`${G.data.system}:${a.userData.info.name}`] ? 4000 : 0)) - (b.position.distanceTo(s.position) + (ex.scanned[`${G.data.system}:${b.userData.info.name}`] ? 4000 : 0)));
+        // nearest first; worlds not yet surveyed before ones already worked; a world whose gentlest
+        // site is above the explorer's level counts as much further away
+        const cost = (p) => {
+          const info = p.userData.info;
+          const sv = info.autoSurvey || (info.autoSurvey = surveyPlanet(info, G.sector.sys));
+          let threat = Infinity;
+          for (const x of sv.sites) threat = Math.min(threat, x.level);
+          // (a world rich in what the bank is short of is worth a longer trip)
+          return p.position.distanceTo(s.position) + (ex.scanned[`${G.data.system}:${info.name}`] ? 4000 : 0) + Math.max(0, threat - ex.level - 1) * 1500 - worldAppeal(sv, G.data) * 2500;
+        };
+        list.sort((a, b) => cost(a) - cost(b));
         goal.target = list[0];
       }
       const tp = goal.target.position;

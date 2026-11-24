@@ -39,12 +39,18 @@ export class CrewUI {
     this.confirm = null;
     this.el = h(`<div id="crewWin" class="win holo scan">
       <div class="wtitle"><span>Crew <span class="sub" id="cwSub"></span></span><span class="close">✕</span></div>
-      <div class="cw-tabs">${['roster', 'officers', 'decks', 'hire'].map((t) => `<button data-t="${t}">${{ roster: 'Roster', officers: 'Officers', decks: 'Decks', hire: 'Recruit' }[t]}</button>`).join('')}</div>
+      <div class="cw-tabs">${['roster', 'officers', 'decks', 'hire'].map((t) => `<button data-t="${t}">${{ roster: 'Roster', officers: 'Officers', decks: 'Decks', hire: 'Recruit' }[t]}</button>`).join('')}<span class="sp"></span><button id="cwAuto" title="Let the first officer sort it out: fill vacant bridge posts, move hands to short-handed departments, promote whoever has earned it and, at a station, sign recruits for the empty posts (spends up to half your credits).">Auto-manage crew</button></div>
       <div class="cw-body"></div></div>`);
     game.ui.root.append(this.el);
     this.body = this.el.querySelector('.cw-body');
     this.el.querySelector('.close').addEventListener('click', () => this.toggle(false));
-    this.el.querySelectorAll('.cw-tabs button').forEach((b) => b.addEventListener('click', () => this.show(b.dataset.t)));
+    this.el.querySelectorAll('.cw-tabs button[data-t]').forEach((b) => b.addEventListener('click', () => this.show(b.dataset.t)));
+    this.el.querySelector('#cwAuto').addEventListener('click', () => {
+      const r = sys.autoManage({ budget: Math.floor(game.data.credits * 0.5) });
+      if (!r.text) game.ui.toast(sys.canHire() ? 'The crew is in good order' : 'The crew is in good order — dock at a station to sign recruits');
+      else game.ui.toast(r.text, 'epic');
+      this.render();
+    });
     this.dirtyT = 0; this.subT = 0;
     sys.on((type) => { if (type === 'changed' || type === 'recruits' || type === 'death') this.dirtyT = Math.max(this.dirtyT, 0.25); });
   }
@@ -61,7 +67,7 @@ export class CrewUI {
 
   render() {
     if (!this.isOpen()) return;
-    this.el.querySelectorAll('.cw-tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === this.tab));
+    this.el.querySelectorAll('.cw-tabs button[data-t]').forEach((b) => b.classList.toggle('on', b.dataset.t === this.tab));
     this.updateSub();
     this.game.ui.hideTip();
     const st = this.sys.state;
