@@ -113,15 +113,18 @@ const { chromium } = require('playwright');
     const rE = rs.filter((r) => r.rE != null);   // died before its guns came to bear: no reading
     if (!rE.length) { bad.push(`${size}: no enemy-side reading at any level (they die before firing)`); continue; }
     const mP = gm(rs.map((r) => r.rP)), mE = gm(rE.map((r) => r.rE));
-    const line = `${size}: you kill it at ${mP.toFixed(2)}x the target time, it kills you at ${mE.toFixed(2)}x`;
-    console.log((Math.abs(Math.log(mP)) <= Math.log(1 + tol) && Math.abs(Math.log(mE)) <= Math.log(1 + tol) ? '  ok   ' : '  OUT  ') + line);
-    if (Math.abs(Math.log(mP)) > Math.log(1 + tol) || Math.abs(Math.log(mE)) > Math.log(1 + tol)) bad.push(line);
+    // bosses (phases, adds, reactive gear powers) get a wider band than the line classes
+    const t = SIZE_I[size] >= 4 ? 0.5 : tol;
+    const line = `${size}: you kill it at ${mP.toFixed(2)}x the target time, it kills you at ${mE.toFixed(2)}x (band ±${Math.round(t * 100)}%)`;
+    const okSz = Math.abs(Math.log(mP)) <= Math.log(1 + t) && Math.abs(Math.log(mE)) <= Math.log(1 + t);
+    console.log((okSz ? '  ok   ' : '  OUT  ') + line);
+    if (!okSz) bad.push(line);
     for (const r of rs) { const far = r.rP > 3 || r.rP < 1 / 3 || (r.rE != null && (r.rE > 3 || r.rE < 1 / 3)); r.ok = far ? 'FAR' : r.rE == null ? 'no reading' : 'ok'; if (far) bad.push(`L${r.L} ${size}: you ${r.playerKillsIt}s (want ${r.wantP}), it ${r.itKillsPlayer}s (want ${r.wantE})`); }
   }
   console.table(rows.map(({ L, size, design, playerKillsIt, wantP, rP, itKillsPlayer, grossTTK, wantE, rE, landed, armor, regen, ok }) => ({ L, size, design, playerKillsIt, wantP, rP, itKillsPlayer, grossTTK, wantE, rE, landed, armor, regen, ok })));
   await b.close();
   if (process.argv.includes('--gate')) {
-    if (bad.length) { console.log('GATE FAIL (±35% of balance.TTK):\n  ' + bad.join('\n  ')); process.exit(1); }
+    if (bad.length) { console.log('GATE FAIL (±35% of balance.TTK, bosses ±50%):\n  ' + bad.join('\n  ')); process.exit(1); }
     console.log('GATE PASS');
   }
 })();
