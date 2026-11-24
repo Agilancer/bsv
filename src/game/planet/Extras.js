@@ -11,7 +11,7 @@ export class PlanetExtras {
     this.mode = mode;
     const root = mode.hud.root;
     this.comm = h(`<div id="pComm" class="holo"><div class="cwave"><i></i><i></i><i></i><i></i><i></i></div><div class="cbody"><div class="cwho"></div><div class="ctext"></div></div></div>`);
-    this.streakEl = h(`<div id="pStreak"><div class="sbig"></div><div class="ssub"></div></div>`);
+    this.streakEl = h(`<div id="pStreak" class="streak"><div class="sbig"></div><div class="ssub"></div></div>`);
     this.cardEl = h(`<div id="pCard" class="holo"><div class="ktag"></div><div class="ktitle"></div><div class="ktext"></div></div>`);
     root.append(this.comm, this.streakEl, this.cardEl);
     this.nextRadio = 0; this.commT = 0; this.typed = 0; this.line = null; this.said = new Set();

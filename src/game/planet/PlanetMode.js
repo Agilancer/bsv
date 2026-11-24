@@ -276,6 +276,7 @@ export class PlanetMode {
     else if (plan === 'golem' || plan === 'elemental') { fx.rocks(p, 14 + e.scale * 4, 0x4a3a30, 14 + e.scale * 4); fx.glowBurst(p, def.vis.glow, 4 * e.scale, 0.3, 1.5); fx.dust(p, 3 * e.scale, this.dustHex, 3, 6); }
     else { fx.ichor(p, def.ichor, 14 + e.scale * 6); fx.glowBurst(p, def.ichor, 3 * e.scale, 0.25, 1.2); fx.dust(p, 2 * e.scale, this.dustHex, 2, 4); }
     if (big) {
+      if (this.game.flavor && !this.game.autoplay) this.game.flavor.slowmo(0.7);
       for (let i = 0; i < 8; i++) this.later(i * 0.18, () => { _a.copy(e.pos).add(_w.set((Math.random() - 0.5) * e.radius * 2, Math.random() * e.height, (Math.random() - 0.5) * e.radius * 2)); fx.explode(_a, 0.6 + Math.random() * 0.8, def.vis.glow); this.cam.addShake(1); });
       this.later(1.6, () => { fx.explode(e.pos, 2.5, 0xffa050); fx.ring(e.pos, 30, def.vis.glow, 80); this.cam.addShake(4); this.engine.flash(0.25, 0xffd0a0); });
     }

@@ -376,7 +376,7 @@ export class Curios {
     this.active = null; this.done = 0;
   }
   get total() { return this.list.length; }
-  nearestOpen(p, maxD = 1e9) { let best = null, bd = maxD; for (const c of this.list) { if (c.scanned) continue; const d = Math.hypot(c.x - p.x, c.z - p.z); if (d < bd) { bd = d; best = c; } } return best; }
+  nearestOpen(p, maxD = 1e9, pred = null) { let best = null, bd = maxD; for (const c of this.list) { if (c.scanned || (pred && !pred(c))) continue; const d = Math.hypot(c.x - p.x, c.z - p.z); if (d < bd) { bd = d; best = c; } } return best; }
   update(dt) {
     const M = this.mode, V = M.vehicle, vp = V.position, fx = M.pfx, t = M.engine.time;
     const live = V.alive && M.state === 'play';

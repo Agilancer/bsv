@@ -48,3 +48,13 @@ test('bosses have phases; the roster reveals itself with danger', () => {
 });
 
 test('ten roles per size class', () => { for (const s of SIZES) assert.equal(ROLES[s.k].length, 10); });
+
+// ---- space banter ----
+import { LAST_WORDS, lastWords, SPACE_STREAKS, spaceStreak } from '../src/game/flavor/data.js';
+import { ENEMY_FACTIONS as FLAVOR_FACTIONS } from '../src/game/data/enemies.js';
+test('every enemy faction has last words; streak tiers ascend', () => {
+  for (const f of Object.keys(FLAVOR_FACTIONS)) { assert.ok(LAST_WORDS[f] && LAST_WORDS[f].length >= 4, f); assert.ok(lastWords(f)); }
+  assert.equal(lastWords('nobody'), null);
+  let last = 1; for (const [n, title] of SPACE_STREAKS) { assert.ok(n > last && title); last = n; }
+  assert.equal(spaceStreak(2).tier, 0); assert.equal(spaceStreak(5), null);
+});
