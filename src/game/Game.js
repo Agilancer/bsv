@@ -9,6 +9,7 @@ import { RARITY, rollItem, grantItemXp, BASES } from './data/items.js';
 import { newPlayer, load, save, xpForLevel, shipXpForLevel, MAX_LEVEL, INV_SIZE, slotKeys, slotType, itemScore } from './Player.js';
 import { THROTTLE_STEPS } from './ship/Ship.js';
 import { galaxy } from './galaxy.js';
+import { talentStats, talentWeaponMod, rank, canLearn, TALENT_BY_KEY } from './data/talents.js';
 import { RNG, clamp } from '../engine/rng.js';
 import { PLAYER_NAMES, CHAT } from './data/names.js';
 
@@ -47,6 +48,7 @@ export class Game {
 
   start(fresh = false) {
     this.data = (!fresh && load()) || newPlayer();
+    this.statProviders.push((g) => talentStats(g.data));
     this.spaceScene = this.engine.scene; this.spaceCamera = this.engine.camera;
     this.world = new World(this.engine, this.cam);
     this.world.game = this;
@@ -75,11 +77,24 @@ export class Game {
     const s = this.world.addShip({ chassis: CHASSIS_BY_ID[P.ship.chassis], loadout: P.ship.loadout, team: 1, isPlayer: true, name: P.ship.name, level: P.ship.level, faction: 'player' }, false);
     s.position.copy(pos);
     s.persistent = true;
-    s.extraStats = this.extraStats(); s.refit(); s.hull = s.maxHull;
+    s.extraStats = this.extraStats(); s.weaponMod = talentWeaponMod(P); s.refit(); s.hull = s.maxHull;
     this.player = s; this.world.player = s;
     this.cam.follow = s;
     this.cam.focus.copy(pos);
     this.world.fx.column(pos, 0x58b8ff, 140, 60);
+    return s;
+  }
+
+  // the flagship changed (bought, swapped): rebuild the ship in place
+  swapPlayerShip() {
+    const old = this.player;
+    const pos = old ? old.position.clone() : this.sector.entryPoint();
+    const heading = old ? old.heading : 0;
+    if (old) this.world.removeShip(old);
+    const s = this.spawnPlayer(pos);
+    s.heading = heading;
+    if (this.docked) s.invuln = true;
+    this.ui.refresh();
     return s;
   }
 
@@ -234,12 +249,29 @@ export class Game {
     this.ui.refresh();
   }
   refitPlayer() {
-    if (this.player) { this.player.loadout = this.data.ship.loadout; this.player.extraStats = this.extraStats(); this.player.refit(); }
+    if (this.player) { const p = this.player; p.loadout = this.data.ship.loadout; p.extraStats = this.extraStats(); p.weaponMod = talentWeaponMod(this.data); p.refit(); }
     this.ui.refresh();
   }
 
   // ---------------- abilities ----------------
-  abilityCd(a) { return a.cd * (1 - Math.min(0.5, (this.player && this.player.stats.cdr) || 0)); }
+  abilityCd(a) {
+    let cd = a.cd * (1 - Math.min(0.5, (this.player && this.player.stats.cdr) || 0));
+    if (a.k === 'volley') cd *= 1 - 0.15 * rank(this.data, 'broadMaster');
+    if (a.k === 'evasive') cd *= 1 - 0.2 * rank(this.data, 'evasivePro');
+    return cd;
+  }
+  learnTalent(k) {
+    if (!canLearn(this.data, k)) return false;
+    this.data.talents[k] = (this.data.talents[k] || 0) + 1;
+    this.refitPlayer();
+    this.ui.toast(`${TALENT_BY_KEY[k].name} ${this.data.talents[k]}/${TALENT_BY_KEY[k].max}`);
+    return true;
+  }
+  resetTalents() {
+    const cost = 200 * this.data.level;
+    if (this.data.credits < cost) { this.ui.toast(`Respec costs ${cost} ¢`, 'warn'); return; }
+    this.data.credits -= cost; this.data.talents = {}; this.refitPlayer();
+  }
   useAbility(k) {
     const a = ABILITY_BY_KEY[k], s = this.player;
     if (!a || !s || !s.alive) return false;
@@ -278,7 +310,7 @@ export class Game {
       this.ui.death(false);
       // hostiles near the wreck lose interest
       for (const o of this.world.ships.slice()) if (o.team !== 1 && !o.persistent) this.world.removeShip(o);
-      this.spawnPlayer(this.sector.entryPoint());
+      this.spawnPlayer((this.respawnPoint && this.respawnPoint()) || this.sector.entryPoint());
       save(this.data);
     });
   }
@@ -339,6 +371,26 @@ export class Game {
     s.target = list[(i + 1) % list.length];
   }
 
+  talentTick(dt, t) {
+    const s = this.player; if (!s || !s.alive || dt === 0) return;
+    if (rank(this.data, 'lastStand') && s.hull < s.maxHull * 0.25 && t > (this.lastStandT || 0)) {
+      this.lastStandT = t + 60;
+      for (let i = 0; i < 4; i++) s.shields[i] = s.maxShield * 0.3;
+      this.world.fx.ring(s.position, s.dims.L, 0x58b8ff, 80);
+      this.ui.toast('Last Stand: shields restored', 'epic');
+    }
+    if (rank(this.data, 'ram') && s.speed > s.maxSpeed * 0.6) {
+      const bow = _v.set(Math.sin(s.heading), 0, Math.cos(s.heading)).multiplyScalar(s.dims.L * 0.5).add(s.position);
+      for (const o of this.world.ships) {
+        if (!o.alive || !this.world.hostile(s, o) || o.position.distanceTo(bow) > o.dims.W * 2.5 + s.dims.W) continue;
+        if ((o._rammedT || 0) > t) continue;
+        o._rammedT = t + 1;
+        this.world.combat.damage(o, s.maxHull * 0.12 * (s.speed / s.maxSpeed), 'kinetic', bow, s, null);
+        this.world.fx.explosion(bow, 0.6, 0xffc080); this.cam.addShake(5);
+      }
+    }
+  }
+
   update(dt, t, realDt) {
     const inp = this.input;
     if (inp.hit('escape')) { if (!this.ui.closeAll() && this.player) this.player.target = null; }
@@ -352,6 +404,7 @@ export class Game {
     if (inp.hit('dock')) this.command('dock');
     if (inp.hit('scan')) this.command('scan');
     if (this.mode === 'space') {
+      this.talentTick(dt, t);
       this.helm(dt);
       if (this.autoplay) this.autoplay.update(dt, t);
       this.sector.update(dt);
@@ -362,6 +415,7 @@ export class Game {
     if (this.mode === 'space') this.cam.update(dt, t, realDt);
     this.ui.update(dt, realDt);
     this.data.playtime += realDt;
+    this.playtime = (this.playtime || 0) + dt;
     this.saveT -= realDt;
     if (this.saveT <= 0) { this.saveT = 20; save(this.data); }
   }

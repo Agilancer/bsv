@@ -26,7 +26,8 @@ export class Autoplay {
     this.side = 1;
     this.manageT = 2;
     this.patrolPt = null;
-    this.extra = [];          // [{name, score(game) -> number, update(dt) -> done?}]
+    this.lastDock = game.playtime || 0;
+    this.extra = (game.autoplayGoals || []).map((f) => f(this));   // [{name, score(game), update(dt) -> done?}]
     this.goal = null;
     this.log = (m) => game.ui.chat('AUTO', null, m, 'sys');
   }

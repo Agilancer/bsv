@@ -107,6 +107,7 @@ export class Ship {
       if (!item || BASES[item.base].slot !== hp.type) continue;
       const ws = weaponStats(item);
       ws.range *= 1 + (st.range || 0);
+      if (this.weaponMod) this.weaponMod(ws, item, hp);   // captain talents etc.
       const w = { hp, item, ws, key, cd: Math.random() * 1.5, arc: ARC[hp.type], head: null, muzzles: [], object: null, burst: 0 };
       if (hp.type !== 'hangar') {
         const m = buildWeapon(item, hp, s * (hp.type === 'prow' ? 1.2 : 1));
@@ -279,7 +280,7 @@ export class Ship {
     const ws = w.ws;
     w.cd = 1 / ws.rof;
     const n = Math.max(1, ws.barrels);
-    const shots = ws.unique.includes('splitShot') ? 3 : 1;
+    const shots = ws.unique.includes('splitShot') || (ws.splitChance && Math.random() < ws.splitChance) ? 3 : 1;
     const doFire = (delayIdx) => {
       for (let i = 0; i < n; i++) {
         const delay = instant ? 0 : (w.hp.type === 'broadside' ? i * 0.09 + delayIdx : i * 0.05 + delayIdx);

@@ -43,6 +43,8 @@ export const BASES = {
   targeting: { slot: 'module', name: 'Targeting Matrix', kind: 'module', stats: { crit: 0.05, range: 0.08 }, icon: 'sensor' },
   tractor: { slot: 'module', name: 'Tractor Array', kind: 'module', stats: { pickup: 0.6, lootFind: 0.06 }, icon: 'tractor' },
   repair: { slot: 'module', name: 'Damage Control Bay', kind: 'module', stats: { hullRegen: 0.008, crewEff: 0.05 }, icon: 'repair' },
+  // not equippable: hull blueprints, redeemed at shipyards
+  blueprint: { slot: 'blueprint', name: 'Hull Blueprint', kind: 'blueprint', icon: 'hangar', noRoll: true },
 };
 
 // affix pool. scope: 'weapon' only on weapons, 'any' anywhere, 'module' modules/hangars.
@@ -87,7 +89,7 @@ export const UNIQUES = {
 };
 
 export const BASE_KEYS_BY_SLOT = {};
-for (const [k, b] of Object.entries(BASES)) (BASE_KEYS_BY_SLOT[b.slot] ||= []).push(k);
+for (const [k, b] of Object.entries(BASES)) if (!b.noRoll) (BASE_KEYS_BY_SLOT[b.slot] ||= []).push(k);
 
 let uidCounter = Date.now() % 1e7;
 export function newUid() { return 'i' + (uidCounter++).toString(36); }
@@ -139,7 +141,7 @@ function itemName(item, rng) {
 }
 
 export function rollItem(ilvl, rng, { luck = 0, slot = null, rarity = null } = {}) {
-  const keys = slot ? BASE_KEYS_BY_SLOT[slot] : Object.keys(BASES);
+  const keys = slot ? BASE_KEYS_BY_SLOT[slot] : Object.keys(BASES).filter((k) => !BASES[k].noRoll);
   const weights = keys.map((k) => [k, BASES[k].slot === 'module' ? 1.1 : BASES[k].slot === 'hangar' ? 0.5 : 1]);
   return makeItem(rng.weighted(weights), ilvl, rarity || rollRarity(rng, luck), rng);
 }
@@ -203,7 +205,9 @@ export function itemShipStats(item, out) {
 export function describe(item) {
   const b = BASES[item.base], r = RARITY[item.rarity];
   const lines = [];
-  if (b.kind !== 'module') {
+  if (b.kind === 'blueprint') {
+    lines.push('Redeem at any shipyard to build this hull', 'for 40% of its list price.');
+  } else if (b.kind !== 'module') {
     const s = weaponStats(item);
     if (b.kind === 'hangar') lines.push(`${s.count} ${s.craft}s · rebuild ${s.rebuild}s`, s.heal ? `Repairs ${s.heal.toFixed(0)} hull/s` : `${s.dmg.toFixed(0)} damage per strike`);
     else {
