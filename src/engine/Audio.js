@@ -92,6 +92,8 @@ export class Audio {
   ui(t, g) { this.osc('sine', 880, 1320, t, 0.12, 0.1 * g); return 0.1; }
   jump(t, g) { this.osc('sawtooth', 60, 2400, t, 2.2, 0.15 * g); this.burst(t, 2.4, 0.3 * g, 200, 2, 'bandpass', 6000).connect(this.verb); return 2; }
   levelup(t, g) { [523, 659, 784, 1046].forEach((f, i) => this.osc('triangle', f, f * 1.001, t + i * 0.09, 0.9, 0.12 * g).connect(this.verb)); return 1; }
+  honk(t, g) { for (const f of [233, 294]) { this.osc('sawtooth', f, f * 0.98, t, 0.42, 0.16 * g); this.osc('square', f * 2, f * 1.96, t, 0.4, 0.04 * g); } return 0.4; }
+  squeak(t, g) { const f = 900 + Math.random() * 500; this.osc('sine', f, f * 2.1, t, 0.09, 0.16 * g); this.osc('triangle', f * 1.8, f * 0.9, t + 0.08, 0.14, 0.12 * g); return 0.15; }
   loot(t, g) { [1046, 1318, 1568, 2093].forEach((f, i) => this.osc('sine', f, f, t + i * 0.06, 0.6, 0.08 * g).connect(this.verb)); return 0.5; }
 
   // --- generative music ---

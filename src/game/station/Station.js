@@ -139,6 +139,31 @@ export class Station {
         for (const z of [-38, 0, 38]) add(s, 'glow', new THREE.BoxGeometry(50, 2.6, 1.2), T(x, -120, z).premultiply(m));
       }
     }
+    // outposts wear their trade on the hull
+    if (this.kind === 'research') {
+      // a big listening dish on a boom, and a sensor mast
+      add(s, 'trim', new THREE.CylinderGeometry(4, 4, 120, 6), R(0, 0, Math.PI / 2).premultiply(T(110, 120, 0)));
+      add(s, 'hull', new THREE.ConeGeometry(70, 40, 20, 1, true), R(Math.PI, 0, 0).premultiply(T(170, 150, 0)));
+      add(s, 'glow', new THREE.SphereGeometry(7, 8, 6), T(170, 150, 0));
+    } else if (this.kind === 'mining') {
+      // ore hoppers slung under the spindle
+      for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.6; add(s, 'dark', new THREE.BoxGeometry(56, 70, 56), T(Math.cos(a) * 78, -130, Math.sin(a) * 78)); add(s, 'glow', new THREE.BoxGeometry(40, 4, 40), T(Math.cos(a) * 78, -93, Math.sin(a) * 78)); }
+    } else if (this.kind === 'relay') {
+      // a very tall aerial with marker lights
+      add(s, 'trim', new THREE.CylinderGeometry(2.5, 5, 260, 6), T(0, 380, 0));
+      for (let k = 0; k < 4; k++) add(s, 'beacon', new THREE.SphereGeometry(4, 6, 5), T(0, 290 + k * 70, 0));
+      add(s, 'dark', new THREE.BoxGeometry(90, 4, 4), T(0, 330, 0)); add(s, 'dark', new THREE.BoxGeometry(4, 4, 60), T(0, 400, 0));
+    } else if (this.kind === 'haven') {
+      // bolted-on modules that no yard would sign off
+      add(s, 'dark', new THREE.BoxGeometry(90, 60, 70), R(0.2, 0.5, 0.15).premultiply(T(70, -100, 40)));
+      add(s, 'hull', new THREE.CylinderGeometry(22, 22, 110, 10), R(0, 0, 1.1).premultiply(T(-80, 90, -30)));
+      add(s, 'glow', new THREE.BoxGeometry(30, 6, 6), T(96, -70, 62));
+    } else if (this.kind === 'shrine') {
+      // a spire toward the Hollow Star, ringed by lanterns
+      add(s, 'trim', new THREE.ConeGeometry(22, 300, 6), T(0, 330, 0));
+      for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; add(s, 'beacon', new THREE.SphereGeometry(5, 6, 5), T(Math.cos(a) * 62, 200, Math.sin(a) * 62)); }
+      add(s, 'glow', new THREE.TorusGeometry(62, 2, 4, 32), R(Math.PI / 2, 0, 0).premultiply(T(0, 200, 0)));
+    }
     // defence turrets
     this.turrets = [];
     for (let i = 0; i < 4; i++) {
