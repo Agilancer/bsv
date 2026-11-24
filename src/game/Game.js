@@ -172,7 +172,7 @@ export class Game {
     }
     // gear mastery
     for (const it of Object.values(sh.loadout)) if (it && grantItemXp(it, Math.round(xp * 0.5))) {
-      this.ui.chat('LOOT', null, `${it.name} mastery ${it.lvl}`, 'loot', 'loot');
+      if (it.lvl % 5 === 0) this.ui.chat('LOOT', null, `${it.name} reached mastery ${it.lvl}`, 'loot', 'loot');
       if (this.player) this.player.refit();
     }
     this.ui.refresh();

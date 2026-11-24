@@ -464,6 +464,15 @@ export class UI {
       if (d.type !== 'item') continue;
       const [x, y] = map(d.pos); c.fillStyle = RARITY[d.item.rarity].color; c.fillRect(x - 2, y - 2, 4, 4);
     }
+    if (g.raidMarker) {
+      let [x, y] = map(g.raidMarker);
+      const dx = x - cx, dy = y - cy, dd = Math.hypot(dx, dy);
+      if (dd > R - 12) { x = cx + dx / dd * (R - 12); y = cy + dy / dd * (R - 12); }
+      c.strokeStyle = '#ff9a2e'; c.lineWidth = 3; c.shadowColor = '#ff9a2e'; c.shadowBlur = 12;
+      const pr = 10 + Math.sin(g.engine.realTime * 5) * 3;
+      c.beginPath(); c.arc(x, y, pr, 0, Math.PI * 2); c.stroke(); c.shadowBlur = 0;
+      c.fillStyle = '#ff9a2e'; c.font = '700 18px Orbitron, sans-serif'; c.textAlign = 'center'; c.fillText('☠', x, y + 6);
+    }
     for (const o of world.ships) {
       if (!o.alive || o === s) continue;
       const [x, y] = map(o.position);
