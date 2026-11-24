@@ -18,7 +18,7 @@ export function enemyChassis(d) {
     len: d.len, beam: d.beam, crew: base.crew, glow: d.glow,
     hull: Math.round(base.hull * d.mul.hull), shield: Math.round(base.shield * d.mul.shield),
     speed: +(base.speed * d.mul.speed * (d.sizeIndex >= 4 ? 0.85 : 1)).toFixed(1), turn: +(base.turn * d.mul.turn).toFixed(1),
-    slots: designSlots(d), level: 1, price: 0, seed: d.seed,
+    slots: designSlots(d), level: 1, price: 0, seed: d.seed, livery: d.faction,
     arch: { ...ARCH[d.tier], decks: Math.min(3, 1 + Math.floor(d.sizeIndex / 2)), outrig: d.sizeIndex >= 5 && d.role !== 'devourer' ? 'hulls' : ARCH[d.tier].outrig }, kit: d.kit, shape: d.shape,
   };
   chassisCache.set(d.id, c);

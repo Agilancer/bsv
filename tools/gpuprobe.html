@@ -6,6 +6,7 @@
 // Renders the engine's post chain into an offscreen target and reads pixels back, so the
 // WebGPU path can be verified in headless browsers whose screenshots can't capture it.
 //   tools/gpuprobe.html            WebGPU     tools/gpuprobe.html?webgl   WebGL2
+//   ?id=<chassis id> probes another player hull, ?enemy=<design id> an enemy hull (livery, role kit)
 import * as THREE from 'three/webgpu';
 import { Engine } from './src/engine/Engine.js';
 import { preload } from './src/engine/Assets.js';
@@ -14,14 +15,18 @@ import { SpaceBackdrop } from './src/fx/Space.js';
 import { SpaceLights } from './src/fx/lighting.js';
 import { CHASSIS_BY_ID } from './src/game/data/chassis.js';
 import { hullFor } from './src/game/ship/HullBuilder.js';
+import { ENEMY_BY_ID } from './src/game/data/enemies.js';
+import { enemyChassis } from './src/game/enemyFactory.js';
 window.__step = 'init'; window.addEventListener('error', (ev) => window.__err = ev.message); window.addEventListener('unhandledrejection', (ev) => window.__err = String(ev.reason));
 const e = await new Engine(document.body).init();
 window.__step = 'engine';
 initMaterials(e);
-await preload(['hull_graphite', 'hull_gold', 'hull_dropship']);
+await preload(['hull_naval', 'hull_graphite', 'hull_gold', 'hull_glacier', 'hull_dropship', 'hull_apc', 'hull_mech', 'hull_alien', 'glow_alien']);
 e.add(new SpaceBackdrop(e));
 new SpaceLights(e.scene);
-const h = hullFor(CHASSIS_BY_ID.velscour_6); e.scene.add(h.group);
+const q = new URLSearchParams(location.search);
+const chassis = q.get('enemy') ? enemyChassis(ENEMY_BY_ID[q.get('enemy')]) : CHASSIS_BY_ID[q.get('id') || 'velscour_6'];
+const h = hullFor(chassis); e.scene.add(h.group);
 e.camera.position.set(120, 80, 140); e.camera.lookAt(0, 0, 0);
 window.__step = 'scene';
 const rt = new THREE.RenderTarget(256, 144, { type: THREE.UnsignedByteType });

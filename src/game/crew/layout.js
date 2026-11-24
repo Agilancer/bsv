@@ -2,7 +2,7 @@
 // top (bridge on its crown), and rooms laid along each deck. Pure data in hull fractions so it is testable without a
 // page and so a hit on the hull can be traced to the room it landed in.
 //   u: 0 stern .. 1 bow (the ship's local z), row: deck index from the top of the main hull (castle decks are < 0)
-import { YARDS } from '../data/chassis.js';
+import { hullPlan } from '../ship/hullPlan.js';
 
 export const SECTIONS = {
   bridge:      { name: 'Bridge', depts: ['command', 'helm'] },
@@ -19,11 +19,10 @@ export const SECTIONS = {
   lounge:      { name: 'Observation Lounge', depts: [] },
 };
 
+// the castle's run along the hull and how many tiers it stacks, from the hull builder's own plan
 export function castleSpan(chassis) {
-  const y = YARDS[chassis.yard];
-  const u0 = y.castle === 'stern' ? 0.04 : 0.07, u1 = y.castle === 'stern' ? 0.24 : 0.36 + chassis.tier * 0.006;
-  const tiers = y.castle === 'block' ? 2 + Math.floor(chassis.tier / 3) : y.castle === 'stern' ? 2 : 2 + Math.floor(chassis.tier / 2.5);
-  return { u0, u1, tiers };
+  const c = hullPlan(chassis).castle;
+  return { u0: c.u0, u1: c.u1, tiers: c.tiers };
 }
 
 export function deckPlan(chassis) {

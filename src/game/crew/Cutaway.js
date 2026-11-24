@@ -1,10 +1,13 @@
-// The ship in side profile, Star-Trek-cutaway style, drawn as a glowing holo-blueprint on a 2D canvas: decks and labelled
-// rooms laid out from the chassis (src/game/crew/layout.js), the reactor column in engineering, gun ports, the bridge on
-// the crown of the superstructure, and every crew member as a little figure walking their post, coloured by department.
+// The ship in side profile, Star-Trek-cutaway style, drawn as a glowing holo-blueprint on a 2D canvas: the outline is the
+// hull's own silhouette (ship/hullPlan.js sideProfile: ram, castle tiers, spires, keel), decks and labelled rooms laid
+// out from the chassis (src/game/crew/layout.js) and fitted inside it, the reactor column in engineering, gun ports, the
+// bridge on the crown of the superstructure, and every crew member as a little figure walking their post, coloured by
+// department.
 // Rooms whose section is burning flash red; recent hull hits flare where they landed.
 import { DEPTS, OFFICER_POSTS, skillOf, rankAbbr } from './data.js';
 import { SECTIONS } from './layout.js';
 import { YARDS } from '../data/chassis.js';
+import { sideProfile, profileAt } from '../ship/hullPlan.js';
 
 const TAU = Math.PI * 2;
 const hash = (n) => { n = (n ^ 61) ^ (n >>> 16); n = n + (n << 3); n = n ^ (n >>> 4); n = Math.imul(n, 0x27d4eb2d); return ((n ^ (n >>> 15)) >>> 0) / 4294967296; };
@@ -36,32 +39,87 @@ export class Cutaway {
     this.layoutKey = '';
   }
 
-  // pixel geometry of the plan
+  // Pixel geometry of the plan. The outline is the hull's own side profile (ship/hullPlan.js
+  // sideProfile: the loft sections, castle tiers, ram, spires, keel), stretched to fit the decks:
+  // the main hull maps linearly onto the deck rows, each castle room row onto one castle tier,
+  // and whatever stands higher (bridge, forward spire, masts) is compressed above it.
   layout() {
     const ch = this.sys.chassis, plan = this.sys.deckPlan();
     const key = `${ch.id}:${this.w}x${this.h}`;
     if (key === this.layoutKey) return this.g;
     this.layoutKey = key;
     const y = YARDS[ch.yard];
+    const prof = sideProfile(ch);
     const W = this.w, H = this.h, D = plan.decks, C = plan.castleRows;
     const narrow = W < 560;
     const x0 = narrow ? 34 : 78, x1 = W - (narrow ? 14 : 34);
-    const keel = y.keel > 0 ? 0.55 : 0.15;
-    const dh = Math.max(16, Math.min(78, (H - 100) / (D + C * 0.8 + 1.4 + keel + 0.6), (x1 - x0) / (D * 3.2)));
-    const cdh = dh * 0.8;
-    const mast = cdh * 1.75;
-    const total = D * dh + C * cdh + keel * dh + mast;
-    const top = Math.max(60, (H - total) / 2 + C * cdh + mast + 10);
+    const Lh = prof.L, Ht = prof.Ht, Hb = prof.Hb, depth = Ht + Hb;
+    // horizontal: the stern at x0, the furthest reach of the bow (bowsprit, blades, tines) at x1
+    const zFar = Math.max(prof.zMax, ...prof.lines.map((l) => Math.max(l.z0, l.z1)));
+    const uHi = Math.max(1, zFar / Lh + 0.5);
     const L = x1 - x0;
-    const X = (u) => x0 + u * L;
-    const rooms = plan.rooms.map((r) => {
-      const yy = r.row >= 0 ? top + r.row * dh : top + r.row * cdh;
-      const hh = r.row >= 0 ? dh : cdh;
-      return { ...r, x: X(r.u0), y: yy, w: X(r.u1) - X(r.u0), h: hh, color: secColor(r.sec) };
-    });
+    const X = (u) => x0 + (u / uHi) * L;
+    const XZ = (z) => X(z / Lh + 0.5);
+    // vertical, in deck heights above the hull's top line: piecewise through the castle tiers
+    const towers = prof.castle.towers, br = prof.castle.bridge;
+    const kHull = D / depth;                           // deck heights per hull unit inside the main hull
+    const brk = [[Ht, 0]];
+    let f = 0;
+    if (towers[0].y0 > Ht + 1e-6) { f += (towers[0].y0 - Ht) * kHull; brk.push([towers[0].y0, f]); }
+    const castleBase = f;
+    for (let i = 0; i < C - 1; i++) { f += 0.8; brk.push([towers[i].y1, f]); }
+    f += 0.8; brk.push([towers[towers.length - 1].y1, f]);
+    if (br) { f += 0.36; brk.push([br.y1, f]); }
+    const crownF = f, aboveK = 0.32 / Ht;              // higher than the crown: about a third of a deck per Ht
+    const up = (yy) => {                               // deck heights above the hull's top line
+      if (yy <= Ht) return 0;
+      for (let i = 1; i < brk.length; i++) {
+        const [ya, fa] = brk[i - 1], [yb, fb] = brk[i];
+        if (yy <= yb) return fa + (fb - fa) * (yy - ya) / Math.max(1e-6, yb - ya);
+      }
+      return crownF + (yy - brk[brk.length - 1][0]) * aboveK;
+    };
+    const keelDepth = Math.max(1e-6, -Hb - Math.min(...prof.bottom.map((p) => p[1])));
+    const kKeel = Math.min(kHull, 0.6 / keelDepth);
+    const down = (yy) => (yy >= -Hb ? (Ht - yy) * kHull : D + (-Hb - yy) * kKeel);   // deck heights below the top line
+    // fit: everything above the top line, the decks and the keel, plus room for spires and masts
+    const above = Math.max(crownF + 0.9, ...prof.top.map((p) => up(p[1])), ...prof.lines.map((l) => up(Math.max(l.y0, l.y1)))) + 0.3;
+    const below = Math.max(D, ...prof.bottom.map((p) => down(p[1]))) + 0.2;
+    const dh = Math.max(16, Math.min(78, (H - 92) / (above + below), L / uHi / (D * 3.2)));
+    const cdh = dh * 0.8;
+    const top = Math.max(56 + above * dh, (H - (above + below) * dh) / 2 + above * dh + 18);
     const bottom = top + D * dh;
-    this.g = { plan, ch, yard: y, x0, x1, L, X, top, bottom, dh, cdh, D, C, rooms, keel, narrow, hull: hullPath(y.prow, X, top, bottom, dh) };
-    this.g.castle = castleRects(plan, X, top, cdh);
+    const Y = (yy) => (yy >= Ht ? top - up(yy) * dh : top + down(yy) * dh);
+    // the outline, and the main hull's own deck and bilge lines where other parts stand over them
+    const hull = new Path2D();
+    prof.outline.forEach(([z, yy], i) => (i ? hull.lineTo(XZ(z), Y(yy)) : hull.moveTo(XZ(z), Y(yy))));
+    hull.closePath();
+    const inner = new Path2D();
+    for (const line of [prof.hullTop, prof.hullBottom]) line.forEach(([z, yy], i) => (i ? inner.lineTo(XZ(z), Y(yy)) : inner.moveTo(XZ(z), Y(yy))));
+    // each main deck runs as far forward as the hull is deep enough for it; rooms forward of
+    // engineering close up proportionally, so every compartment keeps its place in the row
+    const span = deckSpans(prof, D, Ht, depth);
+    const pivot = 0.17;
+    const rowExt = new Map();
+    for (const r of plan.rooms) { const e = rowExt.get(r.row) || [1, 0]; rowExt.set(r.row, [Math.min(e[0], r.u0), Math.max(e[1], r.u1)]); }
+    const remap = (row, u) => {
+      const [a, b] = rowExt.get(row);
+      if (row >= 0) {
+        const b2 = Math.max(pivot + 0.12, Math.min(b, span[row][1]));
+        return u <= pivot ? u : pivot + (u - pivot) * (b2 - pivot) / (b - pivot);
+      }
+      // castle rows: into the run of their own tier (the top row: the narrowest tier above it)
+      const i = -1 - row, t = towers[Math.min(towers.length - 1, i === C - 1 ? towers.length - 1 : i)];
+      const a2 = t.z0 / Lh + 0.5, b2 = t.z1 / Lh + 0.5;
+      return a2 + (u - a) / (b - a) * (b2 - a2);
+    };
+    const rooms = plan.rooms.map((r) => {
+      const u0 = remap(r.row, r.u0), u1 = remap(r.row, r.u1);
+      const yr = r.row >= 0 ? top + r.row * dh : top - (castleBase - r.row * 0.8) * dh;
+      return { ...r, x: X(u0), y: yr, w: X(u1) - X(u0), h: r.row >= 0 ? dh : cdh, color: secColor(r.sec) };
+    });
+    const crown = br ? { x: XZ(br.z0), w: XZ(br.z1) - XZ(br.z0), y: Y(br.y1) } : { x: XZ(towers[towers.length - 1].z0), w: XZ(towers[towers.length - 1].z1) - XZ(towers[towers.length - 1].z0), y: Y(towers[towers.length - 1].y1) };
+    this.g = { plan, ch, yard: y, prof, x0, x1, L, X, XZ, Y, top, bottom, dh, cdh, D, C, rooms, narrow, hull, inner, crown, castleBase, remap, span };
     this.g.engines = 1 + Math.floor((ch.tier + 1) / 3);
     this.figs.clear();
     return this.g;
@@ -141,25 +199,16 @@ export class Cutaway {
 
     // engines (behind the hull)
     this.drawEngines(c, g, t);
-    // hull body
+    // hull body: the ship's own side silhouette
     c.save();
-    c.fillStyle = grad(c, 0, g.top - g.C * g.cdh, 0, g.bottom + g.dh, [[0, 'rgba(24,44,96,0.55)'], [1, 'rgba(8,14,36,0.75)']]);
+    c.fillStyle = grad(c, 0, g.crown.y, 0, g.bottom + g.dh, [[0, 'rgba(24,44,96,0.55)'], [1, 'rgba(8,14,36,0.75)']]);
     c.fill(g.hull);
-    for (const r of g.castle) { c.beginPath(); roundRect(c, r.x, r.y, r.w, r.h, r.top ? 10 : 2); c.fill(); }
+    c.strokeStyle = 'rgba(88,200,255,0.22)'; c.lineWidth = 1; c.stroke(g.inner);
     c.restore();
-    // keel fin
-    if (g.yard.keel > 0) {
-      c.beginPath(); c.moveTo(g.X(0.26), g.bottom); c.lineTo(g.X(0.74), g.bottom); c.lineTo(g.X(0.68), g.bottom + g.dh * g.keel * 0.9); c.lineTo(g.X(0.32), g.bottom + g.dh * g.keel * 0.9); c.closePath();
-      c.fillStyle = 'rgba(14,26,60,0.7)'; c.fill(); c.strokeStyle = 'rgba(88,200,255,0.45)'; c.lineWidth = 1; c.stroke();
-    }
     // rooms (clipped to the hull's silhouette)
     c.save();
-    c.beginPath(); c.rect(0, 0, this.w, g.top); c.clip();
-    for (const r of g.rooms) if (r.row < 0) this.drawRoom(c, r, rep, fires, now);
-    c.restore();
-    c.save();
     c.clip(g.hull);
-    for (const r of g.rooms) if (r.row >= 0) this.drawRoom(c, r, rep, fires, now);
+    for (const r of g.rooms) this.drawRoom(c, r, rep, fires, now);
     this.drawCore(c, g, t);
     // battle damage: scorch marks grow as the hull fails
     if (hullF < 0.85) {
@@ -175,16 +224,13 @@ export class Cutaway {
     c.save();
     c.strokeStyle = '#58c8ff'; c.lineWidth = 1.6; c.shadowColor = '#58c8ff'; c.shadowBlur = 12;
     c.stroke(g.hull);
-    for (const r of g.castle) { c.beginPath(); roundRect(c, r.x, r.y, r.w, r.h, r.top ? 10 : 2); c.stroke(); }
     c.restore();
     this.drawFittings(c, g, t);
     // crew
     this.drawFigures(c, g, realDt, t);
     // hits (inside the hull's outline)
     c.save();
-    const clip = new Path2D(g.hull);
-    for (const r of g.castle) clip.rect(r.x, r.y, r.w, r.h);
-    c.clip(clip);
+    c.clip(g.hull);
     for (const h of this.sys.hits) {
       const age = this.sys.game.engine.realTime - h.t; if (age > 1.6) continue;
       const r = g.rooms[h.room]; if (!r) continue;
@@ -307,9 +353,9 @@ export class Cutaway {
     c.strokeStyle = 'rgba(180,160,255,0.7)'; c.lineWidth = 1; c.strokeRect(x - w * 0.6, y0, w * 1.2, y1 - y0);
   }
 
-  // outside fittings: gun ports along the gun decks, turrets, prow guns, mast and spires
+  // outside fittings: gun ports along the gun decks, turrets, prow guns, masts, spires and bowsprit
   drawFittings(c, g, t) {
-    const ch = g.ch, s = ch.slots;
+    const ch = g.ch, s = ch.slots, prof = g.prof;
     c.save();
     c.strokeStyle = 'rgba(160,220,255,0.75)'; c.fillStyle = 'rgba(10,20,46,0.95)'; c.lineWidth = 1;
     const rows = g.plan.gunRows.length ? g.plan.gunRows : [g.D - 1];
@@ -317,31 +363,44 @@ export class Cutaway {
     for (let i = 0; i < nb; i++) {
       const u = nb === 1 ? 0.5 : 0.24 + (i / (nb - 1)) * 0.46;
       for (const row of rows) {
-        const y = g.top + row * g.dh + g.dh * 0.42, x = g.X(u), r = Math.max(2.5, g.dh * 0.11);
+        const y = g.top + row * g.dh + g.dh * 0.42, x = g.X(g.remap(row, u)), r = Math.max(2.5, g.dh * 0.11);
         c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); c.stroke();
         c.beginPath(); c.arc(x, y, r * 0.45, 0, TAU); c.fillStyle = 'rgba(255,180,90,0.8)'; c.fill(); c.fillStyle = 'rgba(10,20,46,0.95)';
       }
     }
+    // dorsal turrets sit on the hull's own deck line
     const nt = Math.ceil(s.turret * 0.7);
     for (let i = 0; i < nt; i++) {
-      const u = nt === 1 ? 0.58 : 0.44 + (i / Math.max(1, nt - 1)) * 0.34, x = g.X(u), y = g.top;
+      const u = g.remap(0, nt === 1 ? 0.58 : 0.44 + (i / Math.max(1, nt - 1)) * 0.34), z = (u - 0.5) * prof.L;
+      const x = g.X(u), y = g.Y(profileAt(prof.hullTop, z) ?? prof.Ht);
       c.beginPath(); c.moveTo(x - 7, y); c.lineTo(x - 5, y - 6); c.lineTo(x + 5, y - 6); c.lineTo(x + 7, y); c.closePath(); c.fill(); c.stroke();
       c.beginPath(); c.moveTo(x + 2, y - 4); c.lineTo(x + 13, y - 7); c.stroke();
     }
-    // mast / spires on the castle
-    const top = g.castle[g.castle.length - 1];
-    if (top) {
-      const sp = YARDS[ch.yard].spires;
-      for (let i = 0; i < Math.min(5, sp); i++) {
-        const x = top.x + top.w * (0.15 + 0.7 * (i + 0.5) / Math.min(5, sp)), h = g.cdh * (0.8 + hash(i + ch.tier) * 0.9);
-        c.beginPath(); c.moveTo(x - 3, top.y); c.lineTo(x, top.y - h); c.lineTo(x + 3, top.y); c.stroke();
-      }
-      const mx = top.x + top.w * 0.5;
-      c.beginPath(); c.moveTo(mx, top.y); c.lineTo(mx, top.y - g.cdh * 1.6); c.stroke();
-      c.fillStyle = `rgba(255,90,90,${0.5 + 0.5 * Math.sin(t * 3)})`; c.beginPath(); c.arc(mx, top.y - g.cdh * 1.6, 2, 0, TAU); c.fill();
+    // spires on the crown, then the masts and the bowsprit from the hull's own lines
+    const top = g.crown;
+    const sp = Math.min(5, prof.spires);
+    for (let i = 0; i < sp; i++) {
+      const x = top.x + top.w * (0.15 + 0.7 * (i + 0.5) / sp), h = g.cdh * (0.8 + hash(i + ch.tier) * 0.9);
+      c.beginPath(); c.moveTo(x - 3, top.y); c.lineTo(x, top.y - h); c.lineTo(x + 3, top.y); c.stroke();
     }
-    // deflector glow at the bow
-    const by = g.top + (g.bottom - g.top) * 0.62, bx = g.X(0.93);
+    for (const l of prof.lines) {
+      const ax = g.XZ(l.z0), ay = g.Y(l.y0), bx = g.XZ(l.z1), by = g.Y(l.y1);
+      if (l.kind === 'sail') {
+        // a solar sail on its mast: a faint panel aft of the mast, three yards across it
+        const sw = g.XZ(l.z0) - g.XZ(l.z0 - l.sw), s0 = ay + (by - ay) * 0.15, s1 = ay + (by - ay) * 0.95;
+        c.fillStyle = 'rgba(88,200,255,0.07)'; c.fillRect(ax - sw * 0.6, s1, sw, s0 - s1);
+        c.strokeStyle = 'rgba(88,200,255,0.3)'; c.strokeRect(ax - sw * 0.6, s1, sw, s0 - s1);
+        for (let k = 0; k < 3; k++) { const yy = ay + (by - ay) * (0.2 + k * 0.33); c.beginPath(); c.moveTo(ax - sw * 0.62, yy); c.lineTo(ax + sw * 0.42, yy); c.stroke(); }
+        c.strokeStyle = 'rgba(160,220,255,0.75)';
+      }
+      c.lineWidth = l.kind === 'bowsprit' ? 2 : 1.2;
+      c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
+      if (l.kind !== 'bowsprit') { c.fillStyle = `rgba(255,90,90,${0.5 + 0.5 * Math.sin(t * 3 + l.z0)})`; c.beginPath(); c.arc(bx, by, 2, 0, TAU); c.fill(); }
+    }
+    c.lineWidth = 1;
+    // deflector glow in the bow
+    const defl = g.rooms.find((r) => r.name === 'Deflector') || g.rooms.find((r) => r.row === g.D - 1 && r.sec === 'shields');
+    const bx = defl ? defl.x + defl.w * 0.7 : g.X(g.remap(g.D - 1, 0.93)), by = defl ? defl.y + defl.h * 0.5 : g.top + (g.bottom - g.top) * 0.62;
     c.fillStyle = grad2(c, bx, by, g.dh * 0.5, `rgba(120,200,255,${0.45 + 0.15 * Math.sin(t * 2)})`, 'rgba(120,200,255,0)');
     c.beginPath(); c.arc(bx, by, g.dh * 0.5, 0, TAU); c.fill();
     c.restore();
@@ -423,7 +482,7 @@ export class Cutaway {
     // deck numbers
     c.font = `600 9px Orbitron, sans-serif`; c.fillStyle = 'rgba(120,170,230,0.6)'; c.textAlign = 'right';
     if (!g.narrow) {
-      for (let i = 0; i < g.C; i++) { const y = g.top - (i + 1) * g.cdh + g.cdh / 2 - 4; c.fillText(`D${i + 1}`, g.x0 - 30, y); }
+      for (let i = 0; i < g.C; i++) { const y = g.top - (g.castleBase + (g.C - i) * 0.8) * g.dh + g.cdh / 2 - 4; c.fillText(`D${i + 1}`, g.x0 - 30, y); }
       for (let i = 0; i < g.D; i++) c.fillText(`D${g.C + i + 1}`, g.x0 - 30, g.top + i * g.dh + g.dh / 2 - 4);
     }
     c.textAlign = 'left';
@@ -457,31 +516,18 @@ function secColor(sec) {
   const d = SECTIONS[sec].depts[0];
   return d ? DEPTS[d].color : sec === 'cargo' ? '#8a9ab8' : sec === 'lounge' ? '#b8a0ff' : '#7aa0d8';
 }
-function hullPath(prow, X, top, bottom, dh) {
-  const p = new Path2D(), mid = (top + bottom) / 2, H = bottom - top;
-  p.moveTo(X(0.01), top + 3);
-  switch (prow) {
-    case 'ram': p.lineTo(X(0.8), top); p.lineTo(X(0.92), top + H * 0.3); p.lineTo(X(1), bottom - H * 0.12); p.lineTo(X(0.9), bottom); break;
-    case 'needle': p.lineTo(X(0.62), top); p.quadraticCurveTo(X(0.9), top + H * 0.08, X(1), mid); p.quadraticCurveTo(X(0.9), bottom - H * 0.08, X(0.62), bottom); break;
-    case 'clipper': p.lineTo(X(1), top - dh * 0.25); p.quadraticCurveTo(X(0.86), bottom - H * 0.1, X(0.6), bottom); break;
-    case 'blunt': p.lineTo(X(0.975), top); p.lineTo(X(1), top + H * 0.12); p.lineTo(X(1), bottom - H * 0.12); p.lineTo(X(0.975), bottom); break;
-    case 'fork': p.lineTo(X(0.82), top); p.lineTo(X(1), top + H * 0.22); p.lineTo(X(0.97), top + H * 0.36); p.lineTo(X(0.86), top + H * 0.42); p.lineTo(X(0.86), bottom - H * 0.42); p.lineTo(X(0.97), bottom - H * 0.36); p.lineTo(X(1), bottom - H * 0.22); p.lineTo(X(0.82), bottom); break;
-    default: p.lineTo(X(0.95), top); p.lineTo(X(1), mid); p.lineTo(X(0.95), bottom);
-  }
-  p.lineTo(X(0.01), bottom - 3);
-  p.lineTo(X(0), bottom - dh * 0.25); p.lineTo(X(0), top + dh * 0.25);
-  p.closePath();
-  return p;
+// how far forward each main deck fits inside the hull's own sections (u, stern -> bow)
+function deckSpans(prof, D, Ht, depth) {
+  const d = depth / D;
+  return Array.from({ length: D }, (_, r) => {
+    const yHi = Ht - r * d, yLo = yHi - d;
+    let a = 1, b = 0;
+    prof.hullTop.forEach(([z, top], i) => {
+      if (top >= yHi - 0.25 * d && prof.hullBottom[i][1] <= yLo + 0.12 * d) { const u = z / prof.L + 0.5; a = Math.min(a, u); b = Math.max(b, u); }
+    });
+    return b > a ? [a, b] : [0, 1];
+  });
 }
-function castleRects(plan, X, top, cdh) {
-  const out = [];
-  const rows = new Map();
-  for (const r of plan.rooms) if (r.row < 0) { const a = rows.get(r.row) || [1, 0]; rows.set(r.row, [Math.min(a[0], r.u0), Math.max(a[1], r.u1)]); }
-  const keys = [...rows.keys()].sort((a, b) => b - a);
-  keys.forEach((row, i) => { const [u0, u1] = rows.get(row); out.push({ x: X(u0), y: top + row * cdh, w: X(u1) - X(u0), h: cdh, top: i === keys.length - 1 }); });
-  return out;
-}
-function roundRect(c, x, y, w, h, r) { c.moveTo(x + r, y); c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r); c.lineTo(x + w, y + h); c.lineTo(x, y + h); c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y); c.closePath(); }
 function grad(c, x0, y0, x1, y1, stops) { const g = c.createLinearGradient(x0, y0, x1, y1); for (const [o, col] of stops) g.addColorStop(o, col); return g; }
 function grad2(c, x, y, r, a, b) { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, a); g.addColorStop(1, b); return g; }
 function hexA(hex, a) {
