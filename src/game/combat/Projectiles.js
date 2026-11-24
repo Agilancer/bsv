@@ -19,7 +19,7 @@ export class Projectiles {
     const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
     // brighter core along the axis, fading tail toward -Z
     const tail = smoothstep(-0.5, 0.4, positionLocal.z);
-    mat.colorNode = vec3(3.2).mul(tail.mul(0.8).add(0.2));
+    mat.colorNode = vec3(2.2).mul(tail.mul(0.8).add(0.2));
     this.mesh = new THREE.InstancedMesh(g, mat, capacity);
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.setColorAt(0, new THREE.Color(1, 1, 1));
@@ -110,7 +110,7 @@ export class Beams {
     const g = new THREE.CylinderGeometry(0.5, 0.5, 1, 8, 1, true);
     g.rotateX(Math.PI / 2); g.translate(0, 0, 0.5);
     const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-    mat.colorNode = vec3(2.5);
+    mat.colorNode = vec3(1.7);
     this.mesh = new THREE.InstancedMesh(g, mat, capacity * 2);
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.setColorAt(0, new THREE.Color(1, 1, 1));
