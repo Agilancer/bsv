@@ -17,7 +17,10 @@ export class PlanetPilot {
     const M = this.mode, V = M.vehicle, st = V.stats;
     this.t += dt; this.runT = (this.runT || 0) + dt;   // runT never resets: a whole surface run is capped
     if (M.state !== 'play' || !V.alive) return;
-    const late = this.runT > 480;
+    const late = this.runT > 330;   // ~5-6 min runs once the trip home and extraction are counted
+    // failsafes: a dungeon the pilot can't path out of, or a run that just won't end
+    if (late && M.dungeon) { this.lateDungeon = (this.lateDungeon || 0) + dt; if (this.lateDungeon > 45) { this.lateDungeon = 0; M.exitDungeon(); return; } }
+    if (this.runT > 600 && !this.recalled && !M.dungeon) { this.recalled = true; M.toast('Autopilot: emergency recall', 'warn'); M.ascend(); return; }
     const pos = V.position;
     let target = null, fight = null, stopAt = 6, wantMine = false;
     // nearest awake threat
@@ -137,7 +140,9 @@ export function makePlanetGoal(game) {
       if (g.planet && ['scanning', 'panel', 'drop', 'entering'].includes(g.planet.scanner.state)) return 5;
       const ex = ensureExplorer(g.data);
       const since = g.data.playtime - (ex.lastRunAt || -1e9);
-      if (since < 300) return 0.05;
+      if (since < 300) return 0;
+      // planets share the session with space: at most ~30% of it on the ground, counting the next run
+      if ((g.planetSessionTime || 0) > 0.3 * ((g.playtime || 0) + 360)) return 0;
       // only go down when the warship can be left alone: hull healthy, no raid inbound, nothing hostile close
       const pl = g.player;
       if (pl.hull < pl.maxHull * 0.6) return 0.05;
@@ -154,6 +159,15 @@ export function makePlanetGoal(game) {
       // the space sim (and this goal) pause while the explorer is on the ground, so a run is
       // marked at deploy time and closed out on the first orbit-side tick after it
       if (G.mode === 'planet') { goal.phase = 'surface'; return false; }
+      // every orbit-side phase has a timeout: a stuck scan, panel or drop gives the goal up
+      if (S.state !== goal.lastState) { goal.lastState = S.state; goal.stateT = 0; }
+      goal.stateT = (goal.stateT || 0) + dt;
+      if (S.state !== 'idle' && goal.stateT > 30) {
+        if (S.state === 'panel' || S.state === 'scanning') S.close();
+        goal.phase = 'idle'; goal.target = null; goal.t = 0; goal.stateT = 0;
+        ensureExplorer(G.data).lastRunAt = G.data.playtime;
+        return true;
+      }
       if (S.state === 'drop' || S.state === 'entering' || S.state === 'scanning') return false;
       if (goal.phase === 'surface') {
         goal.phase = 'idle'; goal.target = null; goal.t = 0;
@@ -173,13 +187,14 @@ export function makePlanetGoal(game) {
       }
       const tp = goal.target.position;
       // any landable world we're already over will do (a moon beside the target included)
+      goal.t += dt;
+      if (goal.t > 240) { goal.t = 0; goal.target = null; ensureExplorer(G.data).lastRunAt = G.data.playtime; return true; }
       if (S.nearby()) { s.throttle = 0; S.scan(); if (S.state === 'panel') launch(); return false; }
       const far = Math.hypot(tp.x - s.position.x, tp.z - s.position.z);
       const warping = G.isWarping && G.isWarping();
       const warped = far > 2600 && G.warpTo && !warping && G.warpTo(new THREE.Vector3(tp.x + 120, 0, tp.z + 120));
       if (!warped && !warping) { s.throttle = 1; s.steerTo(new THREE.Vector3(tp.x, 0, tp.z), 100, 1); }
-      goal.t += dt;
-      if (goal.t > 240) { goal.t = 0; goal.target = null; return true; }
+
       return false;
     },
   };

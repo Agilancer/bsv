@@ -7,6 +7,7 @@ import {
 } from 'three/tsl';
 import { tex } from '../engine/Assets.js';
 import { YARDS } from '../game/data/chassis.js';
+import { LIVERIES } from '../game/data/liveries.js';
 
 const cache = new Map();
 let engineRef = null;
@@ -27,24 +28,29 @@ export function windowsNode(winHex, density = 0.45, scale = 1) {
   return hdr(winHex, 2.2).mul(win).mul(on.add(flick).min(1)).mul(side);
 }
 
-export function hullMaterials(yardKey, glowOverride = null) {
-  const key = glowOverride == null ? yardKey : `${yardKey}:${glowOverride}`;
+// One material set per yard (+ glow override, + faction livery). A livery (data/liveries.js)
+// repaints the yard's plating and colours the three marking materials: paint (lit livery colour),
+// mark (HDR stripes and seams) and glyph (HDR insignia).
+export function hullMaterials(yardKey, glowOverride = null, liveryKey = null) {
+  const key = `${yardKey}:${glowOverride ?? ''}:${liveryKey ?? ''}`;
   if (cache.has(key)) return cache.get(key);
-  const y = glowOverride == null ? YARDS[yardKey] : { ...YARDS[yardKey], glow: glowOverride, window: glowOverride, engine: glowOverride };
+  const lv = liveryKey ? LIVERIES[liveryKey] : null;
+  let y = lv ? { ...YARDS[yardKey], ...lv.palette } : YARDS[yardKey];
+  if (glowOverride != null) y = { ...y, glow: glowOverride, window: lv?.palette.window ?? glowOverride, engine: glowOverride };
   const scale = float(1 / 16);
-  const plate = (name, tint, rough, metal, windows = false) => {
+  const plate = (name, tint, rough, metal, windows = false, plain = false) => {
     const m = new THREE.MeshStandardNodeMaterial();
     const base = triplanarTexture(texture(tex(name)), null, null, scale);
     const t = new THREE.Color(tint);
     // large-scale grime/variation so long hulls don't tile visibly
     const p = positionLocal.mul(0.02);
     const varn = hash(floor(p.x.mul(3).add(500)).add(floor(p.z.mul(3).add(500)).mul(17))).mul(0.25).add(0.85);
-    const tm = name === y.hull ? (y.tintMul || 1) : 1;
+    const tm = name === y.hull && !plain ? (y.tintMul || 1) : 1;
     m.colorNode = base.rgb.mul(vec3(t.r * tm, t.g * tm, t.b * tm)).mul(varn);
     m.roughnessNode = float(rough).add(base.r.mul(0.2));
     m.metalnessNode = float(metal);
-    if (windows) m.emissiveNode = windowsNode(y.window, yardKey === 'ironhold' ? 0.6 : yardKey === 'silent' ? 0.2 : 0.42);
-    if (y.alienGlow && name === y.hull) {
+    if (windows) m.emissiveNode = windowsNode(y.window, y.windowDensity ?? (yardKey === 'ironhold' ? 0.6 : yardKey === 'silent' ? 0.2 : 0.42));
+    if (y.alienGlow && name === y.hull && !plain) {
       const g = triplanarTexture(texture(tex('glow_alien')), null, null, scale);
       m.emissiveNode = g.rgb.mul(hdr(y.glow, 3.5)).mul(sin(engineRef.uTime.mul(1.7).add(positionLocal.z.mul(0.08))).mul(0.35).add(0.75));
     }
@@ -60,13 +66,19 @@ export function hullMaterials(yardKey, glowOverride = null) {
     const ribs = smoothstep(0.92, 1.0, fract(u.y.mul(9))).mul(0.6);
     const edge = smoothstep(0.9, 1.0, max(abs(u.x.sub(0.5)).mul(2), abs(u.y.sub(0.5)).mul(2)));
     const shimmer = sin(u.y.mul(40).sub(engineRef.uTime.mul(3))).mul(0.5).add(0.5).mul(0.15);
-    sail.colorNode = hdr(y.glow, 0.55).mul(float(0.05).add(ribs.mul(0.5)).add(edge.mul(1.8)).add(shimmer.mul(0.6)));
+    sail.colorNode = hdr(y.sail ?? y.glow, 0.55).mul(float(0.05).add(ribs.mul(0.5)).add(edge.mul(1.8)).add(shimmer.mul(0.6)));
   }
+  // livery markings: hazard stripes and seams breathe slowly, insignia hold steady
+  const mark = new THREE.MeshBasicNodeMaterial();
+  mark.colorNode = hdr(lv?.mark ?? y.glow, lv?.markMul ?? 3.6).mul(sin(engineRef.uTime.mul(1.3).add(positionLocal.z.mul(0.05))).mul(0.18).add(0.88));
+  const glyph = new THREE.MeshBasicNodeMaterial();
+  glyph.colorNode = hdr(lv?.glyph ?? y.window, lv?.glyphMul ?? 3);
   const mats = {
     hull: plate(y.hull, y.tint, 0.5, 0.25, true),
     trim: plate(y.trim, y.trimTint, 0.38, 0.45),
-    dark: plate(y.dark, 0x8a8e98, 0.55, 0.3),
-    glow, engine: engineMat, sail,
+    dark: plate(y.dark, y.darkTint ?? 0x8a8e98, 0.55, 0.3),
+    paint: plate(lv?.paintTex ?? y.trim, lv?.paint ?? y.trimTint, 0.6, 0.15, false, true),
+    glow, engine: engineMat, sail, mark, glyph,
   };
   cache.set(key, mats);
   return mats;

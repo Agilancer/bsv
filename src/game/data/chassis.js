@@ -81,17 +81,20 @@ export const YARD_TRAITS = {
 };
 
 // Each class has its own silhouette (arch): bow length, number of gun decks, where the
-// castle sits, outrigger pods or side hulls, an armour belt, fins.
+// castle sits, outrigger pods or side hulls, an armour belt, fins. The capital classes each carry
+// one bold feature that reads from the game camera (built in ship/HullBuilder.js from ship/hullPlan.js):
+//   foreSpire: a raised forward command spire (cruiser)       galleries: sponson gun-galleries jutting
+//   spine: an armoured spinal ridge and split prow (battleship)  from both flanks (heavy cruiser)
 export const ARCH = {
   1: { prow: 0.75, decks: 1, castle: 'aft', castleScale: 0.7 },
   2: { prow: 0.9, decks: 1, castle: 'aft', outrig: 'pods' },
   3: { prow: 1.0, decks: 1, castle: 'mid' },
   4: { prow: 1.45, decks: 1, castle: 'aft', castleScale: 0.8, torpBow: true },
   5: { prow: 1.1, decks: 2, castle: 'twin', fins: 0.6 },
-  6: { prow: 1.0, decks: 2, castle: 'aft' },
-  7: { prow: 0.85, decks: 2, castle: 'aft', belt: true },
-  8: { prow: 1.3, decks: 2, castle: 'aft', fins: 1, castleScale: 0.9 },
-  9: { prow: 1.0, decks: 3, castle: 'aft', castleScale: 1.15 },
+  6: { prow: 1.0, decks: 2, castle: 'aft', foreSpire: 1 },
+  7: { prow: 0.85, decks: 2, castle: 'aft', belt: true, galleries: 1 },
+  8: { prow: 1.3, decks: 2, castle: 'aft', fins: 1.25, castleScale: 0.9 },
+  9: { prow: 1.0, decks: 3, castle: 'aft', castleScale: 1.15, spine: 1 },
   10: { prow: 1.05, decks: 3, castle: 'twin', outrig: 'hulls', castleScale: 1.2 },
 };
 

@@ -28,11 +28,24 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - Wrap `game.start` / `game.enterSystem` for per-session or per-system setup.
 
 ## Checks
-- `node --test tests/*.test.mjs`
+- `node --test tests/*.test.mjs` (modules that import three: `import './support/three.mjs'` first)
+- Gameplay gates (dev server running; CI runs the first two): `node tools/soak.cjs 10 --gate`
+  (autoplay pacing: kills/min, idle share, no hung goal; `--planet` keeps planet runs in),
+  `node tools/stalemate.cjs 2,8,20 --gate` (no silent manoeuvring duels),
+  `node tools/duel.cjs 5,15,30,50 --gate` (measured time-to-kill vs `balance.TTK`, per size class)
 - `python3 tools/serve.py 8420`, then `node tools/shot.cjs "index.html?play&new&webgl" out.png 15000`
   (`EVAL="…"`, `POSTWAIT=ms`). Headless WebGPU canvases screenshot black: use `&webgl` for
   pictures and `tools/gpuprobe.html` to verify the WebGPU path by pixel readback.
-- `tools/viewer.html?yard=velscour` lays hulls out for visual review.
+- `tools/viewer.html?yard=velscour` lays hulls out for visual review (`&enemy=<size>&faction=`,
+  comma lists, `also=`). Faction liveries: `data/liveries.js`; hull numbers (node-safe):
+  `ship/hullPlan.js` (`sideProfile` feeds the crew cutaway).
+
+## Balance
+- `data/balance.js` is the contract: `expectedPlayer(L)` builds the expected captain from the real
+  item/talent/hull formulas (sheet DPS, EHP, armour, repair); `enemyTargets` sizes enemies from it
+  with per-size engagement (`ENGAGE_BY_SIZE`) and repair share. Recalibrate with `tools/duel.cjs`.
+- Telegraphed specials pass `TELEGRAPH` (Combat.js) as ws: their own per-hit budget, outside the
+  `MIN_TTK` per-source window. Escorts a boss spawns set `capRoot` to share its window.
 
 ## Conventions
 - Hot loops allocate nothing; reuse module-level temp vectors.

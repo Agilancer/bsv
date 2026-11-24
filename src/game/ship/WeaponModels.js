@@ -196,5 +196,5 @@ export function buildWeapon(item, hp, s) {
       }, s * 0.3);
     }
   }
-  return { object: root, head, pitch, barrels, axis: 'z', yawLimit: 0.35, pitchLimit: 0.3, traverse: 0.8 };
+  return { object: root, head, pitch, barrels, axis: 'z', yawLimit: 0.5, pitchLimit: 0.3, traverse: 0.8 };
 }

@@ -51,6 +51,18 @@ export class IsoCamera {
       this.shake = damp(this.shake, 0, 7, realDt);
     }
     this.camera.lookAt(this.focus);
+    // optical centre in the middle of the HUD-free area (eased, so panels opening don't jolt it)
+    const W = innerWidth, H = innerHeight, sf = this.safe;
+    const tx = sf ? W / 2 - (sf.x + sf.w / 2) : 0, ty = sf ? H / 2 - (sf.y + sf.h / 2) : 0;
+    this.offX = damp(this.offX || 0, tx, 3, realDt); this.offY = damp(this.offY || 0, ty, 3, realDt);
+    if (Math.abs(this.offX) > 0.5 || Math.abs(this.offY) > 0.5) this.camera.setViewOffset(W, H, this.offX, this.offY, W, H);
+    else if (this.camera.view && this.camera.view.enabled) this.camera.clearViewOffset();
+    this.camera.updateMatrixWorld();   // project() is used before the next render (framing, overlays)
+  }
+  // how much further back to sit so a frame fitted to the full screen fits the HUD-free area
+  safeFit() {
+    const sf = this.safe; if (!sf) return 1;
+    return clamp(Math.max(innerWidth / sf.w, innerHeight / sf.h) * 0.9, 1, 1.45);
   }
   // world point on the y=h plane under the cursor
   pick(nx, ny, h = 0, out = new THREE.Vector3()) {

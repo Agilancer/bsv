@@ -83,6 +83,12 @@ export class World {
     ship.alive = false;
     ship.hull = 0;
     this.events.emit('kill', { ship, killer });
+    // Forgeheart (module power): a kill reloads every gun and stokes the rate of fire
+    if (killer && killer.alive && killer.stats && killer.stats.u_forgeheart) {
+      killer.buffs.forge = this.engine.time + 5;
+      for (const w of killer.weapons) if (w.hp.type !== 'hangar' && w.cd > 0) w.cd = 0;
+      this.fx.ring(killer.position, killer.dims.L * 0.5, 0xff9040, 40);
+    }
     if (ship.mods) for (const m of ship.mods) if (ELITE_MODS[m].onDeath) ELITE_MODS[m].onDeath(ship, this);
     // death throes: a chain of blasts along the hull, then the magazine goes
     const L = ship.dims.L, n = 4 + Math.floor(L / 30);

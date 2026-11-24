@@ -131,6 +131,8 @@ button { font-family: var(--font); }
 
 #menubar { position: fixed; left: 360px; top: 16px; display: flex; gap: 6px; }
 #menubar button { background: rgba(8, 16, 38, 0.75); border: 1px solid var(--edge); color: var(--text); font-family: var(--head); font-size: 10px; letter-spacing: 0.12em; padding: 6px 9px; cursor: pointer; clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
+#menubar button i.k { font-style: normal; opacity: 0.7; }
+@media (max-width: 1500px) { #menubar button i.k { display: none; } #menubar button { padding: 6px 8px; letter-spacing: 0.1em; } }
 #menubar button:hover, #menubar button.on { border-color: var(--cyan); color: var(--white); box-shadow: inset 0 0 12px rgba(88, 200, 255, 0.3); }
 #menubar button.auto.on { border-color: var(--good); color: var(--good); box-shadow: inset 0 0 14px rgba(74, 222, 128, 0.4); }
 
@@ -151,6 +153,11 @@ button { font-family: var(--font); }
 #inventory { right: 16px; top: 70px; width: 720px; }
 #inventory .cols { display: grid; grid-template-columns: 330px 1fr; gap: 16px; }
 .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.hplan { margin: 4px 0 6px; }
+.hplan canvas { width: 100%; height: 230px; display: block; background: radial-gradient(ellipse at 50% 45%, rgba(40, 70, 160, 0.22), transparent 70%); border: 1px solid rgba(88, 184, 255, 0.15); }
+.hplan .label a { color: var(--cyan); }
+#inventory .cell.off { opacity: 0.22; }
+body.mobile .hplan canvas { height: 170px; }
 .slot, .cell { aspect-ratio: 1; border: 1px solid rgba(80, 120, 200, 0.35); background: rgba(6, 12, 28, 0.8); position: relative; cursor: pointer; }
 .slot .st { position: absolute; left: 3px; top: 1px; font-size: 9px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; font-family: var(--head); }
 .slot:hover, .cell:hover { border-color: var(--cyan); }
@@ -251,6 +258,13 @@ button { font-family: var(--font); }
 #galaxy .gmap { width: 100%; height: 100%; display: block; cursor: crosshair; }
 #galaxy .ginfo { position: absolute; right: 8px; top: 8px; width: 250px; padding: 12px 14px; }
 #system { background: linear-gradient(160deg, rgba(10, 18, 44, 0.95), rgba(3, 6, 16, 0.96)); left: 50%; top: 64px; transform: translateX(-50%); width: min(760px, 94vw); }
+#galaxy .glegend { position: absolute; left: 8px; bottom: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--text); pointer-events: none; }
+#galaxy .glegend span { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+#galaxy .glegend i { width: 9px; height: 9px; border-radius: 50%; border: 2px solid; display: inline-block; }
+#system .slegend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 11px; color: var(--text-dim); line-height: 1.3; }
+#system .slegend span { white-space: nowrap; }
+#system .slegend b { color: var(--white, #e8f0ff); margin-right: 3px; font-weight: 600; }
+body.mobile #galaxy .glegend { font-size: 9px; padding: 5px 7px; }
 #system .smap { width: 100%; aspect-ratio: 1; max-height: calc(100vh - 220px); display: block; cursor: crosshair; background: radial-gradient(circle, rgba(30, 40, 90, 0.35), transparent 70%); }
 
 /* mmo */
@@ -316,7 +330,8 @@ body.hud-hidden #hudPeek { display: flex; }
 #hudPeek { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 6; align-items: center; gap: 10px; padding: 6px 8px 6px 14px; background: rgba(4, 8, 20, 0.6); border: 1px solid rgba(74, 222, 128, 0.35); font-family: var(--head); font-size: 10px; letter-spacing: 0.12em; color: var(--good); text-transform: uppercase; white-space: nowrap; max-width: 96vw; }
 #hudPeek span { overflow: hidden; text-overflow: ellipsis; }
 #hudPeek .btn { font-size: 9px; padding: 6px 10px; }
-body.mobile #hudPeek { flex-wrap: wrap; justify-content: center; white-space: normal; text-align: center; }
+body.mobile #hudPeek { flex-wrap: nowrap; justify-content: center; white-space: nowrap; max-width: calc(100vw - 24px); bottom: 10px; padding: 4px 6px 4px 10px; }
+body.mobile #hudPeek span { min-width: 0; flex: 1 1 auto; }
 
 /* codex */
 #codex { left: 50%; top: 64px; transform: translateX(-50%); width: min(920px, 96vw); }
@@ -356,4 +371,4 @@ body.hud-hidden #objectives { display: none; }
 
 /* round-1 review fixes */
 #autoStatus { top: auto !important; bottom: 92px; left: 50%; transform: translateX(-50%); }
-body.win-open #objectives { display: none; }
+body.win-open #objectives, body.hud-hidden #objectives, body[data-mode]:not([data-mode="space"]) #objectives { display: none !important; }

@@ -18,30 +18,79 @@ export function installMMO(game) {
   function say(channel, who, text, cls = '', c = 'all') { game.ui.chat(channel, who, text, cls, c); }
   const handle = () => R.pick(PLAYER_NAMES);
 
-  function spawnCaptain(near) {
+  // o: {name, level, chassis, guild, pos} to bring a known captain back (undocking)
+  function spawnCaptain(near, o = {}) {
     const W = game.world, sys = game.sector.sys;
     const rng = new RNG(Math.random() * 1e9);
-    const name = handle();
+    const name = o.name || handle();
     if (W.ships.some((s) => s.name === name)) return null;
-    const level = Math.max(1, Math.min(60, sys.danger + rng.int(-2, 9)));
+    const level = o.level || Math.max(1, Math.min(60, sys.danger + rng.int(-2, 9)));
     const yard = rng.pick(['velscour', 'aurelian', 'tidewright', 'ironhold', 'velscour', 'corsair']);
     const tier = Math.max(1, Math.min(10, Math.floor(level / 6) + 1 + rng.int(0, 1)));
-    const chassis = CHASSIS_BY_ID[`${yard}_${tier}`];
+    const chassis = o.chassis ? CHASSIS_BY_ID[o.chassis] : CHASSIS_BY_ID[`${yard}_${tier}`];
     const loadout = starterLoadout(chassis, level, rng, () => rng.weighted([['uncommon', 3], ['rare', 4], ['epic', 2], ['legendary', 0.4]]));
     const a = Math.random() * Math.PI * 2, d = 700 + Math.random() * 1600;
-    const pos = near.clone().add(new THREE.Vector3(Math.sin(a) * d, 0, Math.cos(a) * d));
-    const s = W.addShip({ chassis, loadout, team: 1, faction: 'player', name, level, heading: Math.random() * 6.28 }, { aggro: 1500, flee: 0.18 });
+    const pos = o.pos ? o.pos.clone() : near.clone().add(new THREE.Vector3(Math.sin(a) * d, 0, Math.cos(a) * d));
+    const s = W.addShip({ chassis, loadout, team: 1, faction: 'player', name, level, heading: o.heading ?? Math.random() * 6.28 }, { aggro: 1500, flee: 0.18 });
     s.npcPlayer = true;
-    s.guild = rng.chance(0.75) ? rng.pick(GUILDS) : null;
+    s.guild = o.guild !== undefined ? o.guild : rng.chance(0.75) ? rng.pick(GUILDS) : null;
     s.factionName = s.guild ? `<${s.guild}> captain` : 'Independent captain';
     s.dmgScale = 0.7;
     s.refit();
     s.position.copy(pos);
     s.ai.home.copy(pos);
     s.life = 120 + Math.random() * 300;
-    W.fx.column(pos, 0x58c8ff, 140, 40);
+    if (!o.pos) W.fx.column(pos, 0x58c8ff, 140, 40);
     pop.ships.push(s);
     return s;
+  }
+
+  // --- station traffic: captains put in, sit docked a while, undock and head out ---
+  pop.docked = [];
+  function trafficTick(dt) {
+    const W = game.world, P = game.player;
+    if (!game.stations || !game.stations.length || !game.nearestStation) return;
+    pop.trafficT = (pop.trafficT ?? 6) - dt;
+    if (pop.trafficT <= 0) {
+      pop.trafficT = 12 + Math.random() * 14;
+      const n = game.nearestStation(P.position);
+      if (n && n.dist < 5000) {
+        const ready = pop.docked.filter((d) => d.st === n.station && d.t <= 0);
+        if (ready.length && Math.random() < 0.55) undock(ready[0]);
+        else {
+          const c = pop.ships.find((x) => x.alive && !x.partyMember && !x.traffic && !x.target && !x.ai.follow);
+          if (c) { c.traffic = { phase: 'in', st: n.station, t: 0 }; c.ai.leash = 1e9; c.life += 240; }
+        }
+      }
+    }
+    for (const d of pop.docked) d.t -= dt;
+    for (const s of pop.ships.slice()) {
+      const T = s.traffic; if (!T || !s.alive) continue;
+      T.t += dt;
+      if (T.phase === 'in') {
+        if (s.target) continue;                          // a fight comes first
+        s.ai.home.copy(T.st.dockPoint(s.position));
+        if (s.position.distanceTo(s.ai.home) < s.dims.L * 0.6 + 90 || T.t > 80) dock(s, T.st);
+      }
+    }
+  }
+  function dock(s, st) {
+    const W = game.world;
+    W.beams.add(st.position, s.position, 0x58c8ff, 2, 0.4);
+    W.fx.ring(s.position, s.dims.L * 0.8, 0x58ffd8, 40);
+    if (Math.random() < 0.35) say('LOCAL', s.name, R.pick([`docking at ${st.name}, anyone selling repair drones?`, 'putting in for repairs', `${st.name} has the cheapest refits in the sector fyi`, 'cargo full brb', 'o7 station crew']), '');
+    pop.docked.push({ name: s.name, guild: s.guild, level: s.level, chassis: s.chassis.id, st, t: 25 + Math.random() * 60 });
+    pop.ships.splice(pop.ships.indexOf(s), 1); W.removeShip(s);
+  }
+  function undock(d) {
+    pop.docked.splice(pop.docked.indexOf(d), 1);
+    const pos = d.st.dockPoint(game.player.position);
+    const s = spawnCaptain(pos, { name: d.name, guild: d.guild, level: d.level, chassis: d.chassis, pos, heading: Math.atan2(pos.x - d.st.position.x, pos.z - d.st.position.z) });
+    if (!s) return;
+    game.world.fx.ring(pos, s.dims.L * 0.8, 0x58ffd8, 40);
+    const away = pos.clone().sub(d.st.position).setY(0).setLength(2200).add(pos);
+    s.ai.home.copy(away); s.ai.leash = 1e9;
+    s.traffic = { phase: 'out', t: 0 }; s.life = 30 + Math.random() * 20;   // sails clear, then warps out
   }
 
   function warpOut(s) {
@@ -102,7 +151,7 @@ export function installMMO(game) {
     const enter = game.enterSystem;
     game.enterSystem = (id) => {
       const party = pop.party.filter((s) => s.alive).map((s) => ({ name: s.name, guild: s.guild, level: s.level, chassis: s.chassis.id, loadout: s.loadout }));
-      pop.ships = []; pop.party = []; pop.raid = null; pop.raidPending = null; game.raidMarker = null;
+      pop.ships = []; pop.party = []; pop.docked = []; pop.raid = null; pop.raidPending = null; game.raidMarker = null;
       enter(id);
       for (const p of party) {
         const s = game.world.addShip({ chassis: CHASSIS_BY_ID[p.chassis], loadout: p.loadout, team: 1, faction: 'player', name: p.name, level: p.level }, { aggro: 1500, flee: 0.18 });
@@ -202,7 +251,7 @@ export function installMMO(game) {
         s.life -= dt;
         if (s.life <= 0 && !s.target) { pop.ships.splice(pop.ships.indexOf(s), 1); warpOut(s); continue; }
         // drift toward the action: wander homes move near the captain or a zone
-        if (!s.ai.follow && Math.random() < dt * 0.05) {
+        if (!s.ai.follow && !s.traffic && Math.random() < dt * 0.05) {
           const z = R.pick(game.sector.detail.zones);
           s.ai.home.set(R.chance(0.6) ? P.position.x + (Math.random() - 0.5) * 1500 : z.x, 0, R.chance(0.6) ? P.position.z + (Math.random() - 0.5) * 1500 : z.z);
         }
@@ -242,6 +291,7 @@ export function installMMO(game) {
       }
       if (pop.raidPending) { pop.raidPending.t -= dt; if (pop.raidPending.t <= 0) { const z = pop.raidPending.z; pop.raidPending = null; startRaid(z); } }
       raidTick(dt);
+      trafficTick(dt);
       pop.inviteT -= dt;
       if (pop.inviteT <= 0) {
         pop.inviteT = 120 + Math.random() * 180;

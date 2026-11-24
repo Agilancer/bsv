@@ -197,3 +197,11 @@ body.on-bridge #menubar button[data-w="bridge"] { border-color: var(--cyan); col
   #bridgeHud .bh-hint { display: none; }
   body.bridge-dlg #bhTouch { display: none; }
 }
+
+/* short screens: compact department rows; the ship-effect panel scrolls instead of squeezing them */
+@media (max-height: 820px) {
+  .cw-dept { padding: 3px 8px; gap: 1px 8px; }
+  .cw-dept .nm { font-size: 12px; }
+  .cw-dept .eff { height: 3px; }
+  .cw-depts > .cw-panel:last-child { max-height: 42%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--edge) transparent; }
+}

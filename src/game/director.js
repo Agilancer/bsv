@@ -146,12 +146,12 @@ export class Director {
           if (zs.nextWaveT > 6) { zs.nextWaveT = 0; zs.wave++; this.garrison(zs, zs.wave); W.toast(`${ZONE_NAMES[zs.z.type]}: reinforcements inbound`, 'warn'); }
         } else {
           zs.active = false; zs.cleared++;
-          zs.respawnT = 110 + Math.random() * 70;
+          zs.respawnT = this.danger <= 5 ? 60 + Math.random() * 40 : 110 + Math.random() * 70;
           for (const s of zs.ships) s.ai.home.copy(s.position);
           if (d < 2200 && this.sector.world.game) {
             const g = this.sector.world.game;
-            const bonus = Math.round(60 * this.danger * (1 + zs.wave));
-            g.data.credits += bonus; g.gainXp(Math.round(bonus * 1.5));
+            const bonus = Math.round(20 * this.danger * (1 + zs.wave));
+            g.data.credits += bonus; g.gainXp(Math.round(bonus * 2));
             W.toast(`${ZONE_NAMES[zs.z.type]} cleared · +${bonus} ¢`, 'epic');
           }
         }
@@ -276,6 +276,28 @@ export class Director {
       if (zs.z.type === 'lair' && from.game && from.game.data.level < this.danger + 6) continue;
       const d = zs.pos.distanceTo(from.pos);
       if (d < bd) { bd = d; best = zs; }
+    }
+    return best;
+  }
+
+  // the nearest signal not yet revealed or resolved (autoplay checks these between fights)
+  nextPoi(from) {
+    let best = null, bd = Infinity;
+    for (const ps of this.pois) {
+      if (ps.done || (ps.revealed && ps.p.type !== 'derelict')) continue;
+      const d = ps.pos.distanceTo(from);
+      if (d < bd) { bd = d; best = ps; }
+    }
+    return best;
+  }
+  // the cooling zone that will have a garrison again soonest (ties: nearest)
+  nextWaking(from) {
+    let best = null, bs = Infinity;
+    for (const zs of this.zones) {
+      if (zs.active || zs.respawnT <= 0) continue;
+      if (zs.z.type === 'lair' && this.world.game && this.world.game.data.level < this.danger + 6) continue;
+      const sc = zs.respawnT + zs.pos.distanceTo(from) / 400;
+      if (sc < bs) { bs = sc; best = zs; }
     }
     return best;
   }

@@ -1,0 +1,35 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tests/*.test.mjs
+
+  # the game itself, headless: pacing (soak), no silent duels, time-to-kill contract
+  gameplay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - name: Dev server
+        run: nohup python3 tools/serve.py 8420 > /tmp/serve.log 2>&1 &
+      - run: sleep 2 && curl -sf http://localhost:8420/index.html > /dev/null
+      - name: Autoplay soak (10 min) — kills/min, idle share, no hung goals
+        run: node tools/soak.cjs 10 --gate
+      - name: Stalemate sweep — both sides trade fire in every manoeuvring duel
+        run: node tools/stalemate.cjs 2,8,20 --gate

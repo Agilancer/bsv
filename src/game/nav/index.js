@@ -6,7 +6,7 @@ import { save } from '../Player.js';
 
 const fmt = (n) => (n >= 1e4 ? (n / 1e3).toFixed(1) + 'k' : Math.round(n).toString());
 const STAR_HEX = { yellow: '#ffd890', orange: '#ffa060', red: '#ff5a40', white: '#e8f0ff', blue: '#80b0ff', violet: '#c080ff' };
-const _v = new THREE.Vector3();
+const _v = new THREE.Vector3(), _fwd = new THREE.Vector3(), _side = new THREE.Vector3();
 
 export function unlockedDanger(P) { return P.level + 6; }
 
@@ -84,6 +84,8 @@ export function installNav(game) {
     return true;
   };
   game.isWarping = () => !!warp;
+  game.warpState = () => warp;   // debug/tools
+  game.cancelWarp = () => { if (!warp) return; warp = null; fade.style.opacity = '0'; game.engine.camera.fov = 32; game.engine.camera.updateProjectionMatrix(); };
 
   // drive state machine
   game.engine.add({
@@ -92,7 +94,7 @@ export function installNav(game) {
       const s = game.player, W = game.world, fx = W.fx;
       const slip = game.data.talents && game.data.talents.slipstream ? 2 : 1;
       warp.t += realDt * slip;
-      const fwd = _v.set(Math.sin(s.heading), 0, Math.cos(s.heading));
+      const fwd = _fwd.set(Math.sin(s.heading), 0, Math.cos(s.heading));
       if (warp.phase === 'spool') {
         // turn toward the destination, charge the drive
         if (warp.kind === 'local') { s.steerHeading(Math.atan2(warp.to.x - s.position.x, warp.to.z - s.position.z), 0.2); game.moveTarget = null; }
@@ -107,7 +109,7 @@ export function installNav(game) {
         // streaks race past
         for (let i = 0; i < 14; i++) {
           const a = Math.random() * Math.PI * 2, r = 60 + Math.random() * 400;
-          const side = _v.set(Math.cos(a) * r, Math.sin(a) * r * 0.4, 0).applyAxisAngle(THREE.Object3D.DEFAULT_UP, s.heading);
+          const side = _side.set(Math.cos(a) * r, Math.sin(a) * r * 0.4, 0).applyAxisAngle(THREE.Object3D.DEFAULT_UP, s.heading);
           const p = s.position.clone().add(side).addScaledVector(fwd, 500);
           fx.spark.emit(p.x, p.y, p.z, -fwd.x * 2600, 0, -fwd.z * 2600, 0.35, 1.2, 1.6, 2.6, 1, 3, 1, 0, 0);
         }
@@ -148,7 +150,8 @@ export function installNav(game) {
   function renderGalaxy() {
     const W = game.ui.windows.galaxy, body = W.querySelector('.wbody');
     if (!gCanvas) {
-      body.innerHTML = `<div class="gwrap"><canvas class="gmap"></canvas><div class="ginfo holo" id="gInfo"></div></div>`;
+      const LEG = [['pirate', 'Corsair Pirates', '#ff6a5a'], ['rival', 'Rival Companies', '#ffb040'], ['rustborn', 'Rustborn', '#d89050'], ['covenant', 'Hollow Star Covenant', '#ff3b8a'], ['brood', 'Leviathan Brood', '#40ffd0'], ['silent', 'Silent Choir', '#bff0ff']];
+      body.innerHTML = `<div class="gwrap"><canvas class="gmap"></canvas><div class="ginfo holo" id="gInfo"></div><div class="glegend holo"><div class="label">Held by</div>${LEG.map(([, n, col]) => `<span><i style="border-color:${col}"></i>${n}</span>`).join('')}</div></div>`;
       gCanvas = body.querySelector('canvas');
       gCanvas.addEventListener('mousemove', (e) => { hover = pick(e); drawGalaxy(); });
       gCanvas.addEventListener('click', (e) => { const p = pick(e); if (p) { selected = p.id; drawGalaxy(); info(); } });
@@ -186,6 +189,20 @@ export function installNav(game) {
     for (const [x, y, k] of drawGalaxy.dust) { c.fillStyle = `rgba(${150 + k * 100},${150 + k * 60},255,${0.08 + k * 0.12})`; c.fillRect(L.cx + x * L.S, L.cy + y * L.S, 1.5, 1.5); }
     const max = unlockedDanger(P);
     const rt = selected != null && selected !== P.system ? route(P.system, selected, P) : null;
+    // territory: a soft wash of the holding power's colour under each system, then the arm names
+    const FCT = { pirate: '255,106,90', rival: '255,176,64', rustborn: '216,144,80', covenant: '255,59,138', brood: '64,255,208', silent: '191,240,255' };
+    for (const s of S) {
+      const x = L.cx + s.x * L.S, y = L.cy + s.y * L.S, rr = 70 * L.S + 14;
+      const gg = c.createRadialGradient(x, y, 0, x, y, rr);
+      gg.addColorStop(0, `rgba(${FCT[s.control] || '150,150,150'},0.10)`); gg.addColorStop(1, `rgba(${FCT[s.control] || '150,150,150'},0)`);
+      c.fillStyle = gg; c.fillRect(x - rr, y - rr, rr * 2, rr * 2);
+    }
+    c.save(); c.font = `600 ${Math.max(11, Math.round(15 * L.S * 2.2))}px Rajdhani, sans-serif`; c.textAlign = 'center';
+    for (let arm = 0; arm < 3; arm++) {
+      const tt = 0.86, r = 120 + tt * 820 + 70, a = arm * (Math.PI * 2 / 3) + tt * 4.2;
+      c.fillStyle = 'rgba(190,200,255,0.22)'; c.fillText(ARM_NAMES[arm].toUpperCase(), L.cx + Math.cos(a) * r * L.S, L.cy + Math.sin(a) * r * L.S);
+    }
+    c.restore();
     // lanes
     c.lineWidth = 1;
     for (const s of S) for (const l of s.links) if (l > s.id) {
@@ -245,7 +262,8 @@ export function installNav(game) {
     const W = game.ui.windows.system, body = W.querySelector('.wbody');
     W.querySelector('.wtitle span').textContent = `${game.sector.sys.name} · danger ${game.sector.sys.danger}`;
     if (!sCanvas) {
-      body.innerHTML = `<canvas class="smap"></canvas><div class="label" style="margin-top:6px">Click to warp · ⚔ patrol ⛫ raider base ◌ mining belt ✕ wreck field ⚑ contested front ☠ boss lair · ◆ derelict ✚ distress ✺ anomaly · ? unknown signal</div>`;
+      const LEG = [['⚔', 'patrol'], ['⛫', 'raider base'], ['◌', 'mining belt'], ['✕', 'wreck field'], ['⚑', 'contested'], ['☠', 'boss lair'], ['◆', 'derelict'], ['✚', 'distress'], ['✺', 'anomaly'], ['?', 'signal']];
+      body.innerHTML = `<canvas class="smap"></canvas><div class="slegend"><span class="label">Click to warp</span>${LEG.map(([g, n]) => `<span><b>${g}</b>${n}</span>`).join('')}</div>`;
       sCanvas = body.querySelector('canvas');
       sCanvas.addEventListener('click', (e) => {
         const L = sLayout(), r = sCanvas.getBoundingClientRect();
@@ -273,10 +291,16 @@ export function installNav(game) {
     for (const b of D.belts) { c.strokeStyle = 'rgba(160,150,140,0.25)'; c.setLineDash([2, 4]); c.lineWidth = Math.max(2, b.width * L.S); c.beginPath(); c.arc(L.cx, L.cy, (b.r0 + b.width / 2) * L.S, 0, Math.PI * 2); c.stroke(); c.setLineDash([]); }
     c.textAlign = 'center'; c.font = '500 11px Rajdhani, sans-serif';
     const placed = [];
-    const label = (txt, x, y, color) => {
+    const mkz = game.sector.director ? game.sector.director.markers() : { zones: D.zones, pois: [] };
+    for (const z of mkz.zones) placed.push({ x: X(z.x), y: Y(z.z) + 4, w: 26 });   // keep labels off the zone glyphs
+    for (const p of mkz.pois) if (!p.done) placed.push({ x: X(p.x), y: Y(p.z) + 4, w: 16 });
+    const hit = (x, y, w) => placed.some((p) => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < 13);
+    const label = (txt, x, y, color, alt) => {
       const w = c.measureText(txt).width + 6;
-      if (placed.some((p) => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < 13)) return;
-      placed.push({ x, y, w }); c.fillStyle = color; c.fillText(txt, x, y);
+      let px = x, py = y;
+      if (hit(px, py, w) && alt) { py = alt; if (hit(px, py, w)) { px = x + w / 2 + 10; py = (y + alt) / 2; } }
+      if (hit(px, py, w)) return;
+      placed.push({ x: px, y: py, w }); c.fillStyle = color; c.fillText(txt, px, py);
     };
     for (const st of game.stations) label(st.name, X(st.position.x), Y(st.position.z) + 18, '#9ff0e0');
     for (const pl of game.sector.planets) {
@@ -285,12 +309,18 @@ export function installNav(game) {
       const r = Math.max(info.moon ? 2 : 4, info.radius * L.S);
       c.fillStyle = info.moon ? '#8890a8' : '#a8b8e0';
       c.beginPath(); c.arc(X(pl.position.x), Y(pl.position.z), r, 0, Math.PI * 2); c.fill();
-      if (!info.moon) label(info.name, X(pl.position.x), Y(pl.position.z) - r - 4, '#b8c6e0');
-      if (game.data.scanned && game.data.scanned[info.name]) { c.strokeStyle = '#4ade80'; c.beginPath(); c.arc(X(pl.position.x), Y(pl.position.z), r + 3, 0, Math.PI * 2); c.stroke(); }
+      if (!info.moon) label(info.name, X(pl.position.x), Y(pl.position.z) - r - 4, '#b8c6e0', Y(pl.position.z) + r + 12);
+      // surveyed worlds: a green ring, and what landings there have brought home
+      const rec = game.data.explorer && game.data.explorer.scanned && game.data.explorer.scanned[`${game.data.system}:${info.name}`];
+      if (rec) {
+        c.strokeStyle = '#4ade80'; c.lineWidth = 1.2; c.beginPath(); c.arc(X(pl.position.x), Y(pl.position.z), r + 3, 0, Math.PI * 2); c.stroke();
+        const txt = rec.runs ? `◈ ${rec.runs} landing${rec.runs > 1 ? 's' : ''} · ${rec.banked || 0}u${rec.dungeons ? ' · ' + rec.dungeons + ' dungeon' + (rec.dungeons > 1 ? 's' : '') : ''}` : '◈ surveyed';
+        c.font = '500 10px Rajdhani, sans-serif'; label(txt, X(pl.position.x), Y(pl.position.z) + r + 13, '#7ee8a8', Y(pl.position.z) + r + 25); c.font = '500 11px Rajdhani, sans-serif';
+      }
     }
     const FC = { pirate: '#ff6a5a', rival: '#ffb040', rustborn: '#d89050', covenant: '#ff3b8a', brood: '#40ffd0', silent: '#bff0ff' };
     const ICON = { patrol: '⚔', base: '⛫', belt: '◌', wrecks: '✕', front: '⚑', lair: '☠' };
-    const mk = game.sector.director ? game.sector.director.markers() : { zones: D.zones, pois: [] };
+    const mk = mkz;
     c.font = '600 13px Rajdhani, sans-serif';
     for (const z of mk.zones) {
       const x = X(z.x), y = Y(z.z);

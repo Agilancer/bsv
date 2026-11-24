@@ -20,7 +20,7 @@ import { Dungeon, portalMaterial } from './Dungeon.js';
 import { DUNGEON_THEMES } from './dungeonGen.js';
 import { landerGroup, beaconMaterial, texturedMat } from './siteModels.js';
 import { GeoBuilder, rockGeometry } from './geo.js';
-import { RESOURCES, bankCargo, loseCargo, cargoTotal, addResources } from './economy.js';
+import { RESOURCES, bankCargo, loseCargo, cargoTotal, addResources, planetKey } from './economy.js';
 import { ensureExplorer, explorerStats, grantExplorerXp, EX_INV_SIZE, scrapYield, rollExItem } from './explorerItems.js';
 import { pickPack } from './enemies.js';
 import { PlanetHUD } from './PlanetHUD.js';
@@ -516,6 +516,9 @@ export class PlanetMode {
   }
   finish() {
     const G = this.game, R = this.runStats;
+    // the survey record remembers what each world has given (shown on the system map)
+    const rec = this.ex.scanned && this.ctx.info && this.ex.scanned[planetKey(this.sys.id ?? G.data.system, this.ctx.info)];
+    if (rec) { rec.runs = (rec.runs || 0) + 1; rec.banked = (rec.banked || 0) + R.banked; rec.kills = (rec.kills || 0) + R.kills; rec.dungeons = (rec.dungeons || 0) + R.dungeons; }
     G.exitMode();
     const got = Object.entries(R.gathered).map(([k, v]) => `${v} ${RESOURCES[k].short}`).join(' · ');
     G.ui.toast(`Explorer recovered · ${R.banked} units banked`, 'epic');

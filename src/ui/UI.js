@@ -2,10 +2,14 @@
 // (brackets, health bars, damage numbers, loot labels, weapon arcs), and the windows.
 import * as THREE from 'three/webgpu';
 import { icon } from './icons.js';
+import { drawHullPlan } from './hullPlan.js';
 import { ABILITIES } from '../game/data/abilities.js';
 import { BASES, RARITY, describe, itemShipStats, weaponStats } from '../game/data/items.js';
 import { slotKeys, slotType, xpForLevel, shipXpForLevel, itemScore, INV_SIZE } from '../game/Player.js';
+// HUD panels the camera frames around (hidden ones measure 0 and drop out)
+const SAFE_IDS = ['status', 'helm', 'radar', 'weapons', 'target', 'abilities', 'menubar', 'chat', 'objectives', 'hudPeek', 'stick', 'mStop'];
 import { CHASSIS_BY_ID, YARDS, YARD_TRAITS } from '../game/data/chassis.js';
+import { sheetDps } from '../game/data/balance.js';
 import { THROTTLE_STEPS } from '../game/ship/Ship.js';
 import { TREES, TALENTS, talentPoints, spentPoints, canLearn, treePoints } from '../game/data/talents.js';
 import { ENEMIES, SIZES, ENEMY_FACTIONS } from '../game/data/enemies.js';
@@ -47,10 +51,9 @@ export class UI {
         <div class="label">Shields</div><div class="bar shield" id="hShield"><i></i><span></span></div>
         <div class="label">Commander XP</div><div class="bar xp" id="hXp"><i></i><span></span></div>
       </div></div></div>`));
-    R.append(h(`<div id="menubar">
-      <button data-w="character">SHIP [C]</button><button data-w="inventory">CARGO [I]</button><button data-w="skills">SKILLS [T]</button>
-      <button data-w="crew">CREW [K]</button><button data-w="bridge">BRIDGE [B]</button><button data-w="galaxy">GALAXY [M]</button>
-      <button data-w="codex">CODEX</button><button class="auto" data-w="auto">AUTO [P]</button><button data-w="options">⚙</button></div>`));
+    // key hints sit in <i class="k"> so narrower screens can drop them (they stay in the tooltip)
+    const mb = [['character', 'SHIP', 'C'], ['inventory', 'CARGO', 'I'], ['skills', 'SKILLS', 'T'], ['crew', 'CREW', 'K'], ['bridge', 'BRIDGE', 'B'], ['galaxy', 'GALAXY', 'M'], ['codex', 'CODEX', ''], ['auto', 'AUTO', 'P'], ['options', '⚙', '']];
+    R.append(h(`<div id="menubar">${mb.map(([w, n, k]) => `<button data-w="${w}"${w === 'auto' ? ' class="auto"' : ''} title="${n}${k ? ' [' + k + ']' : ''}">${n}${k ? ` <i class="k">[${k}]</i>` : ''}</button>`).join('')}</div>`));
     R.querySelectorAll('#menubar button').forEach((b) => b.addEventListener('click', () => this.game.command(b.dataset.w)));
     R.append(h(`<div id="target" class="holo"><div class="tname" id="tName"></div><div class="tsub" id="tSub"></div>
       <div class="bar shield" id="tShield"><i></i><span></span></div><div class="bar hull" id="tHull"><i></i><span></span></div></div>`));
@@ -175,8 +178,8 @@ export class UI {
     s += `<div class="tx">Fits: ${SLOT_LABEL[item.slot]} · Value ${fmt(item.value)} ¢</div>`;
     if (compareTo && compareTo !== item) {
       const a = itemScore(item), b = itemScore(compareTo);
-      const diff = Math.round(a - b);
-      s += `<div class="cmp">vs equipped <span style="color:${RARITY[compareTo.rarity].color}">${esc(compareTo.name)}</span>: <span class="${diff >= 0 ? 'better' : 'worse'}">${diff >= 0 ? '▲ +' : '▼ '}${diff} gear score</span></div>`;
+      const diff = Math.round(a - b), rel = b > 0 ? Math.round((a / b - 1) * 100) : 0;
+      s += `<div class="cmp">vs equipped <span style="color:${RARITY[compareTo.rarity].color}">${esc(compareTo.name)}</span>: <span class="${diff >= 0 ? 'better' : 'worse'}">${diff >= 0 ? '▲ +' : '▼ '}${diff} gear score (${rel >= 0 ? '+' : ''}${rel}%)</span></div>`;
     }
     return s;
   }
@@ -194,7 +197,8 @@ export class UI {
     const keys = slotKeys(chassis);
     const groups = {};
     for (const k of keys) (groups[slotType(k)] ||= []).push(k);
-    let left = '';
+    // the hull itself, mounts where they sit: hover for what's fitted, click to filter the hold
+    let left = ship ? `<div class="hplan"><canvas></canvas><div class="label">${chassis.fullName} · click a mount to see what fits${this.slotFilter ? ` · <a href="#" id="hpClear">show all</a>` : ''}</div></div>` : '';
     for (const [t, ks] of Object.entries(groups)) {
       left += `<div class="label" style="margin:8px 0 4px">${SLOT_LABEL[t]}s</div><div class="slots">`;
       for (const k of ks) {
@@ -209,12 +213,32 @@ export class UI {
       const it = P.inventory[i];
       let up = '';
       if (it) { const cur = g.worstEquipped(it.slot); if (!cur || itemScore(it) > itemScore(cur)) up = '<span class="up">▲</span>'; }
-      right += `<div class="cell" data-i="${i}">${it ? this.itemEl(it, up) : ''}</div>`;
+      const off = this.slotFilter && it && it.slot !== this.slotFilter;
+      right += `<div class="cell${off ? ' off' : ''}" data-i="${i}">${it ? this.itemEl(it, up) : ''}</div>`;
     }
     right += `</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
       <button class="btn" id="invBest">Equip best</button><button class="btn violet" id="invSalvage">Salvage commons</button><button class="btn bad" id="invSellJunk">Sell below rare</button></div>
       <div class="label" style="margin-top:10px">Click: equip / unequip · Right-click: salvage for credits · Drag to a slot</div>`;
     body.innerHTML = `<div class="cols"><div>${left}</div><div>${right}</div></div>`;
+    const cv = body.querySelector('.hplan canvas');
+    if (cv && ship) {
+      const hits = drawHullPlan(cv, ship, P.ship.loadout, this.slotFilter);
+      const at = (e) => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; return hits.find((h) => (h.x - x) ** 2 + (h.y - y) ** 2 < h.r * h.r); };
+      cv.addEventListener('mousemove', (e) => {
+        const h = at(e); cv.style.cursor = h ? 'pointer' : 'default';
+        if (!h) return this.hideTip();
+        const it = P.ship.loadout[h.key];
+        this.showTip(it ? this.itemTip(it) : `<div class="tn">Empty ${SLOT_LABEL[h.type] || h.type} mount</div><div class="tl">Click to show what fits</div>`, e);
+      });
+      cv.addEventListener('mouseleave', () => this.hideTip());
+      cv.addEventListener('click', (e) => {
+        const h = at(e); if (!h) return;
+        this.slotFilter = this.slotFilter === h.type ? null : h.type;
+        const sl = body.querySelector(`.slot[data-slot="${h.key}"]`); if (sl) sl.classList.add('pulse');
+        this.renderInventory();
+      });
+      const clr = body.querySelector('#hpClear'); if (clr) clr.onclick = (e) => { e.preventDefault(); this.slotFilter = null; this.renderInventory(); };
+    }
     const find = (uid) => P.inventory.find((x) => x && x.uid === uid) || Object.values(P.ship.loadout).find((x) => x && x.uid === uid);
     body.querySelectorAll('.item').forEach((el) => {
       const it = find(el.dataset.uid);
@@ -243,8 +267,7 @@ export class UI {
     const g = this.game, P = g.data, s = g.player;
     const ch = CHASSIS_BY_ID[P.ship.chassis], y = YARDS[ch.yard];
     const body = this.windows.character.querySelector('.wbody');
-    let dps = 0;
-    if (s) for (const w of s.weapons) if (w.hp.type !== 'hangar') dps += w.ws.dmg * w.ws.barrels * w.ws.rof * (s.stats.dmgMul || 1);
+    const dps = s ? sheetDps(s.weapons, s.stats) : 0;   // one flank, turrets and prow, with crit (the balance contract's measure)
     const row = (k, v) => `<span>${k}</span><b>${v}</b>`;
     body.innerHTML = `
       <div class="title" style="color:var(--cyan)">${esc(P.ship.name)}</div>
@@ -262,7 +285,7 @@ export class UI {
         ${row('Turn rate', s ? (s.turnRate * 57.3).toFixed(1) + '°/s' : '-')}
         ${row('Weapon damage', s ? '+' + (((s.stats.dmgMul || 1) - 1) * 100).toFixed(0) + '%' : '-')}
         ${row('Critical chance', s ? (5 + (s.stats.crit || 0) * 100).toFixed(1) + '%' : '-')}
-        ${row('Total DPS', fmt(dps))}
+        ${row('DPS (one flank)', fmt(dps))}
         ${row('Crew complement', `${ch.crew[0]}–${ch.crew[1]}`)}
         ${row('Hull length', ch.len * 10 + ' m')}
         ${row('Kills', P.kills)}
@@ -355,9 +378,42 @@ export class UI {
     this.numbers.push({ pos: pos.clone(), v: Math.round(amount), crit, shield, t: 0, dx: (Math.random() - 0.5) * 30, ship, own: ship && ship === this.game.player });
   }
 
+  // the part of the screen not covered by HUD panels that hug an edge. The camera puts its
+  // optical centre in the middle of it (so the fight isn't framed under the helm or the pad).
+  safeRect() {
+    const W = innerWidth, H = innerHeight, r = this._safe || (this._safe = { x: 0, y: 0, w: W, h: H });
+    let l = 0, rt = W, t = 0, b = H;
+    for (const id of SAFE_IDS) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const c = el.getBoundingClientRect();
+      if (c.width < 8 || c.height < 8 || c.right < 0 || c.left > W) continue;
+      if (getComputedStyle(el).visibility === 'hidden' || +getComputedStyle(el).opacity < 0.05) continue;
+      const dl = c.left, dr = W - c.right, dt = c.top, db = H - c.bottom, m = Math.min(dl, dr, dt, db);
+      if (m > 96) continue;                         // floating mid-screen: ignore (docked panels sit within ~90px)
+      // shrink along whichever axis costs the least screen
+      const opts = [];
+      if (dl === m || dl < 96) opts.push(['l', c.right * H]);
+      if (dr === m || dr < 96) opts.push(['r', (W - c.left) * H]);
+      if (dt === m || dt < 96) opts.push(['t', c.bottom * W]);
+      if (db === m || db < 96) opts.push(['b', (H - c.top) * W]);
+      opts.sort((a, z) => a[1] - z[1]);
+      const k = opts[0][0];
+      if (k === 'l') l = Math.max(l, c.right); else if (k === 'r') rt = Math.min(rt, c.left);
+      else if (k === 't') t = Math.max(t, c.bottom); else b = Math.min(b, c.top);
+    }
+    // never let the HUD squeeze the view below 55% of the screen on an axis
+    if (rt - l < W * 0.55) { const c = (l + rt) / 2; l = Math.max(0, c - W * 0.275); rt = Math.min(W, l + W * 0.55); }
+    if (b - t < H * 0.55) { const c = (t + b) / 2; t = Math.max(0, c - H * 0.275); b = Math.min(H, t + H * 0.55); }
+    r.x = l; r.y = t; r.w = rt - l; r.h = b - t;
+    return r;
+  }
+
   update(dt, realDt) {
     const g = this.game, s = g.player, P = g.data;
     if (!P) return;
+    this.safeT = (this.safeT || 0) - realDt;
+    if (this.safeT <= 0 && g.cam) { this.safeT = 0.5; g.cam.safe = g.mode === 'space' ? this.safeRect() : null; }
     // status
     const lvl = P.level;
     this.hud.lvl.textContent = lvl;

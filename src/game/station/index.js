@@ -2,7 +2,7 @@
 // services, contracts). Installs onto the game through modules.js.
 import * as THREE from 'three/webgpu';
 import { Station } from './Station.js';
-import { marketStock, shipyardStock, buyPrice, sellPrice, acquireShip, switchShip, repairCost, makeContracts, progressContracts, makeBlueprint, canFly } from './services.js';
+import { marketStock, shipyardStock, buyPrice, sellPrice, acquireShip, switchShip, repairCost, makeContracts, progressContracts, makeBlueprint, canFly, kindOf } from './services.js';
 import { CHASSIS_BY_ID, CHASSIS, YARDS } from '../data/chassis.js';
 import { RARITY, rollItem, describe } from '../data/items.js';
 import { INV_SIZE, itemScore, save } from '../Player.js';
@@ -69,9 +69,9 @@ export function installStations(game) {
     // free repairs to the shields, and contracts tick in
     for (let i = 0; i < 4; i++) s.shields[i] = s.maxShield * 0.3;
     const danger = game.sector.sys.danger;
-    stock = marketStock(st.seed, danger, game.data);
-    yardStock = shipyardStock(st.seed, danger, game.data);
-    contracts = makeContracts(st.seed, danger, game.data);
+    stock = marketStock(st.seed, danger, game.data, st.kind);
+    yardStock = shipyardStock(st.seed, danger, game.data, st.kind);
+    contracts = makeContracts(st.seed, danger, game.data, st.kind);
     tab = tab || 'market';
     game.ui.toggle('station', true);
     game.world.fx.ring(s.position, 120, 0x58ffd8, 64);
@@ -124,7 +124,15 @@ export function installStations(game) {
       if (docking) {
         game.moveTarget = docking.point;   // the helm sails us in
         if (game.autoplay && game.autoplay.active) s.steerTo(docking.point, 40, 0.7);
-        if (s.position.distanceTo(docking.point) < s.dims.L * 0.6 + 60) { game.moveTarget = null; game.dockingTarget = null; dockNow(docking.station); }
+        // after a few seconds on approach the station's tractor beam takes over (big hulls
+        // otherwise circle the berth on their turning radius)
+        docking.t = (docking.t || 0) + dt;
+        const d = s.position.distanceTo(docking.point);
+        if (docking.t > 4 && d < 1100) {
+          if (Math.random() < dt * 8) game.world.beams.add(docking.station.position, s.position, 0x58c8ff, 2, 0.25);
+          s.position.lerp(docking.point, Math.min(1, dt * 0.6)); s.throttle = Math.min(s.throttle, 0.2);
+        }
+        if (d < s.dims.L * 0.6 + 60) { game.moveTarget = null; game.dockingTarget = null; dockNow(docking.station); }
       }
       if (game.docked) {
         s.throttle = 0; s.rudder = 0; s.invuln = true;
@@ -149,12 +157,14 @@ export function installStations(game) {
     const P = game.data, st = game.docked;
     const body = W.querySelector('.wbody');
     if (!st) { body.innerHTML = '<div class="label">Not docked.</div>'; return; }
-    W.querySelector('.wtitle span').textContent = `${st.name} · ${st.kind}`;
+    const K = kindOf(st.kind);
+    W.querySelector('.wtitle span').textContent = `${st.name} · ${K.name || st.kind}`;
     const tabs = ['market', 'shipyard', 'fleet', 'services', 'contracts'];
-    let h = `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">${tabs.map((t) => `<button class="btn ${t === tab ? '' : 'violet'}" data-tab="${t}">${t}</button>`).join('')}<span style="flex:1"></span><span class="val" style="color:#ffd66a;align-self:center">${fmt(P.credits)} ¢</span><button class="btn bad" id="stUndock">Undock</button></div>`;
+    let h = K.blurb ? `<div class="label" style="margin:-4px 0 10px;color:var(--cyan)">${K.name} — ${K.blurb}</div>` : '';
+    h += `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">${tabs.map((t) => `<button class="btn ${t === tab ? '' : 'violet'}" data-tab="${t}">${t}</button>`).join('')}<span style="flex:1"></span><span class="val" style="color:#ffd66a;align-self:center">${fmt(P.credits)} ¢</span><button class="btn bad" id="stUndock">Undock</button></div>`;
     if (tab === 'market') {
-      h += `<div class="label" style="margin-bottom:6px">For sale</div><div class="grid">${stock.map((it, i) => `<div class="cell" data-buy="${i}">${itemEl(it)}<span class="price">${fmt(buyPrice(P, it))}</span></div>`).join('')}</div>`;
-      h += `<div class="label" style="margin:12px 0 6px">Your hold · click to sell</div><div class="grid">${P.inventory.map((it, i) => `<div class="cell" data-sell="${i}">${itemEl(it)}<span class="price">${fmt(sellPrice(P, it))}</span></div>`).join('')}</div>
+      h += `<div class="label" style="margin-bottom:6px">For sale</div><div class="grid">${stock.map((it, i) => `<div class="cell" data-buy="${i}">${itemEl(it)}<span class="price">${fmt(buyPrice(P, it, st.kind))}</span></div>`).join('')}</div>`;
+      h += `<div class="label" style="margin:12px 0 6px">Your hold · click to sell</div><div class="grid">${P.inventory.map((it, i) => `<div class="cell" data-sell="${i}">${itemEl(it)}<span class="price">${fmt(sellPrice(P, it, st.kind))}</span></div>`).join('')}</div>
         <div style="margin-top:10px;display:flex;gap:8px"><button class="btn violet" id="sellJunk">Sell all below rare</button><button class="btn violet" id="sellNonUp">Sell everything that is not an upgrade</button></div>`;
     } else if (tab === 'shipyard') {
       const bps = P.inventory.filter((i) => i.slot === 'blueprint');
@@ -177,7 +187,7 @@ export function installStations(game) {
       P.fleet.forEach((f, i) => { const fc = CHASSIS_BY_ID[f.chassis]; h += `<div class="hull"><div class="hn">${esc(f.name)}</div><div class="label">${fc.fullName} · level ${f.level}</div><button class="btn" data-fleet="${i}" ${canFly(P, fc) ? '' : 'disabled'}>Make flagship</button> <button class="btn bad" data-scrap="${i}">Sell ${fmt(Math.round(fc.price * 0.35))} ¢</button></div>`; });
       h += `</div>`;
     } else if (tab === 'services') {
-      const s = game.player, cost = s ? repairCost(s) : 0;
+      const s = game.player, cost = s ? repairCost(s, st.kind) : 0;
       h += `<div class="svc"><div><div class="title">Drydock</div><div class="label">Hull ${fmt(s.hull)} / ${fmt(s.maxHull)}</div></div><button class="btn" id="repair" ${cost > 0 && P.credits >= cost ? '' : 'disabled'}>Full repair ${fmt(cost)} ¢</button></div>
         <div class="svc"><div><div class="title">Crew quarters</div><div class="label">Hire officers and ratings</div></div><button class="btn" id="hire" ${game.modes.crew ? '' : 'disabled'}>Open crew</button></div>
         <div class="svc"><div><div class="title">Refinery</div><div class="label">Turn planet resources into upgrades</div></div><button class="btn" id="refine" ${game.modes.refinery ? '' : 'disabled'}>Open refinery</button></div>
@@ -200,7 +210,7 @@ export function installStations(game) {
       el.onmouseleave = () => game.ui.hideTip();
     });
     body.querySelectorAll('[data-buy]').forEach((c) => c.onclick = () => {
-      const it = stock[+c.dataset.buy], price = buyPrice(P, it);
+      const it = stock[+c.dataset.buy], price = buyPrice(P, it, game.docked && game.docked.kind);
       if (P.credits < price) return game.ui.toast('Not enough credits', 'warn');
       if (P.inventory.length >= INV_SIZE) return game.ui.toast('Cargo hold full', 'warn');
       P.credits -= price; P.inventory.push(it); stock.splice(+c.dataset.buy, 1); game.ui.hideTip(); render();
@@ -220,7 +230,7 @@ export function installStations(game) {
     body.querySelectorAll('[data-scrap]').forEach((b) => b.onclick = () => { const f = P.fleet[+b.dataset.scrap]; P.credits += Math.round(CHASSIS_BY_ID[f.chassis].price * 0.35); P.fleet.splice(+b.dataset.scrap, 1); render(); });
     if ($('#rename')) $('#rename').onclick = () => { const v = $('#shipName').value.trim(); if (v) { P.ship.name = v; if (game.player) game.player.name = v; } render(); };
     if ($('#shipName')) { $('#shipName').onfocus = () => { game.input.blocked = true; }; $('#shipName').onblur = () => { game.input.blocked = false; }; $('#shipName').onkeydown = (e) => e.stopPropagation(); }
-    if ($('#repair')) $('#repair').onclick = () => { const s = game.player, c = repairCost(s); if (P.credits >= c) { P.credits -= c; s.hull = s.maxHull; } render(); };
+    if ($('#repair')) $('#repair').onclick = () => { const s = game.player, c = repairCost(s, game.docked && game.docked.kind); if (P.credits >= c) { P.credits -= c; s.hull = s.maxHull; } render(); };
     if ($('#hire')) $('#hire').onclick = () => game.modes.crew && game.modes.crew();
     if ($('#refine')) $('#refine').onclick = () => game.modes.refinery && game.modes.refinery();
     if ($('#charts')) $('#charts').onclick = () => game.command('galaxy');
@@ -229,7 +239,7 @@ export function installStations(game) {
 
   function sell(it, quiet) {
     const P = game.data, i = P.inventory.indexOf(it); if (i < 0) return;
-    P.inventory.splice(i, 1); const v = sellPrice(P, it); P.credits += v;
+    P.inventory.splice(i, 1); const v = sellPrice(P, it, game.docked && game.docked.kind); P.credits += v;
     if (!quiet) game.ui.chat('TRADE', null, `Sold ${it.name} for ${v} ¢`, 'loot', 'loot');
   }
   game.sellItem = sell;
@@ -239,7 +249,7 @@ export function installStations(game) {
     for (const it of P.inventory.slice()) {
       if (it.slot === 'blueprint' || RARITY[it.rarity].i >= 4) continue;
       const cur = game.worstEquipped(it.slot);
-      if (cur && itemScore(it) <= itemScore(cur)) { total += sellPrice(P, it); sell(it, true); n++; }
+      if (cur && itemScore(it) <= itemScore(cur)) { total += sellPrice(P, it, game.docked && game.docked.kind); sell(it, true); n++; }
     }
     if (n) game.ui.toast(`Sold ${n} items for ${fmt(total)} ¢`);
     return n;
