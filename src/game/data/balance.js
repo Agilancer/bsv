@@ -166,10 +166,9 @@ export function expectedPlayer(L) {
   return r;
 }
 
-// Share of sheet DPS that lands, by enemy size: small craft are hard to hit and often die before
-// a flank comes to bear; big hulls can't get out of the way (calibrated with tools/duel.cjs).
-// (above 1 for big hulls: abilities — volleys, torpedo spreads, overcharge — add burst the sheet
-// doesn't count, and nothing that big gets out of the way)
+// Share of sheet DPS that lands in sustained gunnery (abilities off), by enemy size: small craft
+// are hard to hit; big hulls can't get out of the way (calibrated with tools/duel.cjs).
+// Abilities (volleys, torpedo spreads, overcharge) are burst on top of this in real play.
 export const ENGAGE_BY_SIZE = [0.6, 0.45, 1.2, 0.8, 0.21, 0.2];
 // share of the captain's hull repair each enemy must also cover: escorts fight in packs, bosses alone
 export const REGEN_SHARE_BY_SIZE = [0.35, 0.35, 0.5, 0.7, 1, 1];

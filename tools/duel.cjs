@@ -21,6 +21,9 @@ const { chromium } = require('playwright');
     const { standardTalents } = await import('./src/game/data/talents.js');
     const { SHIP_UPGRADES } = await import('./src/game/planet/economy.js');
     g.sector.director.update = () => {}; if (g.npcs) g.npcs.update = () => {};
+    // the contract is sustained gunnery: abilities (opening alpha strikes) are burst on top of it in
+    // real play, so they are off here — a fresh duel would otherwise start with every cooldown ready
+    g.useAbility = () => false;
     const out = [];
     for (const L of levels) {
       const E = expectedPlayer(L);
