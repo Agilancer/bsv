@@ -122,7 +122,7 @@ export class PlanetMode {
     this.pfx = new PlanetFX(E, scene);
     this.pfx.dustHex = this.dustHex;
     const boom = this.pfx.explode.bind(this.pfx);
-    this.pfx.explode = (p, s = 1, hex) => { boom(p, s, hex); if (this.wildlife && !this.dungeon) this.wildlife.startle(p, 12 + s * 9); this.sfx(s > 1.6 ? 'heavy' : 'explosion', p, Math.min(1.3, 0.25 + s * 0.35)); };
+    this.pfx.explode = (p, s = 1, hex) => { boom(p, s, hex); if (this.wildlife && !this.dungeon && !this.pilot.duel) this.wildlife.startle(p, 12 + s * 9); this.sfx(s > 1.6 ? 'heavy' : 'explosion', p, Math.min(1.3, 0.25 + s * 0.35)); };
     this.ground = new GroundFX(E);
     this.terrain = new Terrain(this, this.S, this.siteInfo.seed);
     scene.add(this.terrain.group);
