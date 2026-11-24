@@ -249,6 +249,10 @@ export class PlanetMode {
     const xp = Math.round(def.xp * (1 + 0.12 * (e.level - 1)) * (e.elite ? 2.5 : 1) * st.xpMul);
     this.gainXp(xp);
     this.runStats.kills++; this.ex.kills = (this.ex.kills || 0) + 1;
+    // ground bestiary (Codex · Ground): first kill of a creature catalogues it
+    const gc = (this.data.groundCodex ||= {});
+    if (!gc[def.id]) this.toast(`Codex: ${def.name} catalogued`, def.boss ? 'legend' : '');
+    gc[def.id] = (gc[def.id] || 0) + 1;
     const rng = new RNG(Math.random() * 1e9);
     const sizeMul = [1, 2, 5, 12, 30, 60][def.size] * (e.elite ? 2.5 : 1);
     for (const [res, ev] of Object.entries(def.drops)) {
