@@ -1,0 +1,188 @@
+// Hit detection and the damage model.
+//  - Ships are capsules along their keel; with shields up the capsule is fattened to the bubble.
+//  - Four shield facings (fore, aft, port, starboard) like a ship-of-the-line: turn a fresh
+//    side toward the enemy.
+//  - Damage types: kinetic (good vs hull), energy (good vs shields), explosive (great vs hull,
+//    poor vs shields), ion (strips shields, barely scratches hull).
+import * as THREE from 'three/webgpu';
+
+const TYPE = {
+  kinetic: { shield: 0.8, hull: 1.15 },
+  energy: { shield: 1.25, hull: 0.85 },
+  explosive: { shield: 0.6, hull: 1.45 },
+  ion: { shield: 2.2, hull: 0.25 },
+};
+export const FACINGS = ['fore', 'aft', 'port', 'starboard'];
+
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c1 = new THREE.Vector3(), _c2 = new THREE.Vector3(), _l = new THREE.Vector3();
+
+// closest points between segments p1-q1 and p2-q2 (returns squared distance, fills c1/c2)
+function segSeg(p1, q1, p2, q2, c1, c2) {
+  const d1 = _a.subVectors(q1, p1), d2 = _b.subVectors(q2, p2), r = _l.subVectors(p1, p2);
+  const a = d1.dot(d1), e = d2.dot(d2), f = d2.dot(r);
+  let s, t;
+  if (a <= 1e-8 && e <= 1e-8) { c1.copy(p1); c2.copy(p2); return c1.distanceToSquared(c2); }
+  if (a <= 1e-8) { s = 0; t = Math.min(1, Math.max(0, f / e)); }
+  else {
+    const c = d1.dot(r);
+    if (e <= 1e-8) { t = 0; s = Math.min(1, Math.max(0, -c / a)); }
+    else {
+      const b = d1.dot(d2), den = a * e - b * b;
+      s = den !== 0 ? Math.min(1, Math.max(0, (b * f - c * e) / den)) : 0;
+      t = (b * s + f) / e;
+      if (t < 0) { t = 0; s = Math.min(1, Math.max(0, -c / a)); }
+      else if (t > 1) { t = 1; s = Math.min(1, Math.max(0, (b - c) / a)); }
+    }
+  }
+  c1.copy(p1).addScaledVector(d1, s); c2.copy(p2).addScaledVector(d2, t);
+  return c1.distanceToSquared(c2);
+}
+
+const _s0 = new THREE.Vector3(), _s1 = new THREE.Vector3(), _fw = new THREE.Vector3();
+export function shipCapsule(ship, outA, outB) {
+  const r = ship.hitRadius();
+  const half = Math.max(0, ship.dims.L * (ship.shieldsUp() ? 0.58 : 0.5) - r * 0.6);
+  _fw.set(Math.sin(ship.heading), 0, Math.cos(ship.heading));
+  outA.copy(ship.position).addScaledVector(_fw, -half);
+  outB.copy(ship.position).addScaledVector(_fw, half);
+  return r;
+}
+
+const hitResult = { ship: null, point: new THREE.Vector3() };
+export function hitShipsAlong(world, p0, p1, team, ignore) {
+  let best = null, bestD = Infinity;
+  for (const s of world.ships) {
+    if (!s.alive || s.team === team || s === ignore) continue;
+    const dx = s.position.x - p1.x, dz = s.position.z - p1.z;
+    const reach = s.dims.L * 0.7 + 30;
+    if (dx * dx + dz * dz > reach * reach) continue;
+    const r = shipCapsule(s, _s0, _s1);
+    const d2 = segSeg(p0, p1, _s0, _s1, _c1, _c2);
+    if (d2 < r * r) {
+      const d = p0.distanceToSquared(_c1);
+      if (d < bestD) { bestD = d; best = s; hitResult.point.copy(_c2).addScaledVector(_c1.sub(_c2).normalize(), r * 0.95); }
+    }
+  }
+  if (!best) return null;
+  hitResult.ship = best;
+  return hitResult;
+}
+
+export class Combat {
+  constructor(world) { this.world = world; }
+
+  // which shield facing an impact from `from` strikes
+  facingFor(ship, from) {
+    const dx = from.x - ship.position.x, dz = from.z - ship.position.z;
+    const a = Math.atan2(dx, dz) - ship.heading;
+    const s = Math.sin(a), c = Math.cos(a);
+    if (Math.abs(c) > Math.abs(s)) return c > 0 ? 0 : 1;
+    return s > 0 ? 2 : 3;
+  }
+
+  projectileHit(p, ship, point) {
+    p.hitAlready = true;
+    if (p.splash > 0) this.splash(p, point, ship);
+    else this.damage(ship, p.dmg, p.dmgType, point, p.owner, p.ws);
+  }
+
+  splash(p, point, direct) {
+    const W = this.world;
+    const r = p.splash || 20;
+    W.fx.explosion(point, Math.max(0.25, r / 90), p.kind === 'torpedo' ? 0xff8a40 : p.color.getHex());
+    if (r > 40) W.cam.addShake(r / 40 * (W.player && point.distanceTo(W.player.position) < 400 ? 1 : 0.2));
+    for (const s of W.ships) {
+      if (!s.alive || s.team === p.team) continue;
+      const d = s.position.distanceTo(point) - s.dims.W;
+      if (s === direct || d < r) {
+        const f = s === direct ? 1 : Math.max(0.25, 1 - d / r);
+        this.damage(s, p.dmg * f, p.dmgType, point, p.owner, p.ws);
+      }
+    }
+    // splash also detonates enemy missiles/torpedoes nearby (flak)
+    if (p.pd) for (const q of W.projectiles.list) {
+      if (q.team !== p.team && (q.kind === 'missile' || q.kind === 'torpedo') && q.pos.distanceToSquared(point) < r * r * 2) { q.age = q.life; q.pos.copy(q.pos); }
+    }
+  }
+
+  // Core damage entry. Returns damage dealt.
+  damage(ship, amount, type, point, source, ws) {
+    if (!ship.alive || ship.invuln) return 0;
+    const W = this.world;
+    const T = TYPE[type] || TYPE.kinetic;
+    let crit = false;
+    let dmg = amount;
+    const srcStats = source && source.stats ? source.stats : null;
+    if (ws) {
+      const critChance = (ws.crit || 0) + (srcStats ? srcStats.crit || 0 : 0) + 0.05;
+      if (Math.random() < critChance) { crit = true; dmg *= 1.6 + (ws.critDmg || 0) + (srcStats ? srcStats.critDmg || 0 : 0); }
+    }
+    if (srcStats) dmg *= srcStats.dmgMul || 1;
+    const fi = this.facingFor(ship, point);
+    let shieldDealt = 0, hullDealt = 0;
+    const ignoreShield = ws && ws.unique && ws.unique.includes('shieldbreak') ? 0.4 : 0;
+    // shields
+    const sh = ship.shields[fi];
+    if (sh > 0 && !ignoreShield) {
+      const sMul = T.shield * (1 + (ws ? ws.shieldDmg || 0 : 0));
+      const want = dmg * sMul;
+      const take = Math.min(sh, want);
+      ship.shields[fi] -= take; shieldDealt = take;
+      dmg = (want - take) / sMul; // leftover goes to hull at hull rate
+      ship.onShieldHit(point, fi);
+      W.fx.impact(point, ship.shieldColor, 1, true);
+    } else if (sh > 0 && ignoreShield) {
+      const sMul = T.shield * (1 + (ws.shieldDmg || 0));
+      const take = Math.min(sh, dmg * sMul * (1 - ignoreShield));
+      ship.shields[fi] -= take; shieldDealt = take;
+      dmg = dmg * ignoreShield;
+      ship.onShieldHit(point, fi);
+    }
+    if (dmg > 0.01) {
+      const hMul = T.hull * (1 + (ws ? ws.hullDmg || 0 : 0));
+      let h = dmg * hMul;
+      h = Math.max(h * 0.25, h - ship.armor);
+      ship.hull -= h; hullDealt = h;
+      ship.lastHullHit = W.engine.time;
+      W.fx.impact(point, 0xffb060, 1, false);
+      if (ws && ws.unique && ws.unique.includes('inferno')) ship.ignite(h * 0.6, 4, source);
+    }
+    ship.lastHit = W.engine.time;
+    ship.lastAttacker = source;
+    if (source && source.team === 1 && ship.faction === 'rival' && !ship.provoked) { ship.provoked = true; W.toast(`${ship.name} turns hostile`, 'warn'); }
+    const total = shieldDealt + hullDealt;
+    if (crit && ws && ws.unique && ws.unique.includes('overload')) {
+      W.fx.explosion(point, 0.5, 0xffe070);
+      for (const s of W.ships) if (s !== ship && s.alive && s.team === ship.team && s.position.distanceTo(point) < 60) this.damage(s, amount * 0.8, 'explosive', point, source, null);
+    }
+    if (source && source.alive && source.stats && (source.stats.u_vampiric || (ws && ws.unique && ws.unique.includes('vampiric')))) source.repair(total * 0.04);
+    W.events.emit('damage', { ship, amount: total, crit, shield: hullDealt < 0.01, point, source });
+    if (ship.hull <= 0) W.kill(ship, source);
+    return total;
+  }
+
+  beam(owner, ws, from, target, color, width) {
+    const W = this.world;
+    const to = _c1.copy(target.position);
+    to.x += (Math.random() - 0.5) * target.dims.W; to.z += (Math.random() - 0.5) * target.dims.L * 0.4;
+    // end the beam at the bubble or hull surface
+    const r = target.hitRadius();
+    const dir = _c2.copy(to).sub(from); const len = dir.length(); dir.normalize();
+    const end = _l.copy(from).addScaledVector(dir, Math.max(0, len - r * 0.8));
+    W.beams.add(from, end, color, width, ws.kind === 'beam' && ws.dmg > 150 ? 0.6 : 0.3);
+    this.damage(target, ws.dmg, ws.dmgType, end, owner, ws);
+    W.fx.impact(end, color, 1.3, target.shieldsUp());
+    if (ws.unique && ws.unique.includes('chainLance')) {
+      let from2 = end.clone(), hit = new Set([target]);
+      for (let k = 0; k < 2; k++) {
+        let best = null, bd = 260 * 260;
+        for (const s of W.ships) if (s.alive && s.team !== owner.team && !hit.has(s)) { const d = s.position.distanceToSquared(from2); if (d < bd) { bd = d; best = s; } }
+        if (!best) break;
+        hit.add(best);
+        W.beams.add(from2, best.position, 0xbfe8ff, width * 0.6, 0.3);
+        this.damage(best, ws.dmg * 0.5, ws.dmgType, best.position, owner, null);
+        from2 = best.position.clone();
+      }
+    }
+  }
+}

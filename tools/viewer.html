@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Chassis viewer</title>
+<base href="../">
+<style>html,body{margin:0;background:#000;overflow:hidden;color:#9cf;font:12px monospace}#info{position:fixed;left:8px;top:8px;white-space:pre}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.webgpu.js","three/webgpu":"./vendor/three/three.webgpu.js","three/tsl":"./vendor/three/three.tsl.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head><body><div id="info"></div>
+<script type="module">
+// Lays out chassis hulls for visual checks. ?yard=velscour  ?id=velscour_5  ?d=distance ?cx= ?cz= focus
+import * as THREE from 'three/webgpu';
+import { Engine } from './src/engine/Engine.js';
+import { preload } from './src/engine/Assets.js';
+import { initMaterials } from './src/fx/materials.js';
+import { SpaceBackdrop } from './src/fx/Space.js';
+import { CHASSIS } from './src/game/data/chassis.js';
+import { hullFor } from './src/game/ship/HullBuilder.js';
+import { SpaceLights } from './src/fx/lighting.js';
+const e = await new Engine(document.body).init();
+initMaterials(e);
+await preload(['hull_naval','hull_graphite','hull_gold','hull_glacier','hull_dropship','hull_apc','hull_mech','hull_alien','glow_alien']);
+const sky = e.add(new SpaceBackdrop(e));
+new SpaceLights(e.scene);
+const q = new URLSearchParams(location.search);
+const yard = q.get('yard'), only = q.get('id'), tmax = +(q.get('tmax') || 10);
+const list = CHASSIS.filter(c => (!yard || c.yard === yard) && (!only || c.id === only) && c.tier <= tmax);
+const yards = [...new Set(list.map(c => c.yard))];
+yards.forEach((yk, yi) => {
+  let xx = 0;
+  list.filter(c => c.yard === yk).forEach((c) => {
+    const h = hullFor(c);
+    h.group.rotation.y = Math.PI / 2;
+    h.group.position.set(xx + c.len / 2, 0, yi * 110);
+    xx += c.len * 1.15 + 20;
+    e.scene.add(h.group);
+  });
+});
+const cam = e.camera, d = +(q.get('d') || 1100);
+const cx = +(q.get('cx') || 600), cz = +(q.get('cz') || 260), yaw = +(q.get('yaw') || 0.8);
+cam.position.set(cx + d * 0.6 * Math.sin(yaw), d * 0.75, cz + d * 0.6 * Math.cos(yaw)); cam.lookAt(cx, 0, cz);
+sky.follow = new THREE.Vector3(cx, 0, cz);
+const info = document.getElementById('info');
+e.add({ update() { info.textContent = `${e.backend} ${e.fps.toFixed(0)} fps  ${list.length} hulls`; } });
+e.start();
+window.__ready = true;
+</script></body></html>

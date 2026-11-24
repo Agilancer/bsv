@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>BATTLESHIP VELSCOUR</title>
+<meta name="description" content="A WebGPU space action-RPG of broadside battleships, crews and loot.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/ui.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.webgpu.js",
+    "three/webgpu": "./vendor/three/three.webgpu.js",
+    "three/tsl": "./vendor/three/three.tsl.js",
+    "three/addons/": "./vendor/three/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="overlay"></canvas>
+<div id="ui"></div>
+<div id="title">
+  <div class="logo"><small>BATTLESHIP</small>VELSCOUR</div>
+  <div class="tag">Broadsides · Crews · Plunder</div>
+  <div class="menu" id="titleMenu" style="display:none">
+    <button class="btn" id="btnContinue">Continue</button>
+    <button class="btn violet" id="btnNew">New Captain</button>
+  </div>
+  <div class="load" id="titleLoad"><div class="bar xp"><i style="width:0%"></i></div><div class="ltxt">Initialising renderer…</div></div>
+  <div class="keys">W/S throttle · A/D rudder · R/F altitude · Right-click sail · Left-click / Tab target · Space broadside · 1–8 abilities · I cargo · C ship · T skills · P autoplay · Wheel zoom · Q/E or middle-drag rotate</div>
+  <div class="ver" id="ver"></div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
