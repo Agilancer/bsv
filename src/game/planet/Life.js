@@ -298,11 +298,11 @@ function curioGeometry(kind) {
       b.sphere(0.18, 0.9, 5.2, -0.4, glow, 1, 1, 1, 0);
       break;
     case 'skull':
-      b.sphere(3.0, 0, 2.6, 0, { color: 0xe8e0c8 }, 1, 0.85, 1.2, 2);
-      b.sphere(1.9, 0, 1.3, 2.6, { color: 0xddd4b8 }, 1, 0.7, 1.1, 1);
+      b.sphere(3.0, 0, 2.6, 0, { color: 0xa89c80 }, 1, 0.85, 1.2, 2);
+      b.sphere(1.9, 0, 1.3, 2.6, { color: 0x9c9074 }, 1, 0.7, 1.1, 1);
       for (const [x, y, z, r] of [[-1.2, 3.1, 2.3, 0.85], [1.2, 3.1, 2.3, 0.85], [0, 4.2, 1.9, 0.6]]) { b.sphere(r, x, y, z, { color: 0x14100c }, 1, 1, 0.6, 1); b.sphere(r * 0.3, x, y, z + 0.25, glow, 1, 1, 1, 0); }
-      for (let i = 0; i < 7; i++) b.cone(0.26, 0.95, -1.5 + i * 0.5, 0.75, 4.1 - Math.abs(i - 3) * 0.28, { color: 0xfff8e0 }, 5, Math.PI);
-      for (const sx of [-1, 1]) b.cone(0.5, 3.4, sx * 2.5, 3.6, -0.6, { color: 0xd0c8a8 }, 6, -0.5, 0, -sx * 0.7);
+      for (let i = 0; i < 7; i++) b.cone(0.26, 0.95, -1.5 + i * 0.5, 0.75, 4.1 - Math.abs(i - 3) * 0.28, { color: 0xc8c0a0 }, 5, Math.PI);
+      for (const sx of [-1, 1]) b.cone(0.5, 3.4, sx * 2.5, 3.6, -0.6, { color: 0x8c8268 }, 6, -0.5, 0, -sx * 0.7);
       break;
     case 'gnome':
       b.cyl(0.9, 1.25, 2.1, 0, 1.05, 0, { color: 0x3a6ac8 }, 'y', 10);
@@ -321,7 +321,7 @@ function curioGeometry(kind) {
       b.box(0.5, 1.3, 0.12, 1.15, 3.6, 1.22, { color: 0x101418 }, 0, 0, 0.06);
       b.box(0.3, 0.14, 0.14, 1.15, 4.0, 1.3, glow, 0, 0, 0.06);
       b.box(2.2, 0.7, 0.14, -0.2, 1.1, 1.22, { color: 0x101418 }, 0, 0, 0.06);
-      b.box(3.1, 0.5, 2.5, 0, 6.2, 0, { color: 0xe8e8f0, emit: 0.5 }, 0, 0, 0.06);
+      b.box(3.1, 0.5, 2.5, 0, 6.2, 0, { color: 0x9aa4c0, emit: 0.1 }, 0, 0, 0.06);
       break;
     case 'camp':
       b.cone(2.6, 2.6, 0, 0, 0, { color: 0xc86a30 }, 4, 0, Math.PI / 4);

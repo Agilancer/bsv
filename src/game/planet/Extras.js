@@ -22,6 +22,7 @@ export class PlanetExtras {
   // say something from orbit. once-per-run events pass once=true; force skips the cooldown.
   radio(event, force = false, once = false) {
     const M = this.mode, now = M.engine.time;
+    if (M.pilot && M.pilot.duel) return false;      // measured duels stay quiet (and off the random stream)
     if (once) { if (this.said.has(event)) return false; }
     if (!force && now < this.nextRadio) return false;
     const line = radioLine(event);

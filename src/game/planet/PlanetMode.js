@@ -285,7 +285,7 @@ export class PlanetMode {
     if (o.chainreact) { const r = 6, g0 = this.vehicle.stats.guns[0], cd = (g0 ? g0.ws.dmg : 10) * 1.2 * this.vehicle.stats.dmgMul; this.creatures.forInRadius(e.pos, r, (x) => { if (x !== e) this.hitEnemy(x, cd, _a.copy(x.pos), { quiet: true }); }); fx.explode(e.pos, 0.8, 0xffa040); }
     // rewards
     const st = this.vehicle.stats;
-    const chain = this.extras ? this.extras.onKill(e) : 0;   // kills in quick succession pay a little extra
+    const chain = this.extras && !this.pilot.duel ? this.extras.onKill(e) : 0;   // kills in quick succession pay a little extra
     const xp = Math.round(def.xp * (1 + 0.12 * (e.level - 1)) * (e.elite ? 2.5 : 1) * st.xpMul * (1 + chain));
     this.gainXp(xp);
     // the commander's share: ~70% of a comparable space kill, at the commander's own rank
@@ -629,10 +629,14 @@ export class PlanetMode {
       this.updateThreat(dt);
       this.updateLander(dt);
       this.updateMouths(dt);
-      this.wildlife.update(dt);
-      if (this.flyers) this.flyers.update(dt);
-      this.curios.update(dt);
-      this.weather.update(dt);
+      // measured duels (tools/groundduel.cjs) run without the living layer: nothing here may touch
+      // the explorer or draw from the seeded random stream
+      if (!this.pilot.duel) {
+        this.wildlife.update(dt);
+        if (this.flyers) this.flyers.update(dt);
+        this.curios.update(dt);
+        this.weather.update(dt);
+      }
     } else {
       this.dungeon.update(dt, this.torchLights);
     }

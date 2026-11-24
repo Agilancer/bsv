@@ -16,6 +16,11 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   - `combat/` — projectiles/beams (instanced), damage model, hangar craft. `ai/ShipAI.js`.
   - Feature modules install through `src/game/modules.js`: `station/`, `nav/`, `mmo/`,
     `autoplay/goals.js` (+ crew/bridge and planet modules).
+  - `planet/` living layer: `lifeData.js` (pure data: fauna, curios, radio lines, streaks, weather,
+    time of day, report rating), `Life.js` (wildlife herds, flyers, curios), `Weather.js` (fronts +
+    telegraphed strikes), `Extras.js` (comm strip, streak callouts, discovery cards, expedition
+    report). All of it is skipped while `pilot.duel` is set so measured duels stay clean.
+  - `flavor/` — space-side game feel: kill-streak callouts, slow-mo on big kills, last words.
 - `src/ui/` — HUD, overlay canvas, windows; `css/ui.css` holds the holo theme.
 
 ## Extension points
@@ -26,6 +31,10 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - `ui.addWindow(id, title)` + `ui.renderers[id] = fn` for module-owned windows.
 - `game.autoplayGoals` — factories for long-horizon autoplay goals.
 - Wrap `game.start` / `game.enterSystem` for per-session or per-system setup.
+- Planet mode: `mode.extras.radio(event, force, once)` speaks a `RADIO[event]` line from orbit;
+  `mode.telegraph(...)` + `mode.later(...)` for anything that hits the ground (the autopilot dodges
+  what is telegraphed); new surface props go at the END of a biome's `props` list (the scatter RNG
+  is sequential per chunk, so earlier kinds keep their places).
 
 ## Checks
 - `node --test tests/*.test.mjs` (modules that import three: `import './support/three.mjs'` first)
@@ -53,5 +62,7 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 
 ## Conventions
 - Hot loops allocate nothing; reuse module-level temp vectors.
+- The gates are noisy at the cell level (soak is unseeded; duel cells are chaotic): compare against
+  the previous commit on a second port before blaming a change.
 - Visual intensity comes from HDR emissive (>1) + bloom; keep UI in the blue/violet holo palette.
 - Ship frame: +Z bow, +Y up, +X port. Heading `h` → forward `(sin h, 0, cos h)`.
