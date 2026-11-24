@@ -5,7 +5,7 @@
 import * as THREE from 'three/webgpu';
 import { cargoTotal, surveyPlanet } from './economy.js';
 import { ensureExplorer } from './explorerItems.js';
-import { autoCraft, fitExplorer, landingWeights, pickSite, orbitalProbeAuto, RES_VALUE } from './autoCraft.js';
+import { autoCraft, fitExplorer, landingWeights, pickSite, orbitalProbeAuto, needWeights, worldAppeal } from './autoCraft.js';
 import { PLANET_ABILITIES } from './abilities.js';
 
 const _v = new THREE.Vector3(), _w = { x: 0, z: 0 };
@@ -122,9 +122,9 @@ export class PlanetPilot {
         if (Math.hypot(dig.pos.x - pos.x, dig.pos.z - pos.z) < stopAt + 4) { wantMine = true; M.aimPoint.copy(dig.pos); }
       } else if (mouth && this.t > 60) {
         target = _v.set(mouth.x, 0, mouth.z); stopAt = 3;
-        this.note('dungeon', `Explorer: surface is worked out here — going into ${mouth.name || 'the dungeon'}`);
+        if (this.noted !== 'dungeon') this.note('dungeon', `Explorer: surface is worked out here — going into ${mouth.name || 'the dungeon'}`);
         if (M.nearMouth === mouth) { mouth.tried = true; ctl.interact = true; this.t = 0; }
-      } else if (lair) { target = _v.set(lair.x, 0, lair.z); this.note('lair', `Explorer: hunting the apex, ${lair.boss.name}`); }
+      } else if (lair) { target = _v.set(lair.x, 0, lair.z); if (this.noted !== 'lair') this.note('lair', `Explorer: hunting the apex, ${lair.boss.name}`); }
       else { target = M.lander.position; if (M.atLander) ctl.interact = true; }
     }
     // telegraphed strikes: standing in a warning beats everything else — get out first
@@ -178,12 +178,14 @@ PlanetPilot.prototype.nearestDrop = function (pos, maxD, full) {
 PlanetPilot.prototype.bestNode = function (pos, maxD) {
   const M = this.mode, tools = M.vehicle.stats.tools;
   if (this.worthOf !== tools) {
-    // per resource: mining rate with these tools relative to their plain power, times its value
+    // per resource: mining rate with these tools relative to their plain power, times what the
+    // resource is worth to the bank as it stood at planetfall (scarce kinds count for more)
     this.worthOf = tools; this.worth = {};
-    for (const k of Object.keys(RES_VALUE)) {
+    const value = this.value || (this.value = needWeights(M.data));
+    for (const k of Object.keys(value)) {
       let num = 0, den = 0;
       for (const t of tools) { num += t.ts.power * (t.ts.bonus[k] || 1); den += t.ts.power; }
-      this.worth[k] = (den ? num / den : 1) * RES_VALUE[k];
+      this.worth[k] = (den ? num / den : 1) * value[k];
     }
   }
   let best = null, bc = Infinity;
@@ -315,7 +317,7 @@ export function makePlanetGoal(game) {
         const op = orbitalProbeAuto(G.data, sv, G.data.playtime);
         if (op) say(`Orbit: ${op}`);
         S.siteIdx = pickSite(sv, ex.level);
-        const refit = fitExplorer(ex, landingWeights(sv));
+        const refit = fitExplorer(ex, landingWeights(sv, G.data));
         const site = sv.sites[S.siteIdx];
         say(`Landing on ${sv.name}, site ${site.name} (threat ${site.level}, explorer level ${ex.level})${refit ? ' — tools refitted for this world' : ''}`);
         S.deploy(); goal.phase = 'surface';
@@ -325,12 +327,15 @@ export function makePlanetGoal(game) {
         const ex = ensureExplorer(G.data);
         const list = G.sector.planets.filter((p) => p.userData.info && p.userData.info.landable);
         if (!list.length) return true;
-        // nearest first; worlds not yet surveyed before ones already worked; and a world whose
-        // gentlest site is above the explorer's level counts as much further away
+        // nearest first; worlds not yet surveyed before ones already worked; a world whose gentlest
+        // site is above the explorer's level counts as much further away
         const cost = (p) => {
           const info = p.userData.info;
-          if (info.autoThreat === undefined) info.autoThreat = Math.min(...surveyPlanet(info, G.sector.sys).sites.map((x) => x.level));
-          return p.position.distanceTo(s.position) + (ex.scanned[`${G.data.system}:${info.name}`] ? 4000 : 0) + Math.max(0, info.autoThreat - ex.level - 1) * 1500;
+          const sv = info.autoSurvey || (info.autoSurvey = surveyPlanet(info, G.sector.sys));
+          let threat = Infinity;
+          for (const x of sv.sites) threat = Math.min(threat, x.level);
+          // (a world rich in what the bank is short of is worth a longer trip)
+          return p.position.distanceTo(s.position) + (ex.scanned[`${G.data.system}:${info.name}`] ? 4000 : 0) + Math.max(0, threat - ex.level - 1) * 1500 - worldAppeal(sv, G.data) * 2500;
         };
         list.sort((a, b) => cost(a) - cost(b));
         goal.target = list[0];

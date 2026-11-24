@@ -12,7 +12,7 @@ import { TALENT_BUILDS, buildFor, nextTalent, spendTalentPoints } from '../src/g
 import { chooseBuy, creditReserve, rollQuality, triageList } from '../src/game/autoplay/refit.js';
 import { ensureExplorer, exSlotKeys, makeExItem, EX_INV_SIZE } from '../src/game/planet/explorerItems.js';
 import { RES_KEYS, SHIP_UPGRADES, PROBE_UPGRADES, upgradeCost, affordable, surveyPlanet, empowerCap } from '../src/game/planet/economy.js';
-import { autoCraft, exAutoScore, fitExplorer, landingWeights, pickSite, orbitalProbeAuto } from '../src/game/planet/autoCraft.js';
+import { autoCraft, exAutoScore, fitExplorer, landingWeights, pickSite, orbitalProbeAuto, needWeights, worldAppeal, RES_VALUE } from '../src/game/planet/autoCraft.js';
 
 // ---------------------------------------------------------------- talents
 test('talent auto-spend only ever picks learnable talents and leaves no point idle', () => {
@@ -227,4 +227,19 @@ test('orbital probe: dropped once per world when it can be paid for, hauled on l
   assert.match(orbitalProbeAuto(P, sv, 100 + 600), /recovered 60 units/);
   assert.equal(RES_KEYS.reduce((a, k) => a + (P.resources[k] || 0), 0), before + 60);
   assert.equal(P.credits, 4750, 'the probe is paid for once');
+});
+
+test('what the bank is short of is worth more: tools, deposits and worlds follow it', () => {
+  const P = newPlayer(); ensureExplorer(P);
+  const even = needWeights(P);
+  for (const k of RES_KEYS) assert.equal(even[k], RES_VALUE[k], 'an empty bank values everything at par');
+  P.resources = { ore: 900, crystal: 4, isotope: 5, biomass: 6, relic: 2, datacore: 4 };
+  const w = needWeights(P);
+  assert.ok(w.ore < RES_VALUE.ore && w.ore >= RES_VALUE.ore * 0.5, 'piled-up ore is marked down (never below half)');
+  for (const k of ['crystal', 'isotope', 'biomass']) assert.ok(w[k] > RES_VALUE[k] && w[k] <= RES_VALUE[k] * 2, `${k} is marked up`);
+  // a crystal world answers this bank better than another ore world
+  const oreWorld = { richness: { ore: 1, crystal: 0.1, isotope: 0.1, biomass: 0, relic: 0.1, datacore: 0.1 } };
+  const iceWorld = { richness: { ore: 0.2, crystal: 1, isotope: 0.4, biomass: 0, relic: 0.1, datacore: 0.1 } };
+  assert.ok(worldAppeal(iceWorld, P) > worldAppeal(oreWorld, P) + 0.3);
+  assert.ok(landingWeights(iceWorld, P).crystal > landingWeights(iceWorld).crystal);
 });

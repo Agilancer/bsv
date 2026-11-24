@@ -23,6 +23,19 @@ import {
 // ones gate the best upgrades)
 export const RES_VALUE = { ore: 1, crystal: 1, isotope: 1.2, biomass: 1, relic: 2.5, datacore: 2.5 };
 
+// What each resource is worth right now: its base value, raised for what the bank is short of
+// and lowered for what is piling up (every sink needs two or three kinds together, so a bank
+// that is all ore buys nothing). Amounts are compared in the proportions the sinks use them.
+const RES_SCALE = { ore: 1, crystal: 0.5, isotope: 0.3, biomass: 0.4, relic: 0.04, datacore: 0.05 };
+export function needWeights(data) {
+  const have = (data && data.resources) || {};
+  let mean = 0;
+  for (const k of RES_KEYS) mean += (have[k] || 0) / RES_SCALE[k] / RES_KEYS.length;
+  const w = {};
+  for (const k of RES_KEYS) w[k] = RES_VALUE[k] * Math.max(0.5, Math.min(2, (mean + 60) / ((have[k] || 0) / RES_SCALE[k] + 60)));
+  return w;
+}
+
 // ---------------------------------------------------------------- explorer gear, scored by what it does
 // guns: sustained damage, with credit for reach (the autopilot kites inside its shortest gun's
 // range), area and powers; tools: mining rate over the resources that matter (`weights`);
@@ -71,11 +84,19 @@ export function fitExplorer(ex, weights = RES_VALUE) {
   return changed;
 }
 
-// tool weights for a surveyed world: what is rich there, times what it is worth
-export function landingWeights(survey) {
-  const w = {};
-  for (const k of RES_KEYS) w[k] = ((survey && survey.richness && survey.richness[k]) || 0) * RES_VALUE[k] + 0.05;
+// tool weights for a surveyed world: what is rich there, times what it is worth (to this bank,
+// when the save data is given)
+export function landingWeights(survey, data = null) {
+  const w = {}, v = data ? needWeights(data) : RES_VALUE;
+  for (const k of RES_KEYS) w[k] = ((survey && survey.richness && survey.richness[k]) || 0) * v[k] + 0.05;
   return w;
+}
+// how much a world's riches answer what the bank is short of (0 = nothing special)
+export function worldAppeal(survey, data) {
+  const v = needWeights(data);
+  let a = 0;
+  for (const k of RES_KEYS) a += (survey.richness[k] || 0) * Math.max(0, v[k] / RES_VALUE[k] - 1);
+  return a;
 }
 
 // Which landing site to drop on: the most rewarding one the explorer is a match for (threat at
