@@ -11,17 +11,10 @@
 import * as THREE from 'three/webgpu';
 import { wrapAngle, clamp } from '../engine/rng.js';
 import { ABILITY_BY_KEY } from './data/abilities.js';
-import { RARITY } from './data/items.js';
-import { itemScore, INV_SIZE } from './Player.js';
-import { canLearn } from './data/talents.js';
-const canLearnQuiet = (g, k) => canLearn(g.data, k);
+import { buildFor, spendTalentPoints, describeTalents } from './autoplay/build.js';
+import { holdTriage } from './autoplay/refit.js';
 
 const _v = new THREE.Vector3();
-const TALENT_BUILDS = {
-  broadside: ['gunDrill', 'hullUp', 'harmonics', 'reload', 'deadeye', 'homing', 'recharge', 'broadMaster', 'tactics', 'helm', 'burners', 'hydra', 'lineOfBattle', 'ablative', 'damageCtl', 'veteran', 'plunder', 'lastStand', 'merchant', 'tractor', 'evasivePro', 'wingCmd', 'admiral', 'slipstream', 'ram', 'bastion'],
-  carrier: ['tactics', 'hullUp', 'plunder', 'harmonics', 'merchant', 'veteran', 'wingCmd', 'carrierAdmiral', 'gunDrill', 'recharge', 'reload', 'ablative', 'deadeye', 'damageCtl', 'admiral', 'homing', 'lastStand', 'helm', 'burners', 'tractor', 'evasivePro', 'broadMaster', 'hydra', 'slipstream', 'ram'],
-  bastion: ['hullUp', 'harmonics', 'gunDrill', 'recharge', 'ablative', 'reload', 'damageCtl', 'bastion', 'deadeye', 'lastStand', 'tactics', 'homing', 'broadMaster', 'veteran', 'plunder', 'helm', 'hydra', 'lineOfBattle', 'merchant', 'burners', 'tractor', 'evasivePro', 'wingCmd', 'admiral', 'slipstream', 'ram'],
-};
 
 export class Autoplay {
   constructor(game) {
@@ -255,30 +248,21 @@ export class Autoplay {
     return g.useAbility(k);
   }
 
-  // a build that fits the hull: carriers go Command (wings, then the Carrier Admiral capstone),
-  // Ironhold walls go Defense (Bastion), everything else a broadside gunnery build
+  // a build that fits the hull (autoplay/build.js): carriers go Command, Ironhold walls go
+  // Defense, everything else a broadside gunnery build. Every free point is spent.
   spendTalents() {
     const g = this.game;
-    const ORDER = TALENT_BUILDS[this.buildFor()];
-    let learned = 0;
-    for (let guard = 0; guard < 80; guard++) {
-      const k = ORDER.find((t) => g.learnTalent && canLearnQuiet(g, t));
-      if (!k) break;
-      g.learnTalent(k); learned++;
-    }
-    if (learned) this.log(`Spent ${learned} talent point${learned > 1 ? 's' : ''}`);
+    if (!g.learnTalent) return;
+    const got = spendTalentPoints(g.data, this.buildFor(), (k) => g.learnTalent(k));
+    if (got.length) this.log(`Spent ${got.length} talent point${got.length > 1 ? 's' : ''} (${this.buildFor()} build): ${describeTalents(g.data, got)}`);
   }
 
   buildFor() {
-    const s = this.game.player, c = s && s.chassis;
-    if (!c) return 'broadside';
-    const bays = s.weapons.filter((w) => w.hp.type === 'hangar').length;
-    if (c.carrier || bays >= 2) return 'carrier';
-    if (c.yard === 'ironhold') return 'bastion';
-    return 'broadside';
+    const s = this.game.player;
+    return buildFor(s && s.chassis, s ? s.weapons.filter((w) => w.hp.type === 'hangar').length : 0);
   }
 
-  // inventory: equip upgrades, keep the hold clear
+  // inventory: equip upgrades, keep the hold clear; and a light crew pass (no hiring in flight)
   manage() {
     const g = this.game, P = g.data;
     this.spendTalents();
@@ -286,11 +270,10 @@ export class Autoplay {
     g.equipBest();
     const after = Object.values(P.ship.loadout).map((i) => i && i.uid).join();
     if (before !== after) this.log('Refitted with better gear');
-    if (P.inventory.length > INV_SIZE - 8) {
-      // salvage the weakest non-legendaries until there's room
-      const keep = RARITY[(P.autoplay && P.autoplay.keep) || 'rare'].i;
-      const junk = P.inventory.filter((i) => i.slot !== 'blueprint' && RARITY[i.rarity].i < Math.max(keep, 1)).sort((a, b) => itemScore(a) - itemScore(b)).slice(0, 15);
-      if (junk.length) { const set = new Set(junk); g.salvageWhere((i) => set.has(i)); }
-    }
+    holdTriage(g, this);
+    // vacant posts, reassignment and cheap promotions (5% of the purse) do not need a station;
+    // hiring waits for one
+    this.crewT = (this.crewT || 0) + 4;
+    if (this.crewT >= 30 && g.crewAuto && g.mode === 'space') { this.crewT = 0; g.crewAuto({ hire: !!g.docked, budget: Math.floor(P.credits * 0.05) }); }
   }
 }
