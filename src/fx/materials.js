@@ -130,3 +130,18 @@ export function shieldMaterial(hex) {
   m.userData = { hitPos, hitTime, level, facing };
   return m;
 }
+
+// The captain's own hull gets a faint cool rim (fresnel) so it reads against bright planet discs
+// and nebulae, on phones especially. Variants are cached per source material.
+const rimCache = new WeakMap();
+export function rimVariant(m, hex = 0x7ad8ff, mul = 0.9) {
+  if (!m || !m.isMeshStandardNodeMaterial) return m;
+  let r = rimCache.get(m);
+  if (r) return r;
+  r = m.clone();
+  const fres = pow(float(1).sub(clamp(abs(dot(normalView, positionViewDirection)), 0, 1)), 3.0);
+  const rim = hdr(hex, mul).mul(fres);
+  r.emissiveNode = m.emissiveNode ? m.emissiveNode.add(rim) : rim;
+  rimCache.set(m, r);
+  return r;
+}
