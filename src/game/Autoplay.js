@@ -77,7 +77,12 @@ export class Autoplay {
     // extension goals (docking, travel, exploring) get a say when nothing is shooting
     if (!near.length) {
       let best = null, bscore = 0;
-      for (const x of this.extra) { const sc = x.score(g); if (sc > bscore) { bscore = sc; best = x; } }
+      const mode = (g.data.autoplay && g.data.autoplay.mode) || 'full';
+      for (const x of this.extra) {
+        if (mode === 'combat') break;
+        if (mode === 'hold' && x.name.startsWith('Advance')) continue;
+        const sc = x.score(g); if (sc > bscore) { bscore = sc; best = x; }
+      }
       if (best && (!this.goal || this.goal === best || bscore > 1)) { if (this.goal !== best) this.log(`Objective: ${best.name}`); this.goal = best; this.state = 'goal'; return; }
     }
     this.goal = null;
@@ -181,7 +186,8 @@ export class Autoplay {
     if (before !== after) this.log('Refitted with better gear');
     if (P.inventory.length > INV_SIZE - 8) {
       // salvage the weakest non-legendaries until there's room
-      const junk = P.inventory.filter((i) => RARITY[i.rarity].i < 3).sort((a, b) => itemScore(a) - itemScore(b)).slice(0, 15);
+      const keep = RARITY[(P.autoplay && P.autoplay.keep) || 'rare'].i;
+      const junk = P.inventory.filter((i) => i.slot !== 'blueprint' && RARITY[i.rarity].i < Math.max(keep, 1)).sort((a, b) => itemScore(a) - itemScore(b)).slice(0, 15);
       if (junk.length) { const set = new Set(junk); g.salvageWhere((i) => set.has(i)); }
     }
   }

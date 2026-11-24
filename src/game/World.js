@@ -8,6 +8,7 @@ import { Combat } from './combat/Combat.js';
 import { Hangars } from './combat/Hangars.js';
 import { Loot } from './Loot.js';
 import { Debris } from '../fx/Debris.js';
+import { ELITE_MODS } from './data/eliteMods.js';
 import { Ship } from './ship/Ship.js';
 import { ShipAI } from './ai/ShipAI.js';
 import { ABILITY_BY_KEY } from './data/abilities.js';
@@ -39,6 +40,7 @@ export class World {
     this.debris = new Debris(this);
     this.combat = new Combat(this);
     this.player = null;
+    this.eliteMods = ELITE_MODS;
     this.sunPos = new THREE.Vector3(-8000, 0, -6000);
     this._camPos = new THREE.Vector3();
   }
@@ -76,6 +78,7 @@ export class World {
     ship.alive = false;
     ship.hull = 0;
     this.events.emit('kill', { ship, killer });
+    if (ship.mods) for (const m of ship.mods) if (ELITE_MODS[m].onDeath) ELITE_MODS[m].onDeath(ship, this);
     // death throes: a chain of blasts along the hull, then the magazine goes
     const L = ship.dims.L, n = 4 + Math.floor(L / 30);
     const p = new THREE.Vector3();

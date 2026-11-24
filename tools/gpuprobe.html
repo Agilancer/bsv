@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>GPU probe</title><base href="../">
+<script type="importmap">{"imports":{"three":"./vendor/three/three.webgpu.js","three/webgpu":"./vendor/three/three.webgpu.js","three/tsl":"./vendor/three/three.tsl.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head><body style="margin:0;background:#000">
+<script type="module">
+// Renders the engine's post chain into an offscreen target and reads pixels back, so the
+// WebGPU path can be verified in headless browsers whose screenshots can't capture it.
+//   tools/gpuprobe.html            WebGPU     tools/gpuprobe.html?webgl   WebGL2
+import * as THREE from 'three/webgpu';
+import { Engine } from './src/engine/Engine.js';
+import { preload } from './src/engine/Assets.js';
+import { initMaterials } from './src/fx/materials.js';
+import { SpaceBackdrop } from './src/fx/Space.js';
+import { SpaceLights } from './src/fx/lighting.js';
+import { CHASSIS_BY_ID } from './src/game/data/chassis.js';
+import { hullFor } from './src/game/ship/HullBuilder.js';
+window.__step = 'init'; window.addEventListener('error', (ev) => window.__err = ev.message); window.addEventListener('unhandledrejection', (ev) => window.__err = String(ev.reason));
+const e = await new Engine(document.body).init();
+window.__step = 'engine';
+initMaterials(e);
+await preload(['hull_graphite', 'hull_gold', 'hull_dropship']);
+e.add(new SpaceBackdrop(e));
+new SpaceLights(e.scene);
+const h = hullFor(CHASSIS_BY_ID.velscour_6); e.scene.add(h.group);
+e.camera.position.set(120, 80, 140); e.camera.lookAt(0, 0, 0);
+window.__step = 'scene';
+const rt = new THREE.RenderTarget(256, 144, { type: THREE.UnsignedByteType });
+e.renderer.setRenderTarget(rt);
+await e.renderer.renderAsync(e.scene, e.camera);
+window.__step = 'rendered';
+const px = await e.renderer.readRenderTargetPixelsAsync(rt, 0, 0, 256, 144);
+e.renderer.setRenderTarget(null);
+let lit = 0, sum = 0;
+for (let i = 0; i < px.length; i += 4) { const v = px[i] + px[i + 1] + px[i + 2]; sum += v; if (v > 60) lit++; }
+window.__probe = { backend: e.backend, litPixels: lit, mean: +(sum / (px.length / 4) / 3).toFixed(1) };
+document.title = JSON.stringify(window.__probe);
+</script></body></html>
