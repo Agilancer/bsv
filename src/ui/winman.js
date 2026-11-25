@@ -10,7 +10,6 @@ import { prefs, savePrefs } from './prefs.js';
 
 const DIRS = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 const CURSOR = { n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize', ne: 'nesw-resize', sw: 'nesw-resize', nw: 'nwse-resize', se: 'nwse-resize', move: 'move' };
-const KEEP = 90;       // px of a panel that always stays on screen, so it can be fetched back
 const SLOP = 4;        // px a press must travel on a title bar before it becomes a drag (a click stays a click)
 const CONTROLS = '.close, button, input, select, textarea, a, label';
 const minSize = (el) => (el.id === 'chat' ? [220, 100] : [260, 140]);
@@ -18,6 +17,8 @@ const isMobile = () => document.body.classList.contains('mobile');
 // on the bridge the chat sits in the bridge's own layout (css/crew.css) and stays put
 const locked = (el) => el.id === 'chat' && document.body.classList.contains('on-bridge');
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+// a panel stays wholly on screen; one bigger than the screen can slide, but always covers it
+const inside = (v, size, room) => (size <= room ? clamp(v, 0, room - size) : clamp(v, room - size, 0));
 
 export function installWindows(ui) {
   const root = ui.root;
@@ -35,7 +36,7 @@ export function installWindows(ui) {
     if (pos) { px(el, '--wx', s.x); px(el, '--wy', s.y); }
     if (size) { px(el, '--ww', s.w); px(el, '--wh', s.h); }
   }
-  // keep a placed panel reachable after the screen changes size
+  // keep a placed panel on screen after the screen changes size (sizes from its last drag when it sizes itself)
   function fit(s, el) {
     if (!s) return;
     if (Number.isFinite(s.w)) {
@@ -43,9 +44,8 @@ export function installWindows(ui) {
       s.w = clamp(s.w, mw, Math.max(mw, innerWidth - 8)); s.h = clamp(s.h, mh, Math.max(mh, innerHeight - 8));
     }
     if (Number.isFinite(s.x)) {
-      const w = Number.isFinite(s.w) ? s.w : (s.mw || KEEP);
-      s.x = clamp(s.x, Math.min(0, KEEP - w), Math.max(0, innerWidth - KEEP));
-      s.y = clamp(s.y, 0, Math.max(0, innerHeight - 40));
+      s.x = inside(s.x, Number.isFinite(s.w) ? s.w : (s.mw || 0), innerWidth);
+      s.y = inside(s.y, Number.isFinite(s.h) ? s.h : Math.min(s.mh || 0, innerHeight - 140), innerHeight);
     }
   }
 
@@ -69,7 +69,7 @@ export function installWindows(ui) {
     s.x += r0.left - r1.left; s.y += r0.top - r1.top;   // a `translate` (the HUD stepping down for the ticker) stays its own
     const collapsed = Math.abs(r1.width - r0.width) > 1 || Math.abs(r1.height - r0.height) > 1;
     if (!Number.isFinite(s.w) && (sizing || collapsed)) { s.w = r0.width; s.h = r0.height; }
-    s.mw = r0.width;
+    s.mw = r0.width; s.mh = r0.height;
     apply(el);
     return { x: s.x, y: s.y, w: Number.isFinite(s.w) ? s.w : r0.width, h: Number.isFinite(s.h) ? s.h : r0.height };
   }
@@ -97,8 +97,8 @@ export function installWindows(ui) {
       if (!st) { if (Math.hypot(dx, dy) < SLOP) return; begin(); }
       const s = L[el.id];
       if (mode === 'move') {
-        s.x = clamp(st.x + dx, Math.min(0, KEEP - st.w), Math.max(0, innerWidth - KEEP));
-        s.y = clamp(st.y + dy, 0, Math.max(0, innerHeight - 40));
+        s.x = inside(st.x + dx, st.w, innerWidth);
+        s.y = inside(st.y + dy, st.h, innerHeight);
       } else {
         const [mw, mh] = minSize(el);
         let x = st.x, y = st.y, w = st.w, h = st.h;
@@ -106,7 +106,7 @@ export function installWindows(ui) {
         if (mode.includes('s')) h = clamp(st.h + dy, mh, innerHeight - st.y - 4);
         if (mode.includes('w')) { w = clamp(st.w - dx, mw, st.x + st.w - 4); x = st.x + st.w - w; }
         if (mode.includes('n')) { h = clamp(st.h - dy, mh, st.y + st.h); y = st.y + st.h - h; }
-        s.x = x; s.y = y; s.w = w; s.h = h; s.mw = w;
+        s.x = x; s.y = y; s.w = w; s.h = h; s.mw = w; s.mh = h;
       }
       apply(el);
     };
