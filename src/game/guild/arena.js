@@ -18,10 +18,13 @@ const ARENAS = {
 };
 const YARDS = ['velscour', 'aurelian', 'tidewright', 'ironhold', 'corsair'];
 const COUNTDOWN = 4;
+// the PvP title (pvpfx.js) runs on these clocks: the letters lock in, the screen goes black at INTRO_BLACK and the
+// captain is moved into the arena then; leaving, the screen fades out for LEAVE_FADE before the captain is sent home
+export const INTRO_BLACK = 2.9, INTRO_IN = 0.75, LEAVE_FADE = 0.5;
 const _v = new THREE.Vector3();
 
 export function installArena(game, G) {
-  const A = G.arena = { match: null, last: null, arenas: ARENAS };
+  const A = G.arena = { match: null, last: null, arenas: ARENAS, INTRO_BLACK, INTRO_IN, LEAVE_FADE };
   const sideColor = (side) => (side === 0 ? '#58c8ff' : '#ff5a8a');
 
   A.blocked = () => {
@@ -74,7 +77,7 @@ export function installArena(game, G) {
     const oppRating = opts.oppRating ?? (duel ? opp.rating : D.opponentRating(myRating, rng, pvp.streak));
     const arena = ARENAS[key];
     const M = A.match = {
-      key, mode, arena, phase: 'countdown', cd: COUNTDOWN, t: 0, left: mode.time, score: [0, 0], recs: [], feed: [],
+      key, mode, arena, phase: 'intro', cd: COUNTDOWN, introT0: game.engine.realTime, leaveAt: 0, t: 0, left: mode.time, score: [0, 0], recs: [], feed: [],
       pl: { kills: 0, assists: 0, deaths: 0, rt: 0, grace: 0, obj: 0 }, points: null, convoy: null, acc: 0,
       myRating, oppRating, opp, level: s.level, tier: CHASSIS_BY_ID[P.ship.chassis].tier, meshes: [], fast: !!opts.fast, quiet: !!opts.quiet,
       back: { pos: s.position.clone(), heading: s.heading, hull: s.hull / s.maxHull, sh: s.shields.map((x) => x / Math.max(1, s.maxShield)) },
@@ -134,7 +137,17 @@ export function installArena(game, G) {
       }
     }
 
-    // the captain takes station
+    // the captain holds still under the title and takes station once the screen is black (at once for the tools)
+    s.invuln = true; s.target = null; s.throttle = 0; s.rudder = 0; game.moveTarget = null;
+    if (M.fast) takeStation(M);
+    return true;
+  };
+
+  function takeStation(M) {
+    const mode = M.mode, arena = M.arena, W = game.world;
+    let s = game.player;
+    if (!s.alive) s = game.spawnPlayer(M.back.pos);
+    M.phase = 'countdown'; M.cd = COUNTDOWN + (M.fast ? 0 : INTRO_IN * 0.6); M.t = 0; M.stationT = game.engine.realTime;
     const pos = spawnAt(M, 0, 0, mode.team);
     s.position.copy(pos); s.velocity.set(0, 0, 0); s.speed = 0; s.throttle = 0; s.rudder = 0;
     s.heading = Math.atan2(arena.x - pos.x, arena.z - pos.z); s.target = null; s.invuln = true;
@@ -143,9 +156,8 @@ export function installArena(game, G) {
     W.fx.column(pos, 0x58b8ff, 140, 60);
     if (game.audio) game.audio.play('jump', null, 0.6);
     game.ui.toast(`${mode.name} · ${arena.name}`, 'legend');
-    game.ui.chat('PVP', null, `${mode.name} at ${arena.name} — ${mode.sub}${M.convoy ? ` · you ${M.convoy.role === 'escort' ? 'ESCORT the freighters' : 'RAID the convoy'}` : ''}. Matched at ${Math.round(oppRating)} (you: ${Math.round(myRating)}).`, 'sys');
-    return true;
-  };
+    game.ui.chat('PVP', null, `${mode.name} at ${arena.name} — ${mode.sub}${M.convoy ? ` · you ${M.convoy.role === 'escort' ? 'ESCORT the freighters' : 'RAID the convoy'}` : ''}. Matched at ${Math.round(M.oppRating)} (you: ${Math.round(M.myRating)}).`, 'sys');
+  }
 
   function feed(M, a, aside, b, bside, verb = 'sank') {
     const e = { t: game.engine.realTime, a, b, verb, mine: aside === 0, ca: sideColor(aside), cb: sideColor(bside) };
@@ -254,6 +266,11 @@ export function installArena(game, G) {
     const M = A.match; if (!M) return;
     let P = game.player;
     M.t += dt;
+    if (M.phase === 'intro') {
+      if (P.alive) { P.throttle = 0; P.rudder = 0; P.invuln = true; }
+      if (game.engine.realTime - M.introT0 >= INTRO_BLACK) takeStation(M);
+      return;
+    }
     if (M.phase === 'countdown') {
       if (P.alive) { P.throttle = 0; P.rudder = 0; }
       if ((M.cd -= dt) <= 0) go(M);
@@ -271,7 +288,13 @@ export function installArena(game, G) {
       checkEnd(M);
     } else {
       if (P.alive) { P.throttle = 0; P.rudder = 0; }
-      if ((M.overT -= dt) <= 0) return cleanup(M);
+      // time up (or dismissed): the screen fades out, then the captain is sent home under the black
+      if ((M.overT -= dt) <= 0) {
+        const now = game.engine.realTime;
+        if (M.fast) return cleanup(M);
+        if (!M.leaveAt) M.leaveAt = now + LEAVE_FADE;
+        if (now >= M.leaveAt) return cleanup(M);
+      }
     }
     // the arena's edge
     const a = M.arena, r2 = a.r * a.r;
