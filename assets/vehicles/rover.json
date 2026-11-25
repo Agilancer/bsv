@@ -1,0 +1,686 @@
+{
+ "ex_rover_1": {
+  "axles": 3,
+  "bytes": 142888,
+  "dims": {
+   "H": 2.627,
+   "L": 7.875,
+   "W": 3.622,
+   "maxY": 2.626,
+   "minY": -0.001
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 1,
+   "light": 2,
+   "tool": 1
+  },
+  "file": "ex_rover_1.glb",
+  "frame": "rover",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    2.606,
+    1.75,
+    0.85
+   ]
+  ],
+  "mark": 1,
+  "ride": 0,
+  "scale": 1.0,
+  "tris": 13786,
+  "wheelR": 0.7,
+  "wheels": 6
+ },
+ "ex_rover_10": {
+  "axles": 5,
+  "bytes": 336144,
+  "dims": {
+   "H": 7.183,
+   "L": 22.21,
+   "W": 6.83,
+   "maxY": 7.183,
+   "minY": -0.001
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 5,
+   "light": 6,
+   "tool": 1
+  },
+  "file": "ex_rover_10.glb",
+  "frame": "rover",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5",
+   "wheel_6",
+   "wheel_7",
+   "wheel_8",
+   "wheel_9"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    4.907,
+    7.244,
+    1.424
+   ],
+   [
+    0.893,
+    5.592,
+    -2.261,
+    1.424
+   ],
+   [
+    -0.893,
+    5.592,
+    -2.261,
+    1.424
+   ],
+   [
+    0.893,
+    5.592,
+    -5.109,
+    1.424
+   ],
+   [
+    -0.893,
+    5.592,
+    -5.109,
+    1.424
+   ]
+  ],
+  "mark": 10,
+  "ride": 0,
+  "scale": 1.675,
+  "tris": 34660,
+  "wheelR": 1.362,
+  "wheels": 10
+ },
+ "ex_rover_11": {
+  "axles": 5,
+  "bytes": 346636,
+  "dims": {
+   "H": 8.968,
+   "L": 23.205,
+   "W": 7.136,
+   "maxY": 8.968,
+   "minY": -0.001
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 5,
+   "light": 6,
+   "tool": 1
+  },
+  "file": "ex_rover_11.glb",
+  "frame": "rover",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5",
+   "wheel_6",
+   "wheel_7",
+   "wheel_8",
+   "wheel_9"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    5.119,
+    7.569,
+    1.488
+   ],
+   [
+    0.933,
+    5.975,
+    -2.362,
+    1.488
+   ],
+   [
+    -0.933,
+    5.975,
+    -2.362,
+    1.488
+   ],
+   [
+    0.933,
+    5.975,
+    -5.338,
+    1.488
+   ],
+   [
+    -0.933,
+    5.975,
+    -5.338,
+    1.488
+   ]
+  ],
+  "mark": 11,
+  "ride": 0,
+  "scale": 1.75,
+  "tris": 35706,
+  "wheelR": 1.425,
+  "wheels": 10
+ },
+ "ex_rover_12": {
+  "axles": 5,
+  "bytes": 355812,
+  "dims": {
+   "H": 9.74,
+   "L": 24.2,
+   "W": 7.442,
+   "maxY": 9.739,
+   "minY": -0.001
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 6,
+   "light": 6,
+   "tool": 1
+  },
+  "file": "ex_rover_12.glb",
+  "frame": "rover",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5",
+   "wheel_6",
+   "wheel_7",
+   "wheel_8",
+   "wheel_9"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    5.332,
+    7.893,
+    1.551
+   ],
+   [
+    0.0,
+    6.371,
+    -8.03,
+    1.551
+   ],
+   [
+    0.973,
+    6.371,
+    -2.464,
+    1.551
+   ],
+   [
+    -0.973,
+    6.371,
+    -2.464,
+    1.551
+   ],
+   [
+    0.973,
+    6.371,
+    -5.566,
+    1.551
+   ],
+   [
+    -0.973,
+    6.371,
+    -5.566,
+    1.551
+   ]
+  ],
+  "mark": 12,
+  "ride": 0,
+  "scale": 1.825,
+  "tris": 36836,
+  "wheelR": 1.489,
+  "wheels": 10
+ },
+ "ex_rover_2": {
+  "axles": 3,
+  "bytes": 158216,
+  "dims": {
+   "H": 2.807,
+   "L": 8.466,
+   "W": 3.893,
+   "maxY": 2.807,
+   "minY": -0.001
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 1,
+   "light": 2,
+   "tool": 1
+  },
+  "file": "ex_rover_2.glb",
+  "frame": "rover",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    2.787,
+    1.881,
+    0.914
+   ]
+  ],
+  "mark": 2,
+  "ride": 0,
+  "scale": 1.075,
+  "tris": 15650,
+  "wheelR": 0.754,
+  "wheels": 6
+ },
+ "ex_rover_3": {
+  "axles": 3,
+  "bytes": 177588,
+  "dims": {
+   "H": 2.988,
+   "L": 9.056,
+   "W": 4.165,
+   "maxY": 2.988,
+   "minY": -0.001
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 1,
+   "light": 4,
+   "tool": 1
+  },
+  "file": "ex_rover_3.glb",
+  "frame": "rover",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    2.968,
+    2.013,
+    0.977
+   ]
+  ],
+  "mark": 3,
+  "ride": 0,
+  "scale": 1.15,
+  "tris": 17768,
+  "wheelR": 0.808,
+  "wheels": 6
+ },
+ "ex_rover_4": {
+  "axles": 3,
+  "bytes": 186856,
+  "dims": {
+   "H": 3.587,
+   "L": 10.406,
+   "W": 4.839,
+   "maxY": 3.586,
+   "minY": -0.001
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 2,
+   "light": 4,
+   "tool": 1
+  },
+  "file": "ex_rover_4.glb",
+  "frame": "rover",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    3.49,
+    2.236,
+    1.041
+   ],
+   [
+    0.0,
+    2.874,
+    -3.246,
+    1.041
+   ]
+  ],
+  "mark": 4,
+  "ride": 0,
+  "scale": 1.225,
+  "tris": 18428,
+  "wheelR": 0.985,
+  "wheels": 6
+ },
+ "ex_rover_5": {
+  "axles": 3,
+  "bytes": 191216,
+  "dims": {
+   "H": 4.991,
+   "L": 11.31,
+   "W": 5.136,
+   "maxY": 4.99,
+   "minY": -0.001
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 2,
+   "light": 4,
+   "tool": 1
+  },
+  "file": "ex_rover_5.glb",
+  "frame": "rover",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    3.692,
+    2.372,
+    1.105
+   ],
+   [
+    0.0,
+    3.039,
+    -3.445,
+    1.105
+   ]
+  ],
+  "mark": 5,
+  "ride": 0,
+  "scale": 1.3,
+  "tris": 19016,
+  "wheelR": 1.048,
+  "wheels": 6
+ },
+ "ex_rover_6": {
+  "axles": 3,
+  "bytes": 202496,
+  "dims": {
+   "H": 5.28,
+   "L": 11.963,
+   "W": 5.432,
+   "maxY": 5.28,
+   "minY": -0.001
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 3,
+   "light": 4,
+   "tool": 1
+  },
+  "file": "ex_rover_6.glb",
+  "frame": "rover",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    3.895,
+    2.509,
+    1.169
+   ],
+   [
+    0.99,
+    3.836,
+    -0.942,
+    1.169
+   ],
+   [
+    -0.99,
+    3.836,
+    -0.942,
+    1.169
+   ]
+  ],
+  "mark": 6,
+  "ride": 0,
+  "scale": 1.375,
+  "tris": 20428,
+  "wheelR": 1.11,
+  "wheels": 6
+ },
+ "ex_rover_7": {
+  "axles": 4,
+  "bytes": 257696,
+  "dims": {
+   "H": 5.824,
+   "L": 16.334,
+   "W": 5.786,
+   "maxY": 5.823,
+   "minY": -0.001
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 3,
+   "light": 6,
+   "tool": 1
+  },
+  "file": "ex_rover_7.glb",
+  "frame": "rover",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5",
+   "wheel_6",
+   "wheel_7"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    4.184,
+    4.495,
+    1.232
+   ],
+   [
+    0.855,
+    3.877,
+    -3.727,
+    1.232
+   ],
+   [
+    -0.855,
+    3.877,
+    -3.727,
+    1.232
+   ]
+  ],
+  "mark": 7,
+  "ride": 0,
+  "scale": 1.45,
+  "tris": 26204,
+  "wheelR": 1.173,
+  "wheels": 8
+ },
+ "ex_rover_8": {
+  "axles": 4,
+  "bytes": 276044,
+  "dims": {
+   "H": 6.127,
+   "L": 17.179,
+   "W": 6.085,
+   "maxY": 6.127,
+   "minY": -0.001
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 4,
+   "light": 6,
+   "tool": 1
+  },
+  "file": "ex_rover_8.glb",
+  "frame": "rover",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5",
+   "wheel_6",
+   "wheel_7"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    4.391,
+    4.727,
+    1.296
+   ],
+   [
+    0.0,
+    4.145,
+    -6.024,
+    1.296
+   ],
+   [
+    0.9,
+    4.069,
+    -3.919,
+    1.296
+   ],
+   [
+    -0.9,
+    4.069,
+    -3.919,
+    1.296
+   ]
+  ],
+  "mark": 8,
+  "ride": 0,
+  "scale": 1.525,
+  "tris": 28588,
+  "wheelR": 1.236,
+  "wheels": 8
+ },
+ "ex_rover_9": {
+  "axles": 4,
+  "bytes": 284356,
+  "dims": {
+   "H": 7.078,
+   "L": 18.024,
+   "W": 6.385,
+   "maxY": 7.078,
+   "minY": -0.001
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 4,
+   "light": 6,
+   "tool": 1
+  },
+  "file": "ex_rover_9.glb",
+  "frame": "rover",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5",
+   "wheel_6",
+   "wheel_7"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    4.599,
+    4.96,
+    1.36
+   ],
+   [
+    0.0,
+    4.341,
+    -6.32,
+    1.36
+   ],
+   [
+    0.944,
+    4.261,
+    -4.112,
+    1.36
+   ],
+   [
+    -0.944,
+    4.261,
+    -4.112,
+    1.36
+   ]
+  ],
+  "mark": 9,
+  "ride": 0,
+  "scale": 1.6,
+  "tris": 29620,
+  "wheelR": 1.299,
+  "wheels": 8
+ }
+}

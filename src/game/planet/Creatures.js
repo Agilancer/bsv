@@ -26,6 +26,7 @@ function segD2(a, b, c, out) {
   return { d2: (x - c.x) ** 2 + (y - c.y) ** 2 + (z - c.z) ** 2, t };
 }
 
+let volleySeq = 0;   // ring attacks: shards of one volley share a hit budget on the explorer (Vehicle.damage)
 export class Creatures {
   constructor(mode) {
     this.mode = mode;
@@ -382,15 +383,17 @@ export class Creatures {
     if (!hunting) return this.wanderStep(e, dt);
     const sp = this.pace(e, 0.85);
     const ip = this.intercept(e, tgt, sp, _w);
-    this.move(e, dt, ip.x, ip.z, 1, true, d < 8 ? sp * 0.5 : sp);
-    if (d < 50 && d > 5 && e.cd <= 0) {
+    // big explorers (the higher marks) push creatures out further: reach and the charge's minimum grow with them
+    const big = Math.max(0, (tgt.radius || 1.5) - 2.2);
+    this.move(e, dt, ip.x, ip.z, 1, true, d < 8 + big ? sp * 0.5 : sp);
+    if (d < 50 && d > 5 + big && e.cd <= 0) {
       const wind = 0.65;
       e.chargeT = clamp((d + 14) / cs, 0.45, 1.4);
       const lp = this.lead(tgt, wind + d / cs * 0.8, _w);
       const ax = lp.x - e.pos.x, az = lp.z - e.pos.z, al = Math.hypot(ax, az) || 1;
       e.state = 'windup'; e.t = wind; e.cd = def.cd; e.dir.set(ax / al, 0, az / al); e.heading = Math.atan2(ax, az);
       M.warnLine(e.pos, e.dir, cs * e.chargeT + 4, e.radius + 2.6, wind + e.chargeT * 0.5, 0xff3020);
-    } else if (d < e.radius + 3 && e.cd <= def.cd - 1) { e.cd = def.cd; this.hitTarget(e, tgt, e.dmg * 0.35); }
+    } else if (d < e.radius + 3 + big && e.cd <= def.cd - 1) { e.cd = def.cd; this.hitTarget(e, tgt, e.dmg * 0.35); }
   }
 
   aiRanged(e, dt, d, dx, dz, hunting, tgt) {
@@ -594,11 +597,12 @@ export class Creatures {
         const sy = e.pos.y + Math.max(1, e.height * 0.4);
         let vy = 0;
         if (tgt) { const tp = tgt.position || tgt.pos, dd = Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z); vy = clamp((tp.y + 1 - sy) / Math.max(0.25, dd / NOVA_V), -30, 10); }
-        // the ring...
+        // the ring... (one volley: however big the explorer, its shards share one telegraphed hit's budget)
+        const volley = ++volleySeq;
         for (let i = 0; i < n; i++) {
           const a = (i + 0.5) / n * Math.PI * 2 + a0;
           _d.set(Math.cos(a) * NOVA_V, vy, Math.sin(a) * NOVA_V);
-          M.shots.spawn({ pos: _p.copy(e.pos).setY(sy), vel: _d, team, dmg: e.dmg * 0.7, kind: 'bolt', color: def.vis.glow, size: 0.45 * ss, len: 3, life: (R + 14) / NOVA_V, src: e, tele: true });
+          M.shots.spawn({ pos: _p.copy(e.pos).setY(sy), vel: _d, team, dmg: e.dmg * 0.7, kind: 'bolt', color: def.vis.glow, size: 0.45 * ss, len: 3, life: (R + 14) / NOVA_V, src: e, tele: true, volley });
         }
         // ...and its heart: three fast shards led onto the target (side-step them, or be out of reach)
         if (tgt) for (let i = -1; i <= 1; i++) {
@@ -658,11 +662,12 @@ export class Creatures {
       // lock-on ring follows the explorer, then a slow homing salvo — break away or dash
       M.telegraph(tp, 7, 0xff4030, 1.2, tgt);
       M.toast(`${e.name}: missile lock!`, 'warn');
+      const volley = ++volleySeq;   // the salvo: at most two telegraphed hits' worth on an explorer that does not break away
       for (let i = 0; i < 6 + e.phase * 2; i++) M.later(1.2 + i * 0.12, () => {
         if (!e.alive) return;
         const a = Math.random() * 6.28;
         _d.set(Math.cos(a) * 20, 30, Math.sin(a) * 20);
-        M.shots.spawn({ pos: e.pos.clone().setY(e.pos.y + e.height * 0.6), vel: _d, team: 1, dmg: e.dmg * 0.8, kind: 'rocket', color: 0xff6040, size: 0.4, len: 2, life: 4, splash: 4, homing: 0.5, trail: 1, src: e, tele: true });
+        M.shots.spawn({ pos: e.pos.clone().setY(e.pos.y + e.height * 0.6), vel: _d, team: 1, dmg: e.dmg * 0.8, kind: 'rocket', color: 0xff6040, size: 0.4, len: 2, life: 4, splash: 4, homing: 0.5, trail: 1, src: e, tele: true, volley, volleyCap: 2 });
       });
     } else if (sp === 'quake') {
       for (let k = 0; k < 3; k++) {
@@ -672,7 +677,7 @@ export class Creatures {
           if (!e.alive) return;
           fx.ring(e.pos, R, M.dustHex, 64); fx.rocks(e.pos, 12, 0x4a3a30, 20); M.cam.addShake(1.4);
           const vd = Math.hypot(M.vehicle.position.x - e.pos.x, M.vehicle.position.z - e.pos.z);
-          if (vd < R + M.vehicle.radius) M.vehicle.damage(e.dmg, M.vehicle.position, e, TELE);
+          if (vd < R + (M.vehicle.hitRadius || M.vehicle.radius)) M.vehicle.damage(e.dmg, M.vehicle.position, e, TELE);
         });
       }
     } else if (sp === 'nova') {
@@ -684,6 +689,7 @@ export class Creatures {
       M.telegraph(e.pos, Rb, def.vis.glow, 1.0 + 2.5, e);
       M.warnLine(e.pos, new THREE.Vector3(Math.sin(start), 0, Math.cos(start)), Rb, 2, 1.0, def.vis.glow);
       let last = -1;
+      const sweep = { telegraph: true, volley: ++volleySeq };   // one sweep lands as one telegraphed strike
       for (let i = 0; i < 25; i++) M.later(1.0 + i * 0.1, () => {
         if (!e.alive) return;
         const a = start + i * 0.1;
@@ -691,7 +697,7 @@ export class Creatures {
         const end = s.clone().add(_d.set(Math.sin(a) * Rb, -s.y + M.S.ground(e.pos.x + Math.sin(a) * Rb, e.pos.z + Math.cos(a) * Rb), Math.cos(a) * Rb));
         fx.timedBeam(s, end, 0.6, def.vis.glow, 2.6, 0.12);
         const V = M.vehicle; _c.copy(V.position).setY(V.position.y + 1);
-        if (segD2(s, end, _c, null).d2 < (V.radius + 1.5) ** 2 && i - last > 3) { last = i; V.damage(e.dmg * 0.6, _c, e, TELE); }
+        if (segD2(s, end, _c, null).d2 < ((V.hitRadius || V.radius) + 1.5) ** 2 && i - last > 3) { last = i; V.damage(e.dmg * 0.6, _c, e, sweep); }
       });
     } else { // barrage: telegraphed strikes around the explorer
       for (let i = 0; i < 5 + e.phase * 2; i++) {
@@ -703,7 +709,7 @@ export class Creatures {
           if (def.family === 'hive' || def.family === 'fungal') { fx.ichor(pos, def.ichor, 18); fx.glowBurst(pos, def.ichor, 8, 0.3, 1.5); }
           else fx.explode(pos, 0.7, 0xff7030);
           const vd = Math.hypot(M.vehicle.position.x - pos.x, M.vehicle.position.z - pos.z);
-          if (vd < 5 + M.vehicle.radius) M.vehicle.damage(e.dmg * 1.1, pos, e, TELE);
+          if (vd < 5 + (M.vehicle.hitRadius || M.vehicle.radius)) M.vehicle.damage(e.dmg * 1.1, pos, e, TELE);
           M.cam.addShake(0.5);
         });
       }

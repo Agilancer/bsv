@@ -20,8 +20,8 @@ import { Dungeon, portalMaterial } from './Dungeon.js';
 import { DUNGEON_THEMES } from './dungeonGen.js';
 import { landerGroup, beaconMaterial, texturedMat } from './siteModels.js';
 import { GeoBuilder, rockGeometry } from './geo.js';
-import { RESOURCES, bankCargo, loseCargo, cargoTotal, addResources, planetKey, groundKillReward } from './economy.js';
-import { ensureExplorer, explorerStats, grantExplorerXp, EX_INV_SIZE, scrapYield, rollExItem } from './explorerItems.js';
+import { RESOURCES, bankCargo, loseCargo, cargoTotal, addResources, planetKey, groundKillReward, learnBlueprint } from './economy.js';
+import { ensureExplorer, explorerStats, grantExplorerXp, EX_INV_SIZE, scrapYield, rollExItem, grantExItemXp, EX_BASES } from './explorerItems.js';
 import { pickPack } from './enemies.js';
 import { PlanetHUD } from './PlanetHUD.js';
 import { PLANET_ABILITIES } from './abilities.js';
@@ -35,6 +35,7 @@ import { Wildlife, Flyers, Curios } from './Life.js';
 import { PlanetExtras } from './Extras.js';
 import { timeOfDay } from './lifeData.js';
 import { Weather } from './Weather.js';
+import { Drones } from './Drones.js';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _r = new THREE.Ray(), _a = new THREE.Vector3();
 const _c1 = new THREE.Color(), _c2 = new THREE.Color();
@@ -133,6 +134,9 @@ export class PlanetMode {
     this.vehicle = new Vehicle(this);
     this.shots = new Shots(this);
     this.arsenal = new Arsenal(this);
+    this.fitCamera();
+    this.drones = new Drones(this);
+    this.drones.sync();
     this.creatures = new Creatures(this);
     this.probes = new Probes(this);
     // lander + beacon
@@ -256,7 +260,10 @@ export class PlanetMode {
         this.toast(`${e.name}: weak point destroyed!`, 'epic');
       }
     }
-    e.hp -= d; e.flash = 1; e.lastHit = this.engine.time;
+    e.hp -= d; e.lastHit = this.engine.time;
+    // the hit flash: at most four pulses a second, and softer from drones (a swarm would hold it white)
+    // scaled by the hit's share of the creature: chip damage barely shows, a big hit flashes
+    if (this.engine.time - (e.flashT || -1) > 0.25 || weak) { e.flash = Math.max(e.flash, Math.min(o.drone ? 0.4 : 0.9, 0.15 + 6 * d / Math.max(1, e.maxHp))); e.flashT = this.engine.time; }
     if (e.mode !== 'hunt') C.aggro(e);
     if (o.burn) { e.burnT = 3; e.burnDps = Math.max(e.burnDps, dmg * o.burn / 3); }
     if (o.leech) this.vehicle.heal(d * o.leech);
@@ -300,6 +307,17 @@ export class PlanetMode {
     gc[def.id] = (gc[def.id] || 0) + 1;
     const rng = new RNG(Math.random() * 1e9);
     const sizeMul = [1, 2, 5, 12, 30, 60][def.size] * (e.elite ? 2.5 : 1);
+    if (def.mech || plan === 'mech' || plan === 'drone' || plan === 'turret') {
+      const n = (1 + def.size) * (e.elite ? 2 : 1) * (0.6 + Math.random() * 0.8);
+      if (n >= 1) this.level.dropRes('tech', Math.round(n), p);
+      // war machines carry fabricator schematics
+      if (!this.pilot.duel && Math.random() < 0.03 + 0.04 * def.size + (e.elite ? 0.12 : 0)) this.blueprintFound('salvaged from the wreck');
+    }
+    // fitted guns and drone bays earn mastery with every kill
+    const ups = [];
+    // (measured duels field the contract's fresh build: no mastery creeps in between them)
+    if (!this.pilot.duel) for (const [k, it] of Object.entries(this.ex.loadout)) if (it && k.startsWith('hp:') && grantExItemXp(it, def.xp * (1 + 0.12 * (e.level - 1)) * 0.6)) ups.push(`${it.name} ${it.lvl}`);
+    if (ups.length) { this.toast(`Mastery up (+4% each): ${ups.join(', ')}`, ''); this.refreshStats(); }
     for (const [res, ev] of Object.entries(def.drops)) {
       const n = ev * sizeMul * (0.5 + Math.random());
       const k = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);
@@ -324,6 +342,15 @@ export class PlanetMode {
     }
   }
 
+  // a new fabricator blueprint (war machines, crates, level-ups): learn it and say so
+  blueprintFound(how) {
+    const k = learnBlueprint(this.data);
+    if (!k) return null;
+    this.toast(`Blueprint recovered: ${EX_BASES[k].name}`, 'epic');
+    this.game.ui.chat('LOOT', null, `Blueprint ${how}: ${EX_BASES[k].name} (Explorer Bay → Fabricator)`, 'loot', 'loot');
+    this.hud.refreshWindows && this.hud.refreshWindows();
+    return k;
+  }
   gainXp(xp) {
     const ex = this.ex;
     this.runStats.xp += xp;
@@ -335,6 +362,7 @@ export class PlanetMode {
       this.pfx.pillar(this.vehicle.position, 0x9a6bff, 30, 3, 40); this.pfx.ring(this.vehicle.position, 18, 0x9a6bff, 64);
       this.refreshStats();
       this.vehicle.hp = this.vehicle.stats.maxHp;
+      if ([5, 8, 12, 15, 19, 23, 27, 32, 37].includes(ex.level)) this.later(1.2, () => this.blueprintFound('decoded from survey data'));
     }
   }
   refreshStats() {
@@ -342,13 +370,22 @@ export class PlanetMode {
     const f = V.hp / V.stats.maxHp;
     V.stats = explorerStats(this.ex);
     V.hp = Math.min(V.stats.maxHp, f * V.stats.maxHp);
+    if (this.drones) this.drones.sync();
+  }
+  // the bigger marks are framed from further out (the player's own zoom then takes over)
+  fitCamera() {
+    const k = this.vehicle.v.size || 1;
+    this.cam.distTarget = Math.min(this.cam.maxDist, Math.max(this.cam.minDist, 80 * (0.74 + 0.26 * k)));
   }
   // loadout or chassis changed from the explorer bay
   rebuildVehicle() {
     const V = this.vehicle;
     const pos = V.position.clone(), h = V.heading;
+    const size0 = V.v.size || 1;
     V.build();
     V.place(pos.x, pos.z, h);
+    if ((V.v.size || 1) !== size0) this.fitCamera();
+    if (this.drones) this.drones.remesh();
     this.refreshStats();
   }
 
@@ -370,6 +407,7 @@ export class PlanetMode {
     this.later(1.2, () => this.extras.radio('death', true));
     this.toast(`Explorer destroyed${n ? ` — ${n} cargo units lost` : ''}`, 'bad');
     this.probes.recallAll(false);
+    this.drones.clear();
     this.state = 'dead'; this.stateT = 4;
     this.hud.death(true);
   }
@@ -381,6 +419,7 @@ export class PlanetMode {
     const p = this.dungeon ? this.dungeon.startPos : _v.set(this.lander.position.x + 10, 0, this.lander.position.z + 10);
     V.place(p.x, p.z, 0);
     this.pfx.pillar(V.position, 0x58c8ff, 40, 3, 40); this.pfx.ring(V.position, 10, 0x58c8ff, 48);
+    this.drones.relaunchAll();
     this.state = 'play';
   }
   onBossAggro(e) {
@@ -546,6 +585,7 @@ export class PlanetMode {
     E.renderer.toneMappingExposure = this.savedExposure || 1.05;
     E.renderer.shadowMap.enabled = !!this.savedShadows;
     this.terrain.dispose();
+    this.drones.dispose();
     this.weather.dispose(); this.wildlife.dispose(); if (this.flyers) this.flyers.dispose(); this.curios.dispose();
     this.disposed = true;
   }
@@ -613,11 +653,12 @@ export class PlanetMode {
     if (live) {
       V.update(dt, ctl);
       this.arsenal.update(dt, ctl.fire, this.aimPoint, this.aimEnemy);
+      this.drones.update(dt);
       this.updateMining(dt, ctl.mine);
       this.updateAbilities(dt, ctl);
       if (ctl.probe) this.probes.launch();
       if (ctl.interact) this.interact();
-    } else { this.mining = false; }
+    } else { this.mining = false; this.drones.draw(); }
     this.probes.update(dt);
     if (this.dungeon) this.dungeon.nav.updateFlow(V.position.x, V.position.z);
     this.creatures.update(dt);
@@ -670,7 +711,7 @@ export class PlanetMode {
 
   readControls(dt) {
     const inp = this.input, m = inp.mouse, V = this.vehicle;
-    const ctl = { mx: 0, mz: 0, fire: false, mine: false, boost: false, abil: [false, false, false, false], probe: false, interact: false };
+    const ctl = { mx: 0, mz: 0, fire: false, mine: false, boost: false, abil: [false, false, false, false, false], probe: false, interact: false };
     // aim: cursor ray onto the ground (raymarch the heightfield)
     const auto = this.game.autoplay && this.pilot;
     if (this.touch && this.touch.active) this.touch.read(ctl);
@@ -684,7 +725,8 @@ export class PlanetMode {
       ctl.fire = !!(m.buttons & 1);
       ctl.mine = !!(m.buttons & 2) || k('KeyF');
       ctl.boost = k('ShiftLeft') || k('ShiftRight');
-      for (let i = 0; i < 4; i++) ctl.abil[i] = h('Digit' + (i + 1));
+      for (let i = 0; i < PLANET_ABILITIES.length; i++) ctl.abil[i] = h('Digit' + (i + 1));
+      if (h('KeyG')) ctl.abil[4] = true;   // G: swarm strike
       ctl.probe = h('KeyX'); ctl.interact = h('KeyR');
       if (h('KeyH')) this.honk();
       this.pickAim(m.nx, m.ny);
@@ -788,7 +830,7 @@ export class PlanetMode {
 
   // ---------------- abilities ----------------
   updateAbilities(dt, ctl) {
-    for (let i = 0; i < 4; i++) if (ctl.abil[i]) this.useAbility(i);
+    for (let i = 0; i < PLANET_ABILITIES.length; i++) if (ctl.abil[i]) this.useAbility(i);
     if (ctl.boost && this.vehicle.boostT <= 0.05) this.vehicle.boostT = 0.1;
   }
   abilityCd(a) { return a.cd * (1 - this.vehicle.stats.cdr); }
@@ -934,7 +976,8 @@ export class PlanetMode {
       this.later(0.7, () => {
         const V = this.vehicle;
         V.setVisible(true);
-        V.place(L.position.x + 9, L.position.z + 9, Math.PI * 0.25);
+        const off = Math.max(9, 8 + V.radius * 1.25);   // the big marks roll out clear of the lander
+        V.place(L.position.x + off, L.position.z + off, Math.PI * 0.25);
         V.velocity.set(Math.sin(Math.PI * 0.25) * 18, 0, Math.cos(Math.PI * 0.25) * 18);
         fx.pillar(V.position, 0x58c8ff, 20, 2, 24);
         this.ground.pulse(V.position.x, V.position.z, 0x58c8ff, 1);

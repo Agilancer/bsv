@@ -1,5 +1,5 @@
-// The explorer's action bar (1-4): boost dash, shield bubble, sentry turret, and an orbital lance
-// called down from the mothership.
+// The explorer's action bar (1-5): boost dash, shield bubble, sentry turret, an orbital lance called down
+// from the mothership, and a swarm strike that sends every combat drone at the creature under the aim.
 import * as THREE from 'three/webgpu';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
@@ -81,5 +81,10 @@ export const PLANET_ABILITIES = [
       });
       return true;
     },
+  },
+  {
+    k: 'swarm', name: 'Swarm Strike', key: '5', cd: 12, unlock: 1, icon: 'sparrow',
+    desc: 'Every combat drone (sparrows and scarabs) dives on the creature under your aim for 6 seconds, hitting 30% harder. Needs a combat drone bay.',
+    run(M) { return M.drones.command(M.aimEnemy || M.creatures.nearestTo(M.aimPoint, 18) || M.creatures.nearestTo(M.vehicle.position, 60)); },
   },
 ];

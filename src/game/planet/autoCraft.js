@@ -1,6 +1,7 @@
 // What the autoplay captain does at the refinery, the fabricator and the explorer bay. Pure logic
 // over the save data (game.data): importable in node, no DOM, no three.js.
-//   explorer  - builds the next mark of its frame, fabricates gear for empty or outdated slots,
+//   explorer  - builds the next mark of its frame, crafts guns and drone bays from blueprints for empty
+//               or outdated hardpoints (fabricates tools and modules),
 //               fits the loadout by what the gear actually does (and to a world's riches before a
 //               drop), scraps the spares for resources
 //   refinery  - permanent warship ranks and probe upgrades, lowest rank first
@@ -11,22 +12,24 @@
 import { RARITY, ITEM_MAX_LVL } from '../data/items.js';
 import { EXPLORER_BY_ID } from '../data/chassis.js';
 import {
-  ensureExplorer, exSlotKeys, exWeaponStats, exToolStats, exItemScore, equipExItem, setExChassis, scrapYield, EX_BASES, EX_SLOTS, EX_INV_SIZE,
+  ensureExplorer, exSlotKeys, exWeaponStats, exToolStats, exDroneStats, droneSheetDps, exItemScore, equipExItem, setExChassis, scrapYield, EX_BASES, EX_SLOTS, EX_INV_SIZE, SLOT_OF,
+  bayCap, hpAllowed,
 } from './explorerItems.js';
+export { bayCap };
 import {
   RES_KEYS, RESOURCES, SHIP_UPGRADES, PROBE_UPGRADES, upgradeCost, buyShipUpgrade, buyProbeUpgrade, affordable, addResources, chassisCost,
   buyChassis, fabricateCost, fabricate, workshop, empowerCost, empowerCap, overchargeCost, imbueCost, canImbue,
-  ORBITAL_PROBE_COST, orbitalProbeYield, pay,
+  ORBITAL_PROBE_COST, orbitalProbeYield, pay, craftCost, craftItem, knowsBlueprint,
 } from './economy.js';
 
 // what a unit of each resource is worth to the captain when choosing where to dig (the rare
 // ones gate the best upgrades)
-export const RES_VALUE = { ore: 1, crystal: 1, isotope: 1.2, biomass: 1, relic: 2.5, datacore: 2.5 };
+export const RES_VALUE = { ore: 1, crystal: 1, isotope: 1.2, biomass: 1, relic: 2.5, datacore: 2.5, tech: 1.6 };
 
 // What each resource is worth right now: its base value, raised for what the bank is short of
 // and lowered for what is piling up (every sink needs two or three kinds together, so a bank
 // that is all ore buys nothing). Amounts are compared in the proportions the sinks use them.
-const RES_SCALE = { ore: 1, crystal: 0.5, isotope: 0.3, biomass: 0.4, relic: 0.04, datacore: 0.05 };
+const RES_SCALE = { ore: 1, crystal: 0.5, isotope: 0.3, biomass: 0.4, relic: 0.04, datacore: 0.05, tech: 0.3 };
 export function needWeights(data) {
   const have = (data && data.resources) || {};
   let mean = 0;
@@ -53,6 +56,15 @@ export function exAutoScore(item, weights = RES_VALUE) {
     if (s.homing) v *= 1.08;
     return v * (1 + 0.15 * (item.unique || []).length);
   }
+  if (item.slot === 'bay') {
+    // drone bays in gun-equivalent units: combat swarms by their sheet dps, support swarms valued
+    // as a share of a gun of the same item level (a captain wants guns first)
+    const s = exDroneStats(item);
+    const dps = droneSheetDps(s);
+    const gunEq = exAutoScore({ ...item, base: 'chaingun', slot: 'gun', affixes: [], unique: [] });
+    const v = dps > 0 ? dps * (s.type === 'scarab' ? 1.05 : 1) : gunEq * ({ mender: 0.55, aegis: 0.5, magpie: 0.35 }[s.type] || 0.4) * (1 + 0.1 * (s.count - 3));
+    return v * (1 + 0.15 * (item.unique || []).length);
+  }
   if (item.slot === 'tool') {
     const s = exToolStats(item);
     let num = 0, den = 0;
@@ -70,12 +82,15 @@ export function fitExplorer(ex, weights = RES_VALUE) {
   for (const slot of EX_SLOTS) {
     const keys = exSlotKeys(ch).filter((k) => k.startsWith(slot + ':'));
     if (!keys.length) continue;
-    for (let guard = 0; guard < 12; guard++) {
-      let best = null, bs = 0;
-      for (const it of ex.inventory) { if (it.slot !== slot) continue; const sc = exAutoScore(it, weights); if (sc > bs) { bs = sc; best = it; } }
-      if (!best) break;
+    for (let guard = 0; guard < 16; guard++) {
       const empty = keys.find((k) => !ex.loadout[k]);
       const worst = keys.reduce((a, b) => (exAutoScore(ex.loadout[a], weights) <= exAutoScore(ex.loadout[b], weights) ? a : b));
+      let best = null, bs = 0;
+      for (const it of ex.inventory) {
+        if (SLOT_OF[it.slot] !== slot || !hpAllowed(ex, ch, it, empty ? null : ex.loadout[worst])) continue;
+        const sc = exAutoScore(it, weights); if (sc > bs) { bs = sc; best = it; }
+      }
+      if (!best) break;
       if (!empty && bs <= exAutoScore(ex.loadout[worst], weights) * 1.03) break;
       equipExItem(ex, best, empty || worst);
       changed = true;
@@ -120,6 +135,7 @@ function scrapSpares(data, ex, log) {
   const keep = new Set();
   const top = (list, n, score) => list.slice().sort((a, b) => score(b) - score(a)).slice(0, n).forEach((it) => keep.add(it));
   top(ex.inventory.filter((it) => it.slot === 'gun'), 2, exAutoScore);
+  for (const d of ['sparrow', 'scarab', 'mender', 'aegis', 'magpie']) top(ex.inventory.filter((it) => it.base === d), 1, exAutoScore);
   top(ex.inventory.filter((it) => it.slot === 'module'), 2, exAutoScore);
   for (const base of Object.keys(EX_BASES)) if (EX_BASES[base].slot === 'tool') top(ex.inventory.filter((it) => it.base === base), 1, exAutoScore);
   const tight = ex.inventory.length > EX_INV_SIZE - 10;
@@ -147,6 +163,23 @@ function canSpend(data, cost, reserve, floor = 0) {
   return true;
 }
 
+// What to craft for the hardpoints: guns until there are two, then the frame's drones (the Seraph and
+// big frames field swarms; menders and aegis wings once the combat mounts are covered), else a gun.
+const GUN_TASTE = { skiff: 'chaingun', rover: 'chaingun', strider: 'plasma', gunship: 'rockets', crawler: 'mortar', lancer: 'rail', seraph: 'arc' };
+const GUN_ORDER = ['rail', 'plasma', 'rockets', 'arc', 'mortar', 'chaingun', 'flamer', 'scatter'];
+export function pickBlueprint(ex, ch) {
+  const known = (b) => knowsBlueprint(ex, b);
+  const gun = (prefer) => (known(prefer) ? prefer : GUN_ORDER.find(known) || 'chaingun');
+  const fitted = exSlotKeys(ch).filter((k) => k.startsWith('hp:')).map((k) => ex.loadout[k]).filter(Boolean);
+  const guns = fitted.filter((x) => x.slot === 'gun').length, bays = fitted.filter((x) => x.slot === 'bay');
+  const has = (b) => bays.some((x) => x.base === b) || ex.inventory.some((x) => x.base === b);
+  if (guns < Math.min(2, ch.slots.hp) && !(ch.droneBonus && guns >= 1)) return gun(guns ? 'plasma' : GUN_TASTE[ch.frame]);
+  if (bays.length < bayCap(ch)) {
+    for (const b of ch.droneBonus ? ['sparrow', 'scarab', 'aegis', 'mender', 'sparrow'] : ['sparrow', 'mender', 'scarab', 'aegis']) if (known(b) && (!has(b) || b === 'sparrow' && bays.length >= 3)) return b;
+  }
+  return gun(GUN_TASTE[ch.frame]);
+}
+
 function explorerPass(data, ex, log, floor) {
   // the next mark of the frame it drives, as soon as the level, the bank and the purse allow
   const ch = EXPLORER_BY_ID[ex.chassis];
@@ -170,17 +203,27 @@ function explorerPass(data, ex, log, floor) {
   let made = 0;
   for (const slot of EX_SLOTS) {
     const keys = exSlotKeys(cur).filter((k) => k.startsWith(slot + ':'));
-    for (let guard = 0; guard < 4 && made < 4; guard++) {
+    for (let guard = 0; guard < 6 && made < 6; guard++) {
       const empty = keys.some((k) => !ex.loadout[k]);
       const fittedLv = keys.map((k) => ex.loadout[k]).filter(Boolean).map((it) => it.ilvl);
       const stale = guard === 0 && fittedLv.length > 0 && Math.min(...fittedLv) <= ex.level - 4;
       if (!empty && !stale) break;
-      const cost = fabricateCost(slot, ex.level);
-      if (!canSpend(data, cost, null, floor)) break;
-      const r = fabricate(data, slot, ex.level);
+      let r;
+      if (slot === 'hp') {
+        // a blueprint: what the mounts are missing (the frame's taste in drones), else the best gun
+        const base = pickBlueprint(ex, cur);
+        const cost = craftCost(base, ex.level);
+        if (!canSpend(data, cost, null, floor)) break;
+        r = craftItem(data, base, ex.level);
+        if (r.ok) { log.push(`crafted ${r.item.name} (item level ${r.item.ilvl})`); (log.crafted ||= []).push(r.item); }
+      } else {
+        const cost = fabricateCost(slot, ex.level);
+        if (!canSpend(data, cost, null, floor)) break;
+        r = fabricate(data, slot, ex.level);
+        if (r.ok) log.push(`fabricated ${r.item.name} (item level ${r.item.ilvl})`);
+      }
       if (!r.ok) break;
       made++;
-      log.push(`fabricated ${r.item.name} (item level ${r.item.ilvl})`);
       fitExplorer(ex);
     }
   }
@@ -241,7 +284,7 @@ export function autoCraft(data, opts = {}) {
   const reserve = explorerPass(data, ex, log, floor);
   let ship = refineryPass(data, log, reserve);
   ship += workshopPass(data, log, reserve, floor);
-  return { log, ship: ship > 0 };
+  return { log, ship: ship > 0, crafted: log.crafted || [] };
 }
 
 // Orbit: recover the probe's haul over a surveyed world, or leave one there (once per world; it

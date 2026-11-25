@@ -240,7 +240,7 @@ export class Game {
     const s = this.player;
     if (s && s.stats.u_hoard && (d.type !== 'item' || P.inventory.length < INV_SIZE)) s.repair(s.maxHull * 0.02);   // Magpie: every pickup patches the hull
     if (d.type === 'credits') { P.credits += d.amount; return; }
-    if (d.type === 'salvage') { P.salvage += d.amount; P.credits += d.amount * 15; return; }
+    if (d.type === 'salvage') { P.salvage += d.amount; P.credits += d.amount * 15; P.resources ||= {}; P.resources.tech = (P.resources.tech || 0) + Math.max(1, Math.round(d.amount * 0.5)); return; }
     if (P.inventory.length >= INV_SIZE) { this.ui.toast('Cargo hold full', 'warn'); return; }
     P.inventory.push(d.item);
     const r = RARITY[d.item.rarity];

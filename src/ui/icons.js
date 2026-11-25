@@ -13,6 +13,12 @@ export const ICONS = {
   torpedo: S('<path d="M4 16c4-5 14-5 20-2l4 2-4 2c-6 3-16 3-20-2z"/><path d="M8 12l-4-4M8 20l-4 4"/>'),
   nova: S('<circle cx="16" cy="16" r="5"/><path d="M16 2v6M16 24v6M2 16h6M24 16h6M6 6l4 4M22 22l4 4M26 6l-4 4M10 22l-4 4"/>'),
   hangar: S('<path d="M4 26V12l12-7 12 7v14"/><path d="M10 26v-8h12v8"/><path d="M13 14h6"/>'),
+  // drone swarms (explorer bays): each its own silhouette, all with the small swarm dots in a corner
+  sparrow: S('<path d="M10 16h12M16 10v12"/><circle cx="10" cy="10" r="3.2"/><circle cx="22" cy="10" r="3.2"/><circle cx="10" cy="22" r="3.2"/><circle cx="22" cy="22" r="3.2"/><rect x="14" y="14" width="4" height="4" fill="currentColor"/><path d="M16 18v4" stroke-width="2.2"/>'),
+  scarab: S('<ellipse cx="16" cy="17" rx="6" ry="7.5"/><path d="M16 9.5v15"/><circle cx="16" cy="14" r="1.6" fill="currentColor"/><path d="M10 13l-5-3M10 17H4M10 21l-5 4M22 13l5-3M22 17h6M22 21l5 4"/>'),
+  mender: S('<circle cx="16" cy="16" r="9"/><path d="M16 11v10M11 16h10" stroke-width="2.6"/><path d="M7 25l-3 3M25 25l3 3"/>'),
+  aegis: S('<path d="M16 4l11 6-11 18L5 10z"/><circle cx="16" cy="12" r="4.5"/><circle cx="16" cy="12" r="1.5" fill="currentColor"/>'),
+  magpie: S('<path d="M6 14l8-4h6l6 5-6 5h-6z"/><path d="M26 15l3-3M26 15l3 3"/><path d="M12 20l-2 6h8l-2-6"/><circle cx="17" cy="14" r="1.3" fill="currentColor"/>'),
   drone: S('<circle cx="16" cy="16" r="4"/><circle cx="7" cy="7" r="3"/><circle cx="25" cy="7" r="3"/><circle cx="7" cy="25" r="3"/><circle cx="25" cy="25" r="3"/><path d="M13 13l-4-4M19 13l4-4M13 19l-4 4M19 19l4 4"/>'),
   shield: S('<path d="M16 3l11 4v8c0 7-5 12-11 14C10 27 5 22 5 15V7z"/><path d="M16 9v14M10 13h12"/>'),
   armor: S('<path d="M5 8l11-5 11 5v8c0 6-5 11-11 13C10 27 5 22 5 16z"/><path d="M5 14h22M16 3v26"/>'),

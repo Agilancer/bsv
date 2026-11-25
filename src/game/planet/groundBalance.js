@@ -3,7 +3,7 @@
 // from it so time-to-kill stays flat as both sides level, per size class.
 // Pure data: importable in node.
 import { RNG } from '../../engine/rng.js';
-import { EXPLORER_BY_ID } from '../data/chassis.js';
+import { EXPLORER_BY_ID, EX_MARKS, exMarkLevel } from '../data/chassis.js';
 import { makeExItem, explorerStats } from './explorerItems.js';
 
 // seconds for an expected explorer to kill one creature of each size (small .. gargantuan),
@@ -58,15 +58,18 @@ export const HP_BY_SIZE = [1, 1.15, 1.25, 1.4, 1.2, 1.2];
 // percentage armour, as in space: a hull hit is scaled by 100 / (100 + armour)
 export const armorMul = (armor) => 100 / (100 + Math.max(0, armor));
 
-// the vehicle an average explorer drives at level L: rover of mark ~1 + L/6, uncommon gear at ilvl L
+// the vehicle an average explorer drives at level L: the newest rover mark it can build, every
+// hardpoint holding an uncommon gun at ilvl L (chaingun / plasma alternating). A drone bay is worth
+// about one gun per hardpoint (explorerItems droneSheetDps), so swapping mounts keeps the contract.
 // (tools/groundduel.cjs fields exactly this build)
 export function expectedBuild(L) {
   L = Math.max(1, Math.min(60, Math.round(L)));
-  const tier = Math.max(1, Math.min(10, 1 + Math.floor(L / 6)));
+  let tier = 1;
+  while (tier < EX_MARKS && exMarkLevel(tier + 1) <= L) tier++;
   const rng = new RNG(L * 17 + 3);
   const ch = EXPLORER_BY_ID[`ex_rover_${tier}`];
-  const loadout = { 'gun:0': makeExItem('chaingun', L, 'uncommon', rng), 'tool:0': makeExItem('drill', L, 'common', rng), 'module:0': makeExItem('plating', L, 'uncommon', rng), 'module:1': makeExItem('fieldgen', L, 'common', rng) };
-  if (ch.slots.gun > 1) loadout['gun:1'] = makeExItem('plasma', L, 'uncommon', rng);
+  const loadout = { 'tool:0': makeExItem('drill', L, 'common', rng), 'module:0': makeExItem('plating', L, 'uncommon', rng), 'module:1': makeExItem('fieldgen', L, 'common', rng) };
+  for (let i = 0; i < ch.slots.hp; i++) loadout[`hp:${i}`] = makeExItem(i % 2 ? 'plasma' : 'chaingun', L, 'uncommon', rng);
   return { chassis: ch.id, level: L, loadout, tier };
 }
 

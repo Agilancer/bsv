@@ -139,7 +139,7 @@ test('hold triage: junk first, weakest first; kept rarities only when the hold i
 });
 
 // ---------------------------------------------------------------- refinery, fabricator, explorer bay
-const rich = () => ({ ore: 4000, crystal: 2500, isotope: 1500, biomass: 1500, relic: 60, datacore: 60 });
+const rich = () => ({ ore: 4000, crystal: 2500, isotope: 1500, biomass: 1500, relic: 60, datacore: 60, tech: 600 });
 
 test('crafting pass: never overdraws, and a second pass finds nothing affordable left to refine', () => {
   const P = newPlayer(); P.level = 10; P.credits = 30000;

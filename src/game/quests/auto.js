@@ -44,6 +44,7 @@ export function acceptScore(q, env) {
     case 'sell': return c.rarity >= 2 ? 1.5 : 2.5;
     case 'earn': return 2.8;
     case 'salvage': return 2.8;
+    case 'craft': return 2.2;
     case 'visit': {
       if (c.system == null) return 1.5;
       const h = reach(c.system);

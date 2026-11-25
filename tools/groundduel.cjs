@@ -42,7 +42,10 @@ async function dungeonRuns(cfg) {
       E.simulate(6, 1 / 20);
       const ex = M.ex, B = GB.expectedBuild(L);
       ex.level = L; ex.chassis = B.chassis; if (!ex.owned.includes(B.chassis)) ex.owned.push(B.chassis);
-      ex.loadout = B.loadout; ex.inventory = []; M.rebuildVehicle();
+      ex.loadout = B.loadout; ex.inventory = [];
+      const VG = await import('./src/game/planet/vehicleGLB.js');
+      await Promise.all([VG.loadVehicle(B.chassis), VG.loadParts()]);
+      M.rebuildVehicle();
       const V = M.vehicle, P = GB.expectedExplorer(L), ehp = V.stats.maxHp + V.stats.maxShield * 0.8;
       const mouth = M.dungeons[0]; mouth.depth = depth;
       M.enterDungeon(mouth);
@@ -110,6 +113,7 @@ async function dungeonRuns(cfg) {
     if (g.docked && g.undock) g.undock();   // a new captain starts docked at the home station: cast off before measuring
     const { ENEMIES } = await import('./src/game/planet/enemies.js');
     const GB = await import('./src/game/planet/groundBalance.js');
+    const VG = await import('./src/game/planet/vehicleGLB.js');
     if (g.sector && g.sector.director) g.sector.director.update = () => {};
     // only the game (which steps the planet mode) and the particle layers keep running: the always-on
     // modules (simulated population, crew, bridge...) tick on timers set by however many real frames this
@@ -140,6 +144,9 @@ async function dungeonRuns(cfg) {
       const B = GB.expectedBuild(L);
       ex.level = L; ex.chassis = B.chassis; if (!ex.owned.includes(B.chassis)) ex.owned.push(B.chassis);
       ex.loadout = B.loadout; ex.inventory = [];
+      // the Blender model and hardpoint parts first: a model landing mid-duel would rebuild the explorer and
+      // shift the seeded stream (a fallback model is only for a file that cannot load)
+      await Promise.all([VG.loadVehicle(B.chassis), VG.loadParts()]);
       M.rebuildVehicle();
       const P = GB.expectedExplorer(L);
       for (const si of cfg.sizes) {
@@ -185,6 +192,17 @@ async function dungeonRuns(cfg) {
                 const tsp = M.shots.spawn.bind(M.shots), ttel = M.telegraph.bind(M);
                 M.shots.spawn = (o) => { if (o.src === target) attacks++; return tsp(o); };
                 M.telegraph = (...a) => { attacks += 0.001; return ttel(...a); };
+                // the static kill run holds its aim on the design itself: the kin a boss calls in still fight (and count
+                // on the enemy side), but they do not soak the shots aimed past them. Two adds parked in the line of fire
+                // took 90% of the static explorer's shots and read a 4x kill time that was only about where they
+                // happened to stand (the same reason the arena is flat: occlusion is play, not the contract). The kiting
+                // pilot picks its own targets, kin included, so its shots land on whatever they meet.
+                const C = M.creatures, along = C.hitAlong, pass = new Set();
+                if (shoot && mode === 'static') C.hitAlong = function (a, b, r, ex, out) {
+                  pass.clear(); if (ex) for (const x of ex) pass.add(x);
+                  for (const c of this.list) if (c !== target && c.capRoot === target) pass.add(c);
+                  return along.call(this, a, b, r, pass, out);
+                };
                 const step = shoot ? 0.1 : 0.5;
                 while (t < secs - 1e-6) {
                   E.simulate(step, 1 / 20); t += step;
@@ -197,7 +215,7 @@ async function dungeonRuns(cfg) {
                     target = spawn(); spawns++; lastSpawn = t;
                   }
                 }
-                M.shots.spawn = tsp; M.telegraph = ttel;
+                M.shots.spawn = tsp; M.telegraph = ttel; C.hitAlong = along;
                 return { t, killedAt, gross, dealt, maxHp: target.maxHp, spawns, attacks: +attacks.toFixed(3), dist: +(dSum / Math.max(1, dN)).toFixed(1), dodges: M.pilot.dodges || 0 };
               };
               const kWin = Math.min(60, GB.GROUND_TTK.playerKills[si] * 4 + 6);

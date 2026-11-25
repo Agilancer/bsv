@@ -2,12 +2,13 @@
 // slope, animates wheels, legs, fans and drills, aims its turret at the cursor, kicks up dust
 // and thruster glow, and takes hits on a rippling shield before the hull.
 import * as THREE from 'three/webgpu';
-import { buildVehicle, mountGuns, FRAME_STYLE } from './vehicleModels.js';
+import { buildVehicle, mountGuns, buildGun, FRAME_STYLE } from './vehicleModels.js';
+import { vehicleReady, buildVehicleGLB, buildGunGLB, buildPodGLB, loadVehicle, loadParts, partsReady } from './vehicleGLB.js';
 import { explorerStats } from './explorerItems.js';
 import { shieldMaterial } from '../../fx/materials.js';
 import { damp, clamp, wrapAngle } from '../../engine/rng.js';
 import { EXPLORER_BY_ID } from '../data/chassis.js';
-import { capGroundHit, armorMul } from './groundBalance.js';
+import { capGroundHit, armorMul, TELEGRAPH_HIT } from './groundBalance.js';
 
 export const FRAME_PHYS = {
   skiff: { hover: true, accel: 3.0, turn: 6.0, face: 'move', bob: 0.22, bank: 0.25 },
@@ -16,7 +17,32 @@ export const FRAME_PHYS = {
   gunship: { hover: true, accel: 2.4, turn: 4.0, face: 'aim', fly: true, bob: 0.35, bank: 0.35 },
   crawler: { hover: false, accel: 2.8, turn: 2.4, face: 'move' },
   lancer: { hover: true, accel: 2.6, turn: 2.8, face: 'aim', bob: 0.12, bank: 0.18 },
+  seraph: { hover: true, accel: 2.8, turn: 4.4, face: 'aim', fly: true, bob: 0.3, bank: 0.3 },
 };
+
+// Guns and drone bays on the model's hardpoints (Blender models); the procedural fallback keeps
+// every gun on its one turret. v.guns[i] lines up with stats.guns[i]; v.pods with stats.bays.
+export function mountHardpoints(v, stats) {
+  for (const g of v.guns || []) g.group.parent && g.group.parent.remove(g.group);
+  for (const p of v.pods || []) p.group.parent && p.group.parent.remove(p.group);
+  v.guns = []; v.pods = [];
+  if (!v.hardpoints || !v.hardpoints.length) { mountGuns(v, stats.guns); for (const g of v.guns) g.muzzle.sub(g.group.position); return; }
+  const hpOf = (key) => v.hardpoints[+String(key).split(':')[1]] || null;
+  stats.guns.forEach((g, i) => {
+    const hp = hpOf(g.key) || v.hardpoints[i % v.hardpoints.length];
+    const m = buildGunGLB(g.item.base, v.mats, hp.size) || buildGun(g.item, v.mats, hp.size);
+    hp.node.add(m.group);
+    v.guns.push({ group: m.group, muzzle: m.muzzle.clone(), slot: g, hp });
+  });
+  for (const b of stats.bays || []) {
+    const hp = hpOf(b.key);
+    if (!hp) continue;
+    const m = buildPodGLB(b.item.base, v.mats, hp.size * 0.72, b.ds.color);   // a bay pod is boxier than a gun: keep it from crowding the hull
+    if (!m) continue;
+    hp.node.add(m.group);
+    v.pods.push({ group: m.group, launch: m.launch, slot: b, hp });
+  }
+}
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _u = new THREE.Vector3(), _k = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
@@ -44,13 +70,21 @@ export class Vehicle {
     this.stats = explorerStats(ex);
     this.chassis = EXPLORER_BY_ID[ex.chassis];
     this.phys = FRAME_PHYS[this.chassis.frame];
-    const v = buildVehicle(ex, this.chassis, this.engine);
+    const glb = vehicleReady(this.chassis.id);
+    const v = glb ? buildVehicleGLB(glb, this.chassis, this.engine) : buildVehicle(ex, this.chassis, this.engine);
     this.v = v;
-    mountGuns(v, this.stats.guns);
+    mountHardpoints(v, this.stats);
+    // the Blender model (or the gun / drone parts) still loading: swap them in when they land
+    const id = this.chassis.id;
+    if (!glb) loadVehicle(id).then((g) => { if (g && this.v === v && this.chassis.id === id && !M.disposed && M.rebuildVehicle) M.rebuildVehicle(); });
+    else if (!partsReady()) loadParts().then(() => { if (this.v === v && !M.disposed) { mountHardpoints(v, this.stats); if (M.drones) M.drones.remesh(); } });
     M.scene.add(v.root);
     for (const m of v.legMeshes) M.scene.add(m);
     this.dims = v.dims;
     this.radius = Math.max(v.dims.W, v.dims.L * 0.6) * 0.5;
+    // what hostile shots test against: the hull's core. Overhangs (rotors, booms, cranes, lances) take no hits,
+    // so a Mk XII is a bigger target than a Mk I but not by its whole footprint (melee and bodies use radius)
+    this.hitRadius = this.radius <= 2.2 ? this.radius : 2.2 + (this.radius - 2.2) * 0.35;
     // shield shell
     const sm = shieldMaterial(FRAME_STYLE[this.chassis.frame].glow);
     const sh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 3), sm);
@@ -166,9 +200,18 @@ export class Vehicle {
     }
     v.root.position.copy(this.position);
     v.root.rotation.set(this.pitch, this.heading, this.roll, 'YXZ');
-    // turret
+    // turret (procedural) / each hardpoint gun trains on the aim point from where it sits
     const tYaw = wrapAngle(this.aimYaw - this.heading);
     v.turret.rotation.y = tYaw;
+    if (v.hardpoints && v.hardpoints.length) {
+      v.root.updateMatrixWorld(true);
+      const ax = ctl.aim ? ctl.aim.x : this.position.x + Math.sin(this.aimYaw) * 50, az = ctl.aim ? ctl.aim.z : this.position.z + Math.cos(this.aimYaw) * 50;
+      for (const g of v.guns) {
+        g.hp.node.getWorldPosition(_v);
+        const want = wrapAngle(Math.atan2(ax - _v.x, az - _v.z) - this.heading);
+        g.group.rotation.y = damp(g.group.rotation.y, wrapAngle(want - g.group.rotation.y) + g.group.rotation.y, 14, dt);
+      }
+    }
     this.animate(dt, maxSp);
     // shield shell visuals
     const sl = this.shieldMat.userData.level;
@@ -185,7 +228,7 @@ export class Vehicle {
     const p = this.position, r = this.radius * 0.8;
     if (this.mode.dungeon) {
       const bx = p.x, bz = p.z;
-      this.mode.dungeon.collide(p, r);
+      this.mode.dungeon.collide(p, Math.min(r, 5.2));   // the biggest marks squeeze through 16-unit corridors
       // slide along walls: drop the velocity component we were pushed against
       const px = p.x - bx, pz = p.z - bz, pl = Math.hypot(px, pz);
       if (pl > 1e-4) { const nx = px / pl, nz = pz / pl, vn = this.velocity.x * nx + this.velocity.z * nz; if (vn < 0) { this.velocity.x -= nx * vn; this.velocity.z -= nz * vn; this.speed *= 0.95; } }
@@ -212,13 +255,14 @@ export class Vehicle {
     v.root.updateMatrixWorld(true);
     // wheels: spin + suspension
     if (v.wheels.length) {
-      this.wheelSpin += (this.velocity.x * Math.sin(this.heading) + this.velocity.z * Math.cos(this.heading)) * dt / 0.72;
+      this.wheelSpin += (this.velocity.x * Math.sin(this.heading) + this.velocity.z * Math.cos(this.heading)) * dt / ((v.info && v.info.wheelR) || 0.72);
+      const tracked = this.frame === 'crawler';   // road wheels ride inside fixed track plates: no bob
       const S = this.mode.S;
       for (const w of v.wheels) {
         w.obj.rotation.x = this.wheelSpin;
         _v.set(w.x, 0, w.z); v.root.localToWorld(_v);
         const g = S.ground(_v.x, _v.z);
-        const off = clamp((g - _v.y) / v.scale, -0.35, 0.45);
+        const off = tracked ? 0 : clamp((g - _v.y) / v.scale, -0.35, 0.45);
         w.obj.position.y = damp(w.obj.position.y, w.rest + off, 20, dt);
       }
       if (moving > 0.3 && Math.random() < moving * 0.9) {
@@ -228,7 +272,9 @@ export class Vehicle {
       }
     }
     if (v.drill) v.drill.rotation.z += dt * (this.mode.mining ? 22 : 3);
-    for (const f of v.fans) f.rotation.y += dt * 30;
+    // rotors whirl; a fan_ part (a scanner dish, a halo) turns slowly unless its extras give a spin rate
+    for (const f of v.fans) f.rotation.y += dt * (f.userData.spin ?? (!v.glb ? 30 : f.name.startsWith('fan_') ? 0.8 : 18 + moving * 10));
+    if (v.flaps) for (const f of v.flaps) f.obj.rotation.z = f.base.z + Math.sin(t * 3 + f.phase) * 0.12 * (1 + moving);
     // hover pads: downwash dust + glow motes
     if (P.hover && v.pads.length && Math.random() < 0.5) {
       const pad = v.pads[(Math.random() * v.pads.length) | 0];
@@ -267,14 +313,16 @@ export class Vehicle {
       // home: out from the hip, slightly ahead in the direction of travel
       const ox = leg.out.x * Math.cos(this.heading) + leg.out.z * Math.sin(this.heading);
       const oz = -leg.out.x * Math.sin(this.heading) + leg.out.z * Math.cos(this.heading);
-      const hx = hip.x + ox * 1.9 * k + this.velocity.x * 0.18, hz = hip.z + oz * 1.9 * k + this.velocity.z * 0.18;
+      const reach = (leg.reach || 1.9) * k;
+      const hx = hip.x + ox * reach + this.velocity.x * 0.1, hz = hip.z + oz * reach + this.velocity.z * 0.1;
+      const stepLen = Math.max(1.5 * k, (leg.L1 + leg.L2) * k * 0.22);   // long legs take long strides
       if (!leg.init) { leg.foot.set(hx, S.ground(hx, hz), hz); leg.from.copy(leg.foot); leg.to.copy(leg.foot); leg.t = 1; leg.init = true; }
       if (leg.t >= 1) {
         const dx = leg.foot.x - hx, dz = leg.foot.z - hz;
         const partnerStepping = v.legs.some((o) => o !== leg && o.phase !== leg.phase && o.t < 1);
-        if (dx * dx + dz * dz > (1.5 * k) ** 2 && !partnerStepping) {
+        if (dx * dx + dz * dz > stepLen * stepLen && !partnerStepping) {
           leg.from.copy(leg.foot);
-          const lx = hx + this.velocity.x * 0.12, lz = hz + this.velocity.z * 0.12;
+          const lx = hx + this.velocity.x * 0.08, lz = hz + this.velocity.z * 0.08;
           leg.to.set(lx, S.ground(lx, lz), lz);
           leg.t = 0;
         }
@@ -316,7 +364,7 @@ export class Vehicle {
     const g = this.v.guns[i];
     if (!g) return out.copy(this.position);
     out.copy(g.muzzle);
-    return this.v.turret.localToWorld(out);
+    return g.group.localToWorld(out);
   }
   toolPoint(out) { out.copy(this.v.toolMount || _v.set(0, 1, 2)); return this.v.body.localToWorld(out); }
 
@@ -333,6 +381,13 @@ export class Vehicle {
     let win = null;
     if (src && src.def && !(o && o.telegraph)) { const root = src.capRoot && src.capRoot.alive ? src.capRoot : src; win = root._dmgWin || (root._dmgWin = { t, sum: 0 }); }
     let a = capGroundHit(amount, ehp, o, win, t);
+    // a ring volley lands as one telegraphed strike, however many of its shards a big hull catches
+    if (o && o.volley) {
+      const vw = this._volley || (this._volley = { id: 0, sum: 0 });
+      if (vw.id !== o.volley) { vw.id = o.volley; vw.sum = 0; }
+      a = Math.min(a, Math.max(0, ehp * TELEGRAPH_HIT * (o.volleyCap || 1) - vw.sum));
+      vw.sum += a;
+    }
     if (a <= 0) return 0;
     if (this.shield > 0) {
       const s = Math.min(this.shield, a);
