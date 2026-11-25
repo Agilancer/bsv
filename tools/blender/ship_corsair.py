@@ -10,24 +10,48 @@ import shipkit as K
 from shipkit import Part, prof, pscale, subquad, edge, octp, det
 
 
-def pontoon(B, variant, z0=-0.5, z1=3.1):
-    """A flight-deck pontoon on the flank: a hangar gallery open at its forward end, the deck on its roof."""
+def flight_deck(p, u, xa, xb, z0, z1, y, t=0.1):
+    """An armoured flight deck: a raked hexagon plate with a landing strip, landing lights aft and two launch
+    slots forward."""
+    w = xb - xa
+    plan = lambda yy, i: [(xa + i, yy, z0 + 0.3 * u + i), (xa + 0.4 * w, yy, z0 + i), (xb - i, yy, z0 + 1.0 * u), (xb - i, yy, z1 - 0.9 * u), (xa + 0.55 * w, yy, z1 - i), (xa + i, yy, z1 - 0.25 * u - i)]
+    p.loft([plan(y, 0.04 * u), plan(y + t * 0.6, 0.0), plan(y + t, 0.04 * u)], 'hull')
+    xc, ln, yt = xa + 0.52 * w, z1 - z0, y + t
+    p.box('dark', w * 0.46, 0.02 * u, ln * 0.6, (xc, yt + 0.004 * u, z0 + 0.38 * ln))           # the landing strip
+    p.box('trim', 0.03 * u, 0.02 * u, ln * 0.56, (xc, yt + 0.01 * u, z0 + 0.38 * ln))
+    for sx in (-1, 1):
+        for j in range(4 if u > 10 else 2):                                                                       # landing lights
+            p.box('glow', 0.04 * u, 0.02 * u, 0.05 * u, (xc + sx * w * 0.27, yt + 0.008 * u, z0 + 0.45 * u + j * 0.3 * u))
+        p.box('dark', 0.1 * u, 0.02 * u, 0.9 * u, (xc + sx * w * 0.14, yt + 0.004 * u, z1 - 0.95 * u))      # launch slots
+        p.box('trim', 0.02 * u, 0.02 * u, 0.9 * u, (xc + sx * w * 0.14, yt + 0.01 * u, z1 - 0.95 * u))
+
+
+def pontoon(B, variant, z0=-1.0, z1=6.0, zg=1.3):
+    """A carrier's flight deck: a long armoured deck along the top of the hull, over the crown's shoulder beside the
+    turret line (the command block stands at its inboard edge, an island), roofing a hangar gallery on the flank
+    (landing mouth aft, launch mouths forward); ahead of the gallery it runs on over the broadside on a girder."""
     u = B.W
     p = Part('appendage', variant, B.id)
-    z0, z1 = z0 * u, z1 * u
-    xi, xc, hw = -0.25 * u, 0.26 * u, 0.32 * u
-    sec = lambda z, k=1.0, dx=0.0: [(xi, 0.22 * u * k, z), (xc - hw * 0.6 - dx, 0.34 * u * k, z), (xc + hw * 0.6 - dx, 0.34 * u * k, z), (xc + hw - dx, 0.1 * u * k, z),
-                                    (xc + hw - dx, -0.2 * u * k, z), (xc + hw * 0.5 - dx, -0.36 * u * k, z), (xi, -0.3 * u * k, z)]
-    p.loft([sec(z0, 0.5, 0.22 * u), sec(z0 + 0.6 * u), sec(z1)], 'hull', cap_mat=('hull', 'dark'))
-    zc, ln = (z0 + z1) / 2 + 0.3 * u, z1 - z0 - 0.8 * u
-    p.box('dark', hw * 1.1, 0.03 * u, ln, (xc, 0.345 * u, zc))                 # the flight deck and its centreline
-    p.box('trim', 0.03 * u, 0.02 * u, ln * 0.9, (xc, 0.36 * u, zc))
-    for y in (0.3, -0.3):                                                       # the mouth: frame and landing lights
-        p.box('trim', hw * 1.5, 0.04 * u, 0.05 * u, (xc, y * u, z1 + 0.01 * u))
-    p.box('glow', hw * 0.9, 0.025 * u, 0.02 * u, (xc, 0.2 * u, z1 + 0.004 * u))
-    p.marker('hp.hg', (xc + hw, -0.05 * u, zc))
-    det(p, 'light', (xc + hw, 0.1 * u, z1 - 0.3 * u), 0, side='this')
-    det(p, 'pd', (xc + hw * 0.8, 0.2 * u, z0 + 0.8 * u), ln * 0.7, side='this')
+    z0, z1, zg = z0 * u, z1 * u, zg * u
+    xi, yd = -0.25 * u, 0.86 * u
+    sec = lambda z, rk: [(xi, yd, z), (0.5 * u, yd, z), (0.64 * u, 0.3 * u, z + rk * 0.12 * u), (0.64 * u, -0.12 * u, z + rk * 0.26 * u), (0.42 * u, -0.42 * u, z + rk * 0.4 * u), (xi, -0.36 * u, z + rk * 0.4 * u)]
+    za = z0 + 0.45 * u
+    p.loft([sec(za, 1), sec(za + 0.5 * u, 0), sec(zg - 0.5 * u, 0), sec(zg, -1)], 'hull', cap_mat=('dark', 'dark'))
+    p.box('trim', 0.8 * u, 0.04 * u, 0.05 * u, (0.22 * u, 0.8 * u, za))                 # the landing mouth: frame and lights
+    p.box('glow', 0.5 * u, 0.025 * u, 0.03 * u, (0.24 * u, 0.68 * u, za + 0.03 * u))
+    p.box('hull', 0.07 * u, 0.7 * u, 0.1 * u, (0.2 * u, 0.5 * u, zg - 0.04 * u))        # two launch mouths forward
+    p.box('glow', 0.5 * u, 0.02 * u, 0.03 * u, (0.22 * u, 0.72 * u, zg - 0.03 * u))
+    for z in (za + 0.6 * u, (za + zg) / 2, zg - 0.6 * u):                                # darker patched plate on the gallery wall
+        p.slab(((0.64 * u, 0.26 * u, z - 0.2 * u), (0.64 * u, -0.1 * u, z - 0.2 * u), (0.64 * u, -0.1 * u, z + 0.2 * u), (0.64 * u, 0.26 * u, z + 0.2 * u)), 0.03 * u, 'dark' if z == (za + zg) / 2 else 'hull', inset=0.02 * u, bevel=0.02 * u, out=(1, 0, 0))
+    flight_deck(p, u, -0.43 * u, 0.56 * u, z0, z1, yd)
+    if B.id != 'M':         # (the cruiser's band has no triangles to spare)
+        p.box('dark', 0.14 * u, 0.3 * u, z1 - zg - 0.4 * u, (-0.26 * u, yd - 0.13 * u, (zg + z1) / 2 - 0.2 * u))       # the girder under the fore deck
+    for z in ((zg + 1.2 * u, zg + 2.6 * u, z1 - 1.0 * u) if B.id != 'M' else ()):                                # its struts down to the flank
+        p.loft([[(-0.3 * u, yd, z - 0.1 * u), (0.3 * u, yd, z - 0.1 * u), (0.3 * u, yd, z + 0.1 * u), (-0.3 * u, yd, z + 0.1 * u)],
+                [(-0.3 * u, 0.3 * u, z - 0.06 * u), (0.0, 0.3 * u, z - 0.06 * u), (0.0, 0.3 * u, z + 0.06 * u), (-0.3 * u, 0.3 * u, z + 0.06 * u)]], 'hull')
+    p.marker('hp.hg', (0.64 * u, 0.05 * u, (za + zg) / 2))
+    det(p, 'light', (0.56 * u, yd + 0.1 * u, z1 - 1.0 * u), 0, side='this')
+    det(p, 'pd', (0.5 * u, yd + 0.1 * u, z0 + 0.6 * u), 2.2 * u, side='this')
     return p
 
 
@@ -51,10 +75,21 @@ class Corsair(K.Style):
             q = edge(h, i, z0, z1)
             if cut:
                 q = subquad(q, cut[0], cut[1], 0, 1)
-            p.slab(subquad(q, 0, 1, 0, 0.56), 0.035 * u, inset=0.05 * u, bevel=0.02 * u, mirror=True)
+            st = lambda qq: tuple((-x, y, z) for x, y, z in qq)         # the starboard flank was patched by other hands
+            p.slab(subquad(q, 0, 1, 0, 0.56), 0.035 * u, inset=0.05 * u, bevel=0.02 * u)
+            p.slab(st(subquad(q, 0, 1, 0.3, 1.0)), 0.03 * u, inset=0.05 * u, bevel=0.02 * u)
             if B.id == 'S' and i != 1:
                 continue
-            p.slab(subquad(q, 0.1, 0.9, 0.6, 1.0), 0.05 * u, 'dark' if i == 1 else 'hull', inset=0.06 * u, bevel=0.02 * u, mirror=True)
+            p.slab(subquad(q, 0.1, 0.9, 0.6, 1.0), 0.05 * u, 'dark' if i == 1 else 'hull', inset=0.06 * u, bevel=0.02 * u)
+            p.slab(st(subquad(q, 0.3, 1.0, 0.0, 0.26)), 0.055 * u, 'hull' if i == 1 else 'dark', inset=0.05 * u, bevel=0.02 * u)
+
+    def plate(self, p, B, h, q, length):    # a waist: one plate to port; to starboard a smaller one and a dark patch over a hole
+        u = B.W
+        st = lambda qq: tuple((-x, y, z) for x, y, z in qq)
+        p.slab(q, 0.03 * u, inset=0.05 * u, bevel=0.03 * u)
+        p.slab(st(subquad(q, 0, 0.55, 0, 1)), 0.03 * u, inset=0.05 * u, bevel=0.03 * u)
+        p.slab(st(subquad(q, 0.5, 1.0, 0.15, 0.95)), 0.055 * u, 'dark', inset=0.05 * u, bevel=0.02 * u)
+        return True
 
     def noz(self, noz):                     # mismatched nozzles in one block
         return [(x, y, min(r * (1.22 if i % 2 == 0 else 0.74), x * 0.96 if x else 9)) for i, (x, y, r) in enumerate(noz)]
@@ -93,18 +128,28 @@ class Corsair(K.Style):
         p.loft([octp(-0.3 * u, 0.66 * u, hz), octp(0.05 * u, 0.66 * u, hz), octp(0.1 * u, 0.58 * u, hz * 0.92)], 'hull')
         return p
 
+    # ---- the body: raked hexagons; T6, T8 and T10 are carriers
+    block_fore = ((0.1, 1.2), (0.8, 0.35))
+    block_aft = ((0.3, 0.5), (0.9, 0.15))
+
+    def blockp(self, u, xi, xo):
+        return prof([(xi, 0.66 * u), (xo - 0.42 * u, 0.66 * u), (xo, 0.3 * u), (xo - 0.04 * u, 0.1 * u), (xo - 0.38 * u, -0.62 * u), (xi, -0.62 * u)])
+
     def wing(self, B):
         return pontoon(B, 'delta')
 
     def extra_parts(self):
-        return [pontoon(K.M, 'deck', -0.4, 3.0)]
+        return [pontoon(K.M, 'deck', -0.6, 6.4)]
 
-    def sidehull(self, B):
+    def sidehull(self, B):                  # the dreadnought's side hulls are carrier hulls: a deck over each
         u = B.W
         p = K.sidehull(B)
-        cx, y = 0.5 * u, 0.62 * B.HT
-        p.box('dark', 0.34 * u, 0.03 * u, 3.0 * u, (cx, y + 0.085 * u, 0.2 * u))      # a flight deck on the side hull
-        p.box('trim', 0.03 * u, 0.02 * u, 2.6 * u, (cx, y + 0.1 * u, 0.2 * u))
+        cx, y = 0.5 * u, 0.62 * B.HT + 0.02 * u
+        gal = lambda z, k: [(cx - 0.4 * u * k, y, z), (cx + 0.4 * u * k, y, z), (cx + 0.34 * u * k, 0.12 * u, z), (cx - 0.34 * u * k, 0.12 * u, z)]
+        p.loft([gal(-3.3 * u, 0.8), gal(-1.2 * u, 1.0)], 'hull', cap_mat=('dark', 'hull'))    # the landing gallery over the tail
+        p.box('glow', 0.4 * u, 0.02 * u, 0.03 * u, (cx, y - 0.1 * u, -3.31 * u))
+        p.loft([gal(1.7 * u, 1.0), gal(2.5 * u, 0.7)], 'hull', cap_mat=('hull', 'dark'))      # launch mouths over the bow
+        flight_deck(p, u, 0.06 * u, 1.04 * u, -3.7 * u, 3.3 * u, y)
         p.marker('hp.hg', (cx + 0.4 * u, 0.3 * u, 0.2 * u))
         return p
 

@@ -111,7 +111,7 @@ export function stationRefit(g, ap, st) {
     if (!c || c.tier >= chassis().tier) continue;
     scrap += Math.round(c.price * 0.35); n++; P.fleet.splice(i, 1);
   }
-  if (n) { P.credits += scrap; log(`Scrapped ${n} old hull${n > 1 ? 's' : ''} for ${scrap} ¢`); }
+  if (n) { P.credits += scrap; if (g.cue) g.cue('scrap'); log(`Scrapped ${n} old hull${n > 1 ? 's' : ''} for ${scrap} ¢`); }
 
   // the market: empty slots first, then clear upgrades (a handful per visit)
   const yard = shipyardStock(st.seed, danger, P, st.kind);

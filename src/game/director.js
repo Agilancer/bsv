@@ -227,11 +227,13 @@ export class Director {
       const d = ps.pos.distanceTo(pp);
       if (!ps.revealed && d < 1800) {
         ps.revealed = true;
+        if (g && g.cue) g.cue('ping', { tier: { derelict: 0, distress: 1, anomaly: 2 }[ps.p.type] || 0 });   // the scanner picks it up
         W.toast(`Signal detected: ${{ derelict: 'derelict hulk', distress: 'distress call', anomaly: 'gravity anomaly' }[ps.p.type]}`, 'epic');
         this.openPoi(ps);
       }
       if (!ps.revealed) continue;
       if (ps.p.type === 'derelict' && d < 260) {
+        if (!ps.salvage && g && g.cue) g.cue('depths');   // the salvage team goes aboard
         ps.salvage = (ps.salvage || 0) + dt;
         if (Math.random() < dt * 10) W.beams.add(pp, ps.pos, 0x58b8ff, 0.8, 0.15);
         if (ps.salvage > 3) {

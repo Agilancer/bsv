@@ -1,8 +1,12 @@
-// Procedural audio: every sound is synthesised with WebAudio (no files), attenuated by
+// Procedural audio: the guns, hits and explosions are synthesised with WebAudio, attenuated by
 // distance from the camera's focus, with a per-kind voice limit so a 40-gun broadside
 // doesn't clip. Plus generative music: an ambient pad that a combat layer swells over.
+// The interface and the game's notices are recorded cues (`cue(name)`, the bank in sfxBank.js): decoded on
+// first use (the frequent ones at start-up), on their own bus so the Options slider sets them apart.
+import { CUES, pickFile, sfxUrl } from './sfxBank.js';
+
 const LIMITS = {
-  cannon: 10, heavy: 4, beam: 6, missile: 6, torpedo: 4, explosion: 8, hit: 10, shield: 8, ui: 3,
+  cannon: 10, heavy: 4, beam: 6, missile: 6, torpedo: 4, explosion: 8, hit: 10, shield: 8,
   phaser: 5, tosPhaser: 4, lance: 4, spinal: 2, pulsePhaser: 8, disruptor: 4, arc: 4, graviton: 3,
   photon: 5, quantal: 5, plasmic: 3, heavyTorp: 2, rail: 4, plasmaShot: 6, ionShot: 5,
 };
@@ -13,6 +17,10 @@ export class Audio {
     this.enabled = true;
     this.volume = 0.7;
     this.musicVolume = 0.45;
+    this.uiVolume = 0.8;     // interface cues
+    this.bufs = new Map();   // cue file -> AudioBuffer | Promise while it loads | null if it failed
+    this.cueState = {};      // per cue: last start, voices, the pick's memory
+    this.cueAt = -1e9;       // performance.now() of the last cue (a bare button click stays quiet under one)
     this.listener = { x: 0, y: 0, z: 0 };
     this.voices = {};
     this.intensity = 0;      // 0 calm .. 1 full battle
@@ -45,7 +53,52 @@ export class Audio {
     this.verb.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(this.master);
     this.noise = this.makeNoise();
     this.pink = this.makePink();
-    if (!ctx) this.startMusic();
+    this.uiBus = c.createGain(); this.uiBus.gain.value = this.uiVolume; this.uiBus.connect(this.master);
+    if (ctx) return;   // offline render (tools/sfx.html): sound effects only
+    for (const cue of Object.values(CUES)) if (cue.pre) for (const f of cue.f) this.load(f);
+    this.startMusic();
+  }
+
+  setUiVolume(v) { this.uiVolume = v; if (this.uiBus) this.uiBus.gain.value = v; }
+
+  // ---------------- recorded cues ----------------
+  load(file) {
+    const have = this.bufs.get(file);
+    if (have !== undefined || !this.ctx) return have;
+    const p = fetch(sfxUrl(file))
+      .then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+      .then((ab) => new Promise((res, rej) => this.ctx.decodeAudioData(ab, res, rej)))   // callback form: older Safari
+      .then((buf) => { this.bufs.set(file, buf); return buf; }, () => { this.bufs.set(file, null); return null; });
+    this.bufs.set(file, p);
+    return p;
+  }
+  // play a cue from the bank. o: { tier, key (which file), vol (x the cue's own), pos (world position: attenuated) }
+  cue(name, o) {
+    const c = CUES[name], ctx = this.ctx;
+    if (!c || !ctx || !this.enabled || ctx.state !== 'running') return false;
+    const now = ctx.currentTime;
+    const st = this.cueState[name] ||= { at: -1e9, ends: [], last: -1 };
+    if (now - st.at < (c.gap || 0)) return false;
+    let k = 0;
+    for (let i = 0; i < st.ends.length; i++) if (st.ends[i] > now) st.ends[k++] = st.ends[i];
+    st.ends.length = k;
+    if (k >= (c.lim || 2)) return false;
+    const g = c.v * (o && o.vol != null ? o.vol : 1) * (o && o.pos ? this.att(o.pos) : 1);
+    if (g < 0.01) return false;
+    st.at = now; this.cueAt = performance.now();
+    const b = this.load(pickFile(c, st, o));
+    if (b && b.then) {
+      st.ends.push(now + 0.5);
+      b.then((buf) => { if (buf && this.ctx.currentTime - now < 0.25) this.startBuf(buf, g); });   // late is better than never, stale is not
+    } else if (b) st.ends.push(this.startBuf(b, g));
+    if (c.with) this.cue(c.with, o);
+    return true;
+  }
+  startBuf(buf, g) {
+    const c = this.ctx, s = c.createBufferSource(), gn = c.createGain(), t = c.currentTime;
+    s.buffer = buf; gn.gain.value = g;
+    s.connect(gn).connect(this.uiBus); s.start(t);
+    return t + buf.duration;
   }
 
   // tab hidden / app in the background: stop the sound card, pick up where we left off
@@ -133,7 +186,6 @@ export class Audio {
   }
   hit(t, g, pitch = 1) { this.burst(t, 0.12, 0.25 * g, 3000 * (pitch || 1), 1, 'bandpass', 900); return 0.06; }
   shield(t, g) { this.osc('sine', 600 + Math.random() * 200, 1400, t, 0.25, 0.08 * g); this.burst(t, 0.2, 0.08 * g, 6000, 4, 'bandpass', 2500); return 0.08; }
-  ui(t, g) { this.osc('sine', 880, 1320, t, 0.12, 0.1 * g); return 0.1; }
   jump(t, g) { this.osc('sawtooth', 60, 2400, t, 2.2, 0.15 * g); this.burst(t, 2.4, 0.3 * g, 200, 2, 'bandpass', 6000).connect(this.verb); return 2; }
   // the drive: a rising whine over the ~4 s spool, then the punch as it goes
   spool(t, g) {
@@ -148,7 +200,6 @@ export class Audio {
     return D;
   }
   warp(t, g) { this.osc('sine', 1400, 50, t, 0.9, 0.3 * g); this.burst(t, 1.4, 0.35 * g, 200, 2, 'bandpass', 6000).connect(this.verb); return 1; }
-  levelup(t, g) { [523, 659, 784, 1046].forEach((f, i) => this.osc('triangle', f, f * 1.001, t + i * 0.09, 0.9, 0.12 * g).connect(this.verb)); return 1; }
   lure(t, g) { this.osc('sine', 70, 38, t, 0.7, 0.32 * g); this.osc('triangle', 140, 76, t, 0.55, 0.1 * g); this.burst(t, 0.35, 0.12 * g, 120, 1, 'lowpass', 900); return 0.7; }
   // a heavy plate locking home: a dull thud, inharmonic ringing partials (struck steel) and a short grinding scrape
   clank(t, g) {
@@ -160,7 +211,6 @@ export class Audio {
     return 0.5;
   }
   whoosh(t, g) { this.burst(t, 0.42, 0.22 * g, 500, 1.6, 'bandpass', 3400); this.osc('sawtooth', 70, 160, t, 0.4, 0.04 * g); return 0.3; }
-  loot(t, g) { [1046, 1318, 1568, 2093].forEach((f, i) => this.osc('sine', f, f, t + i * 0.06, 0.6, 0.08 * g).connect(this.verb)); return 0.5; }
 
   // ---- ship weapons ----
   // A voice held for dur: fast attack, flat sustain, short release. Returns its gain node (connect it).

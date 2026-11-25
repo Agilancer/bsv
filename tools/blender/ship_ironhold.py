@@ -26,6 +26,20 @@ class Ironhold(K.Style):
         q, n = edge(h, 0, z0, z1), max(1, round((z1 - z0) / (0.8 * u))) if B.id != 'S' else 0
         for j in range(n):
             p.slab(subquad(q, 0.74, 0.98, j / n, (j + 1) / n), 0.045 * u, inset=0.035 * u, bevel=0.015 * u, out=(0, 1, 0), mirror=True)
+        if B.id in 'LC' and not cut:        # a second, lower course inboard of it, laid half a brick along: stepped
+            for j in range(n - 1):
+                p.slab(subquad(q, 0.5, 0.73, (j + 0.5) / n, (j + 1.5) / n), 0.022 * u, inset=0.03 * u, bevel=0.012 * u, out=(0, 1, 0), mirror=True)
+
+    def plate(self, p, B, h, q, length):    # the flank: two courses of armour brick in running bond, the lower one proud
+        u = B.W
+        if B.id == 'S':
+            return False
+        n = max(1, round(length / (0.5 * u)))
+        for j in range(n):
+            p.slab(subquad(q, 0.0, 0.5, j / n, (j + 1) / n), 0.03 * u, inset=0.03 * u, bevel=0.02 * u, mirror=True)
+        for j in range(n + 1):
+            p.slab(subquad(q, 0.5, 1.0, max(0.0, (j - 0.5) / n), min(1.0, (j + 0.5) / n)), 0.06 * u, inset=0.03 * u, bevel=0.02 * u, mirror=True)
+        return True
 
     def strake(self, p, B, z0, z1, hw, t, y, mat):
         K._strake(p, B, z0, z1, hw * 1.5, t * 1.2, y, mat)
@@ -36,8 +50,51 @@ class Ironhold(K.Style):
     def fins(self, variant, fins):
         return ()
 
+    # ---- the body: chamfered-rectangle armour bricks, blunt at both ends, radiator banks on every roof
+    block_fore = ((0.55, 0.3), (0.94, 0.1))
+    block_aft = ((0.6, 0.24), (0.95, 0.08))
+    side = dict(bow=((0.96, 0.3, 0.0), (0.74, 0.55, -0.03)), stern=((0.98, -0.6, -0.04), (0.9, -1.25, -0.14), (0.86, -3.1, -0.3)))
+
+    def radiators(self, p, B, x, y, z0, z1, w=0.2, mirror=True):
+        """A radiator bank: a long low block with a row of dark fins standing in it."""
+        u = B.W
+        p.box('hull', w * u, 0.14 * u, z1 - z0, (x, y + 0.03 * u, (z0 + z1) / 2), mirror=mirror)
+        m = max(3, round((z1 - z0) / (0.34 * u)))
+        for j in range(m):
+            p.box('dark', w * 0.82 * u, 0.1 * u, (z1 - z0) / m * 0.42, (x, y + 0.12 * u, z0 + (j + 0.5) * (z1 - z0) / m), mirror=mirror)
+
+    def blockp(self, u, xi, xo):            # an armour brick
+        return prof([(xi, 0.7 * u), (xo - 0.1 * u, 0.7 * u), (xo, 0.6 * u), (xo, -0.56 * u), (xo - 0.1 * u, -0.66 * u), (xi, -0.66 * u)])
+
+    def spinep(self, u, top, sh, base):     # a brick ridge
+        return prof([(0, top), (0.58 * u, top), (0.66 * u, top - 0.08 * u), (0.7 * u, base), (0, base)])
+
+    def app(self, p, B, variant):
+        u = B.W
+        if variant == 'blocks':
+            self.radiators(p, B, -0.02 * u, 0.7 * u, -2.2 * u, 2.2 * u, 0.18, mirror=False)
+        elif variant == 'sidehull':
+            self.radiators(p, B, 0.5 * u, 0.62 * B.HT, -1.2 * u, 1.6 * u, 0.3, mirror=False)
+
+    def podpart(self, B, variant, hangar, ln, deep):    # a smelter block under the hull
+        brick = lambda X, a, b: prof([(0, a), (X - 0.4, a), (X, a - 0.5), (X, b + 0.9), (X - 0.9, b), (0, b)])
+        return K.spod(B, variant, hangar, ln, deep, shape=brick, fore=lambda t: 1 - 0.45 * t ** 2, aft=lambda t: 1 - 0.45 * t ** 2, N=2,
+                      full=None if hangar else (-11.0 * ln, 10.0 * ln))
+
+    def pod(self, p, B, k, X, hangar):
+        if not hangar:                      # grilles low on the smelter's flanks
+            ln = 0.6 if p.variant == 'reactor' else 0.9 if B.id == 'C' else 1.0
+            d = 0.85 if p.variant == 'reactor' else 1.0
+            for z in (-6.5, 0.0, 6.5):
+                p.box('dark', 0.14 * k, 1.5 * k * d, 4.2 * k * ln, (X * k, -1.9 * k * d, z * k * ln), mirror=True)
+                for j in range(4):
+                    p.box('hull', 0.24 * k, 1.6 * k * d, 0.36 * k * ln, (X * k, -1.9 * k * d, (z - 1.5 + j) * k * ln), mirror=True)
+            p.box('glow', 0.1 * k, 0.12 * k, 9.0 * k * ln, (X * k + 0.02 * k, -3.2 * k * d, 0), mirror=True)
+
     def stern(self, p, B, hb, z0, zf, variant):
         u = B.W
+        if B.id != 'S':                     # radiator banks along the block's deck edges
+            self.radiators(p, B, hb[1][0] - 0.12 * u, hb[0][1], z0 + 0.2 * u, z0 + 0.2 * u + (zf - z0) * 0.5)
         q = edge(hb, 2, z0 + 0.15 * u, zf - 0.25 * u)           # grilles high on the block's flanks
         p.slab(subquad(q, 0.08, 0.42, 0.08, 0.92), 0.045 * u, 'dark', mirror=True)
         for j in range(6):

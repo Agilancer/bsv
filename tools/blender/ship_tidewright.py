@@ -22,6 +22,9 @@ def array(p, B, root, span, chord, droop, mirror=True):
     p.slab(q, 0.012 * u, 'dark', embed=0.012 * u, out=out, mirror=mirror)
     for v0, v1 in ((0, 0.05), (0.475, 0.525), (0.95, 1.0)):
         p.slab(subquad(q, 0, 1, v0, v1), 0.02 * u, 'trim', embed=0.02 * u, out=out, mirror=mirror)
+    for t in (0.34, 0.67, 0.97):            # the frame: cross members, and a truss brace at the root
+        p.slab(subquad(q, t - 0.025, min(1.0, t + 0.025), 0, 1), 0.02 * u, 'trim', embed=0.02 * u, out=out, mirror=mirror)
+    p.sweep([P(-0.05, -0.5), P(0.16, 0.5)], [0.022 * u, 0.022 * u], 4, 'hull', mirror=mirror)
     p.slab(subquad(q, 0, 0.04, 0, 1), 0.022 * u, 'glow', embed=0.022 * u, out=out, mirror=mirror)
     return P(1.0, 0)
 
@@ -31,7 +34,7 @@ class Tidewright(K.Style):
     prow_n = {1: 1, 2: 1, 3: 2, 4: 2, 5: 2, 6: 3, 7: 3, 8: 3, 9: 3, 10: 4}
 
     def section(self, W, HT, HB, yo):
-        return prof([(0, HT + yo), (0.42 * W, 0.9 * HT + yo), (W, 0.22 * HT + yo), (W, -0.24 * HB + yo), (0.42 * W, -0.9 * HB + yo), (0, -HB + yo)])
+        return prof([(0, HT + yo), (0.36 * W, 0.92 * HT + yo), (W, 0.17 * HT + yo), (W, -0.19 * HB + yo), (0.36 * W, -0.92 * HB + yo), (0, -HB + yo)])
 
     def mouth(self, tier, kind):            # one long railgun trench per facet
         return dict(proud=0.0, lip=0.035, sh=0.1, long=True, trim='trim')
@@ -55,23 +58,22 @@ class Tidewright(K.Style):
     def stern(self, p, B, hb, z0, zf, variant):
         if variant in ('shoulder', 'delta'):
             return
-        big = B.id in 'LC'                  # stowed close on the escorts, deployed on the big classes
-        array(p, B, (hb[3][0] - 0.03 * B.W, hb[3][1], z0 + (zf - z0) * 0.7), 0.55 if big else 0.45, (zf - z0) / B.W * 0.45, 0.35 if big else 0.5)
+        big = B.id in 'LC'                  # deployed flat and wide on the big classes, closer in on the escorts
+        array(p, B, (hb[3][0] - 0.03 * B.W, hb[3][1], z0 + (zf - z0) * 0.72), 0.7 if big else 0.6, (zf - z0) / B.W * (0.44 if big else 0.46), 0.14 if big else 0.3)
 
     def pod(self, p, B, k, X, hangar):
         if not hangar and p.variant == 'keel':
-            array(p, B, (X * k - 0.03 * B.W, -2.4 * k, 0), 0.36, 1.5, 0.6)
+            array(p, B, (X * k - 0.03 * B.W, -1.0 * k, 0), 0.75, 1.9, 0.14)     # a belly truss: out past the beam
 
     def app(self, p, B, variant):
         if variant == 'blocks':
-            for z in (-1.3, 1.3):
-                array(p, B, (0.1 * B.W, -0.6 * B.W, z * B.W), 0.45, 1.5, 0.5, mirror=False)
+            array(p, B, (0.3 * B.W, -0.5 * B.W, 0), 0.62, 2.3, 0.3, mirror=False)     # one long array under each battery block
 
     def wing(self, B):
         u = B.W
         p = Part('appendage', 'delta', B.id)
         p.tube([(-1.1 * u, 0.05 * u), (-0.6 * u, 0.2 * u), (0.9 * u, 0.2 * u), (1.5 * u, 0.04 * u)], (0, -0.1 * u, 0.6 * u), 'z', 6, 'hull')
-        tip = array(p, B, (-0.05 * u, -0.1 * u, 0.6 * u), 0.62, 1.8, 0.5, mirror=False)
+        tip = array(p, B, (-0.05 * u, -0.1 * u, 0.95 * u), 0.74, 1.7, 0.16, mirror=False)
         det(p, 'light', tip, 0, side='this')
         return p
 
@@ -82,6 +84,20 @@ class Tidewright(K.Style):
         p.tube([(-0.5 * u, 0.04 * u), (-0.22 * u, 0.15 * u), (0.1 * ln - 0.12 * u, 0.15 * u), (0.1 * ln, 0.05 * u)], (0, -0.2 * u, zc), 'z', 8, 'dark')
         p.tube([(-0.24 * u, 0.165 * u), (-0.18 * u, 0.165 * u)], (0, -0.2 * u, zc), 'z', 8, 'trim')
         muzzles(p, B, marks, -0.14 * u, zm, r=0.085, ln=0.5)
+        if z0 >= 1.0 * u and B.id != 'S':   # forward collectors on the flanks of the bow, ahead of the batteries
+            array(p, B, (h[3][0] - 0.03 * u, h[3][1], z0 * 0.55), 0.7 if B.id in 'LC' else 0.5, min(z0 / u * 0.7, 1.5), 0.2)
+
+    # ---- the body: slender lozenges with fine ends
+    block_fore = ((0.05, 1.8), (0.5, 1.0), (0.85, 0.4))
+    block_aft = ((0.15, 1.2), (0.7, 0.5))
+    side = dict(bow=((0.8, 0.7, -0.03), (0.5, 1.5, -0.1), (0.18, 2.2, -0.2)))
+
+    def blockp(self, u, xi, xo):
+        return prof([(xi, 0.62 * u), (xo - 0.36 * u, 0.62 * u), (xo, 0.22 * u), (xo, -0.22 * u), (xo - 0.36 * u, -0.6 * u), (xi, -0.6 * u)])
+
+    def podpart(self, B, variant, hangar, ln, deep):    # a lozenge keel drawn out fine at both ends
+        loz = lambda X, a, b: prof([(0, a), (X * 0.7, a), (X, (a + b) / 2 + 0.6), (X, (a + b) / 2 - 0.6), (X * 0.45, b), (0, b)])
+        return K.spod(B, variant, hangar, ln, deep, shape=loz, fore=lambda t: 1 - 0.92 * t ** 1.3, aft=lambda t: 1 - 0.8 * t ** 1.5, N=3)
 
     def command(self, B, variant):
         p, u, hx, hz, hy = K.command(B, variant)

@@ -83,6 +83,7 @@ export class Scanner {
       const act = known ? 'Survey &amp; land' : 'Scan &amp; land';
       const txt = `<span class="key">${touch ? 'TAP' : 'V'}</span><span class="pt"><b>${act}</b><i>${info.name} · ${(info.moon ? 'moon · ' : '') + biomeFor(info.type).name} · landable</i></span>`;
       if (this.prompt._t !== txt) { this.prompt.innerHTML = txt; this.prompt._t = txt; }
+      if (this.prompt.style.display !== 'flex' && G.cue && !(G.autoplay && G.autoplay.active)) G.cue('prompt', { key: 'scan' });
       this.prompt.style.display = 'flex';   // the stylesheet hides it by default: '' would leave it hidden
       // a story briefing takes the same strip of screen: ride just above it while it is up
       const brief = document.getElementById('storyBrief');
@@ -112,6 +113,7 @@ export class Scanner {
     if (ensureExplorer(G.data).scanned[key]) { this.showPanel(); return; }
     this.state = 'scanning'; this.t = 0;
     if (G.audio) G.audio.play('beam', null, 0.6);
+    if (G.cue) G.cue('scan');
     const mat = scanMaterial(this.engine);
     this.sphere = new THREE.Mesh(new THREE.SphereGeometry(info.radius * 1.035, 64, 32), mat);
     g.add(this.sphere);
@@ -119,7 +121,7 @@ export class Scanner {
     G.cam.distTarget = Math.min(G.cam.maxDist, Math.max(G.cam.distTarget, info.radius * 2.4));
     G.ui.chat('SYS', null, `Scanning ${info.name}…`, 'sys');
   }
-  pingEmpty() { const G = this.game; if (G.player) { G.world.fx.ring(G.player.position, 300, 0x58c8ff, 64); } }
+  pingEmpty() { const G = this.game; if (G.cue) G.cue('ping', { tier: 3 }); if (G.player) { G.world.fx.ring(G.player.position, 300, 0x58c8ff, 64); } }
 
   animate(dt) {
     const G = this.game, g = this.target, info = g.userData.info, fx = G.world.fx;
@@ -142,7 +144,7 @@ export class Scanner {
       ex.scanned[key] = { name: info.name, type: this.survey.type, hazard: this.survey.hazard, sys: G.data.system, at: Math.round(G.data.playtime) };
       this.sphere.material.userData.fade.value = 0.18;
       G.ui.toast(`Survey complete: ${info.name}`, 'epic');
-      if (G.audio) G.audio.play('loot', null, 0.6);
+      if (G.cue) G.cue('scanDone');
       this.showPanel();
     }
   }
@@ -200,6 +202,7 @@ export class Scanner {
       const r = dropOrbitalProbe(G.data, S, G.data.playtime);
       if (!r) { G.ui.toast(`Orbital probe needs ${Object.entries(orbitalProbeCost(G.data)).map(([k, v]) => `${v} ${k === 'credits' ? '¢' : k}`).join(', ')}`, 'warn'); return; }
       G.world.fx.column(G.player.position, 0x58e0ff, 200, 40);
+      if (G.cue) G.cue(r.bounty ? 'bounty' : 'probeDrop');
       G.ui.toast('Orbital probe away — it will mine until full', 'epic');
       if (r.bounty) {
         if (G.gainXp) G.gainXp(r.bounty.xp);
@@ -211,7 +214,7 @@ export class Scanner {
     if (rec) rec.onclick = () => {
       const y = orbitalProbeYield(S, op, G.data.playtime);
       const n = addResources(G.data, y);
-      if (n) op.t = G.data.playtime;
+      if (n) { op.t = G.data.playtime; if (G.cue) G.cue('probeRecover'); }
       G.ui.toast(n ? `Probe haul recovered: ${n} units` : 'The probe has nothing yet', n ? 'epic' : 'warn');
       this.showPanel();
     };

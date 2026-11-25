@@ -56,7 +56,7 @@ export function installQuests(game) {
       if (!quiet) {
         game.ui.toast(`Quest accepted: ${q.title}`);
         game.ui.chat('QUEST', q.giver, q.text, 'guild');
-        if (game.audio) game.audio.play('loot', null, 0.4);
+        if (game.cue) game.cue('questAccept');
       }
       return true;
     },
@@ -65,6 +65,7 @@ export function installQuests(game) {
       if (i < 0) return false;
       const [q] = A.splice(i, 1);
       dirty = true;
+      if (game.cue) game.cue('questDrop');
       game.ui.chat('QUEST', null, `Abandoned: ${q.title}. ${q.giver} has been informed.`, 'sys');
       return true;
     },
@@ -84,6 +85,7 @@ export function installQuests(game) {
         const f0 = Math.floor(4 * before / q.n), f1 = Math.floor(4 * q.progress / q.n);
         if (f1 > f0 && q.n >= 4) {
           game.ui.chat('QUEST', null, `${q.title}: ${progressText(q)}`, 'sys');
+          if (game.cue) game.cue('questStep');
           if (f0 < 2 && f1 >= 2) game.ui.toast(`${q.title} · ${progressText(q)}`);
         }
       }
@@ -125,9 +127,9 @@ export function installQuests(game) {
     L.done++; L.credits += r.credits || 0;
     L.ids.push(q.id); if (L.ids.length > 80) L.ids.splice(0, L.ids.length - 80);
     (L.recent ||= []).unshift({ title: q.title, giver: q.giver, credits: r.credits || 0 }); if (L.recent.length > 6) L.recent.length = 6;
+    if (game.cue) game.cue('questDone');
     game.ui.toast(`Quest complete: ${q.title} (+${fmt(r.credits || 0)} ¢)`, 'epic');
     game.ui.chat('QUEST', null, `${q.title} complete. ${q.giver} wires ${fmt(r.credits || 0)} ¢ and ${fmt(r.xp || 0)} XP${extra}.`, 'loot', 'loot');
-    if (game.audio) game.audio.play('levelup', null, 0.5);
     // a chain's next link arrives by comm and takes the slot this one freed
     const next = chainNext(q);
     if (next) {

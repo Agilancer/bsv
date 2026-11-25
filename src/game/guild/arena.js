@@ -155,6 +155,7 @@ export function installArena(game, G) {
     game.moveTarget = null; game.cam.focus.copy(pos);
     W.fx.column(pos, 0x58b8ff, 140, 60);
     if (game.audio) game.audio.play('jump', null, 0.6);
+    if (game.cue) game.cue('matchFound');
     game.ui.toast(`${mode.name} · ${arena.name}`, 'legend');
     game.ui.chat('PVP', null, `${mode.name} at ${arena.name} — ${mode.sub}${M.convoy ? ` · you ${M.convoy.role === 'escort' ? 'ESCORT the freighters' : 'RAID the convoy'}` : ''}. Matched at ${Math.round(M.oppRating)} (you: ${Math.round(M.myRating)}).`, 'sys');
   }
@@ -188,7 +189,6 @@ export function installArena(game, G) {
     for (const r of M.recs) if (r.ship && r.ship.alive) { r.ship.invuln = false; arm(M, r); }
     if (M.convoy) for (const f of M.convoy.ships) f.invuln = false;
     game.ui.toast('FIGHT!', 'legend');
-    if (game.audio) game.audio.play('levelup', null, 0.6);
   }
 
   function hpFrac(s) { return s && s.alive ? (s.hull + s.shieldTotal()) / (s.maxHull + s.maxShield * 1.2) : 0; }
@@ -234,7 +234,7 @@ export function installArena(game, G) {
     const word = res >= 1 ? 'Victory' : res <= 0 ? 'Defeat' : 'Draw';
     game.ui.chat('PVP', null, `${word} in ${M.mode.name} ${M.score[0]}–${M.score[1]} · rating ${delta >= 0 ? '+' : ''}${delta} (${book.rating}) · +${rw.honour} honour, +${rw.glass} ${D.RESOURCE.name}, +${rw.credits} ¢`, 'sys');
     if (!duel && M.tierAfter.index > tier.index) { game.ui.toast(`Promoted to ${M.tierAfter.name} tier`, 'legend'); game.ui.chat('WORLD', null, `${P.name} has reached ${M.tierAfter.name} tier in the arenas.`, 'sys'); }
-    if (game.audio) game.audio.play(res >= 1 ? 'levelup' : 'hit', null, 0.8);
+    if (game.cue) game.cue(res >= 1 ? 'legend' : res <= 0 ? 'defeat' : 'notice', { tier: 1 });   // the verdict stamp lands on top (pvpfx)
   }
   A.forfeit = () => { const M = A.match; if (!M) return; if (M.phase !== 'over') { M.forfeit = true; finish(M, 0); } M.overT = 0; };
   A.dismiss = () => { const M = A.match; if (M && M.phase === 'over') M.overT = 0; };
