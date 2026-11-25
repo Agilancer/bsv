@@ -389,9 +389,9 @@ export class FX {
       case 'nova':
         p = p0.clone();
         // the big one: a blinding eight-ray flash, two shock rings, a long fireball
-        F.flash(p, 26 * S, 130 * S, hex, 0.5, 8, 0.6, 2.6, 0.4, hotHex, 1.8);
-        F.flash(p, 40 * S, 70 * S, 0xffffff, 0.1, 0, 0, 2);
-        F.flash(p, 14 * S, R * 3.4, hex, 0.6, 0, 1.6, 1.2);
+        // (kept within what the old nova shell drew: a big gun goes off often enough not to white out the screen)
+        F.flash(p, 18 * S, 85 * S, hex, 0.45, 8, 0.6, 2, 0.4, hotHex, 2.2);
+        F.flash(p, 14 * S, R * 3.4, hex, 0.6, 0, 1.6, 1.1);
         this.explosion(p, S * 0.6, hex, true);
         this.ring(p, R * 1.6, hex, 64);
         this.later(0.15, () => this.ring(p, R * 2.4, 0xffffff, 64));
