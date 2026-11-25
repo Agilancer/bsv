@@ -230,7 +230,7 @@ body.planet-touch #pButtons kbd, body.planet-touch #pAbilities .key { display: n
   .pwin .slots { grid-template-columns: repeat(6, 1fr); gap: 4px; }
   .pwin .grid { gap: 3px; }
 }
-.pwin { scrollbar-width: thin; scrollbar-color: rgba(88, 200, 255, 0.55) rgba(6, 12, 28, 0.6); }
+.pwin, .pwin .wbody { scrollbar-width: thin; scrollbar-color: rgba(88, 200, 255, 0.55) rgba(6, 12, 28, 0.6); }
 
 /* small and short windows: the orbit chat log steps aside on the surface (toasts carry the news) */
 @media (max-width: 1100px), (max-height: 700px) { body.planet-mode #chat { display: none; } }

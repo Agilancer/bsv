@@ -139,7 +139,7 @@ button { font-family: var(--font); }
 /* ---------- windows ---------- */
 .win { position: fixed; display: none; padding: 16px 18px; max-height: calc(100vh - 140px); overflow: auto; }
 .win.open { display: block; animation: winIn 0.18s ease-out; }
-@keyframes winIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes winIn { from { opacity: 0; scale: 0.98; } to { opacity: 1; scale: 1; } }   /* `scale`, not `transform`: a centred window keeps its translate while it opens */
 .win .wtitle { font-family: var(--head); font-size: 15px; letter-spacing: 0.2em; color: var(--white); text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .win .close { cursor: pointer; color: var(--text-dim); font-size: 18px; }
 .win .close:hover { color: var(--bad); }
@@ -386,7 +386,7 @@ body.win-open #objectives, body.hud-hidden #objectives, body[data-mode]:not([dat
    Real scroll containers (windows, chat, the menu sheet) still pan, because a pan is judged up to
    the nearest scroller while a pinch is judged against the whole chain up to here. */
 :root { --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px); --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px);
-  --tk: 0px; --tk-h: 30px;
+  --tk: 0px; --tk-s: 1; --tk-h: calc(30px * var(--tk-s));
   --ml: calc(8px + var(--sal)); --mr: calc(8px + var(--sar)); --mt: calc(8px + var(--sat) + var(--tk)); --mb: calc(8px + var(--sab)); }
 html, body { touch-action: none; overscroll-behavior: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 #view, #overlay { touch-action: none; }
@@ -584,9 +584,11 @@ body.mobile #system .slegend .label { font-size: 8.5px; }
 }
 
 /* ---- the ticker: one slim bar across the top (PvP plate + crawling lines); src/ui/ticker.js ---- */
+/* Every size in it is a multiple of --u (one pixel times --tk-s, the captain's ticker size from Options or the
+   handle on its lower edge), so the whole bar scales together and the HUD below steps down by its real height. */
 html.tick-on { --tk: var(--tk-h); }
-#ticker { position: fixed; left: 0; right: 0; top: var(--sat); height: var(--tk-h); z-index: 7; display: flex; align-items: stretch; overflow: hidden; pointer-events: none;
-  font: 600 15px/1 var(--font); letter-spacing: 0.03em; color: #e8f0ff;
+#ticker { --u: calc(1px * var(--tk-s)); position: fixed; left: 0; right: 0; top: var(--sat); height: var(--tk-h); z-index: 7; display: flex; align-items: stretch; overflow: hidden; pointer-events: none;
+  font: 600 calc(15 * var(--u))/1 var(--font); letter-spacing: 0.03em; color: #e8f0ff;
   background: linear-gradient(rgba(16, 30, 74, 0.96), rgba(6, 11, 30, 0.96)); border-bottom: 1px solid rgba(88, 200, 255, 0.6);
   box-shadow: 0 0 18px rgba(88, 160, 255, 0.28), inset 0 1px 0 rgba(160, 200, 255, 0.18);
   transform: translateY(calc(-100% - var(--sat) - 4px)); visibility: hidden; transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.1), visibility 0s 0.22s; }
@@ -594,20 +596,20 @@ html.tick-on { --tk: var(--tk-h); }
 #ticker::before { content: ''; position: absolute; inset: 0; opacity: 0.07; background: repeating-linear-gradient(-45deg, #9fd0ff 0 6px, transparent 6px 12px); }
 #ticker.on::before { animation: tkGrain 1.4s linear infinite; }
 @keyframes tkGrain { to { transform: translateX(-16.97px); } }
-#ticker .tk-pin { position: relative; flex: none; display: none; align-items: center; gap: 8px; padding: 0 20px 0 calc(10px + var(--sal)); background: linear-gradient(#34207a, #170c42);
-  clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 0 100%); font-family: var(--head); font-size: 11px; letter-spacing: 0.2em; color: #d8c6ff; white-space: nowrap; }
+#ticker .tk-pin { position: relative; flex: none; display: none; align-items: center; gap: calc(8 * var(--u)); padding: 0 calc(20 * var(--u)) 0 calc(10 * var(--u) + var(--sal)); background: linear-gradient(#34207a, #170c42);
+  clip-path: polygon(0 0, calc(100% - 11 * var(--u)) 0, 100% 50%, calc(100% - 11 * var(--u)) 100%, 0 100%); font-family: var(--head); font-size: calc(11 * var(--u)); letter-spacing: 0.2em; color: #d8c6ff; white-space: nowrap; }
 #ticker.pinned .tk-pin { display: flex; }
-#ticker .tk-ico { width: 8px; height: 8px; transform: rotate(45deg); background: #58c8ff; box-shadow: 0 0 8px #58c8ff; animation: tkBlink 1.2s steps(1, end) infinite; }
+#ticker .tk-ico { width: calc(8 * var(--u)); height: calc(8 * var(--u)); transform: rotate(45deg); background: #58c8ff; box-shadow: 0 0 8px #58c8ff; animation: tkBlink 1.2s steps(1, end) infinite; }
 @keyframes tkBlink { 50% { background: #c88cff; box-shadow: 0 0 9px #c88cff; } }
-#ticker .tk-time { color: #fff; letter-spacing: 0.1em; font-size: 12px; min-width: 2.6em; }
-#ticker .tk-mid { position: relative; flex: none; display: flex; align-items: center; gap: 9px; padding: 0 12px 0 8px; font-family: var(--head); font-size: 14px; white-space: nowrap; border-right: 1px solid rgba(88, 200, 255, 0.25); }
+#ticker .tk-time { color: #fff; letter-spacing: 0.1em; font-size: calc(12 * var(--u)); min-width: 2.6em; }
+#ticker .tk-mid { position: relative; flex: none; display: flex; align-items: center; gap: calc(9 * var(--u)); padding: 0 calc(12 * var(--u)) 0 calc(8 * var(--u)); font-family: var(--head); font-size: calc(14 * var(--u)); white-space: nowrap; border-right: 1px solid rgba(88, 200, 255, 0.25); }
 #ticker .tk-mid .me { color: var(--cyan); } #ticker .tk-mid .them { color: #ff7a9a; }
-#ticker .tk-mid em { font-style: normal; font-size: 9px; color: var(--text-dim); letter-spacing: 0.12em; }
-#ticker .tk-mid .ph-caps { margin: 0; gap: 4px; } #ticker .tk-mid .ph-caps .cap { width: 34px; height: 16px; } #ticker .tk-mid .ph-caps .cap b { font-size: 10px; line-height: 15px; }
+#ticker .tk-mid em { font-style: normal; font-size: calc(9 * var(--u)); color: var(--text-dim); letter-spacing: 0.12em; }
+#ticker .tk-mid .ph-caps { margin: 0; gap: calc(4 * var(--u)); } #ticker .tk-mid .ph-caps .cap { width: calc(34 * var(--u)); height: calc(16 * var(--u)); } #ticker .tk-mid .ph-caps .cap b { font-size: calc(10 * var(--u)); line-height: calc(15 * var(--u)); }
 #ticker .tk-lane { position: relative; flex: 1; min-width: 0; overflow: hidden;
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 22px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 22px), transparent 100%); }
-#ticker .tk-call { position: absolute; left: 0; top: 0; bottom: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap; will-change: transform; transform: translate3d(200vw, 0, 0); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); }
-#ticker .tk-call > i { flex: none; width: 5px; height: 5px; transform: rotate(45deg); background: #58c8ff; box-shadow: 0 0 6px #58c8ff; margin-right: 2px; }
+#ticker .tk-call { position: absolute; left: 0; top: 0; bottom: 0; display: flex; align-items: center; gap: calc(7 * var(--u)); white-space: nowrap; will-change: transform; transform: translate3d(200vw, 0, 0); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); }
+#ticker .tk-call > i { flex: none; width: calc(5 * var(--u)); height: calc(5 * var(--u)); transform: rotate(45deg); background: #58c8ff; box-shadow: 0 0 6px #58c8ff; margin-right: calc(2 * var(--u)); }
 #ticker .tk-call > b { font-family: var(--head); font-size: 0.72em; letter-spacing: 0.14em; text-transform: uppercase; color: var(--cyan); }
 #ticker .tk-call b { font-weight: 600; }
 #ticker .tk-call.dim { color: #a8b8dc; } #ticker .tk-call.dim > i { background: #6a7a9a; box-shadow: none; }
@@ -617,16 +619,58 @@ html.tick-on { --tk: var(--tk-h); }
 #ticker .tk-call.gold, #ticker .tk-call.legend { color: #ffe9a8; } #ticker .tk-call.gold > i, #ticker .tk-call.legend > i { background: #ffd66a; box-shadow: 0 0 6px #ffd66a; }
 #ticker .tk-call.win { color: #bfeaff; font-weight: 700; }
 #ticker .tk-call.theirs > span > b:first-child { color: #ff7a9a; } #ticker .tk-call.mine > span > b:first-child { color: var(--cyan); }
-#ticker .tk-act { position: relative; flex: none; display: flex; align-items: center; padding: 0 calc(8px + var(--sar)) 0 4px; pointer-events: auto; }
-#ticker .tk-act .mini { background: none; border: 1px solid var(--edge); color: var(--cyan); font-family: var(--head); font-size: 9px; letter-spacing: 0.1em; padding: 4px 9px; cursor: pointer; text-transform: uppercase; }
+#ticker .tk-act { position: relative; flex: none; display: flex; align-items: center; padding: 0 calc(8 * var(--u) + var(--sar)) 0 calc(4 * var(--u)); pointer-events: auto; }
+#ticker .tk-act .mini { background: none; border: 1px solid var(--edge); color: var(--cyan); font-family: var(--head); font-size: calc(9 * var(--u)); letter-spacing: 0.1em; padding: calc(4 * var(--u)) calc(9 * var(--u)); cursor: pointer; text-transform: uppercase; }
+/* the banner: one warning looping across the lane while it holds (the drive spooling up); the crawl waits under it */
+#ticker .tk-banner { position: absolute; inset: 0; z-index: 2; display: none; align-items: center; overflow: hidden; background: linear-gradient(rgba(16, 30, 74, 0.98), rgba(6, 11, 30, 0.98)); }
+#ticker.banner .tk-banner { display: flex; }
+#ticker .tk-banner.warn { background: linear-gradient(rgba(70, 34, 6, 0.98), rgba(30, 12, 4, 0.98)); }
+#ticker .tk-banner.warn::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(-45deg, rgba(255, 176, 64, 0.2) 0 calc(9 * var(--u)), transparent calc(9 * var(--u)) calc(18 * var(--u))); animation: tkAlarm 0.9s ease-in-out infinite alternate; }
+@keyframes tkAlarm { from { opacity: 0.35; } to { opacity: 1; } }
+#ticker .tk-btrack { position: relative; display: flex; flex: none; white-space: nowrap; will-change: transform; }
+#ticker .tk-bcall { display: inline-flex; flex: none; align-items: center; gap: 0.6em; padding-right: 2.4em; font-family: var(--head); font-size: 0.84em; font-weight: 700; letter-spacing: 0.22em; color: #bfeaff; text-shadow: 0 0 8px rgba(88, 200, 255, 0.8), 0 1px 2px #000; }
+#ticker .tk-bcall > i { flex: none; width: 0.5em; height: 0.5em; transform: rotate(45deg); background: currentColor; box-shadow: 0 0 8px currentColor; animation: tkBlink 0.6s steps(1, end) infinite; }
+#ticker .tk-banner.warn .tk-bcall { color: #ffd08a; text-shadow: 0 0 10px rgba(255, 150, 40, 0.9), 0 1px 2px #000; }
+#ticker .tk-banner.warn .tk-bcall > i { animation: none; }
+#ticker.banner { border-bottom-color: rgba(255, 176, 64, 0.85); box-shadow: 0 0 22px rgba(255, 150, 40, 0.4), inset 0 1px 0 rgba(255, 210, 150, 0.2); }
+/* the lower edge is a handle that sizes the bar (desktop) */
+#ticker .tk-grip { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; z-index: 3; pointer-events: auto; cursor: ns-resize; }
+#ticker .tk-grip::after { content: ''; position: absolute; left: 50%; bottom: 1px; width: 46px; height: 2px; margin-left: -23px; border-radius: 1px; background: #58c8ff; box-shadow: 0 0 6px #58c8ff; opacity: 0.25; transition: opacity 0.15s; }
+#ticker .tk-grip:hover::after, #ticker.sizing .tk-grip::after { opacity: 1; }
+body.mobile #ticker .tk-grip { display: none; }
 /* the HUD along the top comes down out of the bar's way (phones: through --mt, which every phone layout starts from) */
 body:not(.mobile) :is(#status, #radar, #chat, #menubar, #autoStatus, #objectives, #questTrack, #target, #toasts, #namePrompt) { translate: 0 var(--tk); transition: translate 0.22s ease-out; }
-body.mobile { --tk-h: 27px; } body.mobile #ticker { font-size: 13.5px; }
-body.mobile #ticker .tk-pin { font-size: 9.5px; gap: 6px; padding-right: 17px; letter-spacing: 0.14em; } body.mobile #ticker .tk-time { font-size: 10.5px; min-width: 2.4em; }
-body.mobile #ticker .tk-mid { font-size: 12px; gap: 6px; padding: 0 8px 0 6px; }
-body.mobile #ticker .tk-mid .ph-caps .cap { width: 24px; }
-@media (max-width: 480px) { body.mobile #ticker .tk-mid .me, body.mobile #ticker .tk-mid .them { font-size: 11px; } body.mobile #ticker .tk-mid em { display: none; } }
-@media (prefers-reduced-motion: reduce) { #ticker.on::before, #ticker .tk-ico { animation: none; } }
+body.mobile { --tk-h: calc(27px * var(--tk-s)); } body.mobile #ticker { font-size: calc(13.5 * var(--u)); }
+body.mobile #ticker .tk-pin { font-size: calc(9.5 * var(--u)); gap: calc(6 * var(--u)); padding-right: calc(17 * var(--u)); letter-spacing: 0.14em; } body.mobile #ticker .tk-time { font-size: calc(10.5 * var(--u)); min-width: 2.4em; }
+body.mobile #ticker .tk-mid { font-size: calc(12 * var(--u)); gap: calc(6 * var(--u)); padding: 0 calc(8 * var(--u)) 0 calc(6 * var(--u)); }
+body.mobile #ticker .tk-mid .ph-caps .cap { width: calc(24 * var(--u)); }
+@media (max-width: 480px) { body.mobile #ticker .tk-mid .me, body.mobile #ticker .tk-mid .them { font-size: calc(11 * var(--u)); } body.mobile #ticker .tk-mid em { display: none; } }
+@media (prefers-reduced-motion: reduce) { #ticker.on::before, #ticker .tk-ico, #ticker .tk-bcall > i, #ticker .tk-banner.warn::before { animation: none; } }
+
+/* ---- windows you can move and resize (desktop; src/ui/winman.js) ----
+   A window's title bar stays put while its body scrolls, so it can always be taken hold of. .wm-pos pins a panel
+   at --wx/--wy, .wm-size gives it --ww/--wh; phones keep their sheets (every rule is behind body:not(.mobile)). */
+body:not(.mobile) .win.open { display: flex; flex-direction: column; overflow: hidden; }
+body:not(.mobile) .win > .wtitle { flex: none; cursor: move; }
+body:not(.mobile) .win > .wbody { flex: 1 1 auto; min-height: 0; overflow: auto; }
+body:not(.mobile):not(.on-bridge) #chat > .tabs { cursor: move; }
+body:not(.mobile) .win.wm-pos, body:not(.mobile):not(.on-bridge) #chat.wm-pos { left: var(--wx) !important; top: var(--wy) !important; right: auto !important; bottom: auto !important; transform: none !important; }
+body:not(.mobile) .win.wm-pos:not(.wm-size) { max-height: calc(100vh - var(--wy) - 12px) !important; }
+body:not(.mobile) .win.wm-size, body:not(.mobile):not(.on-bridge) #chat.wm-size { width: var(--ww) !important; height: var(--wh) !important; max-width: none !important; max-height: none !important; }
+body:not(.mobile) .win.wm-top { z-index: 6; }
+.wm-rz { position: absolute; z-index: 4; display: none; }
+body:not(.mobile) .wm-rz { display: block; }
+body.on-bridge #chat > .wm-rz { display: none; }
+.wm-n, .wm-s { left: 14px; right: 14px; height: 6px; cursor: ns-resize; } .wm-n { top: 0; } .wm-s { bottom: 0; }
+.wm-e, .wm-w { top: 14px; bottom: 14px; width: 6px; cursor: ew-resize; } .wm-e { right: 0; } .wm-w { left: 0; }
+.wm-ne, .wm-nw, .wm-sw { width: 14px; height: 14px; } .wm-ne { right: 0; top: 0; cursor: nesw-resize; } .wm-sw { left: 0; bottom: 0; cursor: nesw-resize; } .wm-nw { left: 0; top: 0; cursor: nwse-resize; }
+/* the grip sits in the panel's cut corner: two strokes running along the cut */
+.wm-se { right: 0; bottom: 0; width: 22px; height: 22px; cursor: nwse-resize; opacity: 0.55; transition: opacity 0.15s;
+  background: linear-gradient(135deg, transparent 47%, var(--cyan) 47% 51.5%, transparent 51.5% 59%, var(--cyan) 59% 63.5%, transparent 63.5%); filter: drop-shadow(0 0 3px var(--cyan)); }
+.wm-se:hover, body.wm-drag .wm-se { opacity: 1; }
+body.wm-drag, body.wm-drag * { cursor: var(--wm-cur) !important; }
+.wm-opt > span { font-size: 12px; line-height: 1.3; color: var(--text-dim); } .wm-opt .btn { flex: none; }
+body.mobile .wm-opt { display: none; }
 
 /* watching autoplay with the interface hidden: the strip carries the ship's vitals, and reads in full on a phone */
 #hudPeek .pk-bars { position: absolute; left: 0; right: 0; top: -1px; height: 3px; display: flex; gap: 2px; pointer-events: none; }

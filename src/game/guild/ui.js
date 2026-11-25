@@ -35,7 +35,7 @@ export function installGuildUI(game, G) {
   function renderGuild() {
     const win = game.ui.windows.guild, body = win.querySelector('.wbody');
     if (typing(body)) return;
-    const top = win.scrollTop, g = G.g;
+    const top = win.scrollTop, btop = body.scrollTop, g = G.g;
     if (!g) {
       if (!draft.name) { draft.name = G.suggestName(); draft.tag = D.tagFromName(draft.name); }
       body.innerHTML = `<div class="g-found">
@@ -59,7 +59,7 @@ export function installGuildUI(game, G) {
     else if (gTab === 'recruit') h += recruit(g, cap);
     else h += diplomacy(g, d, bloc);
     body.innerHTML = h;
-    win.scrollTop = top;
+    win.scrollTop = top; body.scrollTop = btop;   // the body scrolls under a fixed title bar on desktop, the window on phones
   }
   function roster(g) {
     const slot = Math.floor((game.data.playtime || 0) / 300), pop = game.mmo;
@@ -146,7 +146,7 @@ export function installGuildUI(game, G) {
 
   // ------------------------------------------------------------------ PvP window
   function renderPvp() {
-    const win = game.ui.windows.pvp, body = win.querySelector('.wbody'), top = win.scrollTop;
+    const win = game.ui.windows.pvp, body = win.querySelector('.wbody'), top = win.scrollTop, btop = body.scrollTop;
     const pvp = G.pvp, tier = G.tier();
     let h = `<div class="g-head"><div class="g-emblem tier" style="--c:${tier.color}"></div><div class="g-id">
       <div class="g-name">${tier.name} · ${pvp.rating}</div>
@@ -158,7 +158,7 @@ export function installGuildUI(game, G) {
     else if (pTab === 'ladder') h += ladder(pvp, tier);
     else h += vendor(pvp, tier);
     body.innerHTML = h;
-    win.scrollTop = top;
+    win.scrollTop = top; body.scrollTop = btop;
   }
   function queue(pvp) {
     const A = G.arena, why = A.blocked(), M = A.match, last = A.last;
@@ -381,7 +381,7 @@ export function installGuildUI(game, G) {
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
     if (!game.data || !game.ui || game.input.blocked || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'KeyO') game.command('guild');
-    else if (e.code === 'KeyH' && game.mode !== 'planet') game.command('pvp');   // on the surface H is the horn
+    else if (e.code === 'KeyH' && game.mode !== 'planet') game.command('pvp');   // on the surface H is the lure pulse
   });
 
   let hudT = 0, winT = 0;

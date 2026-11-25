@@ -67,7 +67,7 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     save data in `data.contracts` (old three-field contracts migrate on load), history in `data.questLog`.
     Stations: `galaxy.js` gives every system at least one (94 total, 8 kinds in `STATION_KINDS`);
     outposts are appended from their own seeded stream so older stations keep index, seed and place.
-  - `flavor/` — space-side game feel: slow-mo on big kills, last words. (No kill-streak callouts, in space or on the
+  - `flavor/` — space-side game feel: slow-mo on big kills, last words (sober final transmissions). (No kill-streak callouts, in space or on the
     surface: they were removed on request. Do not add chained-kill counters or announcements back.)
 - `src/ui/` — HUD, overlay canvas, windows; `css/ui.css` holds the holo theme.
   - `ui/ticker.js` — `game.ticker`: one slim bar across the very top. `pin({tag, time, mid, act})` is the plate (a PvP
@@ -75,6 +75,17 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     interface hidden for autoplay, toasts, rank-ups, story lines and the autopilot's log go there too. The HUD along
     the top moves down while it is out (`html.tick-on`, `--tk`; phone layouts start from `--mt`, which includes it).
     Status that belongs to a match or an event goes on the ticker, not in a panel mid-screen.
+    `banner(text | null, {cls})` loops one warning across the lane while it holds (the crawl waits under it): nav shows
+    "WARNING : WARP DRIVES SPOOLING UP" from the moment the drive is engaged until the ship is away or the spool breaks.
+    `ticker.scale` (0.7–2: Options slider, or drag the bar's lower edge) multiplies every size in the bar (`--tk-s`,
+    `--u` in css/ui.css), and `--tk-h` with it, so the HUD steps down by the bar's real height.
+  - `ui/winman.js` (`ui.wm`) — desktop windows move by their title bar and resize from their edges or the grip in the
+    cut corner; the chat moves by its tab row. Double-click a title bar to reset it; Options resets all. The CSS
+    places them (`.wm-pos` / `.wm-size` with `--wx --wy --ww --wh`, all behind `body:not(.mobile)`, so phones keep
+    their sheets). On desktop a window's `.wbody` scrolls under a fixed title bar: keep a re-render's scroll on the
+    `.wbody` (phones still scroll the window). New `.win` panels appended to `#ui` are picked up on their own.
+  - `ui/prefs.js` — interface preferences kept per device in localStorage (`velscour.ui`: window layout, ticker
+    size), not in the captain's save.
 
 ## Extension points
 - `game.modes[name]` — called by `game.command(name)` (menu bar / hotkeys).
@@ -173,6 +184,9 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   and frames it from closer in (Game.js, `phoneWatch`); a hand on the camera holds that off for 12 s.
 
 ## Conventions
+- Tone is serious space opera. No novelty props (no rubber ducks, gnomes, vending machines), gag mechanics, joke names,
+  memes or punchline lore/descriptions; new assets are modelled for the setting, not swapped for a joke. Crew radio
+  chatter may carry a dry quip alongside serious lines. (The owner never asked for comedy; it was removed on request.)
 - Hot loops allocate nothing; reuse module-level temp vectors.
 - The gates are noisy at the cell level (soak is unseeded; duel cells are chaotic): compare against
   the previous commit on a second port before blaming a change.

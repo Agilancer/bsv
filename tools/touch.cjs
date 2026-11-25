@@ -239,7 +239,7 @@ async function run(name, vp, browser) {
     el.querySelector('.tzout').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); TT.step(); out.zoomBtn = [+z0.toFixed(1), +z1.toFixed(1), +cam.distTarget.toFixed(1)];
     const bar = document.getElementById('menubar'); document.getElementById('mMenu').click();
     out.sheet = [...bar.querySelectorAll('button')].filter((b) => getComputedStyle(b).display !== 'none').map((b) => b.dataset.w); bar.classList.remove('open');
-    const h0 = M.honks || 0; bar.querySelector('[data-w=horn]').click(); out.horn = (M.honks || 0) - h0;
+    const h0 = M.lures || 0; bar.querySelector('[data-w=lure]').click(); out.lure = (M.lures || 0) - h0;
     M.extras.radio('deploy', true); __engine.simulate(0.4);
     return out;
   });
@@ -247,7 +247,7 @@ async function run(name, vp, browser) {
   check(pl.pinch.dist > pl.spread.dist * 1.7 && Math.abs(pl.shown - pl.pinch.dist) < pl.pinch.dist * 0.1, 'surface: pinching zooms out, and the view follows', `${pl.spread.dist} -> ${pl.pinch.dist} (shown ${pl.shown})`);
   check(pl.twist.yaw - pl.pinch.yaw > 0.6, 'surface: a 60° clockwise twist turns the camera', `yaw ${pl.pinch.yaw} -> ${pl.twist.yaw}`);
   check(pl.twin.stick && pl.twin.aim && !pl.twin.gesture && pl.twin.cam.dist === pl.twist.dist && pl.twin.cam.yaw === pl.twist.yaw && pl.released, 'surface: thumbs on opposite sides stay move + aim', pl.twin);
-  check(pl.zoomBtn[1] < pl.zoomBtn[0] && pl.zoomBtn[2] > pl.zoomBtn[1] && pl.horn === 1 && ['explorer', 'refinery', 'horn', 'inventory', 'options'].every((w) => pl.sheet.includes(w)), 'surface: zoom buttons, horn and the bays from the sheet', { zoom: pl.zoomBtn, sheet: pl.sheet.length });
+  check(pl.zoomBtn[1] < pl.zoomBtn[0] && pl.zoomBtn[2] > pl.zoomBtn[1] && pl.lure === 1 && ['explorer', 'refinery', 'lure', 'inventory', 'options'].every((w) => pl.sheet.includes(w)), 'surface: zoom buttons, lure pulse and the bays from the sheet', { zoom: pl.zoomBtn, sheet: pl.sheet.length });
   L = await ev(([s, t]) => TT.layout(s, t), [PLANET_HUD, TAPS]);
   check(layoutOk(L), `surface HUD (comm strip up): ${L.panels} panels, no overlap, none off-screen, tap targets >= 40 px`, layoutOk(L) ? undefined : L);
   await shot('surface');
