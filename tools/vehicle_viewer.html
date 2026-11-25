@@ -81,7 +81,7 @@ for (const row of rowsOf) {
       mode.ex = { chassis: c.id, owned: [c.id], level: 30, xp: 0, loadout: kitFor(c), inventory: [] };
       const V = new Vehicle(mode);
       V.v.body.remove(V.shieldMesh); // gameplay overlay: off the sheet and out of the bounds
-      return { c, V, w: Math.max(V.dims.W, V.dims.L * 0.8), d: Math.max(V.dims.L, V.dims.W * 0.8) };
+      return { c, V, w: Math.max(V.dims.W, V.dims.L * 0.8), d: Math.max(V.dims.L, V.dims.W * 0.8) + (V.dims.H || 0) * 0.9 + (V.dims.ride || 0) * 0.6 };   // tall and flying ones climb the screen
     });
     const cell = Math.max(SX, ...built.map((b) => b.w + 5));
     const depth = Math.max(SZ, ...built.map((b) => b.d + 12));
