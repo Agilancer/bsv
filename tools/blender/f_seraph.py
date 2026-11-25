@@ -133,6 +133,9 @@ def blade(M, g, root, sx, psi, dih, span, chord, k, m, st, C, lead, jet):
     t1 = 0.05 * k + chord * (1 - (1 - tip) * f1) - bw * 0.6
     M.box(bw, span * 0.94 * (f1 - f0), 0.09 * k, P(span * 0.94 * (f0 + f1) / 2, (t0 + t1) / 2), 'trim', panel, 0.015 * k, rot=rot,
           taper=(0.55, 1), shear=(t1 - t0, 0), group=g)
+    if lead and st >= 3:   # a teal stripe breaks the titan's broad pearl panel
+        M.box(0.07 * k, span * 0.62, 0.085 * k, P(span * 0.4, 0.05 * k + chord * 0.36), 'trim', panel, 0.01, rot=rot,
+              shear=(-chord * 0.2, 0), group=g)
     if not lead:   # a pearl rib keeps the dark blades readable
         M.box(0.05 * k, span * 0.7, 0.085 * k, P(span * 0.42, 0.05 * k + chord * 0.28), 'hull', C['hull2'], 0.01, rot=rot,
               shear=(-chord * 0.22, 0), group=g)
@@ -171,7 +174,7 @@ def build(m):
     C = dict(frames.LIVERY[F])
     C['hull2'] = 0xc8ccd2                     # pearl in shadow: secondary plates
     C['inner'] = 0x2e4a50                     # inner blades: dark teal slate
-    C['wing'] = 0xd6dade                      # leading wing panels: pearl a step down, so broad sunlit plates don't clip
+    C['wing'] = 0xd6dade if st < 3 else 0xc4c8cc   # leading wing panels: pearl stepped down (more on the titan's big plates) so they hold detail in sun
     hull, panel, dark, trim, glow = C['hull'], C['panel'], C['dark'], C['trim'], C['glow']
     hull2 = C['hull2']
     s = frames.scale(m)
