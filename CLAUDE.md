@@ -34,6 +34,11 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     hold triage), `crew/auto.js` (`game.crewAuto`: appoint / rebalance / hire / promote; also the
     Crew window's Auto-manage button), `planet/autoCraft.js` (`game.refineryAuto`: explorer bay,
     fabricator, refinery ranks, gear workshop, orbital probes, landing site + tool fit).
+    Orbital probes also have their own orbit-only goal, `game.probeAuto` (`planet/Autopilot.js` `makeProbeGoal`; no landing,
+    so no ground time): at most every 150 s it flies over a world to drop a probe or recover one at least half full
+    (`autoCraft.js` `probeWorth` / `pickProbeWorld`), and every 420 s or so it goes just to look at a world it has not
+    scanned (`curiosityPick`). The first probe on a world pays a survey bounty (`economy.js` `probeBounty`, via
+    `dropOrbitalProbe`, which the survey panel's button uses too); with no ore in the bank a probe costs credits only.
   - `guild/` — guilds, alliances and PvP, all simulated (`game.guild`): `data.js` (pure rules: guild
     level/perks/upgrades, invite and alliance acceptance, NPC guilds and blocs, zone capture and
     control ticks, rating/tiers/matchmaking, rewards, vendor), `index.js` (runtime, autoplay

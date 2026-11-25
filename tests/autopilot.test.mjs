@@ -12,7 +12,8 @@ import { TALENT_BUILDS, buildFor, nextTalent, spendTalentPoints } from '../src/g
 import { chooseBuy, creditReserve, rollQuality, triageList } from '../src/game/autoplay/refit.js';
 import { ensureExplorer, exSlotKeys, makeExItem, EX_INV_SIZE } from '../src/game/planet/explorerItems.js';
 import { RES_KEYS, SHIP_UPGRADES, PROBE_UPGRADES, upgradeCost, affordable, surveyPlanet, empowerCap } from '../src/game/planet/economy.js';
-import { autoCraft, exAutoScore, fitExplorer, landingWeights, pickSite, orbitalProbeAuto, needWeights, worldAppeal, RES_VALUE } from '../src/game/planet/autoCraft.js';
+import { autoCraft, exAutoScore, fitExplorer, landingWeights, pickSite, orbitalProbeAuto, needWeights, worldAppeal, RES_VALUE, probeWorth, pickProbeWorld, curiosityPick, CURIO_STALE } from '../src/game/planet/autoCraft.js';
+import { probeBounty, ORBITAL_PROBE_CREDITS } from '../src/game/planet/economy.js';
 
 // ---------------------------------------------------------------- talents
 test('talent auto-spend only ever picks learnable talents and leaves no point idle', () => {
@@ -220,13 +221,55 @@ test('orbital probe: dropped once per world when it can be paid for, hauled on l
   P.credits = 100; P.resources = { ore: 500, crystal: 500 };
   assert.equal(orbitalProbeAuto(P, sv, 0), '', 'not with a thin purse');
   P.credits = 5000;
-  assert.match(orbitalProbeAuto(P, sv, 100), /dropped/);
-  assert.equal(P.credits, 4750);
+  const b = probeBounty(sv, P.level, P.explorer.level);
+  const out = {};
+  assert.match(orbitalProbeAuto(P, sv, 100, { out }), /dropped.*survey bounty/);
+  assert.ok(out.drop && out.bounty, 'the first probe on a world pays a bounty');
+  assert.equal(P.credits, 4750 + b.credits);
+  assert.equal(P.resources.datacore, 1);
+  assert.ok(P.explorer.xp > 0 || P.explorer.level > 1, 'explorer XP from the survey data');
   assert.equal(orbitalProbeAuto(P, sv, 100), '', 'nothing mined yet');
   const before = RES_KEYS.reduce((a, k) => a + (P.resources[k] || 0), 0);
   assert.match(orbitalProbeAuto(P, sv, 100 + 600), /recovered 60 units/);
   assert.equal(RES_KEYS.reduce((a, k) => a + (P.resources[k] || 0), 0), before + 60);
-  assert.equal(P.credits, 4750, 'the probe is paid for once');
+  assert.equal(P.credits, 4750 + b.credits, 'the probe is paid for once');
+});
+
+test('orbital probe: a captain with no ore buys one for credits; the bounty is paid once per world', () => {
+  const P = newPlayer(); ensureExplorer(P);
+  const sv = surveyPlanet({ name: 'Vell', type: 'ice', radius: 300, seed: 7, resources: 2 }, { id: 5, danger: 2 });
+  P.credits = 1000; P.resources = {};
+  const out = {};
+  assert.match(orbitalProbeAuto(P, sv, 0, { out }), /dropped/);
+  assert.equal(P.credits, 1000 - ORBITAL_PROBE_CREDITS + out.bounty.credits);
+  // the same world again (its probe lost from the record): no second bounty
+  delete P.explorer.orbital[sv.key];
+  const again = {};
+  P.credits = 1000;
+  assert.match(orbitalProbeAuto(P, sv, 10, { out: again }), /dropped/);
+  assert.equal(again.bounty, null);
+  assert.equal(P.credits, 1000 - ORBITAL_PROBE_CREDITS);
+});
+
+test('probe runs: worth a trip for a new world or a ripe hopper, nearest worth first; curiosity looks at new worlds', () => {
+  const P = newPlayer(); ensureExplorer(P);
+  const mk = (name, seed) => surveyPlanet({ name, type: 'arid', radius: 300, seed, resources: 3 }, { id: 9, danger: 3 });
+  const a = mk('Ash', 1), b = mk('Bel', 2);
+  P.credits = 200; P.resources = {};
+  assert.equal(probeWorth(a, P, 0), 0, 'nothing to pay with');
+  P.credits = 3000;
+  assert.ok(probeWorth(a, P, 0) > 0, 'an unprobed world is worth seeding');
+  const near = { survey: a, dist: 500 }, far = { survey: b, dist: 20000 };
+  assert.equal(pickProbeWorld([far, near], P, 0), near);
+  orbitalProbeAuto(P, a, 0);
+  assert.equal(probeWorth(a, P, 60), 0, 'a fresh probe is not worth the trip yet');
+  assert.ok(probeWorth(a, P, 300) > 0, 'a hopper half full is');
+  // curiosity: an unscanned world first; once all are seen, only now and then, and only stale ones
+  assert.equal(curiosityPick([near, far], P, 0, 0.99), near);
+  P.explorer.scanned[a.key] = { at: 0 }; P.explorer.scanned[b.key] = { at: 0 };
+  assert.equal(curiosityPick([near, far], P, 100, 0.1), null, 'everything seen recently');
+  assert.equal(curiosityPick([near, far], P, CURIO_STALE + 10, 0.9), null, 'not every time');
+  assert.ok(curiosityPick([near, far], P, CURIO_STALE + 10, 0.1));
 });
 
 test('what the bank is short of is worth more: tools, deposits and worlds follow it', () => {
