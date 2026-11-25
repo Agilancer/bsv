@@ -144,15 +144,16 @@ class Model:
         self._xf(bm, at, rot)
         return self._obj(bm, group, mat, tint, 0, angle=60)
 
-    def loft(self, sections, mat='hull', tint=0xffffff, n=20, group='body', at=(0, 0, 0), caps=True, rot=None, x0=0.0):
+    def loft(self, sections, mat='hull', tint=0xffffff, n=20, group='body', at=(0, 0, 0), caps=True, rot=None, x0=0.0, phase=0.0):
         """Lofted hull along game z. sections: [(z, half_w, half_h, y_centre, squareness)], squareness 2 = ellipse,
-        higher = boxier. Ends are closed with fans to a centre point."""
+        higher = boxier. Ends are closed with fans to a centre point. phase 0.5 puts flats (not corners) on the
+        axes: a low n then gives a chamfered box, flat on top, bottom and sides."""
         bm = bmesh.new()
         rings = []
         for (z, hw, hh, yc, p) in sections:
             ring = []
             for i in range(n):
-                a = i / n * math.tau
+                a = (i + phase) / n * math.tau
                 c, s = math.cos(a), math.sin(a)
                 x = hw * math.copysign(abs(c) ** (2 / p), c)
                 y = hh * math.copysign(abs(s) ** (2 / p), s)

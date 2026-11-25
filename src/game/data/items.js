@@ -1,5 +1,6 @@
 // Diablo-style itemisation: base types per slot, rarities, affixes, unique powers, item XP.
 // An item is plain data (serialisable): { uid, base, slot, rarity, ilvl, affixes:[{k,v}], unique, xp, lvl, name }
+import { CRAFT, LEAD } from './craft.js';
 import { RNG } from '../../engine/rng.js';
 import { NAMED } from './uniques.js';
 import { WEAPON_VARIANTS } from './weapons.js';
@@ -340,7 +341,12 @@ export function describe(item) {
     lines.push('Redeem at any shipyard to build this hull', 'for 40% of its list price.');
   } else if (b.kind !== 'module') {
     const s = weaponStats(item);
-    if (b.kind === 'hangar') lines.push(`${s.count} ${s.craft}s · rebuild ${s.rebuild}s`, s.heal ? `Repairs ${s.heal.toFixed(0)} hull/s` : `${s.dmg.toFixed(0)} damage per strike`);
+    if (b.kind === 'hangar') {
+      lines.push(`${s.count} ${s.craft}s · rebuild ${s.rebuild}s`, s.heal ? `Repairs ${s.heal.toFixed(0)} hull/s` : `${s.dmg.toFixed(0)} damage per strike`);
+      // big carriers berth bigger craft at the head of the wing (data/craft.js)
+      const [m, l] = LEAD[s.craft] || [];
+      if (m) lines.push(`Cruisers and up: led by a${/^[aeiou]/.test(CRAFT[m].name) ? 'n' : ''} ${CRAFT[m].name}` + (l ? `; battleships add an ${CRAFT[l].name}` : ''));
+    }
     else {
       lines.push(`${(s.dmg).toFixed(0)} ${b.dmgType} damage × ${s.barrels}`);
       lines.push(`${s.rof.toFixed(2)} volleys/s · range ${s.range.toFixed(0)}`);

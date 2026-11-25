@@ -57,6 +57,20 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     builder (still used for enemy yards and any chassis with a `livery` or role `kit`). Review: `tools/kitshots.cjs`.
     Viewer: `&guns`, `&hp`, `&vs` (kit beside procedural), `&nokit`.
   - `combat/` — projectiles/beams (instanced), damage model, hangar craft. `ai/ShipAI.js`.
+  - Hangar craft (`combat/Hangars.js`, pure rules in `data/craft.js`): eight craft — small fighter / bomber / repair drone
+    / decoy, medium gunship / torpedo boat / repair tender, large escort frigate. A bay's item names its small craft; a
+    carrier from `BERTH.M` (105) long leads each wing with a medium craft, from `BERTH.L` (180) with a large one too
+    (`wingPlan`, `LEAD`). Lead craft take the places of small ones and the wing's damage / repair is shared out by weight
+    (`share`), so a bay's output is the same on any hull. Every craft is a Blender model in one of five design lines
+    (`LINES`; `LINE_BY_YARD`: a wing flies its carrier's yard's line): navy (Velscour, default), concord (Aurelian,
+    Tidewright), foundry (Ironhold), raider (Corsair, Rustborn), choir (Hollow, Silent, Brood). Each line is
+    `tools/blender/craft_<line>.py` on the shared kit `craftlib.py` (`nozzle` / `barrel` / ... ; size bands, budgets,
+    empties `gun` / `msl` / `pd` / `eng` in its header), built with `python3 tools/blender/craft_<line>.py` into
+    `assets/ships/craft/<line>.glb` + `.json`; `tests/craft.test.mjs` holds every line to the bands, budgets and mounts.
+    `combat/craftModels.js` bakes a line into one instanced geometry per craft (slot code `mk`, per-instance `team`:
+    wing colour + hull tone) with one shared material, plus an additive plume geometry; stand-ins draw until it loads.
+    Craft are drawn larger than life (`DRAW` by class). Review: `tools/craft_viewer.html?line=` (+ `tools/craftshots.cjs
+    <dir> "&line="`), in game `tools/craftscene.cjs <out.png> <yard> <tier> <faction>`.
   - Shields you can see: `fx/materials.js` `shieldMaterial` lights each of the four facings by its own charge (`facing`
     uniform; `idle` = the standing shell, always on the captain's ship, fainter on their target), and ripples a hit in
     the colour of what it absorbed (`items.js` `SHIELD_HIT` by damage type, `Ship.onShieldHit`). The overlay
