@@ -35,7 +35,7 @@ export class PlanetExtras {
     this.comm.querySelector('.ctext').textContent = '';
     this.comm.classList.add('show');
     M.game.ui.chat('COMM', line.name, line.text, 'sys');
-    M.sfx('ui', null, 0.5);
+    if (M.game.cue) M.game.cue('comm');   // the orbit's chirp, under a breath of static
     return true;
   }
 
@@ -47,6 +47,7 @@ export class PlanetExtras {
     c.style.setProperty('--cc', color);
     c.classList.remove('show'); void c.offsetWidth; c.classList.add('show');
     this.cardT = 7;
+    if (this.mode.game.cue) this.mode.game.cue('discover');
   }
 
   // a kill landed: the first of a run gets a word from orbit
@@ -97,6 +98,7 @@ export class PlanetExtras {
     el.querySelector('button').onclick = close;
     el.addEventListener('pointerdown', (e) => { if (e.target === el) close(); });
     document.querySelectorAll('#pReport').forEach((x) => x.remove());
+    if (game.cue) game.cue('report');
     document.getElementById('ui').append(el);
     setTimeout(close, game.autoplay ? 7000 : 16000);
     return el;

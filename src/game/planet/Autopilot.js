@@ -406,8 +406,11 @@ export function orbitWork(G, sv, say) {
   if (out.drop && s && fx) {
     fx.column(s.position, 0x58e0ff, 200, 40); fx.ring(s.position, 160, 0x58e0ff, 64);
     if (G.audio) G.audio.play('missile', null, 0.7);
+    if (G.cue) G.cue('probeDrop');
   }
+  if (out.recovered && G.cue) G.cue('probeRecover');
   if (out.bounty) {
+    if (G.cue) G.cue('bounty');
     if (G.gainXp) G.gainXp(out.bounty.xp);
     G.ui.toast(`Survey bounty · ${sv.name}: +${out.bounty.credits} ¢ · +${out.bounty.xp} XP · explorer +${out.bounty.exXp} XP`, 'epic');
     if (out.exUps) G.ui.toast(`Explorer level ${ex.level}`, 'epic');

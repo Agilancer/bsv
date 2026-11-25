@@ -11,6 +11,17 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     (`engine.onGpu` hooks: lost / restored / failed). Read `engine.renderer` fresh each time; never keep it. If it cannot
     be rebuilt (5 losses a minute, or a WebGL context that is not restored in 10 s), main.js saves and reloads straight
     back into the game (sessionStorage `velscour.gpuResume`), on WebGL2 for the rest of the session after WebGPU fails.
+  - Sound (`engine/Audio.js`): guns, hits, explosions, the drive and the music are synthesised (`audio.play(kind)`);
+    the interface and the game's notices are recorded cues, `game.cue(name, {tier, key, vol, pos})` (installed by
+    `game/sfx.js`, which also hooks buttons / tabs / sliders / toggles by delegation, windows, toasts by kind, chat,
+    item tooltips, modes, and watches contacts, shields and hull). The bank is `engine/sfxBank.js` (pure data): every
+    file under `assets/audio/ui/` (the SCI-FI UI SFX pack, built by `tools/audio/build_ui_sfx.py`: trimmed,
+    loudness-matched MP3) belongs to one cue. Families carry meaning: clicks/combos = handling, Tone1 = the interface,
+    Tone2 = progress and reward, Tone3 = the world (contacts, comms, drive, planets, alarms), rings = lock / pings /
+    messages, glitches = refusals / static / hard hits / ion disruption, impacts = the big beats. A Tone family is one
+    interval in every register (A high .. D/E low), picked by `tier` (rarity, size, rank) or `key` (each window keeps
+    its pitch). A new cue goes in the bank with a call site; `tests/sfx.test.mjs` fails on an unused file or cue.
+    The mecha pack in `assets/sounds/MECHA_SOUNDS_ASSET_PACK` is not used.
 - `src/fx/` — GPU particles (`Particles.js`: analytic motion, write-once ring buffer), sky,
   celestial bodies, ship/station materials, debris, title scene, lighting rig.
   - Ship materials (`materials.js` `hullMaterials(yard, glow, livery, paint)`): one cached set per key; nothing may

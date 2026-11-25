@@ -20,7 +20,7 @@ export function install(game) {
       const now = game.engine.realTime;
       if (now > F.wordsT && Math.random() < (big ? 0.9 : 0.4)) {
         const w = lastWords(ship.trait || ship.faction);
-        if (w) { F.wordsT = now + 9; game.ui.chat('LOCAL', ship.name, w, 'enemy', 'combat'); if (game.ui.bark) game.ui.bark(ship, w); }
+        if (w) { F.wordsT = now + 9; if (game.cue) game.cue('lastWords', { pos: ship.position }); game.ui.chat('LOCAL', ship.name, w, 'enemy', 'combat'); if (game.ui.bark) game.ui.bark(ship, w); }
       }
     });
   };

@@ -84,6 +84,7 @@ export function installNav(game) {
     if (inCombat()) { refuse('Hostiles nearby: the jump drive will not spool'); return false; }
     if (game.docked) game.undock();
     P.credits -= cost;
+    if (game.cue) game.cue('plot');
     warp = { kind: 'jump', phase: 'align', t: 0, total: 0, target: id, hops: path.length - 1, heading: jumpHeading(id), cost };
     game.ui.toggle('galaxy', false);
     game.ui.toast(`Jump plotted · ${galaxy().systems[id].name} · coming about`, 'epic');
@@ -96,6 +97,7 @@ export function installNav(game) {
     if (d.length() < 600) { if (game.docked) game.undock(); game.moveTarget = pos.clone(); return true; }
     if (inCombat()) { refuse('Hostiles nearby: the warp drive will not spool'); return false; }
     if (game.docked) game.undock();
+    if (game.cue) game.cue('plot');
     warp = { kind: 'local', phase: 'align', t: 0, total: 0, to: pos.clone().setY(0), from: s.position.clone(), heading: Math.atan2(pos.x - s.position.x, pos.z - s.position.z) };
     game.ui.toggle('system', false);
     return true;
@@ -125,6 +127,7 @@ export function installNav(game) {
     if (!warp || warp.phase === 'go') return;
     if (warp.kind === 'jump' && warp.cost) game.data.credits += warp.cost;
     warp = null; resetView();
+    if (game.cue) game.cue('warpAbort');
     if (game.player) { game.world.fx.ring(game.player.position, game.player.dims.L * 0.8, 0x7ad8ff, 30); game.player.throttle = 0.4; }
     game.ui.toast(why, 'bad');
   };
@@ -169,6 +172,7 @@ export function installNav(game) {
         if ((Math.abs(off) < ALIGN_TOL && warp.t > 0.8) || warp.t > ALIGN_MAX) {
           warp.phase = 'spool'; warp.t = 0;
           if (game.audio) game.audio.play('spool', null, warp.kind === 'jump' ? 1 : 0.7);
+          if (game.cue) game.cue('warpAlign');
           if (warp.kind === 'jump') game.ui.toast('Jump drive spooling', 'epic');
         }
       } else if (warp.phase === 'spool') {
@@ -202,6 +206,7 @@ export function installNav(game) {
           game.engine.flash(0.35, 0xbfe8ff); game.cam.addShake(5);
           fx.ring(s.position, s.dims.L * 2.2, 0xbfe8ff, 80);
           if (game.audio) game.audio.play('warp', null, warp.kind === 'jump' ? 1 : 0.8);
+          if (game.cue) game.cue('tear');
         }
       } else if (warp.phase === 'go') {
         // streaks race past
@@ -242,6 +247,7 @@ export function installNav(game) {
   });
   function arrive() {
     const s = game.player;
+    if (game.cue) game.cue(warp && warp.kind === 'jump' ? 'jumpArrive' : 'warpArrive');
     resetView();
     if (game.player) game.player.body.scale.set(1, 1, 1);
     game.engine.flash(0.3, 0x9fd8ff);
@@ -298,7 +304,7 @@ export function installNav(game) {
       body.innerHTML = `<div class="gwrap"><canvas class="gmap"></canvas><div class="ginfo holo" id="gInfo"></div><div class="glegend holo"><div class="label">Held by</div>${LEG.map(([, n, col]) => `<span><i style="border-color:${col}"></i>${n}</span>`).join('')}</div></div>`;
       gCanvas = body.querySelector('canvas');
       gCanvas.addEventListener('mousemove', (e) => { hover = pick(e); drawGalaxy(); });
-      gCanvas.addEventListener('click', (e) => { if (gView.moved) return; const p = pick(e); if (p) { selected = p.id; drawGalaxy(); info(); } });
+      gCanvas.addEventListener('click', (e) => { if (gView.moved) return; const p = pick(e); if (p) { if (selected !== p.id && game.cue) game.cue('select'); selected = p.id; drawGalaxy(); info(); } });
       gCanvas.addEventListener('dblclick', (e) => { const p = pick(e); if (p) game.jumpTo(p.id); });
       panZoom(gCanvas, gView, 6);
     }
@@ -470,7 +476,7 @@ export function installNav(game) {
         const gate = gates(L).find((q) => Math.hypot(q.x - mx, q.y - my) < 30);
         if (gate) {
           if (gateSel === gate.id) { gateSel = null; if (game.jumpTo(gate.id)) game.ui.toggle('system', false); }
-          else { gateSel = gate.id; if (gate.locked) game.ui.toast(`${gate.sys.name} requires commander rank ${gate.sys.danger - 6}`, 'warn'); }
+          else { gateSel = gate.id; if (game.cue) game.cue(gate.locked ? 'locked' : 'select'); if (gate.locked) game.ui.toast(`${gate.sys.name} requires commander rank ${gate.sys.danger - 6}`, 'warn'); }
           return;
         }
         gateSel = null;
