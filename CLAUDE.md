@@ -102,6 +102,8 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - `tools/viewer.html?yard=velscour` lays hulls out for visual review (`&enemy=<size>&faction=`,
   comma lists, `also=`). Faction liveries: `data/liveries.js`; hull numbers (node-safe):
   `ship/hullPlan.js` (`sideProfile` feeds the crew cutaway).
+- `tools/vehicle_viewer.html?webgl&frames=rover&marks=1,5,10` does the same for the planet explorer vehicles
+  (built and posed by the real `Vehicle` class; `&cols=5`, `&grid=frames`, `&title=`; `window.__bounds` crops shots).
 
 ## Balance
 - `data/balance.js` is the contract: `expectedPlayer(L)` builds the expected captain from the real
