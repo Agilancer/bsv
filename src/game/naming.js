@@ -62,8 +62,8 @@ export function installNaming(game) {
     if (!box) return;
     box.className = 'names';
     box.innerHTML = '<div class="nrow"><button class="btn violet" data-n="captain">Rename captain</button><button class="btn violet" data-n="ship">Rename ship</button></div>';
-    box.querySelector('[data-n="captain"]').onclick = () => prompt('Captain\'s name', 'As it appears on the will, the warrants and the invoices.', game.data.name || '', CAPTAIN_MAX, randomCaptain, (v) => game.renameCaptain(captainName(v)));
-    box.querySelector('[data-n="ship"]').onclick = () => prompt('Rename the flagship', 'Bad luck, traditionally. The registry clerk charges nothing and judges freely.', game.data.ship.name || '', SHIP_FULL_MAX, () => `${prefix()} ${randomShip()}`, (v) => game.renameShip(v));
+    box.querySelector('[data-n="captain"]').onclick = () => prompt('Captain\'s name', 'As entered in the fleet registry.', game.data.name || '', CAPTAIN_MAX, randomCaptain, (v) => game.renameCaptain(captainName(v)));
+    box.querySelector('[data-n="ship"]').onclick = () => prompt('Rename the flagship', 'Renaming a ship is held to be bad luck. The registry will record the change.', game.data.ship.name || '', SHIP_FULL_MAX, () => `${prefix()} ${randomShip()}`, (v) => game.renameShip(v));
   };
 
   // a hull straight from the yard carries the yard's name for it: ask for a better one

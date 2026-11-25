@@ -393,7 +393,7 @@ export const STEPS = [
     journal: 'Why the Custodian looks as it does: the first human-made thing anything out here ever met was a survey automaton carried in the first probe. Something copied it, serial and all.',
     next: 'a3_appetite' },
   { id: 'a3_appetite', act: 3, lvl: 16, title: 'Old Appetite', giver: 'ops', ev: 'kill', n: 1, effort: 8, item: 'epic',
-    setpiece: { type: 'boss', design: 'Void Whale', name: 'Old Appetite', escorts: ['Ray Pup', 'Ray Pup', 'Ray Pup'] },
+    setpiece: { type: 'boss', design: 'Void Whale', name: 'Old Appetite', escorts: ['Ray Spawn', 'Ray Spawn', 'Ray Spawn'] },
     obj: 'Hunt the Brood whale called Old Appetite',
     brief: [
       ['ops', 'Captain, the long-range has a Brood whale on it, and the whale has a hum in it. Something it ate is still transmitting. The fishing fleets call it Old Appetite. It has swallowed two trawlers and, I quote, "a big black slab off the Thalscour flats".'],
