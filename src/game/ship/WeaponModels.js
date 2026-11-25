@@ -21,6 +21,7 @@ const torus = (r, t) => geo(`t${q(r)},${q(t)}`, () => new THREE.TorusGeometry(q(
 function mesh(g, m, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
   const o = new THREE.Mesh(g, m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); return o;
 }
+const BROADSIDE_BARREL = 0.7;
 const ALONG_X = [0, 0, -Math.PI / 2];   // cylinders lie along +X
 const ALONG_Z = [Math.PI / 2, 0, 0];
 
@@ -126,6 +127,8 @@ export function buildWeapon(item, hp, s) {
     }
     add(mesh(box(s * 0.08, s * 0.06, s * 0.9), trim, s * 0.05, s * 0.32, 0), head);
     if (unique) for (let i = 0; i < 2; i++) add(mesh(torus(s * 0.32, s * 0.035), uniqueMat, s * (0.35 + i * 0.3), 0, 0, 0, Math.PI / 2, 0), head);
+    // broadside barrels run shorter than modelled: at full length they dwarfed the hull (the muzzle follows the scale)
+    for (const b of barrels) b.g.scale.x = BROADSIDE_BARREL;
     return { object: root, head, pitch, barrels, axis: 'x', yawLimit: 0.95, pitchLimit: 0.45, traverse: 1.4 };
   }
 

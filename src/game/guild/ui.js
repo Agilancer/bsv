@@ -274,7 +274,7 @@ export function installGuildUI(game, G) {
       const unit = M.key === 'convoy' ? (M.convoy.role === 'escort' ? ['SAFE', 'LOST'] : ['SUNK', 'ESCAPED']) : ['YOU', 'THEM'];
       let mid = `<span class="me">${unit[0]} ${me}</span><em>${M.key === 'duel' ? 'vs' : `to ${M.key === 'convoy' ? 2 : M.mode.goal}`}</em><span class="them">${them} ${unit[1]}</span>`;
       if (M.points) mid += `<span class="ph-caps">${M.points.map((p) => capBar(p, '0', (o) => (o == null ? '#6a7a9a' : +o === 0 ? '#58c8ff' : '#ff5a8a'))).join('')}</span>`;
-      pin = { tag: M.mode.name.toUpperCase(), time: M.phase === 'countdown' ? `IN ${Math.ceil(M.cd)}` : M.phase === 'over' ? 'OVER' : mmss(M.left), mid,
+      pin = { tag: M.mode.name.toUpperCase(), time: M.phase === 'intro' ? 'READY' : M.phase === 'countdown' ? `IN ${Math.ceil(M.cd)}` : M.phase === 'over' ? 'OVER' : mmss(M.left), mid,
         act: watching || M.phase === 'over' ? '' : `<button class="mini" data-act="board">${showBoard ? 'hide' : 'scores'}</button>` };
       if (M.phase === 'live' && !P.alive && M.mode.respawn) sub = 'Hull lost · respawning';
       else if (M.key === 'duel' && M.opp) sub = `Duel against ${tag(M.opp.guild)}<b>${esc(M.opp.name)}</b> · rated ${M.opp.rating}`;
@@ -306,8 +306,9 @@ export function installGuildUI(game, G) {
     if (board._h !== b) { board._h = b; board.innerHTML = b; board.style.display = b ? '' : 'none'; }
     let r = '';
     if (M && M.phase === 'over' && M.rewards && !watching) {
-      const rw = M.rewards, word = M.result >= 1 ? 'VICTORY' : M.result <= 0 ? 'DEFEAT' : 'DRAW';
-      r = `<div class="res-t ${M.result >= 1 ? 'win' : M.result <= 0 ? 'loss' : ''}">${word}</div><div class="res-s">${M.mode.name} · ${esc(M.arena.name)} · ${M.score[0]}–${M.score[1]}</div>
+      const rw = M.rewards;
+      // the word itself is the stamp over the screen (pvpfx.js); the card holds the reckoning
+      r = `<div class="res-s">${M.mode.name} · ${esc(M.arena.name)} · ${M.score[0]}–${M.score[1]}</div>
         <div class="res-r"><div><b>${M.delta >= 0 ? '+' : ''}${M.delta}</b><span>rating (${M.newRating})</span></div><div><b>+${rw.honour}</b><span>honour</span></div><div><b>+${rw.glass} ${sym}</b><span>${D.RESOURCE.name}</span></div><div><b>+${rw.credits}</b><span>credits</span></div></div>
         <div class="res-b">${boardHtml(M, A.board())}</div><button class="btn" data-act="dismiss">Return to ${esc(game.sector.sys.name)}</button>`;
     }

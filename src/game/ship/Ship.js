@@ -6,7 +6,8 @@
 import * as THREE from 'three/webgpu';
 import { hullFor } from './HullBuilder.js';
 import { buildWeapon } from './WeaponModels.js';
-import { shieldMaterial, rimVariant } from '../../fx/materials.js';
+import { shieldMaterial, rimVariant, hullMaterials } from '../../fx/materials.js';
+import { normPaint, paintPalette } from '../data/paint.js';
 import { BASES, weaponStats, itemShipStats, DISRUPT, SHIELD_HIT } from '../data/items.js';
 import { YARDS } from '../data/chassis.js';
 import { clamp, wrapAngle, damp } from '../../engine/rng.js';
@@ -31,7 +32,7 @@ export class Ship {
     this.world = world;
     this.id = SHIP_ID++;
     this.chassis = opts.chassis;
-    this.yard = this.chassis.glow != null ? { ...YARDS[this.chassis.yard], glow: this.chassis.glow, engine: this.chassis.glow } : YARDS[this.chassis.yard];
+    this.baseYard = this.yard = this.chassis.glow != null ? { ...YARDS[this.chassis.yard], glow: this.chassis.glow, engine: this.chassis.glow } : YARDS[this.chassis.yard];
     this.team = opts.team ?? 1;
     this.name = opts.name || this.chassis.fullName;
     this.faction = opts.faction || 'pirate';
@@ -50,7 +51,14 @@ export class Ship {
     this.root.add(this.body);
     this.body.add(h.group);
     this.hullGroup = h.group;
-    if (this.isPlayer) h.group.traverse((o) => { if (o.isMesh && o.material) o.material = Array.isArray(o.material) ? o.material.map((m) => rimVariant(m)) : rimVariant(o.material); });
+    if (this.isPlayer) {
+      // which of the yard's materials each mesh wears, so the captain's paint can be swapped on (setPaint)
+      const base = hullMaterials(this.chassis.yard, this.chassis.glow ?? null, this.chassis.livery ?? null), slot = new Map();
+      for (const k in base) if (!slot.has(base[k])) slot.set(base[k], k);
+      const tag = (m) => slot.get(m) ?? null;
+      h.group.traverse((o) => { if (o.isMesh && o.material) { o.userData.paintBase = o.material; o.userData.paintSlot = Array.isArray(o.material) ? o.material.map(tag) : tag(o.material); } });
+      this.setPaint(opts.paint);
+    }
     world.engine.scene.add(this.root);
 
     // shield bubble
@@ -83,6 +91,24 @@ export class Ship {
     this.buffs = {};
     this.craft = [];
     this.refit();
+  }
+
+  // The captain's colours (data/paint.js), on this hull only: its meshes take the painted material set
+  // (cached per scheme in fx/materials.js; the hull clone shares geometry, never these references, with
+  // other ships of the chassis), and the engine trails and effects that read `yard` follow.
+  setPaint(paint) {
+    if (!this.isPlayer) return;
+    const c = this.chassis;
+    this.paint = normPaint(paint);
+    const mats = hullMaterials(c.yard, c.glow ?? null, c.livery ?? null, this.paint);
+    const pick = (slot, base) => rimVariant(slot ? mats[slot] : base);
+    this.hullGroup.traverse((o) => {
+      if (!o.isMesh || !o.userData.paintBase) return;
+      const s = o.userData.paintSlot, b = o.userData.paintBase;
+      o.material = Array.isArray(b) ? b.map((m, i) => pick(s[i], m)) : pick(s, b);
+    });
+    this.yard = paintPalette(this.baseYard, this.paint);
+    this.shieldColor = this.yard.glow;
   }
 
   // (re)compute stats and rebuild weapon meshes from the loadout

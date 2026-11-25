@@ -11,6 +11,7 @@ import { RNG } from '../../engine/rng.js';
 import { hullMaterials, hotMaterial } from '../../fx/materials.js';
 import { hullPlan, sectionAt, deckHeights, spreadFree, sideProfile, MAST_K } from './hullPlan.js';
 import { addDetail } from './hullDetail.js';
+import { kitPlanFor, assembleHull, onKitLoaded } from './kitAssembler.js';
 
 export { hullPlan, sideProfile };
 
@@ -504,11 +505,20 @@ function buildSphere(chassis, y, rng) {
 }
 
 const shipCache = new Map();
+// Hulls are being rebuilt as Blender part kits (docs/ships/kit-spec.md). A chassis is assembled from its
+// language's kit once that kit is loaded and can build its class; everything else is built procedurally
+// below. setHullKits(false) forces the procedural builder everywhere (viewer: &nokit).
+let useKits = true;
+export function setHullKits(on) { useKits = !!on; shipCache.clear(); }
+function clearHullCache(yard) { for (const [id, h] of shipCache) if (h.yard === yard) shipCache.delete(id); }
+onKitLoaded(clearHullCache);
 
-export function buildHull(chassis) {
+export function buildHull(chassis, { kit: allowKit = useKits } = {}) {
   const y = YARDS[chassis.yard];
   const rng = new RNG(chassis.seed);
   if (chassis.shape === 'sphere') return buildSphere(chassis, y, rng);
+  const kitPlan = allowKit ? kitPlanFor(chassis) : null;
+  if (kitPlan) return assembleHull(chassis, kitPlan.kit, kitPlan);
   const plan = hullPlan(chassis);
   const { L, W, Ht, Hb, Z, tier, A, kit, bowU, taperStart, carrier, castle } = plan;
   const lv = chassis.livery ? LIVERIES[chassis.livery] : null;
@@ -938,7 +948,7 @@ export function buildHull(chassis) {
 // The geometry for a chassis is built once and cloned (shared geometry) per ship.
 export function hullFor(chassis) {
   let h = shipCache.get(chassis.id);
-  if (!h) { h = buildHull(chassis); shipCache.set(chassis.id, h); }
+  if (!h) { h = buildHull(chassis); h.yard = chassis.yard; shipCache.set(chassis.id, h); }
   const group = h.group.clone(true);
   return { group, hardpoints: h.hardpoints.map((p) => ({ ...p, pos: p.pos.clone(), dir: p.dir.clone() })), engines: h.engines, dims: h.dims };
 }

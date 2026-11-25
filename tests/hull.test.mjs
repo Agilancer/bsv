@@ -29,25 +29,36 @@ test('turrets and masts step round whatever stands on the centreline', () => {
   }
 });
 
-test('side profiles are closed outlines that hold the castle and the ram', () => {
+test('side profiles are closed outlines that hold the command structure and the prow', () => {
   for (const ch of CHASSIS) {
     const p = hullPlan(ch), s = sideProfile(ch);
     assert.ok(s.outline.length > 20 && s.top.length === s.bottom.length);
     s.top.forEach(([z, t], i) => assert.ok(t >= s.bottom[i][1] - 1e-6, `${ch.id} top under bottom at ${z}`));
-    // the castle stands proud of the deck, and the bridge sits on the crown
     const crown = s.castle.bridge || s.castle.towers.at(-1);
-    assert.ok(crown.y1 > p.Ht * 1.3, `${ch.id} castle height`);
+    // a procedural hull's castle stands proud of the deck; a kit hull's command structure may be a keep sunk
+    // into the crown (design-brief rule 12), so it only has to rise above the hull's top line
+    assert.ok(crown.y1 > p.Ht * (s.kit ? 1 : 1.3), `${ch.id} command structure height`);
     assert.ok(profileAt(s.top, (crown.z0 + crown.z1) / 2) >= crown.y1 - 1e-6, `${ch.id} crown inside the outline`);
-    for (const t of s.castle.towers) assert.ok(t.z1 > t.z0);
+    for (const t of s.castle.towers) assert.ok(t.z1 > t.z0 && t.y1 > t.y0);
+    assert.equal(s.castle.towers.length, p.castle.tiers, `${ch.id} one storey per deck-plan tier`);
     // the hull reaches the bow; an armoured prow ends in a blunt nose face on the centreline
     assert.ok(s.zMax >= p.L * 0.42, `${ch.id} bow`);
     if (p.yard.prow === 'ram') { assert.equal(p.stem.yo, 0, `${ch.id} nose on the centreline`); assert.ok(p.stem.w > p.W * 0.25, `${ch.id} blunt nose`); }
+    if (s.kit) {
+      // a kit hull stays inside its own length (no bowsprit, blades or masts past it) and has real depth below
+      assert.ok(s.zMin >= -p.L * 0.505 && s.zMax <= p.L * 0.505 && s.lines.length === 0, `${ch.id} inside its length`);
+      assert.ok(Math.min(...s.hullBottom.map((q) => q[1])) <= -p.Hb * 0.99, `${ch.id} depth below the centreline`);
+      assert.equal(s.hullTop.length, s.hullBottom.length);
+    }
   }
-  // a split prow opens a notch in the outline ahead of the stem
+  // a split prow opens a notch in the outline between its upper and lower blades (the battleship's gesture)
   const s9 = sideProfile(CHASSIS_BY_ID.velscour_9), p9 = hullPlan(CHASSIS_BY_ID.velscour_9);
-  const ahead = s9.outline.filter(([z]) => z > p9.stem.z + 1);
-  const ys = ahead.map(([, y]) => y);
-  assert.ok(Math.max(...ys) - Math.min(...ys) > p9.Ht * 0.6, 'blades spread apart');
+  const onEnvelope = new Set([...s9.top, ...s9.bottom].map(([z, y]) => `${z}:${y}`));
+  const inner = s9.outline.filter(([z, y]) => !onEnvelope.has(`${z}:${y}`));
+  assert.ok(inner.length >= 6, 'the outline runs into the notch');
+  const zs = inner.map(([z]) => z), ys = inner.map(([, y]) => y);
+  assert.ok(Math.min(...zs) > p9.L * 0.3 && Math.max(...zs) - Math.min(...zs) > p9.L * 0.04, 'the notch is in the prow and has length');
+  assert.ok(Math.max(...ys) - Math.min(...ys) > p9.Ht * 0.3, 'blades spread apart');
 });
 
 test('the main hull runs at full depth from the stern quarter to the bow taper', () => {

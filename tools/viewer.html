@@ -12,7 +12,10 @@ import { preload } from './src/engine/Assets.js';
 import { initMaterials } from './src/fx/materials.js';
 import { SpaceBackdrop } from './src/fx/Space.js';
 import { CHASSIS } from './src/game/data/chassis.js';
-import { hullFor } from './src/game/ship/HullBuilder.js';
+import { hullFor, buildHull, setHullKits } from './src/game/ship/HullBuilder.js';
+import { loadKit } from './src/game/ship/kitAssembler.js';
+import { buildWeapon } from './src/game/ship/WeaponModels.js';
+import { BASES } from './src/game/data/items.js';
 import { SpaceLights } from './src/fx/lighting.js';
 import { ENEMIES } from './src/game/data/enemies.js';
 import { enemyChassis } from './src/game/enemyFactory.js';
@@ -26,6 +29,28 @@ const q = new URLSearchParams(location.search);
 // ?enemy=<size> (all factions in rows) or ?enemy=<size>&faction=<f>[,<f>]&role=<r>[,<r>]
 // ?also=<yard>[,<yard>]  adds player-yard rows (same tier filter) under the enemy rows, for side-by-side checks
 // ?cols=N wraps each row after N hulls;  ?heading=rad turns every hull (default: bow toward +x)
+// Part-kit hulls (docs/ships/kit-spec.md):  ?nokit forces the procedural builder;  ?vs puts the procedural hull
+// beside each kit hull;  ?hp draws a box at every hardpoint and engine;  ?guns mounts a weapon model on each mount
+if (q.has('nokit')) setHullKits(false); else await loadKit('velscour');
+const GUN = { broadside: 'macrocannon', turret: Object.keys(BASES).find((k) => BASES[k].slot === 'turret'), prow: Object.keys(BASES).find((k) => BASES[k].slot === 'prow') };
+if (!BASES[GUN.broadside] || BASES[GUN.broadside].slot !== 'broadside') GUN.broadside = Object.keys(BASES).find((k) => BASES[k].slot === 'broadside');
+const HPC = { broadside: 0xff4040, turret: 0x40ff60, prow: 0x40a0ff, hangar: 0xffe040 };
+function dress(h) {
+  if (q.has('hp')) {
+    const box = (pos, r, hex) => { const m = new THREE.Mesh(new THREE.BoxGeometry(r, r, r), new THREE.MeshBasicMaterial({ color: hex })); m.position.copy(pos); h.group.add(m); };
+    for (const p of h.hardpoints) box(p.pos, h.dims.W * 0.16, HPC[p.type]);
+    for (const en of h.engines) box(en.pos, en.r * 0.5, 0xffffff);
+  }
+  if (q.has('guns')) for (const p of h.hardpoints) {
+    if (p.type === 'hangar' || !GUN[p.type]) continue;
+    const m = buildWeapon({ base: GUN[p.type], rarity: 'common' }, p, h.dims.W * 0.72 * (p.type === 'prow' ? 1.2 : 1));
+    m.object.position.copy(p.pos);
+    if (p.type === 'broadside' && p.dir.x < 0) m.object.rotation.y = Math.PI;
+    if (p.side === 'ventral') m.object.rotation.z = Math.PI;
+    h.group.add(m.object);
+  }
+  return h;
+}
 const list1 = (k) => (q.get(k) ? q.get(k).split(',') : null);
 const yards = list1('yard'), only = q.get('id'), tmax = +(q.get('tmax') || 10), tmin = +(q.get('tmin') || 1);
 const esize = q.get('enemy'), efacs = list1('faction'), eroles = list1('role'), also = list1('also');
@@ -45,11 +70,13 @@ rows.forEach((yk) => {
     const gap = Math.max(...chunk.map(c => c.len)) * 0.45 + 40;
     let xx = 0;
     chunk.forEach((c) => {
-      const h = hullFor(c);
-      h.group.rotation.y = heading;
-      h.group.position.set(xx + c.len / 2, 0, zz);
-      xx += c.len * 1.15 + 20;
-      e.scene.add(h.group);
+      for (const h of q.has('vs') ? [hullFor(c), buildHull(c, { kit: false })] : [hullFor(c)]) {
+        dress(h);
+        h.group.rotation.y = heading;
+        h.group.position.set(xx + c.len / 2, 0, zz);
+        xx += c.len * 1.15 + 20;
+        e.scene.add(h.group);
+      }
     });
     maxX = Math.max(maxX, xx);
     zz += gap;
@@ -64,6 +91,21 @@ cam.position.set(cx + d * Math.cos(pitch) * Math.sin(yaw), d * Math.sin(pitch), 
 sky.follow = new THREE.Vector3(cx, 0, cz);
 const info = document.getElementById('info');
 e.add({ update() { info.textContent = `${e.backend} ${e.fps.toFixed(0)} fps  ${list.length} hulls`; } });
+// For scripted review renders (tools/kitshots.cjs): move the camera, show one hull, switch to black silhouettes.
+const placed = [];
+e.scene.traverse((o) => { if (o.userData && o.userData.len && o.parent === e.scene) placed.push(o); });
+const BLACK = new THREE.MeshBasicMaterial({ color: 0x000000 });
+window.__viewer = {
+  hulls: () => placed.map((g, i) => ({ i, x: g.position.x, z: g.position.z, len: g.userData.len, W: g.userData.W, top: g.userData.top })),
+  cam(cx, cy, cz, d, yaw, pitch) { cam.position.set(cx + d * Math.cos(pitch) * Math.sin(yaw), cy + d * Math.sin(pitch), cz + d * Math.cos(pitch) * Math.cos(yaw)); cam.lookAt(cx, cy, cz); sky.follow.set(cx, 0, cz); },
+  only(i) { placed.forEach((g, k) => { g.visible = i == null || k === i; }); },
+  row(z) { placed.forEach((g) => { g.visible = g.position.z === z; }); },
+  black(on) {
+    for (const g of placed) g.traverse((o) => { if (!o.isMesh) return; if (on) { o.userData.lit ??= o.material; o.material = BLACK; } else if (o.userData.lit) o.material = o.userData.lit; });
+    e.scene.traverse((o) => { if (o.parent === e.scene && !placed.includes(o) && !o.isLight) o.visible = !on; });
+    e.scene.background = on ? new THREE.Color(0x5a6068) : null;
+  },
+};
 e.start();
 window.__ready = true;
 </script></body></html>
