@@ -12,6 +12,10 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   (a star system + encounter director), `Player` (save data), `Autoplay`, `Loot`.
   - `data/` — chassis (60 ships + 60 explorers), items (bases/rarities/affixes/uniques),
     abilities, talents, elite modifiers, names. Pure data/logic: importable in node.
+    `data/weapons.js` adds 50 weapon bases (beams, torpedoes, missiles, guns) descended from the 16 core guns
+    (`of`): items.js derives their damage so each is worth its parent per slot on the gear score (type mix, area,
+    disruption, built-in powers `innate`, reach traded), and a family drops as often as its core gun alone did.
+    Enemies and `starterMix` (the balance contract) still use only core guns. New silhouettes: `model` in WeaponModels.
   - `ship/` — `HullBuilder` (lofted procedural hulls + hardpoints), `WeaponModels`, `Ship`.
   - `combat/` — projectiles/beams (instanced), damage model, hangar craft. `ai/ShipAI.js`.
   - Feature modules install through `src/game/modules.js`: `station/`, `nav/`, `mmo/`,
@@ -121,6 +125,9 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - Targets (`Autoplay.mark` / `pickTarget`): ships firing at the captain come first; a ship opening the range is a
   runner: ranked last, and let go for 25 s once it has been out of reach for a few seconds (never bosses, story or PvP
   ships; a fight-only captain with nothing else to shoot sees a lone runner through, which is what the duel tools use).
+- The drive (nav/index.js) never spools with a hostile within 1800 (`WARP_CLEAR`), and breaks off (jump fuel refunded)
+  if one closes in or the captain takes the helm. Phases: align (the helm comes round at the ship's own turn rate, up
+  to 9 s) -> spool (4 s of building effects) -> go (fast eased transit). The Game helm stands down while warping.
 - The drive is used sparingly: autopilot routes call `game.autoWarp(pos)` (7500+ units and 100 s apart; false = sail).
   Shorter legs are sailed at cruise (`ship.cruiseUntil`, 1.9x, only with nothing hostile near), and the director sends
   a patrol to meet the ship after a quiet stretch under way (`PASSAGE_QUIET`). Far station errands wait for the drive

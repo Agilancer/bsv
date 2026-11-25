@@ -391,6 +391,7 @@ export class Game {
   helm(dt) {
     const s = this.player, inp = this.input, m = inp.mouse;
     if (!s || !s.alive) return;
+    if (this.isWarping && this.isWarping()) return;   // the drive has the helm (nav: align, spool, go); input there cancels it
     if (this.autoplay && this.autoplay.active) {
       // manual input takes the wheel for a moment
       if (inp.held('turnLeft') || inp.held('turnRight') || inp.hit('throttleUp') || inp.hit('throttleDown') || m.clicked[2] || (this.stick && this.stick.active)) this.autoplay.yield(4);

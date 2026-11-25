@@ -198,7 +198,7 @@ export function questGoal(ap) {
 
       if (phase === 'jump') {
         if (P.system === job.sys) { if (job.st == null) return finish(); phase = 'dock'; t = 0; return false; }
-        if (!fired && !g.isWarping()) {
+        if (!g.isWarping()) {   // again if a spool was broken off
           fired = g.jumpTo(job.sys);
           if (!fired && ++tries > 20) { giveUp(job); return finish(); }   // ~5 s of refusals (combat, fuel, no route)
         }

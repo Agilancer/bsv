@@ -107,6 +107,19 @@ export class Audio {
   shield(t, g) { this.osc('sine', 600 + Math.random() * 200, 1400, t, 0.25, 0.08 * g); this.burst(t, 0.2, 0.08 * g, 6000, 4, 'bandpass', 2500); return 0.08; }
   ui(t, g) { this.osc('sine', 880, 1320, t, 0.12, 0.1 * g); return 0.1; }
   jump(t, g) { this.osc('sawtooth', 60, 2400, t, 2.2, 0.15 * g); this.burst(t, 2.4, 0.3 * g, 200, 2, 'bandpass', 6000).connect(this.verb); return 2; }
+  // the drive: a rising whine over the ~4 s spool, then the punch as it goes
+  spool(t, g) {
+    // swells rather than decays: each voice ramps up across the spool and cuts at the end
+    const c = this.ctx, D = 4.1;
+    for (const [type, f0, f1, v] of [['sawtooth', 40, 420, 0.05], ['sine', 80, 1040, 0.09], ['triangle', 160, 2080, 0.035]]) {
+      const o = c.createOscillator(), gn = c.createGain();
+      o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + D);
+      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(v * g, t + D * 0.95); gn.gain.exponentialRampToValueAtTime(0.0001, t + D + 0.15);
+      o.connect(gn).connect(this.sfx); gn.connect(this.verb); o.start(t); o.stop(t + D + 0.2);
+    }
+    return D;
+  }
+  warp(t, g) { this.osc('sine', 1400, 50, t, 0.9, 0.3 * g); this.burst(t, 1.4, 0.35 * g, 200, 2, 'bandpass', 6000).connect(this.verb); return 1; }
   levelup(t, g) { [523, 659, 784, 1046].forEach((f, i) => this.osc('triangle', f, f * 1.001, t + i * 0.09, 0.9, 0.12 * g).connect(this.verb)); return 1; }
   honk(t, g) { for (const f of [233, 294]) { this.osc('sawtooth', f, f * 0.98, t, 0.42, 0.16 * g); this.osc('square', f * 2, f * 1.96, t, 0.4, 0.04 * g); } return 0.4; }
   squeak(t, g) { const f = 900 + Math.random() * 500; this.osc('sine', f, f * 2.1, t, 0.09, 0.16 * g); this.osc('triangle', f * 1.8, f * 0.9, t + 0.08, 0.14, 0.12 * g); return 0.15; }

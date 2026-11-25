@@ -408,7 +408,7 @@ export class Ship {
           W.fx.muzzle(mp, _v.copy(target.position).sub(mp).normalize(), ws.color, this.dims.W * 0.12 * (ws.kind === 'beam' ? 1.5 : 1));
           if (ws.kind === 'beam') {
             if (!target.alive) return;
-            const width = Math.max(1.5, this.dims.W * 0.12) * (ws.dmg > 150 ? 3 : 1);
+            const width = Math.max(1.5, this.dims.W * 0.12) * (ws.dmg > 150 ? 3 : 1) * (ws.beamW || 1);
             W.combat.beam(this, { ...ws, dmg: ws.dmg * mul }, mp, target, ws.color, width);
             W.audio && W.audio.play('beam', mp);
             return;
@@ -436,12 +436,12 @@ export class Ship {
     const homing = ws.homing;
     const kind = ws.kind;
     const big = kind === 'torpedo' ? 2.4 : ws.dmg > 150 ? 3 : kind === 'missile' ? 1.1 : 0.7 + Math.min(1.2, ws.dmg / 60);
-    const size = Math.max(0.6, this.dims.W * 0.06) * big;
+    const size = Math.max(0.6, this.dims.W * 0.06) * big * (ws.pSize || 1);
     W.projectiles.spawn({
       pos: mp, vel: dir.multiplyScalar(spd * (0.95 + Math.random() * 0.1)), kind, team: this.team, owner: this,
       target: homing ? target : null, homing, dmg: ws.dmg * mul, dmgType: ws.dmgType, ws,
       life: (ws.range * 1.15) / spd, splash: ws.splash, color: ws.color, size, len: kind === 'bolt' ? 14 * big : kind === 'shell' ? 7 * big : 4 * big,
-      trail: kind === 'missile' || kind === 'torpedo' ? 1 : 0, turn: kind === 'torpedo' ? 1.2 : 3.5, pierce: ws.pierce, pd: ws.pd,
+      trail: kind === 'missile' || kind === 'torpedo' || ws.trail ? 1 : 0, turn: ws.turn || (kind === 'torpedo' ? 1.2 : 3.5), pierce: ws.pierce, pd: ws.pd,
     });
   }
 

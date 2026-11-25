@@ -2,6 +2,7 @@
 // An item is plain data (serialisable): { uid, base, slot, rarity, ilvl, affixes:[{k,v}], unique, xp, lvl, name }
 import { RNG } from '../../engine/rng.js';
 import { NAMED } from './uniques.js';
+import { WEAPON_VARIANTS } from './weapons.js';
 
 export const RARITIES = [
   { k: 'common', name: 'Common', color: '#c4cad6', affixes: [0, 0], weight: 520, mult: 1.0 },
@@ -109,7 +110,7 @@ export const UNIQUES = {
   splitShot: { name: 'Hydra', desc: 'Shells and bolts split into three on firing.', scope: 'weapon', only: ['shell', 'bolt'], value: 0.9 },
   chainLance: { name: 'Stormcaller', desc: 'Beams arc to two more enemies for 50% damage.', scope: 'weapon', only: ['beam'], value: 0.45 },
   clusterTorp: { name: 'Brood Mother', desc: 'Torpedoes and missiles burst into six homing bomblets.', scope: 'weapon', only: ['torpedo', 'missile'], value: 0.8 },
-  inferno: { name: 'Pyre', desc: 'Hits set hulls ablaze for 60% damage over 4s.', scope: 'weapon', only: ['shell', 'bolt', 'beam', 'flak'], value: 0.45 },
+  inferno: { name: 'Pyre', desc: 'Hits set hulls ablaze for 60% damage over 4s.', scope: 'weapon', only: ['shell', 'bolt', 'beam', 'flak', 'missile', 'torpedo'], value: 0.45 },
   doubleTap: { name: 'Echo', desc: 'Every volley fires a second time 0.25s later.', scope: 'weapon', only: ['shell', 'bolt', 'missile', 'torpedo', 'beam'], value: 1 },
   shieldbreak: { name: 'Sundering', desc: 'Ignores 40% of enemy shields.', scope: 'weapon', value: 0.15 },
   overload: { name: 'Overload', desc: 'Critical hits explode for 80% splash damage.', scope: 'weapon', value: 0.12 },
@@ -136,6 +137,37 @@ export const UNIQUES = {
   decoy: { name: 'Phantom Flight', desc: 'Each wing flies a decoy: while it lives, a quarter of the hits aimed at your ship strike it instead.', slot: 'hangar', value: 0.15 },
   weavers: { name: 'Shieldweavers', desc: 'Drones mend shields as well as hull: every pulse also restores your weakest facing.', slot: 'hangar', craft: 'drone', value: 0.12 },
 };
+// ---- the wider armoury (data/weapons.js) ----
+// What a gun's delivery is worth per point of sheet DPS on the gear score (Player.weaponScore):
+// damage-type mix against a typical enemy (30% shields), area, ion disruption and built-in powers.
+const SHIELD_MIX = 0.3;
+export function deliveryValue(b) {
+  const T = DMG_TYPES[b.dmgType] || DMG_TYPES.kinetic;
+  let v = SHIELD_MIX * T.shield + (1 - SHIELD_MIX) * T.hull;
+  if (b.splash) v *= 1 + Math.min(0.35, b.splash / 250);
+  if (b.disrupt) v *= 1.35;
+  let u = 0;
+  for (const k of b.innate || []) u += (UNIQUES[k] && UNIQUES[k].value) || 0;
+  return v * (1 + u);
+}
+// longer reach costs damage, shorter buys it (gentle: the gear score counts reach at 25% per 100%)
+export const reachTrade = (parentRange, range) => Math.pow(parentRange / range, 0.3);
+for (const [k, of, name, o] of WEAPON_VARIANTS) {
+  const P = BASES[of];
+  if (!P || BASES[k]) throw new Error(`weapon variant ${k}: bad parent ${of} or duplicate key`);
+  const b = { ...P, name, ...o, of, model: o.model || P.model || of };
+  b.barrels = b.barrels || 1;
+  const parentValue = P.dmg * (P.barrels || 1) * P.rof * deliveryValue(P);
+  b.dmg = Math.round(parentValue * reachTrade(P.range, b.range) * (o.dps || 1) / (b.barrels * b.rof * deliveryValue(b)) * 100) / 100;
+  delete b.dps;
+  BASES[k] = b;
+}
+// loot: a family (a core gun and the variants descended from it) drops as often as the core gun
+// alone did, so the share of weapons, modules and hangars in a drop is what it always was
+export const FAMILY_SIZE = {};
+for (const [k, b] of Object.entries(BASES)) { const f = b.of || k; FAMILY_SIZE[f] = (FAMILY_SIZE[f] || 0) + 1; }
+const familyShare = (k) => 1 / FAMILY_SIZE[BASES[k].of || k];
+
 // can power k roll onto (or work on) base b?
 export function uniqueFits(k, b) {
   const u = UNIQUES[k]; if (!u || !b) return false;
@@ -180,7 +212,7 @@ export function makeItem(baseKey, ilvl, rarityKey, rng = new RNG(Math.random() *
     item.affixes.push({ k, v: round(a.v(ilvl, rng)) });
   }
   if (rar.unique) {
-    const up = Object.keys(UNIQUES).filter((k) => uniqueFits(k, base));
+    const up = Object.keys(UNIQUES).filter((k) => uniqueFits(k, base) && !(base.innate || []).includes(k));
     rng.shuffle(up);
     for (let i = 0; i < Math.min(rar.unique, up.length); i++) item.unique.push(up[i]);
   }
@@ -204,7 +236,7 @@ function itemName(item, rng) {
 
 export function rollItem(ilvl, rng, { luck = 0, slot = null, rarity = null } = {}) {
   const keys = slot ? BASE_KEYS_BY_SLOT[slot] : Object.keys(BASES).filter((k) => !BASES[k].noRoll);
-  const weights = keys.map((k) => [k, BASES[k].slot === 'module' ? 1.1 : BASES[k].slot === 'hangar' ? 0.5 : 1]);
+  const weights = keys.map((k) => [k, (BASES[k].slot === 'module' ? 1.1 : BASES[k].slot === 'hangar' ? 0.5 : 1) * familyShare(k)]);
   const r = rarity || rollRarity(rng, luck);
   if ((r === 'legendary' || r === 'mythic') && NAMED_REF.list && rng.chance(0.6)) {
     const pool = NAMED_REF.list.filter((n) => !slot || BASES[n.base].slot === slot);
@@ -255,8 +287,9 @@ export function weaponStats(item) {
     kind: b.kind, dmgType: b.dmgType, color: b.color, barrels: b.barrels || 1,
     dmg: b.dmg * scale, rof: b.rof, range: b.range, speed: b.speed || 0, spread: b.spread || 0,
     splash: b.splash || 0, homing: b.homing || 0, pierce: b.pierce || 0, pd: b.pd || 0, disrupt: b.disrupt || 0,
-    crit: 0, critDmg: 0, shieldDmg: 0, hullDmg: 0, unique: item.unique || [],
+    crit: 0, critDmg: 0, shieldDmg: 0, hullDmg: 0, unique: b.innate ? [...new Set([...b.innate, ...(item.unique || [])])] : item.unique || [],
     craft: b.craft, count: b.count, rebuild: b.rebuild, heal: (b.heal || 0) * scale,
+    beamW: b.beamW || 1, beamT: b.beamT || 0, pSize: b.pSize || 1, turn: b.turn || 0, trail: b.trail || 0,
   };
   if (s.unique.includes('ironCurtain')) s.splash *= 1.4;
   for (const a of item.affixes) {
@@ -312,6 +345,7 @@ export function describe(item) {
       lines.push(`DPS ${(s.dmg * s.barrels * s.rof).toFixed(0)}${b.slot === 'turret' ? ' · 360° arc' : ''}`);
       const T = DMG_TYPES[b.dmgType];
       if (T) lines.push(`×${T.shield} vs shields · ×${T.hull} vs hull`);
+      if (b.innate) for (const k of b.innate) if (UNIQUES[k]) lines.push(`Built in · ${UNIQUES[k].name}: ${UNIQUES[k].desc}`);
       if (s.disrupt) lines.push(`Disrupts: shields stop regenerating, guns reload ${Math.round((1 - DISRUPT.rof) * 100)}% slower for ${s.disrupt}s`);
     }
   } else {
