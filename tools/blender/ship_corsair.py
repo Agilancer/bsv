@@ -20,32 +20,38 @@ def flight_deck(p, u, xa, xb, z0, z1, y, t=0.1):
     p.box('dark', w * 0.46, 0.02 * u, ln * 0.6, (xc, yt + 0.004 * u, z0 + 0.38 * ln))           # the landing strip
     p.box('trim', 0.03 * u, 0.02 * u, ln * 0.56, (xc, yt + 0.01 * u, z0 + 0.38 * ln))
     for sx in (-1, 1):
-        for j in range(4):                                                                       # landing lights
+        for j in range(4 if u > 10 else 2):                                                                       # landing lights
             p.box('glow', 0.04 * u, 0.02 * u, 0.05 * u, (xc + sx * w * 0.27, yt + 0.008 * u, z0 + 0.45 * u + j * 0.3 * u))
         p.box('dark', 0.1 * u, 0.02 * u, 0.9 * u, (xc + sx * w * 0.14, yt + 0.004 * u, z1 - 0.95 * u))      # launch slots
         p.box('trim', 0.02 * u, 0.02 * u, 0.9 * u, (xc + sx * w * 0.14, yt + 0.01 * u, z1 - 0.95 * u))
 
 
-def pontoon(B, variant, z0=-1.0, z1=3.1, zg=1.3):
-    """A carrier's flight deck on the flank: a long armoured deck at crown height overhanging a hangar gallery
-    (landing mouth aft, launch mouth forward); ahead of the gallery the deck stands clear over the broadside."""
+def pontoon(B, variant, z0=-1.0, z1=6.0, zg=1.3):
+    """A carrier's flight deck: a long armoured deck along the top of the hull, over the crown's shoulder beside the
+    turret line (the command block stands at its inboard edge, an island), roofing a hangar gallery on the flank
+    (landing mouth aft, launch mouths forward); ahead of the gallery it runs on over the broadside on a girder."""
     u = B.W
     p = Part('appendage', variant, B.id)
     z0, z1, zg = z0 * u, z1 * u, zg * u
-    xi, yd = -0.25 * u, 0.62 * u
+    xi, yd = -0.25 * u, 0.86 * u
     sec = lambda z, rk: [(xi, yd, z), (0.5 * u, yd, z), (0.64 * u, 0.3 * u, z + rk * 0.12 * u), (0.64 * u, -0.12 * u, z + rk * 0.26 * u), (0.42 * u, -0.42 * u, z + rk * 0.4 * u), (xi, -0.36 * u, z + rk * 0.4 * u)]
     za = z0 + 0.45 * u
     p.loft([sec(za, 1), sec(za + 0.5 * u, 0), sec(zg - 0.5 * u, 0), sec(zg, -1)], 'hull', cap_mat=('dark', 'dark'))
-    p.box('trim', 0.8 * u, 0.04 * u, 0.05 * u, (0.22 * u, 0.56 * u, za))                 # the landing mouth: frame and lights
-    p.box('glow', 0.5 * u, 0.025 * u, 0.03 * u, (0.24 * u, 0.46 * u, za + 0.03 * u))
-    p.box('hull', 0.07 * u, 0.5 * u, 0.1 * u, (0.2 * u, 0.36 * u, zg - 0.04 * u))        # two launch mouths forward
-    p.box('glow', 0.5 * u, 0.02 * u, 0.03 * u, (0.22 * u, 0.5 * u, zg - 0.03 * u))
+    p.box('trim', 0.8 * u, 0.04 * u, 0.05 * u, (0.22 * u, 0.8 * u, za))                 # the landing mouth: frame and lights
+    p.box('glow', 0.5 * u, 0.025 * u, 0.03 * u, (0.24 * u, 0.68 * u, za + 0.03 * u))
+    p.box('hull', 0.07 * u, 0.7 * u, 0.1 * u, (0.2 * u, 0.5 * u, zg - 0.04 * u))        # two launch mouths forward
+    p.box('glow', 0.5 * u, 0.02 * u, 0.03 * u, (0.22 * u, 0.72 * u, zg - 0.03 * u))
     for z in (za + 0.6 * u, (za + zg) / 2, zg - 0.6 * u):                                # darker patched plate on the gallery wall
         p.slab(((0.64 * u, 0.26 * u, z - 0.2 * u), (0.64 * u, -0.1 * u, z - 0.2 * u), (0.64 * u, -0.1 * u, z + 0.2 * u), (0.64 * u, 0.26 * u, z + 0.2 * u)), 0.03 * u, 'dark' if z == (za + zg) / 2 else 'hull', inset=0.02 * u, bevel=0.02 * u, out=(1, 0, 0))
-    flight_deck(p, u, -0.4 * u, 0.8 * u, z0, z1, yd)
+    flight_deck(p, u, -0.43 * u, 0.56 * u, z0, z1, yd)
+    if B.id != 'M':         # (the cruiser's band has no triangles to spare)
+        p.box('dark', 0.14 * u, 0.3 * u, z1 - zg - 0.4 * u, (-0.26 * u, yd - 0.13 * u, (zg + z1) / 2 - 0.2 * u))       # the girder under the fore deck
+    for z in ((zg + 1.2 * u, zg + 2.6 * u, z1 - 1.0 * u) if B.id != 'M' else ()):                                # its struts down to the flank
+        p.loft([[(-0.3 * u, yd, z - 0.1 * u), (0.3 * u, yd, z - 0.1 * u), (0.3 * u, yd, z + 0.1 * u), (-0.3 * u, yd, z + 0.1 * u)],
+                [(-0.3 * u, 0.3 * u, z - 0.06 * u), (0.0, 0.3 * u, z - 0.06 * u), (0.0, 0.3 * u, z + 0.06 * u), (-0.3 * u, 0.3 * u, z + 0.06 * u)]], 'hull')
     p.marker('hp.hg', (0.64 * u, 0.05 * u, (za + zg) / 2))
-    det(p, 'light', (0.8 * u, yd + 0.1 * u, z1 - 1.0 * u), 0, side='this')
-    det(p, 'pd', (0.7 * u, yd + 0.1 * u, z0 + 0.6 * u), (z1 - z0) * 0.6, side='this')
+    det(p, 'light', (0.56 * u, yd + 0.1 * u, z1 - 1.0 * u), 0, side='this')
+    det(p, 'pd', (0.5 * u, yd + 0.1 * u, z0 + 0.6 * u), 2.2 * u, side='this')
     return p
 
 
@@ -122,7 +128,7 @@ class Corsair(K.Style):
         return pontoon(B, 'delta')
 
     def extra_parts(self):
-        return [pontoon(K.M, 'deck', -0.6, 3.0)]
+        return [pontoon(K.M, 'deck', -0.6, 6.4)]
 
     def sidehull(self, B):                  # the dreadnought's side hulls are carrier hulls: a deck over each
         u = B.W

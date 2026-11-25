@@ -41,6 +41,9 @@ class Style:
     blocks = podpart = None     # replace the battery blocks / a belly pod: fn(B) / fn(B, variant, hangar, ln, deep) -> Part
     block_fore = block_aft = ((0.12, 0.9), (0.75, 0.3))     # a battery block's ends: (scale, distance x W) stations
     side = {}                   # side hull: bow / stern = [(scale, dz, dx) x W], w, ht, hb
+    fair = None                 # fn(half profile) -> the rounded body section (shiplib.smooth), for a yard without facets
+    swell = 0.0                 # each battery and waist section swells by this share amidships (joints keep the section)
+    wellrim = None              # a round rim over a turret well: [(height, radius) x W] from the crown, outside in
     def spinep(self, u, top, sh, base): return None         # the gun spine's half profile, crown down to its base
     def crossways(self, p, B, zs, cx, w): return False      # the side hull's crossways, when not the faceted ones
 
@@ -135,6 +138,14 @@ def barbette(p, B, y, z, up=1):
     p.tube([(-0.014 * u * up, 0.46 * u), (0.045 * u * up, 0.46 * u)], (0, y, z), 'y', 8, 'dark')
 
 
+def rim(p, B, y, z, up=1):
+    """The curved yards' turret blister: a round rim standing in the crown over the square well, down to its floor."""
+    u = B.W
+    wr = Y.wellrim if B.id == 'C' or len(Y.wellrim) < 5 else Y.wellrim[:2] + Y.wellrim[-2:]
+    st = [(o * u * up, r * u) for o, r in wr] + [(-(WELL + 0.004) * u * up, 0.56 * u)]
+    p.tube(st, (0, y, z), 'y', 10 if B.id == 'C' else 8, 'hull', cap_mat=('hull', 'dark'))
+
+
 def well(p, B, h, z, feats, sock='top'):
     """A dorsal turret well cut into the crown at z: returns nothing, appends the cut to feats."""
     u = B.W
@@ -143,6 +154,8 @@ def well(p, B, h, z, feats, sock='top'):
     feats.append((wa, wb, (lambda hh: cut_top(hh, floor)) if Y.hood else (lambda hh: cut_well(hh, floor, 0.57 * u))))
     barbette(p, B, floor, z)
     n = p.marker('hp.tu', (0, floor + 0.15 * B.S, z), sock=sock)
+    if Y.wellrim and B.id != 'S':      # (band S has no triangles to spare)
+        rim(p, B, h[0][1], z)
     if not Y.hood:
         p.box('hull', 1.12 * u, WELL * u - 0.01 * u, wb - wa, (0, floor + WELL * u / 2, z), shut=f'hp.tu:{n}')
         return wa, wb
@@ -221,6 +234,16 @@ def housing(p, B, h, kind, y1, y0, za, zb, xw, xb, tier, feats, cheek, span=None
     if tr:
         for y in (y1 + 0.02 * u, y0 - 0.02 * u):       # a lip above and below the mouth
             p.box(tr, 0.04 * u * tk, 0.028 * u * tk, (bb - ba) * 0.96 if st['long'] else ln + 0.06 * u, (xo + 0.004 * u, y, (ba + bb) / 2 if st['long'] else zc), mirror=True)
+    ym = (y1 + y0) / 2
+    if st.get('ends') and B.id in 'LC':          # a blister: the housing is drawn out to a rounded point at both ends
+        xi, e = 0.55 * xw, st['ends'] * u
+        ring = lambda z, k: [(xi + (x - xi) * k, ym + (y - ym) * k, z) for x, y in ((xi, ya), (xo, top), (xo, bot), (xi, yb))]
+        for z0, sg in ((ba, -1), (bb, 1)):
+            p.loft([ring(z0, 1)] + ([ring(z0 + sg * 0.45 * e, 0.8)] if B.id == 'C' else []) + [ring(z0 + sg * e, 0.3)], 'hull', mirror=True)
+    if st.get('round') and B.id in 'LC':         # a groove: round bosses close the ends of the mouth
+        r = (y1 - y0) / 2 + 0.035 * u
+        for z in (za, zb):
+            p.tube([(-0.25 * u, r), (0.035 * u, r * 0.85)], (xo, ym, z), 'x', 6 if B.id == 'L' else 8, 'hull', cap_mat=('hull', st['round']), mirror=True)
     if st.get('posts') and B.id != 'S':
         for z in (za - 0.02 * u, zb + 0.02 * u):
             p.box(st['posts'], 0.05 * u, y1 - y0 + 0.08 * u, 0.04 * u, (xo + 0.006 * u, (y1 + y0) / 2, z), mirror=True)
@@ -312,7 +335,12 @@ def waist(B, length, variant, top=False):
     p = Part('waist', variant, B.id, length)
     p.joints()
     h = B.std()
-    p.hloft([(pscale(h, 0.985), 0), (h, 0.03 * u), (h, length - 0.03 * u), (pscale(h, 0.985), length)])
+    if shiplib.ZSEG:
+        p.hloft([(pscale(h, 0.985), 0), (h, 0.03 * u)])
+        p.body(h, 0.03 * u, length - 0.03 * u)
+        p.hloft([(h, length - 0.03 * u), (pscale(h, 0.985), length)])
+    else:
+        p.hloft([(pscale(h, 0.985), 0), (h, 0.03 * u), (h, length - 0.03 * u), (pscale(h, 0.985), length)])
     belts(p, B, h, 0.05 * u, length - 0.05 * u, (1, 3))
     q = edge(h, 2, 0.05 * u, length - 0.05 * u)
     p.slab(q, 0.03 * u, inset=0.05 * u, bevel=0.03 * u, mirror=True)
@@ -1118,6 +1146,20 @@ def yprow(B, variant, length, marks, zr=0.3, wk=None, with_well=False, sock=None
         p.hloft([(hw, 0), (hw, 0.07 * length), (h, zr * 0.5)])
         p.body(h, zr * 0.5, zr)
         p.marker('sock.top', (0, HT, zr * 0.74), kind='command')
+    elif variant == 'snout':    # the destroyer: the hull steps down to a long slender snout, nearly half the ship
+        hs = B.std(0.7, 0.74, 0.74)
+        p.hloft([(h, 0), (h, zr * 0.45), (hs, zr)])
+        belts(p, B, hs, zr + 0.1 * u, zr + 0.3 * length, (1,))
+        h = hs
+    elif variant == 'lobes':    # the cruiser: a split head, two armoured lobes wider than the hull round a sensor trench
+        hh = B.std(1.24, 1.12, 1.1)
+        p.hloft([(h, 0), (h, zr * 0.3), (hh, zr)])
+        yt, z0, z1 = hh[0][1], zr * 0.55, zr + 0.5 * (length - zr)
+        lobe = lambda z, k, x=0.56: [((x - 0.3 * k) * u, yt - 0.1 * u, z), ((x + 0.34 * k) * u, yt - 0.1 * u, z), ((x + 0.26 * k) * u, yt + 0.2 * u * k, z), ((x - 0.2 * k) * u, yt + 0.2 * u * k, z)]
+        p.loft([lobe(z0, 0.5), lobe(z0 + 0.5 * u, 1.0), lobe(z1 - 0.9 * u, 0.9, 0.5), lobe(z1, 0.35, 0.4)], 'hull', mirror=True)
+        p.box('dark', 0.36 * u, 0.06 * u, (z1 - z0) * 0.8, (0, yt, (z0 + z1) / 2))
+        p.box('glow', 0.05 * u, 0.02 * u, (z1 - z0) * 0.6, (0, yt + 0.035 * u, (z0 + z1) / 2))
+        h = hh
     else:
         if spine:
             spine_(p, B, 0, zr, 1, wells=(zr * 0.5,), sock='none')
@@ -1143,7 +1185,7 @@ def yard_parts():
     # ---- band S: cutter (T1), corvette (T2)
     ps += [yprow(S, 'wedge', 12.5, MK[n[1]], zr=0.3, sock=True),
            battery(S, 'blister', 6.0, ('beam',)), *two(S),
-           engine(S, 'cutter', 18.0, [(0, 0.1, 0.44), (0.52, -0.42, 0.17)], blk=(1.27, 1.3, 1.28), fins=((1, 0.3), (3, 0.26))),
+           engine(S, 'cutter', 18.0, [(0, 0.1, 0.5), (0.6, -0.44, 0.18)], blk=(1.3, 1.3, 1.28), fins=((1, 0.3), (3, 0.26))),    # an engine with a nose
            engine(S, 'shoulder', 13.0, [(0, 0, 0.42)], fins=(), side=(0.6, -0.02), vents=False),
            (Y.nacelle or nacelle)(S), Y.command(S, 'blister'), Y.command(S, 'block')]
     # ---- band M: frigate (T3), destroyer (T4), light cruiser (T5)
@@ -1156,7 +1198,7 @@ def yard_parts():
            engine(M, 'block', 20.0, [(0.375, 0.195, 0.264), (0.32, -0.36, 0.174)], with_well=wl.get('block')),
            engine(M, 'tri', 17.0, [(0, 0.1, 0.36), (0.5, -0.32, 0.19)], hangars=(0.5,)),
            engine(M, 'mass', 30.0, [(0.38, 0.2, 0.27), (0.34, -0.36, 0.18)], blk=(1.08, 1.1, 1.12), fins=((2, 0.36, 0.42, 0.9, 0.2),), with_well=wl.get('mass', 0.42), hangars=(0.72,), front=0.66),
-           Y.command(M, 'keep'), ypod(M)]
+           Y.command(M, 'keep'), ypod(M, deep=1.3)]      # the frigate's deep belly
     # ---- the cruiser (T6) and the sections it shares with T7 and T8, in the band the yard's cruiser falls in
     B6 = M if Y.t6m else L
     ps += [yprow(B6, 'lobes', 4.0 * B6.W, MK[n[6]], zr=0.3)]
@@ -1179,6 +1221,11 @@ def yard_parts():
            engine(C, 'banks6', 55.0, [(0, 0.2, 0.22), (0.5, 0.2, 0.2), (0, -0.34, 0.15), (0.4, -0.34, 0.15)], with_well=0.5, hangars=(0.62, 0.8), fins=((1, 0.36), (3, 0.3))),
            Y.command(C, 'tower'), Y.command(C, 'citadel'), Y.command(C, 'flag'),
            (Y.sidehull or sidehull)(C), ypod(C, 'keel', hangar=False, ln=0.9)]
+    if Y.swell:         # the yard's long profile: every hull section swells amidships and draws in to its joints
+        for p in ps:
+            if p.role in ('battery', 'waist') and p.band != 'S':     # (band S has no triangles to spare for it)
+                a = Y.swell * min(1.0, p.len / (1.4 * REF_W[p.band]))
+                p.warp(lambda x, y, z, a=a, ln=p.len: (x * (1 + a * math.sin(math.pi * z / ln) ** 2), y * (1 + a * math.sin(math.pi * z / ln) ** 2), z))
     return ps + Y.extra_parts() + [mouth()] + Y.details()
 
 
@@ -1186,6 +1233,7 @@ def main(style=None):
     global Y
     if style is not None:
         Y = style
+    shiplib.FAIR, shiplib.ZSEG = Y.fair, (0.9 if Y.swell else 0.0)
     shiplib.reset()
     ps = parts() if Y.prow_n is None else yard_parts()
     roots = shiplib.build(ps)

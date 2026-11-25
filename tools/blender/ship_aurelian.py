@@ -17,10 +17,14 @@ class Aurelian(K.Style):
     wells = {'block': 0.5, 'mass': (0.3, 0.62), 'lance': True}
 
     def section(self, W, HT, HB, yo):
-        return prof([(0, HT + yo), (0.5 * W, 0.88 * HT + yo), (W, 0.14 * HT + yo), (0.97 * W, -0.22 * HB + yo), (0.5 * W, -0.9 * HB + yo), (0, -HB + yo)])
+        return prof([(0, HT + yo), (0.5 * W, 0.88 * HT + yo), (W, 0.14 * HT + yo), (0.97 * W, -0.22 * HB + yo), (0.5 * W, -0.9 * HB + yo), (0, -HB + yo)], K.shiplib.SKIN)
+
+    # the body: a smooth compressed oval through the section's six points, each section swelling a little amidships
+    fair = staticmethod(lambda h, band: K.shiplib.smooth(h, {'S': 0, 'C': 2}.get(band, 1)))
+    swell = 0.04
 
     def mouth(self, tier, kind):
-        return dict(proud=0.0, lip=0.05, sh=0.15, long=True, trim='trim', tk=0.6)
+        return dict(proud=0.0, lip=0.05, sh=0.15, long=True, trim='trim', tk=0.6, round='trim')       # a groove with round ends
 
     def belts(self, p, B, h, z0, z1, edges, t, inset, cut):
         u = B.W
@@ -64,6 +68,7 @@ class Aurelian(K.Style):
         muzzles(p, B, [x for x in marks if x], -0.06 * u, zm, ln=0.6, n=10)
 
     # ---- the body: every part a smooth compressed-oval loft, swept (no facets, no boxes)
+    wellrim = ((-0.5, 0.96), (-0.03, 0.8), (0.035, 0.7), (0.035, 0.6))    # turrets in domed blisters
     long_stag = True            # staggered batteries share one long flank fairing
     block_fore = ((0.04, 1.7), (0.3, 1.25), (0.6, 0.8), (0.85, 0.4), (0.97, 0.12))
     block_aft = ((0.1, 1.2), (0.45, 0.8), (0.8, 0.4), (0.96, 0.12))

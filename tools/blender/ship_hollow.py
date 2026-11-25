@@ -13,22 +13,39 @@ class Hollow(K.Style):
     prow_n = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2, 9: 2, 10: 3}
 
     def section(self, W, HT, HB, yo):
-        return prof([(0, HT + yo), (0.52 * W, 0.87 * HT + yo), (W, 0.16 * HT + yo), (0.95 * W, -0.3 * HB + yo), (0.5 * W, -0.9 * HB + yo), (0, -HB + yo)])
+        return prof([(0, HT + yo), (0.52 * W, 0.87 * HT + yo), (W, 0.16 * HT + yo), (0.95 * W, -0.3 * HB + yo), (0.5 * W, -0.9 * HB + yo), (0, -HB + yo)], K.shiplib.SKIN)
+
+    # the body: a bulging carapace. The section is a smooth curve whose plates overlap downward like scales (a lip
+    # at every other point of the flanks), and every section swells amidships: a segmented shell
+    swell = 0.085
+    wellrim = ((-0.5, 1.0), (-0.04, 0.9), (0.01, 0.86), (-0.01, 0.76), (0.075, 0.71), (0.075, 0.61))   # two overlapping scale lips
+
+    @staticmethod
+    def fair(h, band):
+        s = K.shiplib.smooth(h, 0 if band == 'S' else 1)
+        X = max(x for x, _, _ in s)
+        out = []
+        for i, (x, y, t) in enumerate(s):
+            if band in 'LC' and i in ((3, 7) if band == 'L' else (3, 5, 7)):
+                out += [(x + 0.045 * X, y, t), (x, y - 0.012 * X, t)] if y > 0 else [(x, y, t), (x + 0.045 * X, y - 0.012 * X, t)]
+            else:
+                out.append((x, y, t))
+        return out
 
     def mouth(self, tier, kind):            # a weapon blister between the scales
-        return dict(proud=0.05, lip=0.08, sh=0.2, long=False, trim=None)
+        return dict(proud=0.05, lip=0.08, sh=0.2, long=False, trim=None, ends=0.42)
 
     def belts(self, p, B, h, z0, z1, edges, t, inset, cut):
         u = B.W
-        for i in edges:                     # carapace scales: two rows, overlapping like tiles
+        for i in (edges if B.id != 'M' else [e for e in edges if e == 1]):     # carapace scales (band M: the upper flank only): two rows, overlapping like tiles
             q = edge(h, i, z0, z1)
             if cut:
                 q = subquad(q, cut[0], cut[1], 0, 1)
-            n = max(1, round((z1 - z0) / (0.7 * u))) if B.id != 'S' else 1
+            n = max(1, round((z1 - z0) / ({'M': 1.8, 'L': 1.4}.get(B.id, 1.0) * u))) if B.id != 'S' else 1
             for j in range(n):
-                for r, (a, b) in enumerate(((0.0, 0.56), (0.44, 1.0)) if B.id != 'S' else ((0.0, 1.0),)):
+                for r, (a, b) in enumerate(((0.0, 0.56), (0.44, 1.0)) if B.id in 'LC' else ((0.0, 1.0),)):
                     o = 0.5 / n * r
-                    p.slab(subquad(q, a, b, max(0, j / n - o), min(1, (j + 1.15) / n - o)), 0.05 * u, inset=0.01 * u, embed=0.02 * u, bevel=0.09 * u, mirror=True)
+                    p.slab(subquad(q, a, b, max(0, j / n - o), min(1, (j + 1.15) / n - o)), 0.1 * u, inset=0.01 * u, embed=0.02 * u, bevel=0.09 * u, mirror=True)
 
     def strake(self, p, B, z0, z1, hw, t, y, mat):
         u = B.W
