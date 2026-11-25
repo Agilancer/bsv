@@ -118,8 +118,8 @@ def belt(M, xc, circles, tw, t, pitch, s, C):
         dz, dy = dz / ln, dy / ln
         nz, ny = dy, -dz                          # outward normal of a CCW loop
         rx = math.degrees(math.atan2(-dy, dz))
-        M.box(tw, t, step * 0.84, (xc, y, z), 'dark', 0x343432, 0, rot=(rx, 0, 0))
-        M.box(tw * 0.96, 0.07 * s, step * 0.26, (xc, y + ny * (t / 2 + 0.03 * s), z + nz * (t / 2 + 0.03 * s)), 'dark', 0x4a4a46, 0, rot=(rx, 0, 0))
+        M.box(tw, t, step * 0.84, (xc, y, z), 'dark', 0x282826, 0, rot=(rx, 0, 0))
+        M.box(tw * 0.96, 0.07 * s, step * 0.26, (xc, y + ny * (t / 2 + 0.03 * s), z + nz * (t / 2 + 0.03 * s)), 'dark', 0x3c3c38, 0, rot=(rx, 0, 0))
     return tot
 
 
@@ -141,9 +141,9 @@ def road_wheel(M, i, c, r, w, sx, C, kind='road'):
             M.cyl(r, w * 0.36, (x + e * w * 0.27, y, z), 'x', 'dark', 0x3a3a38, 20, bevel=0.03 * r, group=g)
     fo = x + sx * w * 0.47
     M.cyl(r * 0.56, 0.06 * w, (fo, y, z), 'x', 'hull', C['hull'], 16, bevel=0.01, group=g)
-    for k in range(3):
-        a = math.radians(k * 120 + 30)
-        M.cyl(r * 0.12, 0.08 * w, (fo + sx * 0.01 * w, y + math.sin(a) * r * 0.33, z + math.cos(a) * r * 0.33), 'x', 'dark', 0x202020, 8, bevel=0, group=g)
+    for k in range(5):
+        a = math.radians(k * 72 + 18)
+        M.cyl(r * 0.08, 0.08 * w, (fo + sx * 0.01 * w, y + math.sin(a) * r * 0.38, z + math.cos(a) * r * 0.38), 'x', 'dark', 0x202020, 6, bevel=0, group=g)
     M.cyl(r * 0.18, 0.14 * w, (fo + sx * 0.04 * w, y, z), 'x', 'chrome', CHROME, 10, bevel=0.01, group=g)
     M.pivot(g, c)
 
@@ -183,9 +183,18 @@ def track_delta(M, wi, sx, xc, zc, Lt, Ht, tw, nroad, s, C, m):
     belt(M, sx * xc, [(zs, ys, Rs), (zf, yi, Ri), (zr, yi, Ri)] + [(z, yw, Rw) for z in roads], tw, t, 0.36 * s, s, C)
     # roller frame: a yellow triangle plate inboard of the wheels, and a pivot boss to the body
     xf = sx * (xc - tw * 0.42)
-    M.beam((xf, yi, zr), (xf, yi, zf), 0.18 * s, Ri * 1.1, 'hull', C['hull'], 0.04 * s)
-    M.beam((xf, yi, zr), (xf, ys, zs), 0.18 * s, Ri * 0.9, 'hull', C['hull'], 0.04 * s)
-    M.beam((xf, yi, zf), (xf, ys, zs), 0.18 * s, Ri * 0.9, 'hull', C['hull'], 0.04 * s)
+    M.beam((xf, yi, zr), (xf, yi, zf), 0.18 * s, Ri * 1.1, 'dark', C['dark'], 0.04 * s)
+    M.beam((xf, yi, zr), (xf, ys, zs), 0.18 * s, Ri * 0.9, 'dark', C['dark'], 0.04 * s)
+    M.beam((xf, yi, zf), (xf, ys, zs), 0.18 * s, Ri * 0.9, 'dark', C['dark'], 0.04 * s)
+    if m >= 7:   # yellow guard over the sprocket hump, black-edged
+        for zz0, zz1 in (((zr + zs) / 2 - 0.2 * s, zs), (zs, (zf + zs) / 2 + 0.2 * s)):
+            y0 = yi + (ys - yi) * (0.55 if zz0 < zs else 1.0) + Rs + t + 0.12 * s
+            y1 = yi + (ys - yi) * (1.0 if zz0 < zs else 0.55) + Rs + t + 0.12 * s
+        top = ys + Rs + t + 0.14 * s
+        M.beam((sx * xc, top - 0.45 * s, zs - Lt * 0.3), (sx * xc, top, zs - 0.15 * s), tw + 0.12 * s, 0.1 * s, 'hull', C['hull'], 0.03 * s)
+        M.beam((sx * xc, top, zs - 0.15 * s), (sx * xc, top, zs + 0.15 * s), tw + 0.12 * s, 0.1 * s, 'hull', C['hull'], 0.03 * s, extra=0.04 * s)
+        M.beam((sx * xc, top, zs + 0.15 * s), (sx * xc, top - 0.45 * s, zs + Lt * 0.3), tw + 0.12 * s, 0.1 * s, 'hull', C['hull'], 0.03 * s)
+        M.box(0.05 * s, 0.12 * s, 0.5 * s, (sx * (xc + tw / 2 + 0.07 * s), top, zs), 'trim', C['panel'], 0)
     road_wheel(M, wi, (sx * xc, ys, zs), Rs, tw * 0.6, sx, C, 'sprocket'); wi += 1
     road_wheel(M, wi, (sx * xc, yi, zf), Ri, tw * 0.6, sx, C); wi += 1
     road_wheel(M, wi, (sx * xc, yi, zr), Ri, tw * 0.6, sx, C); wi += 1
@@ -331,7 +340,7 @@ def stacks(M, m, s, C, pts, h):
         for k in range(4):
             M.box(0.05 * s, h * 0.4, 0.08 * s, (x + math.cos(k * 1.57) * 0.25 * s, y + h * 0.4, z + math.sin(k * 1.57) * 0.25 * s), 'dark', dark, 0)
         M.cyl(0.21 * s, 0.12 * s, (x, y + h - 0.03 * s, z), 'y', 'dark', 0x1c1c1c, 12, bevel=0)
-        M.cyl(0.15 * s, 0.04 * s, (x, y + h + 0.03 * s, z), 'y', 'glow', glow, 12, bevel=0)
+        M.box(0.3 * s, 0.03 * s, 0.34 * s, (x, y + h + 0.12 * s, z - 0.05 * s), 'dark', dark, 0, rot=(-25, 0, 0))
         M.empty('eng', (x, y + h + 0.15 * s, z))
 
 

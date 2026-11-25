@@ -192,7 +192,7 @@ def build(m):
     k = (m - 1) % 3            # step inside the stage
     M = Skiff(f'ex_{F}_{m}')
     rp = 0.42 * s
-    Lp = 5.0 * s * (1.0, 1.04, 1.08, 1.24)[st]
+    Lp = 5.0 * s * (1.0, 1.04, 1.08, 1.29)[st]
     xp = (1.2, 1.32, 1.62, 1.12)[st] * s
     engines = pads = 0
     lights = []

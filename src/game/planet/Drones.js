@@ -101,13 +101,15 @@ export class Drones {
   // the explorer was rebuilt (new materials): drop the instanced meshes so they are made again
   remesh() { this.dispose(); for (const t of TYPES) this.ensureMeshes(t); }
 
+  // drones grow a little with the mark so a Mk XII's swarm still reads beside it
+  sizeK() { const v = this.mode.vehicle.v; return v && v.size ? Math.min(1.35, 0.85 + v.size * 0.2) : 1; }
   draw() {
     const counts = {};
     for (const t of TYPES) counts[t] = 0;
     for (const s of this.swarms) {
       const list = this.meshes[s.type];
       if (!list) continue;
-      const sz = SIZE[s.type] * (this.mode.vehicle.v.size ? Math.min(1.35, 0.85 + this.mode.vehicle.v.size * 0.2) : 1);
+      const sz = SIZE[s.type] * this.sizeK();
       for (const d of s.drones) {
         if (!d.alive) continue;
         const i = counts[s.type]++;
@@ -221,7 +223,8 @@ export class Drones {
     else d.vel.multiplyScalar(0.8);
     d.pos.x += d.vel.x * dt; d.pos.z += d.vel.z * dt;
     const g = M.S.ground(d.pos.x, d.pos.z);
-    d.pos.y = d.pos.y > g + 0.5 ? d.pos.y + (g + 0.45 - d.pos.y) * Math.min(1, dt * 6) : g + 0.45 + Math.abs(Math.sin(this.t * 22 + d.i)) * 0.08;
+    const lift = 0.3 * this.sizeK();   // drones.json scarab_feet: the feet sit 0.3 below the model's centre
+    d.pos.y = d.pos.y > g + lift + 0.05 ? d.pos.y + (g + lift - d.pos.y) * Math.min(1, dt * 6) : g + lift + Math.abs(Math.sin(this.t * 22 + d.i)) * 0.06;
     if (d.vel.lengthSq() > 1) d.yaw = Math.atan2(d.vel.x, d.vel.z);
     if (d.target && dist < d.target.radius + 1.4) this.detonate(s, d);
   }
