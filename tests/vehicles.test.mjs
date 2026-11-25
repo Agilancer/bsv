@@ -184,12 +184,15 @@ test('a frame swap keeps the hardpoint rules (bays capped, a gun fitted, support
   ex.owned.push('ex_seraph_8', 'ex_strider_8', 'ex_rover_8');
   setExChassis(ex, 'ex_seraph_8');
   ex.loadout = { 'hp:0': makeExItem('arc', 20, 'rare'), 'hp:1': makeExItem('sparrow', 20, 'rare'), 'hp:2': makeExItem('scarab', 20, 'rare'), 'hp:3': makeExItem('mender', 20, 'rare'), 'hp:4': makeExItem('aegis', 20, 'rare') };
+  ex.inventory.push(makeExItem('rail', 20, 'rare'), makeExItem('plasma', 20, 'rare'), makeExItem('rockets', 20, 'rare'));
+  ex.owned.push('ex_skiff_1', 'ex_gunship_8');
   const n = () => ex.inventory.length + Object.values(ex.loadout).filter(Boolean).length, n0 = n();
-  for (const id of ['ex_strider_8', 'ex_rover_8']) {
+  for (const id of ['ex_strider_8', 'ex_rover_8', 'ex_skiff_1', 'ex_gunship_8']) {
     setExChassis(ex, id);
     const ch = EXPLORER_BY_ID[id], hp = exSlotKeys(ch).filter((k) => k.startsWith('hp:')).map((k) => ex.loadout[k]).filter(Boolean);
     assert.ok(hp.filter((x) => x.slot === 'bay').length <= bayCap(ch), `${id}: bays within the cap`);
     assert.ok(hp.some((x) => x.slot === 'gun'), `${id}: a gun stays fitted`);
+    assert.equal(hp.length, ch.slots.hp, `${id}: every mount refilled after the swap`);
     assert.equal(n(), n0, 'nothing lost');
   }
 });

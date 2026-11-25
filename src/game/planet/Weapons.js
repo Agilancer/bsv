@@ -57,7 +57,7 @@ export class Shots {
     p.life = o.life || 2; p.age = 0; p.splash = o.splash || 0; p.homing = o.homing || 0; p.target = o.target || null;
     p.grav = o.grav || 0; p.pierce = o.pierce || 0; p.burn = o.burn || 0; p.crit = o.crit || 0; p.critMul = o.critMul || 1.5;
     p.src = o.src || null; p.speed = o.vel.length(); p.spin = Math.random() * 6; p.trail = o.trail || 0;
-    p.hitSet.clear(); p.leech = o.leech || 0; p.chainreact = !!o.chainreact; p.twin = false; p.tele = o.tele ? TELE_HIT : null; p.drone = !!o.drone; p.volley = o.volley || 0;
+    p.hitSet.clear(); p.leech = o.leech || 0; p.chainreact = !!o.chainreact; p.twin = false; p.tele = o.tele ? TELE_HIT : null; p.drone = !!o.drone; p.volley = o.volley || 0; p.volleyCap = o.volleyCap || 1;
     this.list.push(p);
     return p;
   }
@@ -106,7 +106,7 @@ export class Shots {
           const r = (V.hitRadius || V.radius) + p.size + (V.bubble > 0 ? 2 : 0);
           if (segPointD2(p.prev, p.pos, _b, _a) < r * r) {
             if (p.splash) this.splash(p, _a, null);
-            else { V.damage(p.dmg, _a, p.src, p.volley ? { telegraph: true, volley: p.volley } : p.tele); fx.impact(_a, p.color.getHex(), 1); }
+            else { V.damage(p.dmg, _a, p.src, p.volley ? { telegraph: true, volley: p.volley, volleyCap: p.volleyCap } : p.tele); fx.impact(_a, p.color.getHex(), 1); }
             dead = true;
           }
         }
@@ -153,7 +153,7 @@ export class Shots {
       const V = M.vehicle;
       const d = Math.hypot(V.position.x - at.x, V.position.z - at.z);
       // a blast catches the whole hull, overhangs included (direct shots test the core: hitRadius)
-      if (d < r + V.radius && Math.abs(V.position.y - at.y) < r + 4) V.damage(p.dmg * (1 - 0.4 * d / (r + V.radius)), at, p.src, p.tele);
+      if (d < r + V.radius && Math.abs(V.position.y - at.y) < r + 4) V.damage(p.dmg * (1 - 0.4 * d / (r + V.radius)), at, p.src, p.volley ? { telegraph: true, volley: p.volley, volleyCap: p.volleyCap } : p.tele);
     }
   }
 

@@ -37,7 +37,7 @@ export function mountHardpoints(v, stats) {
   for (const b of stats.bays || []) {
     const hp = hpOf(b.key);
     if (!hp) continue;
-    const m = buildPodGLB(b.item.base, v.mats, hp.size * 0.72);   // a bay pod is boxier than a gun: keep it from crowding the hull
+    const m = buildPodGLB(b.item.base, v.mats, hp.size * 0.72, b.ds.color);   // a bay pod is boxier than a gun: keep it from crowding the hull
     if (!m) continue;
     hp.node.add(m.group);
     v.pods.push({ group: m.group, launch: m.launch, slot: b, hp });
@@ -385,7 +385,7 @@ export class Vehicle {
     if (o && o.volley) {
       const vw = this._volley || (this._volley = { id: 0, sum: 0 });
       if (vw.id !== o.volley) { vw.id = o.volley; vw.sum = 0; }
-      a = Math.min(a, Math.max(0, ehp * TELEGRAPH_HIT - vw.sum));
+      a = Math.min(a, Math.max(0, ehp * TELEGRAPH_HIT * (o.volleyCap || 1) - vw.sum));
       vw.sum += a;
     }
     if (a <= 0) return 0;

@@ -184,13 +184,20 @@ export function buildGunGLB(base, mats, size = 1) {
   group.add(g);
   return { group, muzzle };
 }
-export function buildPodGLB(type, mats, size = 1) {
+const podGlow = new Map();
+export function buildPodGLB(type, mats, size = 1, hex = null) {
   const f = files.get('assets/vehicles/drones.glb');
   const n = f && f.gltf && (partNode(f.gltf, 'pod_' + type) || partNode(f.gltf, 'pod'));
   if (!n) return null;
   const g = n.clone(true);
   g.position.set(0, 0, 0); g.rotation.set(0, 0, 0); g.scale.setScalar(size);
   applyMats(g, mats);
+  // the pod's lights in its swarm's colour (the drones it launches wear the same)
+  if (hex != null) {
+    let gm = podGlow.get(hex);
+    if (!gm) { const c = new THREE.Color(hex); gm = new THREE.MeshBasicNodeMaterial(); gm.colorNode = vec3(c.r * 2.2, c.g * 2.2, c.b * 2.2); podGlow.set(hex, gm); }
+    g.traverse((o) => { if (o.isMesh && o.material === mats.glow) o.material = gm; });
+  }
   const group = new THREE.Group();
   group.add(g);
   const door = g.children.find((c) => c.name.startsWith('launch'));

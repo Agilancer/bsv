@@ -169,7 +169,7 @@ export class PlanetWindows {
         el.addEventListener('click', () => {
           if (ex.owned.includes(c.id)) {
             if (!canSwap) { G.ui.toast('Swap vehicles at the lander', 'warn'); return; }
-            setExChassis(ex, c.id); G.ui.toast(`${c.fullName} deployed`, 'epic'); this.changed();
+            setExChassis(ex, c.id); G.ui.toast(`${c.fullName} deployed`, 'epic'); if (ex.swapNote) G.ui.toast(ex.swapNote, 'warn'); this.changed();
           } else {
             const r = buyChassis(D, c.id);
             if (r.ok) { G.ui.toast(`${c.fullName} built`, 'epic'); this.refresh(); } else G.ui.toast(r.why, 'warn');

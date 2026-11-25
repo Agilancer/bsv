@@ -662,11 +662,12 @@ export class Creatures {
       // lock-on ring follows the explorer, then a slow homing salvo — break away or dash
       M.telegraph(tp, 7, 0xff4030, 1.2, tgt);
       M.toast(`${e.name}: missile lock!`, 'warn');
+      const volley = ++volleySeq;   // the salvo: at most two telegraphed hits' worth on an explorer that does not break away
       for (let i = 0; i < 6 + e.phase * 2; i++) M.later(1.2 + i * 0.12, () => {
         if (!e.alive) return;
         const a = Math.random() * 6.28;
         _d.set(Math.cos(a) * 20, 30, Math.sin(a) * 20);
-        M.shots.spawn({ pos: e.pos.clone().setY(e.pos.y + e.height * 0.6), vel: _d, team: 1, dmg: e.dmg * 0.8, kind: 'rocket', color: 0xff6040, size: 0.4, len: 2, life: 4, splash: 4, homing: 0.5, trail: 1, src: e, tele: true });
+        M.shots.spawn({ pos: e.pos.clone().setY(e.pos.y + e.height * 0.6), vel: _d, team: 1, dmg: e.dmg * 0.8, kind: 'rocket', color: 0xff6040, size: 0.4, len: 2, life: 4, splash: 4, homing: 0.5, trail: 1, src: e, tele: true, volley, volleyCap: 2 });
       });
     } else if (sp === 'quake') {
       for (let k = 0; k < 3; k++) {

@@ -252,7 +252,7 @@ export function exDescribe(item, bonus = 0) {
     const per = s.kind === 'scatter' ? ` × ${s.pellets} pellets` : s.barrels > 1 ? ` × ${s.barrels}` : '';
     lines.push(`${s.dmg.toFixed(s.dmg < 10 ? 1 : 0)} damage${per}`);
     lines.push(`${s.rof.toFixed(1)} shots/s · range ${s.range.toFixed(0)}`);
-    lines.push(`DPS ${(s.dmg * s.pellets * s.barrels * s.rof).toFixed(0)}`);
+    lines.push(`Base DPS ${(s.dmg * s.pellets * s.barrels * s.rof).toFixed(0)}`);
     if (s.splash) lines.push(`Blast radius ${s.splash.toFixed(1)}`);
     if (s.chain) lines.push(`Arcs to ${s.chain} more targets`);
     if (s.pierce) lines.push(`Pierces ${s.pierce} creatures`);
@@ -260,8 +260,8 @@ export function exDescribe(item, bonus = 0) {
     const s = exDroneStats(item, bonus);
     lines.push(b.blurb);
     const pl = s.count === 1 ? 'drone' : 'drones';
-    if (s.type === 'sparrow') lines.push(`${s.count} ${pl} · ${s.power.toFixed(1)} damage × ${s.rof.toFixed(1)}/s each`, `DPS ${droneSheetDps(s).toFixed(0)} · reach ${s.range}`);
-    else if (s.type === 'scarab') lines.push(`${s.count} crawlers · ${s.power.toFixed(0)} blast damage, radius ${s.splash}`, `One rebuilt every ${s.rebuild.toFixed(1)}s · DPS ${droneSheetDps(s).toFixed(0)}`);
+    if (s.type === 'sparrow') lines.push(`${s.count} ${pl} · ${s.power.toFixed(1)} damage × ${s.rof.toFixed(1)}/s each`, `Base DPS ${droneSheetDps(s).toFixed(0)} · reach ${s.range}`);
+    else if (s.type === 'scarab') lines.push(`${s.count} crawlers · ${s.power.toFixed(0)} blast damage, radius ${s.splash}`, `One rebuilt every ${s.rebuild.toFixed(1)}s · Base DPS ${droneSheetDps(s).toFixed(0)}`);
     else if (s.type === 'mender') lines.push(`${s.count} ${pl} · each repairs ${(s.power * 100).toFixed(2)}% hull/s`);
     else if (s.type === 'aegis') lines.push(`${s.count} ${pl} · each catches ${s.charges} shots`);
     else if (s.type === 'magpie') lines.push(`${s.count} ${pl} · mining ${s.power.toFixed(1)}/s each · reach ${s.range}`);
@@ -455,8 +455,12 @@ export function setExChassis(ex, id) {
   ex.chassis = id;
   const keys = new Set(exSlotKeys(EXPLORER_BY_ID[id]));
   for (const k of Object.keys(ex.loadout)) if (!keys.has(k)) { ex.inventory.push(ex.loadout[k]); delete ex.loadout[k]; }
+  const before = Object.values(ex.loadout).filter((x) => x && x.slot === 'bay').length;
   equipBestEx(ex);
   enforceHardpoints(ex);
+  equipBestEx(ex);   // refill what the rules emptied (equipBestEx keeps to hpAllowed)
+  const ch = EXPLORER_BY_ID[id], after = Object.values(ex.loadout).filter((x) => x && x.slot === 'bay').length;
+  ex.swapNote = after < before ? `${before - after} drone bay${before - after > 1 ? 's' : ''} to the gear bay: ${ch.fullName} carries ${bayCap(ch)}` : '';
   return true;
 }
 // the hardpoint rules on whatever is fitted (after a frame swap): extra or doubled bays go to the bay,

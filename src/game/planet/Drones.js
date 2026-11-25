@@ -104,7 +104,8 @@ export class Drones {
     body.emissiveNode = vec3(col.r, col.g, col.b).mul(rim.mul(0.8).add(0.05));
     // the model's own lights take the swarm colour too (nav lights, rotor tips, the scarab's back)
     const lights = new THREE.MeshBasicNodeMaterial();
-    lights.colorNode = vec3(col.r * 1.8, col.g * 1.8, col.b * 1.8);
+    const li = type === 'aegis' ? 1.2 : 1.8;   // the aegis emitter is white: keep it under the hits
+    lights.colorNode = vec3(col.r * li, col.g * li, col.b * li);
     if (tpl) {
       tpl.updateMatrixWorld(true);
       tpl.traverse((o) => { if (o.isMesh) parts.push({ geo: bakeGeometry(o), mat: o.material === mats.glow || o.material === mats.lamp ? lights : body }); });
@@ -168,9 +169,11 @@ export class Drones {
         _q.setFromEuler(_e);
         _m.compose(d.pos, _q, _s.set(sz, sz, sz));
         for (const im of list) im.setMatrixAt(i, _m);
-        const dots = this.dots && this.dots[s.type];
+        const dots = s.type === 'scarab' && this.dots && this.dots[s.type];
         if (dots) {
-          const g = this.mode.S.ground(d.pos.x, d.pos.z), h = Math.max(0, d.pos.y - g);
+          const S = this.mode.S, rr = sz * 0.42;
+          let g = S.ground(d.pos.x, d.pos.z);
+          for (let k = 0; k < 4; k++) g = Math.max(g, S.ground(d.pos.x + Math.cos(k * 1.571) * rr, d.pos.z + Math.sin(k * 1.571) * rr));
           _v.set(d.pos.x, g + 0.15, d.pos.z); _q.identity();
           const r = sz * 0.42;   // a small steady marker under the drone (not a halo: a swarm of halos is clutter)
           _m.compose(_v, _q, _s.set(r, 1, r));
@@ -183,7 +186,7 @@ export class Drones {
       if (!list) continue;
       for (const im of list) { im.count = Math.min(CAP, counts[t]); im.instanceMatrix.needsUpdate = true; }
       const dots = this.dots && this.dots[t];
-      if (dots) { dots.count = Math.min(CAP, counts[t]); dots.instanceMatrix.needsUpdate = true; }
+      if (dots) { dots.count = t === 'scarab' ? Math.min(CAP, counts[t]) : 0; dots.instanceMatrix.needsUpdate = true; }
     }
   }
 

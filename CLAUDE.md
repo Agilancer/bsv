@@ -116,7 +116,8 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   `frames.py` (hardpoint counts + liveries, mirrored from `chassis.js`), `f_<frame>.py` per frame, `f_guns.py` /
   `f_drones.py` for hardpoint parts. `python build.py <frame|guns|drones> [marks]` writes `assets/vehicles/<id>.glb`
   (meshopt-packed with `gltfpack`, `GLTFPACK=` env) and `<frame>.json` facts that `tests/vehicles.test.mjs` checks
-  against the game data. The game reads them in `planet/vehicleGLB.js` (procedural `vehicleModels.js` is the fallback
+  against the game data (`node tools/dronecheck.cjs` checks the drone parts draw with size in game: meshopt GLB
+  parts are quantized, so bake them through Float32 before applying a matrix). The game reads them in `planet/vehicleGLB.js` (procedural `vehicleModels.js` is the fallback
   while a file loads). `tools/vehicle_viewer.html?webgl&frames=gunship&marks=1,6,12` lays them out (`&bays` mounts drone pods).
 - `tools/viewer.html?yard=velscour` lays hulls out for visual review (`&enemy=<size>&faction=`,
   comma lists, `also=`). Faction liveries: `data/liveries.js`; hull numbers (node-safe):
