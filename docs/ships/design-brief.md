@@ -46,6 +46,10 @@ dimensions.
 | Stern galleries, lanterns | **Window rows** at fixed real size on habitable sections; running lights at the extremities. |
 | Planking: wood or brushed-gold texture over large areas | **Plate** with panel lines (`hull` material); `trim` on collars and edges only. |
 
+**Pointed is fine.** Hulls may be long, sharp-bowed and ship-like in plan: a pointed prow, a tapered
+body and a clear bow and stern all suit a warship. What is banned is the sailing-ship *layout*: open
+decks, a castle on deck, masts and sails, and a clipper's sheer and rake.
+
 **Tests (all three must pass):**
 1. **Paint-off test:** with the textures removed, the silhouette does not read as any vessel on water
    (no deck, castle, mast, keel, bowsprit, funnel).
@@ -250,8 +254,10 @@ palette, don't-list.
   Asymmetric *modules* are allowed; the gun mounts themselves stay mirrored (kit contract).
 - **Engines:** mismatched nozzle sizes in one block.
 - **Palette:** mech-panel plate, darker patched plates, red glow.
-- **Don't:** random boxes at random heights; sails, decks, skull figureheads (the skull is a livery
-  emblem).
+- **Skull and crossbones:** kept, and shown proudly. The pirate livery's skull-and-crossbones emblem
+  stays on every pirate hull (a large armour-plate emblem on the dorsal hull and the flanks), and a
+  skull motif may be worked into the prow armour.
+- **Don't:** random boxes at random heights; sails, open decks, a clipper silhouette.
 
 ### Hollow Star Covenant (player; covenant enemies reuse it)
 - **Driver:** grown, not built: a chitinous creature-ship.
