@@ -19,7 +19,7 @@ export { bayCap };
 import {
   RES_KEYS, RESOURCES, SHIP_UPGRADES, PROBE_UPGRADES, upgradeCost, buyShipUpgrade, buyProbeUpgrade, affordable, addResources, chassisCost,
   buyChassis, fabricateCost, fabricate, workshop, empowerCost, empowerCap, overchargeCost, imbueCost, canImbue,
-  ORBITAL_PROBE_COST, orbitalProbeYield, pay, craftCost, craftItem, knowsBlueprint,
+  orbitalProbeYield, orbitalProbeCost, orbitalProbeCap, dropOrbitalProbe, craftCost, craftItem, knowsBlueprint,
 } from './economy.js';
 
 // what a unit of each resource is worth to the captain when choosing where to dig (the rare
@@ -288,18 +288,68 @@ export function autoCraft(data, opts = {}) {
 }
 
 // Orbit: recover the probe's haul over a surveyed world, or leave one there (once per world; it
-// keeps mining between visits). Returns a log line or ''.
+// keeps mining between visits). The first probe on a world pays a survey bounty. Returns a log line
+// or ''; opts.out (if given) receives { drop, bounty, exUps, recovered }.
 export function orbitalProbeAuto(data, survey, now, opts = {}) {
-  const ex = ensureExplorer(data);
+  const ex = ensureExplorer(data), out = opts.out || {};
   ex.orbital ||= {};
   const op = ex.orbital[survey.key];
   if (op) {
     const n = addResources(data, orbitalProbeYield(survey, op, now));
     if (!n) return '';
-    op.t = now;
+    op.t = now; op.cap = Math.max(op.cap || 60, orbitalProbeCap(data));
+    out.recovered = n;
     return `recovered ${n} units from the orbital probe over ${survey.name}`;
   }
-  if ((data.credits || 0) - ORBITAL_PROBE_COST.credits < (opts.creditFloor ?? 500) || !pay(data, ORBITAL_PROBE_COST)) return '';
-  ex.orbital[survey.key] = { t: now, cap: 60 };
-  return `dropped an orbital probe over ${survey.name}`;
+  const cost = orbitalProbeCost(data);
+  if ((data.credits || 0) - (cost.credits || 0) < (opts.creditFloor ?? 300)) return '';
+  const r = dropOrbitalProbe(data, survey, now);
+  if (!r) return '';
+  out.drop = true; out.bounty = r.bounty; out.exUps = r.exUps;
+  return `dropped an orbital probe over ${survey.name}${r.bounty ? ` (survey bounty +${r.bounty.credits} ¢)` : ''}`;
+}
+
+// What a trip to a world's orbit is worth to the autopilot (0: nothing to do there). A world with no
+// probe yet: the hopper it will fill, valued by what the bank is short of, plus the bounty if it was
+// never probed, provided one can be paid for with credits to spare. A world whose probe has mined at
+// least half its hopper: that load.
+export const PROBE_RIPE = 0.5;
+export function probeWorth(survey, data, now, opts = {}) {
+  const ex = ensureExplorer(data), op = (ex.orbital || {})[survey.key], w = needWeights(data);
+  if (op) {
+    const y = orbitalProbeYield(survey, op, now);
+    let n = 0, v = 0;
+    for (const k of Object.keys(y)) { n += y[k]; v += y[k] * w[k]; }
+    return n >= (op.cap || 60) * PROBE_RIPE ? v : 0;
+  }
+  const cost = orbitalProbeCost(data);
+  if ((data.credits || 0) - (cost.credits || 0) < (opts.creditFloor ?? 300) || !affordable(data, cost)) return 0;
+  return orbitalProbeCap(data) * (1 + worldAppeal(survey, data)) + ((ex.probed || {})[survey.key] ? 0 : 60);
+}
+// The best world to fly to from `cands` ([{ survey, dist }]): worth over distance (a far world needs
+// to be worth the trip). Returns the candidate or null.
+export function pickProbeWorld(cands, data, now, opts = {}) {
+  let best = null, bs = 0;
+  for (const c of cands) {
+    const v = probeWorth(c.survey, data, now, opts);
+    const sc = v / (1 + c.dist / 6000);
+    if (v > 0 && sc > bs) { bs = sc; best = c; }
+  }
+  return best;
+}
+// Sometimes the captain goes just to look: a world never scanned first (nearest), else, now and then
+// (`rnd` < 0.4), one not looked at for a long while. Returns the candidate or null.
+export const CURIO_STALE = 900;
+export function curiosityPick(cands, data, now, rnd = Math.random()) {
+  const ex = ensureExplorer(data), seen = ex.visits || {};
+  let fresh = null;
+  for (const c of cands) if (!ex.scanned[c.survey.key] && (!fresh || c.dist < fresh.dist)) fresh = c;
+  if (fresh) return fresh;
+  if (rnd >= 0.4) return null;
+  let old = null, ot = Infinity;
+  for (const c of cands) {
+    const t = seen[c.survey.key] ?? (ex.scanned[c.survey.key] || {}).at ?? -1e9;
+    if (now - t >= CURIO_STALE && t < ot) { ot = t; old = c; }
+  }
+  return old;
 }
