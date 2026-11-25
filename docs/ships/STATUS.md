@@ -29,7 +29,11 @@ Read this first when picking the work up (new session or another model). Then `C
   - Corsair: DONE (T6/T8 flank flight decks at crown height over a raked hangar gallery, landing mouth aft, launch
     slots forward; T10 side hulls carry a full-length deck and galleries; raked hexagon battery blocks). Weak: the
     decks sit on the flanks (the crown keeps its turret wells and the tower), pods are still the ladder's.
-  - Tidewright, Ironhold: not started (see "Next" 1).
+  - Tidewright: DONE (framed collector arrays deployed near-flat from the stern flanks, the bow flanks, under the
+    battery blocks, on belly trusses out past the beam and as the T8 wings; lozenge blocks and fine lozenge keels).
+    Array size is capped by the shield ellipsoid (measure with a per-class shieldLevel script before growing them);
+    on T9/T10 they are still small for the hull.
+  - Ironhold: not started (see "Next" 1).
 
 ## Next, in order
 1. Give each yard its own body shapes in its `Style` (Aurelian and Hollow curved; Tidewright's collector
