@@ -20,10 +20,10 @@ function addMat(opts = {}) {
 }
 function mesh(geo, mat, order = 2) { const m = new THREE.Mesh(geo, mat); m.renderOrder = order; m.frustumCulled = false; return m; }
 // camera-facing glow: a soft core plus an optional ring at ringAt (0..1 of the sprite's half size)
-function glowSprite(hex, scale, { k = 2, ringAt = 0, ringK = 0, falloff = 3, pulse = null } = {}) {
+function glowSprite(hex, scale, { k = 2, ringAt = 0, ringK = 0, falloff = 3, pulse = null, core = true } = {}) {
   const m = new THREE.SpriteNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const d = length(uv().sub(0.5)).mul(2);
-  let a = smoothstep(1, 0, d).pow(falloff);
+  let a = core ? smoothstep(1, 0, d).pow(falloff) : float(0);
   if (ringAt) a = a.add(exp(d.sub(ringAt).div(0.035).pow(2).negate()).mul(ringK));
   if (pulse) a = a.mul(pulse);
   m.colorNode = col(hex, k);
@@ -64,8 +64,14 @@ export function blackHole(ph, engine) {
   hm.colorNode = vec3(0);
   const horizon = new THREE.Mesh(new THREE.SphereGeometry(core * 0.92, 48, 24), hm); horizon.renderOrder = 4;
   root.add(horizon);
-  // photon ring and lensing glow
-  const ring = glowSprite(0xffe0b0, core * 4.2, { k: 1.8, ringAt: 0.46, ringK: 1.4, falloff: 8 });
+  // the shadow: light from the inner disc behind the hole never reaches us (drawn over the disc, so bloom
+  // has nothing to fill the middle with), then the thin photon ring at its edge
+  const sm = new THREE.SpriteNodeMaterial({ transparent: true, depthWrite: false });
+  const sd = length(uv().sub(0.5)).mul(2);
+  sm.colorNode = vec3(0); sm.opacityNode = smoothstep(1, 0.62, sd);
+  const shadow = new THREE.Sprite(sm); shadow.scale.setScalar(core * 3.2); shadow.renderOrder = 3; root.add(shadow);
+  const ring = glowSprite(0xffe0b0, core * 4.2, { k: 1.6, ringAt: 0.46, ringK: 1.2, core: false });
+  ring.renderOrder = 5;
   root.add(ring);
   // twin jets along the spin axis
   const jm = addMat();
@@ -283,10 +289,10 @@ export function quasarJet(ph, engine) {
   ribbon.rotation.y = Math.atan2(ph.dx, ph.dz);
   root.add(ribbon);
   // the quasar itself: a pinpoint brighter than a galaxy, far below the plane behind the jet's source
-  const far = glowSprite(0xe8e0ff, 5200, { k: 4, falloff: 7 });
+  const far = glowSprite(0xe8e0ff, 4200, { k: 2.2, falloff: 9 });
   far.position.set(ph.x0 - ph.dx * 6000, -14000, ph.z0 - ph.dz * 6000);
   root.add(far);
-  const halo = glowSprite(0x6a5aff, 16000, { k: 1.2, falloff: 5 }); halo.position.copy(far.position); root.add(halo);
+  const halo = glowSprite(0x6a5aff, 14000, { k: 0.5, falloff: 6 }); halo.position.copy(far.position); root.add(halo);
   // its jet climbing to the plane
   const jm = addMat();
   jm.colorNode = col(0xb0a8ff, 3);
