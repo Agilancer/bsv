@@ -209,7 +209,10 @@ export class Combat {
       if (U && U.includes('breach')) { ship.breachN = Math.min(30, breached + 3); ship.breachT = now + 8; }
     }
     // ion disruption, Tidelock snare
-    if (ws && ws.disrupt) ship.buffs.disrupted = Math.max(ship.buffs.disrupted || 0, now + ws.disrupt);
+    if (ws && ws.disrupt) {
+      if (ship.isPlayer && !(ship.buffs.disrupted > now) && W.audio && W.audio.cue) W.audio.cue('disrupt');   // the captain's systems scramble
+      ship.buffs.disrupted = Math.max(ship.buffs.disrupted || 0, now + ws.disrupt);
+    }
     if (U && U.includes('stasis')) ship.buffs.slowed = Math.max(ship.buffs.slowed || 0, now + 2);
     ship.lastHit = W.engine.time;
     ship.lastAttacker = source;

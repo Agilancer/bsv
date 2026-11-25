@@ -658,6 +658,7 @@ export class Creatures {
     e.glow = 1;
     const tp = tgt.position || tgt.pos;
     const sp = def.special;
+    if (M.game.cue) M.game.cue('strike');   // an apex special: the warning tone under the telegraph
     if (sp === 'missiles') {
       // lock-on ring follows the explorer, then a slow homing salvo — break away or dash
       M.telegraph(tp, 7, 0xff4030, 1.2, tgt);

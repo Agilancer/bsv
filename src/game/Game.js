@@ -134,6 +134,7 @@ export class Game {
     P.ship.paint = normPaint({ ...normPaint(P.ship.paint), ...patch });
     P.paint = { ...P.ship.paint };
     if (this.player && this.player.alive) this.player.setPaint(P.ship.paint);
+    if (this.cue) this.cue('custom');
     save(P);
     if (this.ui) this.ui.refresh();
     return P.ship.paint;
@@ -190,7 +191,7 @@ export class Game {
       P.codex ||= {};
       const first = !P.codex[ship.design.id];
       P.codex[ship.design.id] = (P.codex[ship.design.id] || 0) + 1;
-      if (first) { this.ui.toast(`Codex: ${ship.design.fullName} catalogued`, size.boss ? 'legend' : ''); this.gainXp(Math.round(30 * ship.level * size.xp)); }
+      if (first) { this.cue && this.cue('codex', { tier: ship.design.sizeIndex * 3 / 5 }); this.ui.toast(`Codex: ${ship.design.fullName} catalogued`, size.boss ? 'legend' : ''); this.gainXp(Math.round(30 * ship.level * size.xp)); }
     }
     if (ship.noLoot) { this.gainXp(Math.round(10 * ship.level * eliteMul)); return; }
     const st = s ? s.stats : {};
@@ -223,7 +224,7 @@ export class Game {
       while (P.level < MAX_LEVEL && P.xp >= xpForLevel(P.level)) {
         P.xp -= xpForLevel(P.level); P.level++;
         const ab = ABILITIES.find((a) => a.unlock === P.level);
-        this.audio.play('levelup', null);
+        if (this.cue) this.cue('rank', { tier: Math.min(3, Math.floor(P.level / 13)) });
         this.ui.levelUp(P.level, 'COMMANDER RANK', ab ? `NEW ABILITY · ${ab.name.toUpperCase()}` : 'ALL SYSTEMS STRENGTHENED');
         this.ui.chat('SYS', null, `Promoted to rank ${P.level}${ab ? ' — ' + ab.name + ' unlocked' : ''}`, 'sys');
         if (this.player) { this.world.fx.column(this.player.position, 0x9a6bff, 200, 80); this.world.fx.ring(this.player.position, 200, 0x9a6bff, 80); }
@@ -237,11 +238,12 @@ export class Game {
     if (shipUp && this.player) {
       this.player.level = sh.level; this.player.refit();
       this.player.hull = this.player.maxHull;
+      if (this.cue) this.cue('shipLevel');
       this.ui.toast(`${sh.name} reached ship level ${sh.level}`, 'epic');
     }
     // gear mastery
     for (const it of Object.values(sh.loadout)) if (it && grantItemXp(it, Math.round(xp * 0.5))) {
-      if (it.lvl % 5 === 0) this.ui.chat('LOOT', null, `${it.name} reached mastery ${it.lvl}`, 'loot', 'loot');
+      if (it.lvl % 5 === 0) { this.ui.chat('LOOT', null, `${it.name} reached mastery ${it.lvl}`, 'loot', 'loot'); if (this.cue) this.cue('mastery'); }
       if (this.player) this.player.refit();
     }
     this.ui.refresh();
@@ -252,14 +254,14 @@ export class Game {
     const P = this.data;
     const s = this.player;
     if (s && s.stats.u_hoard && (d.type !== 'item' || P.inventory.length < INV_SIZE)) s.repair(s.maxHull * 0.02);   // Magpie: every pickup patches the hull
-    if (d.type === 'credits') { P.credits += d.amount; return; }
-    if (d.type === 'salvage') { P.salvage += d.amount; P.credits += d.amount * 15; P.resources ||= {}; P.resources.tech = (P.resources.tech || 0) + Math.max(1, Math.round(d.amount * 0.5)); return; }
-    if (P.inventory.length >= INV_SIZE) { this.ui.toast('Cargo hold full', 'warn'); return; }
+    if (d.type === 'credits') { P.credits += d.amount; if (this.cue) this.cue('credits'); return; }
+    if (d.type === 'salvage') { if (this.cue) this.cue('credits'); P.salvage += d.amount; P.credits += d.amount * 15; P.resources ||= {}; P.resources.tech = (P.resources.tech || 0) + Math.max(1, Math.round(d.amount * 0.5)); return; }
+    if (P.inventory.length >= INV_SIZE) { if (this.cue) this.cue('full'); this.ui.toast('Cargo hold full', 'warn'); return; }
     P.inventory.push(d.item);
     const r = RARITY[d.item.rarity];
     this.ui.chat('LOOT', null, `Recovered ${d.item.name}`, 'loot', 'loot');
     if (r.i >= 3) this.ui.toast(`${r.name}: ${d.item.name}`, r.i >= 4 ? 'legend' : 'epic');
-    if (r.i >= 2) this.audio.play('loot', null, 0.5 + r.i * 0.15);
+    if (this.cue) this.cue(r.i >= 4 ? 'legend' : 'pickup', { tier: r.i >= 4 ? r.i - 4 : r.i });   // legendary+ sound the fanfare, the rest pitch by rarity
     if (this.autoplay) this.autoplay.onLoot(d.item);
     this.ui.refresh();
   }
@@ -288,14 +290,16 @@ export class Game {
     if (L[key]) P.inventory.push(L[key]);
     L[key] = item;
     this.refitPlayer();
+    if (this.cue) this.cue('equip');
     return true;
   }
   unequip(key) {
     const P = this.data;
-    if (P.inventory.length >= INV_SIZE) { this.ui.toast('Cargo hold full', 'warn'); return; }
+    if (P.inventory.length >= INV_SIZE) { if (this.cue) this.cue('full'); this.ui.toast('Cargo hold full', 'warn'); return; }
     P.inventory.push(P.ship.loadout[key]);
     delete P.ship.loadout[key];
     this.refitPlayer();
+    if (this.cue) this.cue('unequip');
   }
   equipBest() {
     const P = this.data;
@@ -316,6 +320,7 @@ export class Game {
     P.inventory.splice(i, 1);
     const v = Math.round(item.value * 0.35);
     P.credits += v;
+    if (this.cue) this.cue('salvage');
     this.ui.chat('LOOT', null, `Salvaged ${item.name} for ${v} ¢`, 'loot', 'loot');
     this.ui.refresh();
   }
@@ -323,7 +328,7 @@ export class Game {
     const P = this.data; let total = 0, n = 0;
     for (const it of P.inventory.slice()) if (pred(it)) { P.inventory.splice(P.inventory.indexOf(it), 1); total += Math.round(it.value * 0.35); n++; }
     P.credits += total;
-    if (n) this.ui.toast(`Salvaged ${n} items for ${total} ¢`);
+    if (n) { if (this.cue) this.cue('salvage'); this.ui.toast(`Salvaged ${n} items for ${total} ¢`); }
     this.ui.refresh();
   }
   refitPlayer() {
@@ -342,6 +347,7 @@ export class Game {
     if (!canLearn(this.data, k)) return false;
     this.data.talents[k] = (this.data.talents[k] || 0) + 1;
     this.refitPlayer();
+    if (this.cue) this.cue('talent', { tier: this.data.talents[k] - 1 });
     this.ui.toast(`${TALENT_BY_KEY[k].name} ${this.data.talents[k]}/${TALENT_BY_KEY[k].max}`);
     return true;
   }
@@ -349,11 +355,12 @@ export class Game {
     const cost = 200 * this.data.level;
     if (this.data.credits < cost) { this.ui.toast(`Respec costs ${cost} ¢`, 'warn'); return; }
     this.data.credits -= cost; this.data.talents = {}; this.refitPlayer();
+    if (this.cue) this.cue('respec');
   }
   useAbility(k) {
     const a = ABILITY_BY_KEY[k], s = this.player;
     if (!a || !s || !s.alive) return false;
-    if (this.data.level < a.unlock) { this.ui.toast(`${a.name} unlocks at rank ${a.unlock}`, 'warn'); return false; }
+    if (this.data.level < a.unlock) { if (this.cue) this.cue('locked'); this.ui.toast(`${a.name} unlocks at rank ${a.unlock}`, 'warn'); return false; }
     const now = this.engine.time;
     if ((this.cooldowns[k] || 0) > now) return false;
     if (a.run(this.world, s)) { this.cooldowns[k] = now + this.abilityCd(a); return true; }
@@ -371,6 +378,7 @@ export class Game {
     if (!this.Autoplay) { this.ui.toast('Autopilot module not installed yet', 'warn'); return; }
     this.autoplay = this.autoplay ? null : new this.Autoplay(this);
     document.querySelector('#menubar .auto').classList.toggle('on', !!this.autoplay);
+    if (this.cue) this.cue(this.autoplay ? 'autoOn' : 'autoOff', { key: (this.data.autoplay && this.data.autoplay.mode) || 'full' });
     this.ui.toast(this.autoplay ? 'Autoplay engaged' : 'Autoplay disengaged', this.autoplay ? 'epic' : '');
   }
   saveNow() { save(this.data); }
@@ -398,6 +406,7 @@ export class Game {
       const p = this.spawnPlayer((this.respawnPoint && this.respawnPoint()) || this.safePoint());
       p.invuln = true;
       this.world.schedule(8, () => { if (p.alive && !this.docked) p.invuln = false; });
+      if (this.cue) this.cue('respawn');
       this.ui.toast('Repair crews have patched the hull · 8s grace', '');
       save(this.data);
     });
@@ -415,9 +424,9 @@ export class Game {
     }
     let ti = THROTTLE_STEPS.findIndex((t) => Math.abs(t - s.throttle) < 0.01);
     if (ti < 0) ti = THROTTLE_STEPS.reduce((b, t, i) => (Math.abs(t - s.throttle) < Math.abs(THROTTLE_STEPS[b] - s.throttle) ? i : b), 0);
-    if (inp.hit('throttleUp')) { ti = Math.min(THROTTLE_STEPS.length - 1, ti + 1); s.throttle = THROTTLE_STEPS[ti]; this.moveTarget = null; }
-    if (inp.hit('throttleDown')) { ti = Math.max(0, ti - 1); s.throttle = THROTTLE_STEPS[ti]; this.moveTarget = null; }
-    if (inp.hit('fullStop')) { s.throttle = 0; this.moveTarget = null; }
+    if (inp.hit('throttleUp')) { ti = Math.min(THROTTLE_STEPS.length - 1, ti + 1); s.throttle = THROTTLE_STEPS[ti]; this.moveTarget = null; if (this.cue) this.cue('throttleUp'); }
+    if (inp.hit('throttleDown')) { ti = Math.max(0, ti - 1); s.throttle = THROTTLE_STEPS[ti]; this.moveTarget = null; if (this.cue) this.cue('throttleDown'); }
+    if (inp.hit('fullStop')) { s.throttle = 0; this.moveTarget = null; if (this.cue) this.cue('allStop'); }
     const manualTurn = (inp.held('turnLeft') ? 1 : 0) - (inp.held('turnRight') ? 1 : 0);
     if (manualTurn) { this.moveTarget = null; s.rudder = manualTurn; }
     else if (!this.moveTarget) s.rudder = 0;
@@ -429,12 +438,12 @@ export class Game {
     }
     if (inp.held('climb')) s.altTarget = Math.min(80, s.altTarget + dt * 40);
     if (inp.held('dive')) s.altTarget = Math.max(-80, s.altTarget - dt * 40);
-    if (inp.hit('autoFire')) { s.autoFire = !s.autoFire; this.ui.toast(`Auto-fire ${s.autoFire ? 'on' : 'off'}`); }
+    if (inp.hit('autoFire')) { s.autoFire = !s.autoFire; if (this.cue) this.cue('autoFire'); this.ui.toast(`Auto-fire ${s.autoFire ? 'on' : 'off'}`); }
     // mouse: right click sails, left click targets
     if (m.clicked[2] && !inp.blocked && m.touch && this.clickTarget(m.x, m.y)) m.clicked[2] = false;   // tap on a ship targets it
     if (m.clicked[2] && !inp.blocked) {
       const p = this.cam.pick(m.nx, m.ny, s.position.y, _v);
-      if (p) { this.moveTarget = p.clone(); this.ui.marker = { p: p.clone(), t: 1 }; }
+      if (p) { this.moveTarget = p.clone(); this.ui.marker = { p: p.clone(), t: 1 }; if (this.cue) this.cue('waypoint'); }
     }
     if (m.clicked[0] && !inp.blocked) this.clickTarget(m.x, m.y);
     if (this.moveTarget) {
@@ -443,7 +452,7 @@ export class Game {
     }
     if (inp.hit('nextTarget')) this.cycleTarget();
     if (inp.hit('fire')) this.useAbility('volley');
-    for (let i = 0; i < 8; i++) if (inp.hit('ab' + (i + 1))) this.useAbility(ABILITIES[i].k);
+    for (let i = 0; i < 8; i++) if (inp.hit('ab' + (i + 1)) && !this.useAbility(ABILITIES[i].k) && this.data.level >= ABILITIES[i].unlock && this.cue) this.cue('cooldown');
     // keep a target: if none, take the nearest hostile that is shooting at us
     if ((!s.target || !s.target.alive) && s.lastAttacker && s.lastAttacker.alive) s.target = s.lastAttacker;
   }
@@ -457,6 +466,7 @@ export class Game {
       const r = Math.max(30, o.dims.L * 0.4 * innerHeight / (2 * Math.tan(this.engine.camera.fov * Math.PI / 360) * this.cam.distance));
       if (d < Math.max(bd, r * r) && d < r * r * 1.5) { bd = d; best = o; }
     }
+    if (best && best !== this.player.target && this.cue) this.cue('lock');
     if (best) this.player.target = best;
     return best;
   }
@@ -466,6 +476,7 @@ export class Game {
     if (!list.length) return;
     const i = list.indexOf(s.target);
     s.target = list[(i + 1) % list.length];
+    if (this.cue) this.cue('lock');
   }
 
   talentTick(dt, t) {
@@ -490,7 +501,7 @@ export class Game {
 
   update(dt, t, realDt) {
     const inp = this.input;
-    if (inp.hit('escape')) { if (!this.ui.closeAll() && this.player) this.player.target = null; }
+    if (inp.hit('escape')) { if (!this.ui.closeAll() && this.player) { if (this.player.target && this.cue) this.cue('unselect'); this.player.target = null; } }
     if (inp.hit('inventory')) this.command('inventory');
     if (inp.hit('character')) this.command('character');
     if (inp.hit('skills')) this.command('skills');

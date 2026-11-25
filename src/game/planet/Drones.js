@@ -376,7 +376,7 @@ export class Drones {
     for (const s of this.swarms) if (s.type === 'sparrow' || s.type === 'scarab') for (const d of s.drones) if (d.alive) d.target = e;
     M.telegraph(e.pos, e.radius + 3, 0x5aa0ff, 6, e);   // the mark stays on the target for the whole strike
     M.pfx.ring(M.vehicle.position, 12, 0x5aa0ff, 40);
-    M.sfx('ui', null, 0.8);
+    if (M.game.cue) M.game.cue('lock');
     return true;
   }
   // HUD: [{type, color, alive, count, rebuild}]

@@ -13,6 +13,7 @@ import { install as installFlavor } from './flavor/index.js';
 import { installTicker } from '../ui/ticker.js';
 import { installQuests } from './quests/index.js';
 import { installNaming } from './naming.js';
+import { installSfx } from './sfx.js';
 
 export function install(game) {
   game.modes = game.modes || {};
@@ -29,4 +30,5 @@ export function install(game) {
   installTicker(game);
   installNaming(game);   // rename captain and hulls; names for new hulls
   installQuests(game);   // after stations, nav and planets: it wraps enterSystem and reads their state
+  installSfx(game);      // interface and notice sounds: last, so its start() runs after every module's and wraps the finished UI
 }

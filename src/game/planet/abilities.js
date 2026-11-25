@@ -58,7 +58,7 @@ export const PLANET_ABILITIES = [
       const R = 15;
       M.telegraph(t, R, 0xff3050, 1.5);
       M.toast('Orbital strike inbound', 'warn');
-      M.sfx('ui', null, 1);
+      if (M.game.cue) M.game.cue('lock');   // the strike is painted on the ground
       for (let i = 0; i < 15; i++) M.later(i * 0.1, () => {
         const sky = _w.set(t.x + (Math.random() - 0.5) * 2, t.y + 260, t.z + (Math.random() - 0.5) * 2);
         M.pfx.timedBeam(sky.clone(), t.clone(), 0.12 + i * 0.02, 0xff3050, 1.6, 0.12);

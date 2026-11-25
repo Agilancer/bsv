@@ -51,6 +51,7 @@ export class Weather {
   begin() {
     const M = this.mode, W = this.def;
     this.state = 'front'; this.t = 6;
+    if (M.game.cue) M.game.cue('weather');
     M.toast(`Weather front: ${W.name} — ${W.warn}`, 'warn');
     if (M.extras) M.extras.radio('weather_' + W.id, true) || M.extras.radio('weather', true);
   }
@@ -61,7 +62,7 @@ export class Weather {
     this.t -= dt;
     if (this.state === 'calm') { if (this.t <= 0 && M.state === 'play') this.begin(); }
     else if (this.state === 'front') { this.k = Math.min(1, this.k + dt / 6); if (this.t <= 0) { this.state = 'storm'; this.t = this.rng.float(34, 52); } }
-    else if (this.state === 'storm') { if (this.t <= 0) { this.state = 'clearing'; this.t = 8; M.toast(`${W.name} passing`, ''); } }
+    else if (this.state === 'storm') { if (this.t <= 0) { this.state = 'clearing'; this.t = 8; if (M.game.cue) M.game.cue('clear'); M.toast(`${W.name} passing`, ''); } }
     else { this.k = Math.max(0, this.k - dt / 8); if (this.t <= 0) { this.state = 'calm'; this.k = 0; this.t = this.rng.float(100, 170); } }
     const k = this.k;
     this.fog = k * W.fog; this.dim = k * W.dim;
@@ -103,6 +104,7 @@ export class Weather {
     if (y < S.fluidLevel) return;
     const p = new THREE.Vector3(x, y, z);
     M.telegraph(p, K.r, K.hex, K.lead);
+    if (aimed && M.game.cue) M.game.cue('strike', { vol: 0.8 });   // the bolts aimed at the explorer's line get a warning tone
     M.later(K.lead, () => {
       if (M.disposed || M.dungeon) return;
       _q.set(p.x + rnd(14), p.y + 110, p.z + rnd(14));

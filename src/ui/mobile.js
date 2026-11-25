@@ -73,10 +73,11 @@ export function installMobile(game) {
   stick.addEventListener('touchend', end); stick.addEventListener('touchcancel', end);
 
   // --- buttons ---
-  $('mMenu').onclick = () => { ui.hideTip(); bar.classList.toggle('open'); };
+  const sheet = (on) => { if (game.cue) game.cue(on ? 'sheetOpen' : 'sheetClose'); };
+  $('mMenu').onclick = () => { ui.hideTip(); sheet(bar.classList.toggle('open')); };
   bar.addEventListener('click', () => { if (body.classList.contains('mobile')) bar.classList.remove('open'); });
   addEventListener('pointerdown', (e) => { if (bar.classList.contains('open') && !bar.contains(e.target) && e.target.id !== 'mMenu') bar.classList.remove('open'); }, true);
-  $('mChat').onclick = () => $('chat').classList.toggle('open');
+  $('mChat').onclick = () => sheet($('chat').classList.toggle('open'));
   $('mAuto').onclick = () => game.command('auto');
   // all stop; tapped again at rest it rings astern, one throttle step per tap (S on a keyboard)
   $('mStop').onclick = () => {
