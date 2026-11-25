@@ -51,6 +51,9 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     A combat bay is sized to about one gun per hardpoint (`droneSheetDps`), so the ground contract (`expectedBuild`: every
     hardpoint an uncommon gun) holds when mounts are swapped. Autopilot: `autoCraft.js` `pickBlueprint` / `fitExplorer`
     (a gun always fitted, bays capped by `bayCap`).
+  - Surface steering: `planet/avoid.js` `steerOffset` (pure) turns a wanted heading around the big props (the
+    `Terrain.forObstacles` circles the explorer collides with), looking ahead by speed and turn rate and holding to one
+    side. The explorer autopilot (`PlanetPilot.avoid`, after the unstick wiggle) and the resource probes use it.
   - `planet/` living layer: `lifeData.js` (pure data: fauna, curios, radio lines, weather,
     time of day, report rating), `Life.js` (wildlife herds, flyers, curios), `Weather.js` (fronts +
     telegraphed strikes), `Extras.js` (comm strip, discovery cards, expedition
