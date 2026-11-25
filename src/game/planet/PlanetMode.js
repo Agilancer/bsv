@@ -695,6 +695,7 @@ export class PlanetMode {
       this.terrain.update(V.position.x, V.position.z);
       this.updateCamps(dt);
       this.updateThreat(dt);
+      this.updateLander(dt);   // here in the frame, and one draw a frame: the duel tools' seeded stream depends on it
       this.updateMouths(dt);
       // measured duels (tools/groundduel.cjs) run without the living layer: nothing here may touch
       // the explorer or draw from the seeded random stream
@@ -707,7 +708,6 @@ export class PlanetMode {
     } else {
       this.dungeon.update(dt, this.torchLights);
     }
-    if (!this.dungeon) this.updateLander(dt);
     this.ambient(dt);
     this.ground.update(dt);
     this.updateWarnings();
@@ -959,6 +959,8 @@ export class PlanetMode {
     const V = this.vehicle, L = this.lander, C = this.landerCtl;
     C.update(dt);
     C.updateTurrets(dt, C.armed && !this.pilot.duel);
+    // idling engines vent a little (always exactly one random draw a frame, as before the dropship was flown)
+    if (Math.random() < 0.15 && this.state === 'play') C.each('retro', (p, i) => { if (i === 0) this.pfx.smoke(p, 1.2 * C.s, 0.08); });
     if (this.state !== 'play') { this.atLander = false; this.ground.set(1, 0, 0, 1, 0); return; }
     const R = this.dockR;
     const d = Math.hypot(V.position.x - L.position.x, V.position.z - L.position.z);
@@ -973,8 +975,6 @@ export class PlanetMode {
       V.shield = Math.min(V.stats.maxShield, V.shield + V.stats.maxShield * 0.3 * dt);
       if (Math.random() < 0.3) { C.rampFoot(_v); _v.y += 1.5; this.pfx.beam(_v, _w.copy(V.position).setY(V.position.y + 1), 0.2, 0x58c8ff, 0.8); }
     }
-    // idling engines vent a little
-    if (Math.random() < 0.1) C.each('retro', (p, i) => { if (i === 0) this.pfx.smoke(p, 1.2 * C.s, 0.08); });
   }
   updateMouths() {
     const V = this.vehicle;
