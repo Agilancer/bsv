@@ -284,6 +284,10 @@ def build(m):
         M.box(0.36 * k, 0.4 * k, 0.42 * k, (sx * 0.56 * k, 1.88 * k, -0.66 * k), 'hull', hull, 0.06 * k, taper=(0.85, 0.85))
         M.box(0.38 * k, 0.06 * k, 0.1 * k, (sx * 0.56 * k, 1.98 * k, -0.44 * k), 'trim', trim, 0.01)
         M.cyl(0.16 * k, 0.3 * k, (sx * 0.72 * k, 1.8 * k, -0.78 * k), 'x', 'dark', dark, 14)
+        # wing-root pylon: the blades fan out of it, a gun rides on its flat top
+        M.box(0.26 * k, 0.5 * k, 0.34 * k, (sx * 0.78 * k, 2.12 * k, -0.8 * k), 'hull', hull2, 0.05 * k, taper=(0.85, 0.8))
+        M.box(0.28 * k, 0.06 * k, 0.36 * k, (sx * 0.78 * k, 2.36 * k, -0.8 * k), 'dark', dark, 0.02 * k)
+        M.box(0.04 * k, 0.3 * k, 0.05 * k, (sx * 0.92 * k, 2.12 * k, -0.62 * k), 'trim', panel, 0.01)
 
     # ---- wings: flap groups at their roots
     PHI = {1: [26], 2: [36, -14], 3: [52, 22, -14], 4: [64, 38, 12, -16]}[nb]
@@ -309,9 +313,9 @@ def build(m):
 
     # ---- halo: fan_0, a ring floating above and behind the head (Mk VII+)
     if st >= 2:
-        hy = (3.0 if st == 2 else 3.14) * k
-        hz = -0.3 * k
-        R = (0.6 if st == 2 else 0.72) * k
+        hy = (3.05 if st == 2 else 3.25) * k
+        hz = -0.35 * k
+        R = (0.62 if st == 2 else 0.76) * k
         g = 'fan_0'
         M.torus(R, 0.055 * k, (0, hy, hz), 'y', 'trim', trim, 48, 8, group=g)
         M.torus(R - 0.09 * k, 0.025 * k, (0, hy, hz), 'y', 'hull', hull, 48, 6, group=g)
@@ -323,16 +327,16 @@ def build(m):
             M.box(0.03 * k, 0.03 * k, 0.32 * k, (math.sin(a2) * (R - 0.09 * k), hy + 0.03 * k, hz + math.cos(a2) * (R - 0.09 * k)), 'glow', glow, 0,
                   rot=(0, math.degrees(a2) + 90, 0), group=g)
         M.pivot(g, (0, hy, hz))
-        # the mast and emitter it floats on (static)
-        rod(M, (0, 1.85 * k, -0.62 * k), (0, hy - 0.12 * k, hz - 0.05 * k), 0.05 * k, 'dark', dark, 8)
-        M.sphere(0.09 * k, (0, hy - 0.1 * k, hz - 0.05 * k), (1, 0.7, 1), 'glow', glow, 10)
+        # it floats free: an emitter on the back of the helmet holds it
+        M.cyl(0.1 * k, 0.1 * k, (0, hy0 + 0.2 * k, -0.18 * k), 'y', 'dark', dark, 12, r2=0.07 * k)
+        M.sphere(0.06 * k, (0, hy0 + 0.27 * k, -0.18 * k), (1, 1, 1), 'glow', glow, 10)
 
     # ---- drone racks on the back (Mk X+): two pylons with docked drones
     rack_tops = []
     if st >= 3:
         for sx in (1, -1):
-            a = (sx * 0.24 * k, 1.82 * k, -0.74 * k)
-            b = (sx * 0.3 * k, 2.42 * k, -1.02 * k)
+            a = (sx * 0.32 * k, 1.82 * k, -0.72 * k)
+            b = (sx * 0.5 * k, 2.56 * k, -1.15 * k)
             bar(M, a, b, 0.16 * k, 0.16 * k, hint=(1, 0, 0), mat='dark', tint=dark, bevel=0.02 * k)
             M.box(0.36 * k, 0.08 * k, 0.36 * k, (b[0], b[1] + 0.02 * k, b[2]), 'hull', hull, 0.03 * k)
             rack_tops.append((b[0], b[1] + 0.06 * k, b[2]))
@@ -350,11 +354,14 @@ def build(m):
             bar(M, (sx * 0.3 * k, 0.9 * k, -0.74 * k), (sx * 0.56 * k, -0.15 * k, -1.24 * k), 0.06 * k, 0.07 * k, hint=(sx, 0, 0), mat='trim', tint=trim, bevel=0.01, taper=(0.3, 1))
 
     # ---- hardpoints: shoulders, forearms, wing roots, back racks (all on top)
-    central = [(0, 1.9 * k, -0.52 * k)]
-    pairs = [(1.08 * k, 1.94 * k, 0.0), (1.12 * k, 1.16 * k, 0.32 * k), (0.56 * k, 2.08 * k, -0.66 * k)]
+    central = [(0, 2.42 * k, -0.82 * k)]      # a dorsal cannon post, carrying its gun over the head
+    pairs = [(1.08 * k, 1.94 * k, 0.0), (1.12 * k, 1.16 * k, 0.32 * k), (0.78 * k, 2.39 * k, -0.8 * k)]
     if rack_tops:
         pairs.append((abs(rack_tops[0][0]), rack_tops[0][1], rack_tops[0][2]))
     for p in frames.pick_hardpoints(central, pairs, frames.hp_count(F, m)):
+        if p == central[0]:
+            bar(M, (0, 1.84 * k, -0.6 * k), (0, 2.38 * k, -0.82 * k), 0.2 * k, 0.24 * k, hint=(1, 0, 0), mat='dark', tint=dark, bevel=0.03 * k)
+            M.box(0.4 * k, 0.07 * k, 0.4 * k, (0, 2.385 * k, -0.82 * k), 'hull', hull, 0.03 * k)
         M.socket(p, 0.36 * s, dark, props={'size': round(0.85 * s, 3)})
 
     M.facts = {'frame': F, 'mark': m, 'ride': round(5.5 + 0.12 * (m - 1), 2), 'wings': 2 * nb, 'halo': st >= 2, 'scale': round(s, 3)}

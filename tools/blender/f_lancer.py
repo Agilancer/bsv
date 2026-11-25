@@ -50,8 +50,8 @@ def wedge_hull(M, C, x, L, hw, s, m, outer=0, cat=False):
         M.box(0.16 * s, 0.42 * s, 0.6 * L, (x + sx * 1.02 * hw, 0.56 * s, -0.08 * L), 'hull', hull, 0.04 * s, rot=(0, 0, sx * -14), taper=(1, 0.94))
         if m >= 3:
             M.box(0.04 * s, 0.05 * s, 0.34 * L, (x + sx * 1.1 * hw, 0.42 * s, -0.14 * L), 'glow', glow, 0, rot=(0, 0, sx * -14))
-        if True:     # white side stripe
-            M.box(0.04 * s, 0.1 * s, 0.4 * L, (x + sx * 1.06 * hw, 0.7 * s, -0.04 * L), 'trim', panel, 0.01, rot=(0, 0, sx * -14))
+        # white side stripe
+        M.box(0.04 * s, 0.1 * s, 0.4 * L, (x + sx * 1.06 * hw, 0.7 * s, -0.04 * L), 'trim', panel, 0.01, rot=(0, 0, sx * -14))
     # stern: dark engine bay with grilles
     M.box(1.5 * hw, 0.5 * s, 0.16 * L, (x, 0.62 * s, -0.46 * L), 'dark', dark, 0.04 * s)
     if m >= 3:

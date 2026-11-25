@@ -187,9 +187,6 @@ def track_delta(M, wi, sx, xc, zc, Lt, Ht, tw, nroad, s, C, m):
     M.beam((xf, yi, zr), (xf, ys, zs), 0.18 * s, Ri * 0.9, 'dark', C['dark'], 0.04 * s)
     M.beam((xf, yi, zf), (xf, ys, zs), 0.18 * s, Ri * 0.9, 'dark', C['dark'], 0.04 * s)
     if m >= 7:   # yellow guard over the sprocket hump, black-edged
-        for zz0, zz1 in (((zr + zs) / 2 - 0.2 * s, zs), (zs, (zf + zs) / 2 + 0.2 * s)):
-            y0 = yi + (ys - yi) * (0.55 if zz0 < zs else 1.0) + Rs + t + 0.12 * s
-            y1 = yi + (ys - yi) * (1.0 if zz0 < zs else 0.55) + Rs + t + 0.12 * s
         top = ys + Rs + t + 0.14 * s
         M.beam((sx * xc, top - 0.45 * s, zs - Lt * 0.3), (sx * xc, top, zs - 0.15 * s), tw + 0.12 * s, 0.1 * s, 'hull', C['hull'], 0.03 * s)
         M.beam((sx * xc, top, zs - 0.15 * s), (sx * xc, top, zs + 0.15 * s), tw + 0.12 * s, 0.1 * s, 'hull', C['hull'], 0.03 * s, extra=0.04 * s)
@@ -358,58 +355,88 @@ def cab(M, m, s, C, at, w, h, d):
     M.box(w * 0.85, 0.12 * s, 0.25 * s, (x, y + h + 0.02 * s, z + d * 0.3), 'dark', dark, 0.02)
 
 
+def rails(M, pts, h, s, C, closed=False):
+    """Black handrail along a polyline at height h above the points: posts and a top rail."""
+    dark = C['dark']
+    segs = list(zip(pts, pts[1:])) + ([(pts[-1], pts[0])] if closed else [])
+    for p, q in segs:
+        M.beam((p[0], p[1] + h, p[2]), (q[0], q[1] + h, q[2]), 0.06 * s, 0.06 * s, 'dark', dark, 0, extra=0.03 * s)
+        n = max(1, int(math.dist(p, q) / (0.9 * s)))
+        for k in range(n + 1):
+            u = k / n
+            x, y, z = (p[i] + (q[i] - p[i]) * u for i in range(3))
+            M.box(0.05 * s, h, 0.05 * s, (x, y + h / 2, z), 'dark', dark, 0)
+
+
 def body_box(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
-    """Stage I hull: a boxy armoured body between the tracks, raked glacis, engine deck, stacks, cab."""
+    """Stage I hull: a boxy armoured body between the tracks, raked glacis, black engine deck, stacks, cab."""
     hull, panel, dark, trim, glow = C['hull'], C['panel'], C['dark'], C['trim'], C['glow']
     L = zF - zB
     zc = (zF + zB) / 2
     y0 = 0.5 * s
     top = Ht + (1.05 + 0.05 * (m - 1)) * s
+    ytop = top + 0.05 * s                         # the upper hull's roof surface
     # belly and lower hull (dark) between the tracks
     M.box(2 * hw, Ht - y0 + 0.1 * s, L, (0, (Ht + y0) / 2, zc), 'dark', dark, 0.06 * s)
     # upper hull: overhangs the inner edge of the tracks, raked front
     uw = hw + 0.35 * s
     M.box(2 * uw, top - Ht + 0.1 * s, L - 0.4 * s, (0, (top + Ht) / 2, zc - 0.25 * s), 'hull', hull, 0.12 * s, taper=(0.9, 0.93), shear=(0, -0.1 * s))
-    # glacis: sloped plate from the hull front down to the drill yoke
-    M.beam((0, Ht - 0.05 * s, zF + 0.25 * s), (0, top - 0.15 * s, zF - 0.85 * s), 2 * uw - 0.3 * s, 0.3 * s, 'hull', hull, 0.06 * s)
-    M.hazard((0, Ht * 0.62, zF + 0.32 * s), 2 * hw - 0.2 * s, 0.4 * s, '+z', hull, panel, s)
-    # side armour: black skirts along the upper hull, bolted
+    rw_ = uw * 0.9                                 # roof half width (after the taper)
+    rz0, rz1 = zc - 0.25 * s - (L - 0.4 * s) * 0.93 / 2 - 0.1 * s, zc - 0.25 * s + (L - 0.4 * s) * 0.93 / 2 - 0.1 * s
+    # glacis: sloped plate from the hull front down to the drill yoke, with a hazard brow on top
+    g0, g1 = (0, Ht - 0.05 * s, zF + 0.25 * s), (0, top - 0.1 * s, rz1 + 0.05 * s)
+    M.beam(g0, g1, 2 * uw - 0.3 * s, 0.3 * s, 'hull', hull, 0.06 * s)
+    M.box(2 * uw - 0.5 * s, 0.42 * s, 0.16 * s, (0, ytop - 0.05 * s, rz1 + 0.1 * s), 'dark', dark, 0.03 * s)
+    M.hazard((0, ytop - 0.05 * s, rz1 + 0.2 * s), 2 * uw - 0.6 * s, 0.34 * s, '+z', hull, panel, s)
+    # lamps on brackets on the glacis
+    gz = lambda y: g0[2] + (g1[2] - g0[2]) * (y - g0[1]) / (g1[1] - g0[1])
+    yl = Ht + 0.5 * s
+    for sx in (1, -1):
+        M.box(0.5 * s, 0.3 * s, 0.25 * s, (sx * (hw - 0.4 * s), yl, gz(yl) + 0.2 * s), 'dark', dark, 0.03 * s)
+    lamps(M, [(sx * (hw - 0.4 * s), yl, gz(yl) + 0.33 * s) for sx in (1, -1)], s)
+    # side armour: black skirts along the upper hull, bolted; glow line above
     for sx in (1, -1):
         M.box(0.12 * s, (top - Ht) * 0.55, L * 0.7, (sx * (uw - 0.02 * s), Ht + (top - Ht) * 0.35, zc - 0.3 * s), 'trim', panel, 0.03 * s, rot=(0, 0, sx * 5))
         for k in range(5):
             M.cyl(0.05 * s, 0.06 * s, (sx * (uw + 0.05 * s), Ht + (top - Ht) * 0.5, zc - 0.3 * s - L * 0.3 + k * L * 0.15), 'x', 'chrome', STEEL, 6, bevel=0)
         M.box(0.05 * s, 0.07 * s, L * 0.6, (sx * (uw * 0.93 + 0.02 * s), top - 0.25 * s, zc - 0.3 * s), 'glow', glow, 0)
-    # engine deck: black grille panels, rear bumper with hazard stripes
-    M.vents((0, top + 0.0 * s, zB + 1.2 * s), 1.5 * s, 1.4 * s, 6, tint=0x1c1c1c)
-    M.box(1.7 * s, 0.04 * s, 1.6 * s, (0, top - 0.02 * s, zB + 1.2 * s), 'trim', panel, 0.01)
+    # engine deck: a raised black cover with grilles; rear bumper with hazard stripes
+    ez = rz0 + 1.25 * s
+    M.box(2 * rw_ - 0.5 * s, 0.24 * s, 2.0 * s, (0, ytop + 0.12 * s, ez), 'trim', panel, 0.06 * s, taper=(0.92, 0.92))
+    M.vents((0, ytop + 0.25 * s, ez + 0.3 * s), 1.4 * s, 0.9 * s, 6, tint=0x141414)
     M.box(2 * hw, 0.5 * s, 0.3 * s, (0, Ht * 0.55, zB - 0.05 * s), 'dark', dark, 0.05 * s)
     M.hazard((0, Ht * 0.55, zB - 0.22 * s), 2 * hw - 0.3 * s, 0.36 * s, '-z', hull, panel, s)
     for sx in (1, -1):
         M.box(0.3 * s, 0.14 * s, 0.06 * s, (sx * (hw - 0.3 * s), Ht + 0.3 * s, zB - 0.02 * s), 'glow', 0xff3020, 0)
     # cab on the front port corner, stacks at the rear corners
     cw, ch, cd = 1.25 * s, 1.0 * s + 0.04 * (m - 1) * s, 1.4 * s
-    cab(M, m, s, C, (uw * 0.9 - cw / 2, top - 0.05 * s, zF - 1.55 * s), cw, ch, cd)
-    stacks(M, m, s, C, [(sx * (uw - 0.45 * s), top - 0.1 * s, zB + 0.45 * s) for sx in (1, -1)], 1.4 * s + 0.08 * (m - 1) * s)
-    lamps(M, [(sx * (hw - 0.35 * s), Ht + 0.2 * s, zF + 0.32 * s) for sx in (1, -1)], s)
-    if m >= 2:   # grab rails and a ladder up the starboard side
-        for sx in (1, -1):
-            M.box(0.06 * s, 0.06 * s, L * 0.4, (sx * (uw * 0.8), top + 0.12 * s, zc + 0.3 * s), 'dark', dark, 0)
+    cab(M, m, s, C, (rw_ - cw / 2 - 0.05 * s, ytop - 0.02 * s, rz1 - cd / 2 - 0.2 * s), cw, ch, cd)
+    stacks(M, m, s, C, [(sx * (rw_ - 0.35 * s), ytop - 0.05 * s, rz0 + 0.45 * s) for sx in (1, -1)], 1.3 * s + 0.08 * (m - 1) * s)
+    # roof hatch (black) beside the cab
+    M.box(0.8 * s, 0.08 * s, 0.8 * s, (-0.45 * s, ytop + 0.04 * s, rz1 - 0.8 * s), 'trim', panel, 0.02)
+    M.cyl(0.25 * s, 0.1 * s, (-0.45 * s, ytop + 0.1 * s, rz1 - 0.8 * s), 'y', 'dark', dark, 14)
+    if m >= 2:   # handrails round the roof and a ladder up the starboard side
+        rails(M, [(-rw_ + 0.08 * s, ytop, rz1 - 0.3 * s), (-rw_ + 0.08 * s, ytop, rz0 + 0.3 * s)], 0.4 * s, s, C)
         for k in range(4):
             M.box(0.04 * s, 0.04 * s, 0.4 * s, (-(uw + 0.12 * s), Ht + 0.2 * s + k * 0.28 * s, zF - 2.2 * s), 'chrome', STEEL, 0)
-    if m >= 3:   # roof armour plates (black) and a beacon
-        M.box(1.2 * s, 0.1 * s, 1.3 * s, (-0.3 * s, top + 0.03 * s, zF - 1.6 * s), 'trim', panel, 0.03 * s)
-        M.cyl(0.1 * s, 0.16 * s, (-(uw - 0.4 * s), top + 0.08 * s, zF - 1.0 * s), 'y', 'glow', glow, 10, bevel=0)
-    # main gun on the roof centre; the 2nd centre mount is the engine deck
-    yg = top + 0.02 * s
+        for sx in (1, -1):   # tool boxes on the track fenders
+            M.box(0.5 * s, 0.4 * s, 1.0 * s, (sx * (uw + 0.05 * s), Ht + 0.22 * s, zB + 1.0 * s), 'trim', panel, 0.04 * s)
+    if m >= 3:   # roof armour plate and a beacon
+        M.cyl(0.1 * s, 0.16 * s, (-(rw_ - 0.3 * s), ytop + 0.08 * s, rz1 - 0.3 * s), 'y', 'glow', glow, 10, bevel=0)
+    if m >= 4:   # front push-bar teeth under the yoke arms (ripper shoes)
+        for sx in (1, -1):
+            M.box(0.3 * s, 0.5 * s, 0.6 * s, (sx * (hw - 0.25 * s), 0.35 * s, zF + 0.3 * s), 'dark', dark, 0.04 * s, taper=(0.6, 0.5))
+    # main gun on the roof centre; the 2nd centre mount is on the engine cover
+    yg = ytop
 
     def roof(on):
-        M.box(1.0 * s, 0.14 * s, 1.0 * s, (0, yg - 0.05 * s, -0.4 * s), 'dark', dark, 0.04 * s)
-    hpc.append(((0, yg + 0.02 * s, -0.4 * s), roof))
+        M.box(1.0 * s, 0.14 * s, 1.0 * s, (0, yg + 0.07 * s, -0.3 * s), 'dark', dark, 0.04 * s, taper=(0.85, 0.85))
+    hpc.append(((0, yg + 0.14 * s, -0.3 * s), roof))
 
     def deck(on):
         if on:
-            M.box(1.0 * s, 0.3 * s, 1.0 * s, (0, top + 0.1 * s, zB + 1.2 * s), 'dark', dark, 0.04 * s, taper=(0.85, 0.85))
-    hpc.append(((0, top + 0.25 * s, zB + 1.2 * s), deck))
+            M.box(1.0 * s, 0.2 * s, 1.0 * s, (0, ytop + 0.34 * s, ez - 0.45 * s), 'dark', dark, 0.04 * s, taper=(0.85, 0.85))
+    hpc.append(((0, ytop + 0.44 * s, ez - 0.45 * s), deck))
     hpp.append(((uw * 0.55, yg, zc + 0.6 * s), None))
 
 
@@ -427,9 +454,7 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
     dw = hw + 0.7 * s if st == 1 else hw + 0.9 * s     # deck overhangs the pods a little (walkways)
     M.box(2 * dw, 0.14 * s, L * 0.5, (0, yk + 0.12 * s, zc), 'dark', dark, 0.03 * s)
     for sx in (1, -1):
-        M.box(0.06 * s, 0.4 * s, L * 0.5, (sx * dw, yk + 0.4 * s, zc), 'trim', trim, 0, rot=(0, 0, 0))
-        for k in range(4):
-            M.box(0.06 * s, 0.4 * s, 0.06 * s, (sx * dw, yk + 0.25 * s, zc - L * 0.22 + k * L * 0.146), 'dark', dark, 0)
+        rails(M, [(sx * (dw - 0.04 * s), yk + 0.19 * s, zc - L * 0.24), (sx * (dw - 0.04 * s), yk + 0.19 * s, zc + L * 0.24)], 0.5 * s, s, C)
         M.hazard((sx * (hw + 0.13 * s), yk - 0.1 * s, zc), L * 0.55, 0.3 * s, '+x' if sx > 0 else '-x', hull, panel, s)
     # superstructure: two stepped blocks over the front half, command cab on top
     sw = hw - 0.05 * s
@@ -444,8 +469,11 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
         M.box(0.05 * s, 0.07 * s, (z1 - z0) * 0.7, (sx * (sw * 0.96 + 0.03 * s), y2 - 0.22 * s, (z0 + z1) / 2), 'glow', glow, 0)
     # glacis from the deck front down to the yoke
     M.beam((0, Ht * 0.55, zF + 0.1 * s), (0, y2 - 0.2 * s, z1 - 0.6 * s), 2 * sw - 0.2 * s, 0.32 * s, 'hull', hull, 0.06 * s)
-    M.hazard((0, Ht * 0.62, zF + 0.05 * s), 2 * sw - 0.6 * s, 0.4 * s, '+z', hull, panel, s)
-    lamps(M, [(sx * (sw - 0.35 * s), Ht * 0.95, zF - 0.05 * s) for sx in (1, -1)], s)
+    M.box(2 * sw * 0.94 - 0.2 * s, 0.44 * s, 0.16 * s, (0, y2 - 0.12 * s, z1 + 0.02 * s), 'dark', dark, 0.03 * s)
+    M.hazard((0, y2 - 0.12 * s, z1 + 0.11 * s), 2 * sw * 0.94 - 0.4 * s, 0.36 * s, '+z', hull, panel, s)
+    for sx in (1, -1):
+        M.box(0.55 * s, 0.32 * s, 0.2 * s, (sx * (sw - 0.45 * s), y2 - 0.62 * s, z1 + 0.05 * s), 'dark', dark, 0.03 * s)
+    lamps(M, [(sx * (sw - 0.45 * s), y2 - 0.62 * s, z1 + 0.17 * s) for sx in (1, -1)], s)
     # upper block (narrower, set back) with the command cab
     uw2 = sw * 0.72
     u0, u1 = z0 + 0.2 * s, z1 - 0.9 * s
@@ -453,6 +481,18 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
     M.box(2 * uw2, h2, u1 - u0, (0, y2 + h2 / 2, (u0 + u1) / 2), 'hull', hull, 0.12 * s, taper=(0.92, 0.92))
     M.box(2 * uw2 + 0.1 * s, 0.12 * s, u1 - u0 + 0.1 * s, (0, y2 + 0.06 * s, (u0 + u1) / 2), 'trim', panel, 0.03 * s)
     y3 = y2 + h2
+    M.box(2 * sw * 0.7, 0.08 * s, z1 - u1 - 0.5 * s, (0, y2 + 0.04 * s, (z1 + u1) / 2 - 0.1 * s), 'trim', panel, 0.02)
+    M.vents((0, y2 + 0.08 * s, (z1 + u1) / 2 - 0.1 * s), 1.2 * s, (z1 - u1) * 0.5, 4, tint=0x141414)
+    for sx in (1, -1):   # black grille panels on the upper block's flanks
+        M.box(0.08 * s, h2 * 0.5, (u1 - u0) * 0.6, (sx * (uw2 * 0.95 + 0.02 * s), y2 + h2 * 0.5, (u0 + u1) / 2), 'trim', panel, 0.02)
+        for k in range(4):
+            M.box(0.1 * s, 0.05 * s, (u1 - u0) * 0.5, (sx * (uw2 * 0.95 + 0.05 * s), y2 + h2 * (0.32 + 0.12 * k), (u0 + u1) / 2), 'dark', 0x141414, 0)
+    if m >= 7 and st == 1 or m >= 10:   # ladders up the flanks to the walkways
+        for sx in (1, -1):
+            for k in range(5):
+                M.box(0.04 * s, 0.04 * s, 0.4 * s, (sx * (dw + 0.04 * s), 0.5 * s + k * 0.3 * s, zc + L * 0.05), 'chrome', STEEL, 0)
+            for dz in (-0.2 * s, 0.2 * s):
+                M.box(0.05 * s, 1.5 * s, 0.05 * s, (sx * (dw + 0.04 * s), 1.0 * s, zc + L * 0.05 + dz), 'dark', dark, 0)
     cw, chh, cd = 1.5 * s, 0.95 * s, 1.3 * s
     cab(M, m, s, C, (uw2 - cw / 2 + 0.1 * s, y3 - 0.05 * s, u1 - cd / 2 - 0.1 * s), cw, chh, cd)
     # stacks behind the upper block
@@ -463,6 +503,12 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
     def topm(on):
         M.box(1.0 * s, 0.12 * s, 1.0 * s, (0, yt - 0.04 * s, u0 + 0.75 * s), 'dark', dark, 0.04 * s)
     hpc.append(((0, yt + 0.02 * s, u0 + 0.75 * s), topm))
+    if m >= 8:   # floodlight bar on the upper block's front edge
+        M.box(2 * uw2 * 0.8, 0.16 * s, 0.16 * s, (0, y3 + 0.1 * s, u1 - 0.1 * s), 'dark', dark, 0.02)
+        lamps(M, [(k * uw2 * 0.4 - uw2 * 0.6, y3 + 0.1 * s, u1 - 0.0 * s) for k in range(4) if abs(k * uw2 * 0.4 - uw2 * 0.6 - (uw2 - cw / 2 + 0.1 * s)) > cw / 2], s)
+    if m >= 12:  # command crest: black-and-gold fin on the cab roof
+        M.box(0.12 * s, 0.5 * s, 1.0 * s, (uw2 - cw / 2 + 0.1 * s, y3 + chh + 0.2 * s, u1 - cd / 2 - 0.2 * s), 'trim', panel, 0.03 * s, taper=(1, 0.5), shear=(0, -0.3 * s))
+        M.box(0.04 * s, 0.08 * s, 0.6 * s, (uw2 - cw / 2 + 0.1 * s, y3 + chh + 0.32 * s, u1 - cd / 2 - 0.3 * s), 'glow', glow, 0)
     if m >= 6:   # sensor mast
         M.cyl(0.05 * s, 1.3 * s, (-(uw2 - 0.25 * s), y3 + 0.65 * s, u0 + 0.25 * s), 'y', 'dark', dark, 6, bevel=0)
         M.box(0.5 * s, 0.08 * s, 0.08 * s, (-(uw2 - 0.25 * s), y3 + 1.2 * s, u0 + 0.25 * s), 'dark', dark, 0)

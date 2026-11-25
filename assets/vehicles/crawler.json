@@ -1,11 +1,11 @@
 {
  "ex_crawler_1": {
-  "bytes": 151968,
+  "bytes": 158284,
   "dims": {
-   "H": 4.238,
+   "H": 4.393,
    "L": 9.044,
    "W": 4.9,
-   "maxY": 4.1,
+   "maxY": 4.255,
    "minY": -0.138
   },
   "drillR": 0.72,
@@ -36,8 +36,8 @@
   "hardpoints": [
    [
     0.0,
-    3.0,
-    -0.4,
+    3.15,
+    -0.3,
     0.85
    ]
   ],
@@ -45,15 +45,15 @@
   "ride": 0,
   "scale": 1.0,
   "tracks": 2,
-  "tris": 14800,
+  "tris": 15284,
   "wheels": 12
  },
  "ex_crawler_12": {
-  "bytes": 331736,
+  "bytes": 356348,
   "dims": {
    "H": 13.194,
    "L": 23.324,
-   "W": 12.136,
+   "W": 12.483,
    "maxY": 11.644,
    "minY": -1.55
   },
@@ -61,7 +61,7 @@
   "empties": {
    "eng": 2,
    "hp": 6,
-   "light": 4,
+   "light": 5,
    "tool": 1
   },
   "file": "ex_crawler_12.glb",
@@ -136,11 +136,68 @@
   "ride": 0,
   "scale": 1.825,
   "tracks": 4,
-  "tris": 35292,
+  "tris": 37820,
   "wheels": 24
  },
+ "ex_crawler_4": {
+  "bytes": 179820,
+  "dims": {
+   "H": 6.015,
+   "L": 11.289,
+   "W": 6.003,
+   "maxY": 5.691,
+   "minY": -0.325
+  },
+  "drillR": 1.029,
+  "empties": {
+   "eng": 2,
+   "hp": 2,
+   "light": 4,
+   "tool": 1
+  },
+  "file": "ex_crawler_4.glb",
+  "frame": "crawler",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_10",
+   "wheel_11",
+   "wheel_12",
+   "wheel_13",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5",
+   "wheel_6",
+   "wheel_7",
+   "wheel_8",
+   "wheel_9"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    3.995,
+    -0.368,
+    1.041
+   ],
+   [
+    0.0,
+    4.363,
+    -2.652,
+    1.041
+   ]
+  ],
+  "mark": 4,
+  "ride": 0,
+  "scale": 1.225,
+  "tracks": 2,
+  "tris": 17700,
+  "wheels": 14
+ },
  "ex_crawler_5": {
-  "bytes": 230128,
+  "bytes": 241604,
   "dims": {
    "H": 7.009,
    "L": 13.864,
@@ -199,15 +256,90 @@
   "ride": 0,
   "scale": 1.3,
   "tracks": 4,
-  "tris": 23872,
+  "tris": 24772,
+  "wheels": 20
+ },
+ "ex_crawler_8": {
+  "bytes": 276112,
+  "dims": {
+   "H": 9.406,
+   "L": 16.538,
+   "W": 8.677,
+   "maxY": 8.83,
+   "minY": -0.577
+  },
+  "drillR": 1.525,
+  "empties": {
+   "eng": 2,
+   "hp": 4,
+   "light": 5,
+   "tool": 1
+  },
+  "file": "ex_crawler_8.glb",
+  "frame": "crawler",
+  "groups": [
+   "body",
+   "drill",
+   "wheel_0",
+   "wheel_1",
+   "wheel_10",
+   "wheel_11",
+   "wheel_12",
+   "wheel_13",
+   "wheel_14",
+   "wheel_15",
+   "wheel_16",
+   "wheel_17",
+   "wheel_18",
+   "wheel_19",
+   "wheel_2",
+   "wheel_3",
+   "wheel_4",
+   "wheel_5",
+   "wheel_6",
+   "wheel_7",
+   "wheel_8",
+   "wheel_9"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    6.966,
+    0.74,
+    1.296
+   ],
+   [
+    0.0,
+    5.273,
+    -4.325,
+    1.296
+   ],
+   [
+    1.571,
+    5.563,
+    3.44,
+    1.296
+   ],
+   [
+    -1.571,
+    5.563,
+    3.44,
+    1.296
+   ]
+  ],
+  "mark": 8,
+  "ride": 0,
+  "scale": 1.525,
+  "tracks": 4,
+  "tris": 28764,
   "wheels": 20
  },
  "ex_crawler_9": {
-  "bytes": 316812,
+  "bytes": 337460,
   "dims": {
    "H": 10.87,
    "L": 19.449,
-   "W": 10.64,
+   "W": 10.944,
    "maxY": 9.776,
    "minY": -1.094
   },
@@ -215,7 +347,7 @@
   "empties": {
    "eng": 2,
    "hp": 4,
-   "light": 4,
+   "light": 5,
    "tool": 1
   },
   "file": "ex_crawler_9.glb",
@@ -278,7 +410,7 @@
   "ride": 0,
   "scale": 1.6,
   "tracks": 4,
-  "tris": 33184,
+  "tris": 35192,
   "wheels": 24
  }
 }
