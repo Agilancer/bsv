@@ -154,6 +154,7 @@ test('hardpoints take guns and bays; a frame swap keeps every item', () => {
   const P = newPlayer(); const ex = ensureExplorer(P);
   ex.owned.push('ex_seraph_6'); setExChassis(ex, 'ex_seraph_6');
   const bay = makeExItem('sparrow', 10, 'rare'), gun = makeExItem('arc', 10, 'rare');
+  bay.affixes = []; bay.unique = [];   // a rolled 'swarm' affix would add its own drone
   ex.inventory.push(bay, gun);
   assert.ok(equipExItem(ex, bay) && equipExItem(ex, gun));
   const st = explorerStats(ex);
