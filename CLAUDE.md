@@ -57,7 +57,10 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     level/perks/upgrades, invite and alliance acceptance, NPC guilds and blocs, zone capture and
     control ticks, rating/tiers/matchmaking, rewards, vendor), `index.js` (runtime, autoplay
     management, the `PvP sortie` goal), `zones.js` (contested Voidglass fields in the open galaxy),
-    `arena.js` (instanced modes), `bots.js` (PvP captains), `ui.js` + `css/guild.css`. Save:
+    `arena.js` (instanced modes), `bots.js` (PvP captains), `ui.js` + `css/guild.css`. `pvpfx.js`: the match title (steel
+    P / v / P lock in with a clank and sparks, fade to black, the captain takes station under it: arena phase `intro`,
+    `INTRO_BLACK`) and the WINNER / LOSER / DRAW stamp, which stays until the screen fades out (`LEAVE_FADE`) and home;
+    all of it keyed to `engine.realTime`, skipped for `fast` matches (the tools). Save:
     `data.guild`, `data.pvp`, `data.diplo`. Hostile PvP captains use teams 8+ (`s.pvp`, `noLoot`).
   - Explorer vehicles (`planet/`): 7 frames x 12 marks (`data/chassis.js` `EXPLORER_FRAMES`, Mk m buildable at explorer
     level `exMarkLevel(m)`: Mk XII at the cap of 50). Every mark is a Blender model (`tools/blender`, below) that grows

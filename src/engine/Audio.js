@@ -122,6 +122,16 @@ export class Audio {
   warp(t, g) { this.osc('sine', 1400, 50, t, 0.9, 0.3 * g); this.burst(t, 1.4, 0.35 * g, 200, 2, 'bandpass', 6000).connect(this.verb); return 1; }
   levelup(t, g) { [523, 659, 784, 1046].forEach((f, i) => this.osc('triangle', f, f * 1.001, t + i * 0.09, 0.9, 0.12 * g).connect(this.verb)); return 1; }
   lure(t, g) { this.osc('sine', 70, 38, t, 0.7, 0.32 * g); this.osc('triangle', 140, 76, t, 0.55, 0.1 * g); this.burst(t, 0.35, 0.12 * g, 120, 1, 'lowpass', 900); return 0.7; }
+  // a heavy plate locking home: a dull thud, inharmonic ringing partials (struck steel) and a short grinding scrape
+  clank(t, g) {
+    this.osc('sine', 150, 46, t, 0.4, 0.55 * g);
+    this.burst(t, 0.09, 0.5 * g, 2600, 0.8, 'lowpass', 500);
+    const f = 260 + Math.random() * 40;
+    [[1, 0.13, 0.9], [2.76, 0.08, 0.6], [5.4, 0.05, 0.4], [8.93, 0.03, 0.25]].forEach(([k, a, d]) => this.osc('sine', f * k, f * k * 0.985, t, d, a * g).connect(this.verb));
+    this.burst(t + 0.01, 0.32, 0.16 * g, 5200, 3, 'bandpass', 2400);
+    return 0.5;
+  }
+  whoosh(t, g) { this.burst(t, 0.42, 0.22 * g, 500, 1.6, 'bandpass', 3400); this.osc('sawtooth', 70, 160, t, 0.4, 0.04 * g); return 0.3; }
   loot(t, g) { [1046, 1318, 1568, 2093].forEach((f, i) => this.osc('sine', f, f, t + i * 0.06, 0.6, 0.08 * g).connect(this.verb)); return 0.5; }
 
   // --- generative music ---
