@@ -1,0 +1,161 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Parts viewer</title>
+<base href="../">
+<style>
+html,body{margin:0;background:#0b1018;overflow:hidden;color:#9cf;font:12px monospace}
+#info{position:fixed;left:8px;top:8px;white-space:pre;opacity:.6}
+.lbl{position:fixed;transform:translate(-50%,0);text-align:center;white-space:nowrap;font:600 13px system-ui,sans-serif;color:#e8f2ff;text-shadow:0 1px 3px #000,0 0 6px #000}
+.lbl i{display:block;font:400 11px system-ui,sans-serif;font-style:normal;color:#9ab8d8;line-height:1.35}
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.webgpu.js","three/webgpu":"./vendor/three/three.webgpu.js","three/tsl":"./vendor/three/three.tsl.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head><body><div id="info"></div>
+<script type="module">
+// Lays out the hardpoint parts from Blender (assets/vehicles/guns.glb, drones.glb) for review: every gun,
+// drone-bay pod and swarm drone in a labelled grid, built by the game's own vehicleGLB helpers.
+//   ?only=guns,pods,drones (rows, in that order)   ?size=1 (hardpoint scale)   ?frame=rover&tier=5 (materials)
+//   ?heading=rad (each part's yaw)   ?pitch=rad   ?fov=deg   ?gap=units   ?nolabels   ?clean   ?dpr=2   ?exposure=
+//   ?pick=chaingun,sparrow (only these)   ?cols=N (wrap each row after N parts)
+//   ?marks  shows the muzzle / launch points as red beads   ?far  the planet camera's fov (34) from ?dist=80 units
+//   window.__bounds = the CSS-pixel box holding every part and label (for cropped screenshots)
+import * as THREE from 'three/webgpu';
+import { Engine } from './src/engine/Engine.js';
+import { preload } from './src/engine/Assets.js';
+import { initMaterials } from './src/fx/materials.js';
+import { loadParts, glbMats, buildGunGLB, buildPodGLB, droneTemplate } from './src/game/planet/vehicleGLB.js';
+import { EX_BASES } from './src/game/planet/explorerItems.js';
+
+const q = new URLSearchParams(location.search);
+const only = (q.get('only') || 'guns,pods,drones').split(',');
+const size = +(q.get('size') || 1);
+const heading = q.has('heading') ? +q.get('heading') : 0.6;
+const pitch = q.has('pitch') ? +q.get('pitch') : 0.55;
+const gap = +(q.get('gap') || 3.4) * size;
+const pick = q.get('pick') ? q.get('pick').split(',') : null;
+const GUNS = ['chaingun', 'scatter', 'rockets', 'plasma', 'flamer', 'rail', 'mortar', 'arc'].filter((k) => !pick || pick.includes(k));
+const DRONES = ['sparrow', 'scarab', 'mender', 'aegis', 'magpie'].filter((k) => !pick || pick.includes(k));
+
+const e = await new Engine(document.body).init();
+initMaterials(e);
+await preload(['hull_naval', 'hull_graphite', 'hull_gold', 'hull_glacier', 'hull_dropship', 'hull_apc']);
+e.renderer.shadowMap.enabled = true;
+e.renderer.toneMappingExposure = +(q.get('exposure') || 1.2);
+if (q.has('dpr')) e.setResolution(+q.get('dpr'));
+if (q.has('clean')) document.getElementById('info').style.display = 'none';
+const scene = e.scene;
+scene.background = new THREE.Color(0x0b1018);
+const sun = new THREE.DirectionalLight(0xfff0d8, 3.0);
+const hemi = new THREE.HemisphereLight(0xa8c8ff, 0x3a4a2a, 1.3);
+sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096); sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.05;
+scene.add(sun, sun.target, hemi);
+
+await loadParts();
+const mats = glbMats(q.get('frame') || 'rover', +(q.get('tier') || 5), e);
+const bead = new THREE.MeshBasicNodeMaterial({ color: 0xff2040 });
+const tris = (o) => { let n = 0; o.traverse((m) => { if (m.isMesh) n += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; }); return n; };
+const nice = (k) => (EX_BASES[k] && EX_BASES[k].name) || k;
+
+const rows = [];
+for (const r of only) {
+  const row = [];
+  if (r === 'guns') for (const k of GUNS) {
+    const m = buildGunGLB(k, mats, size);
+    if (m) row.push({ obj: m.group, name: nice(k), sub: `gun_${k}`, mark: m.muzzle, n: tris(m.group) });
+  }
+  if (r === 'pods') for (const k of DRONES) {
+    const m = buildPodGLB(k, mats, size);
+    if (m) row.push({ obj: m.group, name: nice(k) + ' bay', sub: `pod_${k}`, mark: m.launch, n: tris(m.group) });
+  }
+  if (r === 'drones') for (const k of DRONES) {
+    const g = droneTemplate(k, mats);
+    if (!g) continue;
+    g.scale.setScalar(size);
+    const holder = new THREE.Group(); holder.add(g);
+    const b = new THREE.Box3().setFromObject(holder);
+    g.position.y = k === 'scarab' ? -b.min.y : 0.7 * size - b.min.y;   // crawlers stand on the ground, flyers hover
+    row.push({ obj: holder, name: k[0].toUpperCase() + k.slice(1) + ' drone', sub: `drone_${k}`, mark: null, n: tris(g), drone: g });
+  }
+  const per = +(q.get('cols') || 0) || row.length;
+  for (let i = 0; i < row.length; i += per) rows.push(row.slice(i, i + per));
+}
+const placed = [];
+let z = 0, maxX = 0;
+const rowGap = 4.2 * size;
+const W0 = Math.max(...rows.map((r) => r.length)) * gap;
+for (const row of rows) {
+  const x0 = (W0 - row.length * gap) / 2 + gap / 2;
+  row.forEach((p, i) => {
+    p.obj.position.set(x0 + i * gap, 0, z);
+    p.obj.rotation.y = heading;
+    p.obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    scene.add(p.obj);
+    if (p.mark && q.has('marks')) {
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.06 * size, 10, 6), bead);
+      s.position.copy(p.mark);
+      p.obj.add(s);
+    }
+    placed.push(p);
+  });
+  maxX = Math.max(maxX, W0);
+  z -= rowGap;
+}
+const maxZ = -z - rowGap;
+const cx = W0 / 2, cz = -maxZ / 2;
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardNodeMaterial({ color: 0x28303a, roughness: 0.95, metalness: 0 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(4000, 4000, 0x34465a, 0x2c3a48); grid.position.y = 0.01; scene.add(grid);
+sun.position.set(cx - 25, 45, cz + 30); sun.target.position.set(cx, 0, cz);
+const sc = sun.shadow.camera, ext = Math.max(W0, maxZ) / 2 + 8;
+sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.near = 1; sc.far = 200; sc.updateProjectionMatrix();
+
+const cam = e.camera;
+cam.fov = q.has('far') ? 34 : +(q.get('fov') || 16); cam.updateProjectionMatrix();
+const box = new THREE.Box3();
+for (const p of placed) box.expandByObject(p.obj);
+box.min.z -= 0.5; box.max.z += 1.5;
+const corners = [];
+for (const x of [box.min.x, box.max.x]) for (const y of [0, box.max.y]) for (const zz of [box.min.z, box.max.z]) corners.push(new THREE.Vector3(x, y, zz));
+const aimY = box.max.y * 0.3;
+const v3 = new THREE.Vector3();
+let d = 6;
+if (q.has('far')) d = +(q.get('dist') || 80);
+else for (let it = 0; it < 400; it++) {
+  cam.position.set(cx, aimY + d * Math.sin(pitch), cz + d * Math.cos(pitch));
+  cam.lookAt(cx, aimY, cz); cam.updateMatrixWorld(true);
+  if (corners.every((p) => { v3.copy(p).project(cam); return Math.abs(v3.x) < 0.92 && v3.y < 0.92 && v3.y > -0.86; })) break;
+  d *= 1.03;
+}
+cam.position.set(cx, aimY + d * Math.sin(pitch), cz + d * Math.cos(pitch));
+cam.lookAt(cx, aimY, cz); cam.updateMatrixWorld(true);
+
+const labels = q.has('nolabels') ? [] : placed.map((p) => {
+  const el = document.createElement('div'); el.className = 'lbl';
+  el.innerHTML = `${p.name}<i>${p.sub} · ${p.n} tris</i>`;
+  document.body.append(el);
+  return { el, p };
+});
+const W = innerWidth, H = innerHeight;
+const proj = (b, f) => {
+  for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const zz of [b.min.z, b.max.z]) {
+    v3.set(x, y, zz).project(cam); f((v3.x + 1) / 2 * W, (1 - v3.y) / 2 * H);
+  }
+};
+for (const { el, p } of labels) {
+  let x0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const b = new THREE.Box3().expandByObject(p.obj);
+  b.min.y = 0;
+  proj(b, (sx, sy) => { x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y1 = Math.max(y1, sy); });
+  el.style.left = ((x0 + x1) / 2) + 'px'; el.style.top = (y1 + 4) + 'px';
+}
+{
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of placed) proj(new THREE.Box3().expandByObject(p.obj), (sx, sy) => { x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); });
+  for (const { el } of labels) { const r = el.getBoundingClientRect(); x0 = Math.min(x0, r.left); x1 = Math.max(x1, r.right); y0 = Math.min(y0, r.top); y1 = Math.max(y1, r.bottom); }
+  const m = 20;
+  x0 = Math.max(0, x0 - m); y0 = Math.max(0, y0 - m); x1 = Math.min(W, x1 + m); y1 = Math.min(H, y1 + m);
+  window.__bounds = { x: Math.floor(x0), y: Math.floor(y0), width: Math.ceil(x1 - x0), height: Math.ceil(y1 - y0) };
+}
+const info = document.getElementById('info');
+e.add({ update() { info.textContent = `${e.backend} ${e.fps.toFixed(0)} fps  ${placed.length} parts`; } });
+e.start();
+window.__ready = true;
+</script></body></html>

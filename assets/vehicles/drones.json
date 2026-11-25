@@ -1,0 +1,32 @@
+{
+ "drones": {
+  "bytes": 119924,
+  "dims": {
+   "H": 1.355,
+   "L": 7.455,
+   "W": 17.736,
+   "maxY": 0.975,
+   "minY": -0.38
+  },
+  "empties": {},
+  "file": "drones.glb",
+  "groups": [
+   "drone_aegis",
+   "drone_magpie",
+   "drone_mender",
+   "drone_scarab",
+   "drone_sparrow",
+   "pod_aegis",
+   "pod_magpie",
+   "pod_mender",
+   "pod_scarab",
+   "pod_sparrow"
+  ],
+  "hardpoints": [],
+  "part": "drones",
+  "scale": 1,
+  "scarab_feet": -0.3,
+  "tris": 9904,
+  "types": 5
+ }
+}

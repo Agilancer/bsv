@@ -159,7 +159,7 @@ export class Drones {
           } else { ox = vp.x + Math.sin(ang) * (rad + 5); oz = vp.z + Math.cos(ang) * (rad + 5); oy = vp.y + 4 + Math.sin(ang * 2) * 0.6; }
         } else if (s.type === 'mender') {
           ox = vp.x + Math.sin(ang) * (rad + 2.5); oz = vp.z + Math.cos(ang) * (rad + 2.5); oy = vp.y + 3;
-          if (V.hp < V.stats.maxHp && M.state === 'play') {
+          if (V.hp < V.stats.maxHp && M.state === 'play' && d.pos.distanceTo(vp) < rad + 9) {   // repairs only from close escort
             V.heal(V.stats.maxHp * ds.power * dt);
             d.cd -= dt;
             if (d.cd <= 0) { d.cd = 0.3 + Math.random() * 0.2; _w.copy(vp); _w.y += 1.2; M.pfx.timedBeam(d.pos.clone(), _w.clone(), 0.25, ds.color, 1.2, 0.14); }

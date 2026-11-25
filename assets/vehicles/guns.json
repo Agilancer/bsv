@@ -1,0 +1,29 @@
+{
+ "guns": {
+  "bytes": 119836,
+  "count": 8,
+  "dims": {
+   "H": 1.24,
+   "L": 2.654,
+   "W": 28.793,
+   "maxY": 1.24,
+   "minY": 0.0
+  },
+  "empties": {},
+  "file": "guns.glb",
+  "groups": [
+   "gun_arc",
+   "gun_chaingun",
+   "gun_flamer",
+   "gun_mortar",
+   "gun_plasma",
+   "gun_rail",
+   "gun_rockets",
+   "gun_scatter"
+  ],
+  "hardpoints": [],
+  "part": "guns",
+  "scale": 1,
+  "tris": 11944
+ }
+}

@@ -955,7 +955,7 @@ export class PlanetMode {
       this.later(0.7, () => {
         const V = this.vehicle;
         V.setVisible(true);
-        const off = Math.max(9, 6 + V.radius * 0.75);   // the big marks roll out clear of the lander
+        const off = Math.max(9, 8 + V.radius * 1.25);   // the big marks roll out clear of the lander
         V.place(L.position.x + off, L.position.z + off, Math.PI * 0.25);
         V.velocity.set(Math.sin(Math.PI * 0.25) * 18, 0, Math.cos(Math.PI * 0.25) * 18);
         fx.pillar(V.position, 0x58c8ff, 20, 2, 24);

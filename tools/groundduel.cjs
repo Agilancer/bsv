@@ -42,7 +42,10 @@ async function dungeonRuns(cfg) {
       E.simulate(6, 1 / 20);
       const ex = M.ex, B = GB.expectedBuild(L);
       ex.level = L; ex.chassis = B.chassis; if (!ex.owned.includes(B.chassis)) ex.owned.push(B.chassis);
-      ex.loadout = B.loadout; ex.inventory = []; M.rebuildVehicle();
+      ex.loadout = B.loadout; ex.inventory = [];
+      const VG = await import('./src/game/planet/vehicleGLB.js');
+      await Promise.all([VG.loadVehicle(B.chassis), VG.loadParts()]);
+      M.rebuildVehicle();
       const V = M.vehicle, P = GB.expectedExplorer(L), ehp = V.stats.maxHp + V.stats.maxShield * 0.8;
       const mouth = M.dungeons[0]; mouth.depth = depth;
       M.enterDungeon(mouth);
@@ -110,6 +113,7 @@ async function dungeonRuns(cfg) {
     if (g.docked && g.undock) g.undock();   // a new captain starts docked at the home station: cast off before measuring
     const { ENEMIES } = await import('./src/game/planet/enemies.js');
     const GB = await import('./src/game/planet/groundBalance.js');
+    const VG = await import('./src/game/planet/vehicleGLB.js');
     if (g.sector && g.sector.director) g.sector.director.update = () => {};
     // only the game (which steps the planet mode) and the particle layers keep running: the always-on
     // modules (simulated population, crew, bridge...) tick on timers set by however many real frames this
@@ -140,6 +144,9 @@ async function dungeonRuns(cfg) {
       const B = GB.expectedBuild(L);
       ex.level = L; ex.chassis = B.chassis; if (!ex.owned.includes(B.chassis)) ex.owned.push(B.chassis);
       ex.loadout = B.loadout; ex.inventory = [];
+      // the Blender model and hardpoint parts first: a model landing mid-duel would rebuild the explorer and
+      // shift the seeded stream (a fallback model is only for a file that cannot load)
+      await Promise.all([VG.loadVehicle(B.chassis), VG.loadParts()]);
       M.rebuildVehicle();
       const P = GB.expectedExplorer(L);
       for (const si of cfg.sizes) {
