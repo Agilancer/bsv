@@ -19,8 +19,12 @@ Read this first when picking the work up (new session or another model). Then `C
 - Review rule: at most 4 critic iterations, or until the critics approve.
 
 ## In progress
-- Each yard's own body shape: the yards still share the class ladder's faceted forms (battery blocks,
-  side hulls, belly pods, gun spine, wings). See "Next" 1.
+- Each yard's own body shape, driven from its `Style` (hooks in `shipkit.py`: `blockp`, `block_fore` / `block_aft`,
+  `side`, `crossways`, `spinep`, `podpart` + `spod()` / `oval()`, `long_stag`, `wing`, `sidehull`, `blocks`).
+  Order: Aurelian, Hollow, Corsair, Tidewright, Ironhold. Velscour stays as approved (do not regenerate its kit).
+  - Aurelian: DONE (oval flank fairings with swept ends, smooth belly pods, domed gun spine, blade wings, oval side-hull
+    pylons, one long fairing on staggered batteries). Weak: turret wells are still square pits; battery sections are prisms.
+  - Hollow, Corsair, Tidewright, Ironhold: not started (see "Next" 1).
 
 ## Next, in order
 1. Give each yard its own body shapes in its `Style` (Aurelian and Hollow curved; Tidewright's collector
