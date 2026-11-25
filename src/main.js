@@ -5,6 +5,7 @@ import { IsoCamera } from './engine/IsoCamera.js';
 import { preload, progress } from './engine/Assets.js';
 import { initMaterials } from './fx/materials.js';
 import { loadKits } from './game/ship/kitAssembler.js';
+import { setHullKits } from './game/ship/HullBuilder.js';
 import { Game } from './game/Game.js';
 import { load } from './game/Player.js';
 import { Audio } from './engine/Audio.js';
@@ -30,8 +31,11 @@ async function boot() {
   window.__engine = engine;
   loadTxt.textContent = `${engine.backend} online · loading textures`;
   progress.onChange = (d, n, name) => { loadBar.style.width = `${(d / n) * 100}%`; loadTxt.textContent = `Loading ${name}`; };
-  // hull part kits (docs/ships/kit-spec.md): a missing or broken kit leaves the procedural hulls in use
-  await Promise.all([preload(TEXTURES), loadKits()]);
+  // hull part kits (docs/ships/kit-spec.md): a missing or broken kit leaves the procedural hulls in use;
+  // ?nokit forces the procedural hulls (A/B checks: tools/duel.cjs and soak.cjs take QS=&nokit)
+  const noKit = new URLSearchParams(location.search).has('nokit');
+  if (noKit) setHullKits(false);
+  await Promise.all([preload(TEXTURES), noKit ? null : loadKits()]);
   initMaterials(engine);
   const input = engine.add(new Input(engine.renderer.domElement));
   const cam = new IsoCamera(engine.camera, input);
