@@ -65,6 +65,10 @@ function arm(yard, h) {
 
 const _p = new THREE.Vector3();
 const _back = new THREE.Vector3(0, 0, -1);
+// The star bears off the port bow and keeps that bearing as the line sails on (the light is re-aimed at
+// the lead every frame, as World does in play; fixed in world space, it swung astern within seconds and
+// left the side the camera sees in shadow).
+const SUN_BEARING = new THREE.Vector3(-1, 0, 0.6).multiplyScalar(1e5);
 
 export class TitleScene {
   constructor(engine, { line = TITLE_LINE } = {}) {
@@ -76,7 +80,6 @@ export class TitleScene {
     this.backdrop = engine.add(new SpaceBackdrop(engine));
     this.backdrop.setPalette(0x1a0f3a, 0x0a3a5c, 0x5a1850, 13, 1.1);
     this.lights = new SpaceLights(this.scene);
-    this.lights.sun.position.set(-1, 0.8, 0.6).multiplyScalar(100);
     this.fx = new FX(engine);
     this.layers = [this.fx.glow, this.fx.spark, this.fx.smoke];
     const planet = makePlanet('gasblue', 2600, 77, { rings: true });
@@ -123,7 +126,7 @@ export class TitleScene {
     this.camera.position.set(lead.x + Math.sin(a) * 330 * k, lead.y + (70 + Math.sin(T * 0.1) * 30) * k, lead.z + Math.cos(a) * 330 * k);
     this.camera.lookAt(lead.x - 40 * k, lead.y + 10 * k, lead.z - 120 * k);
     this.backdrop.follow = lead;
-    this.lights.aim(null, lead);
+    this.lights.aim(_p.copy(lead).add(SUN_BEARING), lead);
     this.planet.rotation.y += realDt * 0.004;
   }
 
