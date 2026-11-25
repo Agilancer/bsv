@@ -10,6 +10,7 @@ import { shieldMaterial, rimVariant, hullMaterials } from '../../fx/materials.js
 import { normPaint, paintPalette } from '../data/paint.js';
 import { BASES, weaponStats, itemShipStats, DISRUPT, SHIELD_HIT } from '../data/items.js';
 import { YARDS } from '../data/chassis.js';
+import { SHOT, PATTERN } from '../data/ordnance.js';
 import { clamp, wrapAngle, damp } from '../../engine/rng.js';
 
 const CRUISE = 1.9;   // engines to cruise: a ship on passage with nothing near (set per frame through cruiseUntil)
@@ -306,11 +307,11 @@ export class Ship {
     }
     if (this.hull <= 0) { W.kill(this, this.lastAttacker); return; }
 
-    // damaged hull smokes and burns
+    // damaged hull vents atmosphere (glittering ice, gone in a moment: no smoke in vacuum) and burns
     const hp = this.hull / this.maxHull;
     if (hp < 0.5 && Math.random() < dt * (1 - hp) * 14) {
       const p = this.randomHullPoint(_w);
-      W.fx.smokePuff(p, this.dims.W * 0.9);
+      W.fx.vent(p, this.dims.W * 0.9);
       if (hp < 0.3) W.fx.fire(p, this.dims.W * 0.7);
     }
 
@@ -484,23 +485,32 @@ export class Ship {
     }
     const n = Math.max(1, ws.barrels);
     const shots = ws.unique.includes('splitShot') || (ws.splitChance && Math.random() < ws.splitChance) ? 3 : 1;
+    // the volley's pattern (data/ordnance.js): broadsides ripple down the deck, tubes fire in pairs, spreads fan
+    // out and home back in, a salvo cycles one tube fast. Timing and fan only: the volley's damage is the same.
+    const pat = PATTERN[ws.pattern] || (w.hp.type === 'broadside' ? PATTERN.broadside : PATTERN.ripple);
+    const st = ws.kind === 'beam' ? null : SHOT[ws.fx];
+    const muzzleKind = ws.kind === 'beam' ? 'beam' : st ? st.muzzle : 'gun';
+    const sfx = ws.sfx === 'cannon' && ws.dmg > 100 ? 'heavy' : ws.sfx || 'cannon';
     const doFire = (delayIdx) => {
       for (let i = 0; i < n; i++) {
-        const delay = instant ? 0 : (w.hp.type === 'broadside' ? i * 0.09 + delayIdx : i * 0.05 + delayIdx);
+        const delay = instant ? 0 : i * pat.gap + delayIdx;
+        const bi = pat.oneTube ? 0 : i;
+        const fan = pat.fan ? (i - (n - 1) / 2) * pat.fan : 0;
         W.schedule(delay, () => {
           if (!this.alive) return;
-          const mp = this.muzzleWorld(w, i, new THREE.Vector3(), new THREE.Vector3());
-          if (w.mount && w.mount.barrels.length) w.mount.barrels[i % w.mount.barrels.length].kick = 1;
-          W.fx.muzzle(mp, _v.copy(target.position).sub(mp).normalize(), ws.color, this.dims.W * 0.12 * (ws.kind === 'beam' ? 1.5 : 1));
+          const mp = this.muzzleWorld(w, bi, new THREE.Vector3(), new THREE.Vector3());
+          if (w.mount && w.mount.barrels.length) w.mount.barrels[bi % w.mount.barrels.length].kick = 1;
+          const dir = _v.copy(target.position).sub(mp).normalize();
+          W.fx.shotMuzzle(muzzleKind, mp, dir, ws.color, this.dims.W * 0.12 * (ws.kind === 'beam' ? 1.5 : ws.kind === 'torpedo' ? 0.6 + 0.4 * (ws.pSize || 1) : 1));
           if (ws.kind === 'beam') {
             if (!target.alive) return;
             const width = Math.max(1.5, this.dims.W * 0.12) * (ws.dmg > 150 ? 3 : 1) * (ws.beamW || 1);
-            W.combat.beam(this, { ...ws, dmg: ws.dmg * mul }, mp, target, ws.color, width);
-            W.audio && W.audio.play('beam', mp);
+            const b = W.combat.beam(this, { ...ws, dmg: ws.dmg * mul }, mp, target, ws.color, width);
+            W.audio && W.audio.play(ws.sfx || 'phaser', mp, 1, ws.pitch || 1, b ? b.life : 0.4);
             return;
           }
-          for (let k = 0; k < shots; k++) this.launch(w, ws, mp, target, mul, k - (shots - 1) / 2);
-          W.audio && W.audio.play(ws.kind === 'torpedo' ? 'torpedo' : ws.kind === 'missile' ? 'missile' : ws.dmg > 100 ? 'heavy' : 'cannon', mp);
+          for (let k = 0; k < shots; k++) this.launch(w, ws, mp, target, mul, k - (shots - 1) / 2, fan);
+          W.audio && W.audio.play(sfx, mp, 1, (ws.pitch || 1) * (0.97 + Math.random() * 0.06));
         });
       }
     };
@@ -508,7 +518,7 @@ export class Ship {
     if (ws.unique.includes('doubleTap')) doFire(0.25);
   }
 
-  launch(w, ws, mp, target, mul, splitK = 0) {
+  launch(w, ws, mp, target, mul, splitK = 0, fan = 0) {
     const W = this.world;
     // lead the target
     const spd = ws.speed;
@@ -520,6 +530,7 @@ export class Ship {
     const dir = aim.sub(mp).normalize();
     const sp = ws.spread + (splitK ? 0.08 * splitK : 0);
     if (sp) { const a = (Math.random() - 0.5) * sp * 2 + (splitK ? 0.12 * splitK : 0); dir.applyAxisAngle(THREE.Object3D.DEFAULT_UP, a); }
+    if (fan) dir.applyAxisAngle(THREE.Object3D.DEFAULT_UP, fan);   // a spread: fanned out, homing brings them back in
     const homing = ws.homing;
     const kind = ws.kind;
     const big = kind === 'torpedo' ? 2.4 : ws.dmg > 150 ? 3 : kind === 'missile' ? 1.1 : 0.7 + Math.min(1.2, ws.dmg / 60);
@@ -528,7 +539,7 @@ export class Ship {
       pos: mp, vel: dir.multiplyScalar(spd * (0.95 + Math.random() * 0.1)), kind, team: this.team, owner: this,
       target: homing ? target : null, homing, dmg: ws.dmg * mul, dmgType: ws.dmgType, ws,
       life: (ws.range * 1.15) / spd, splash: ws.splash, color: ws.color, size, len: kind === 'bolt' ? 14 * big : kind === 'shell' ? 7 * big : 4 * big,
-      trail: kind === 'missile' || kind === 'torpedo' || ws.trail ? 1 : 0, turn: ws.turn || (kind === 'torpedo' ? 1.2 : 3.5), pierce: ws.pierce, pd: ws.pd,
+      style: ws.fx, turn: ws.turn || (kind === 'torpedo' ? 1.2 : 3.5), pierce: ws.pierce, pd: ws.pd,
     });
   }
 

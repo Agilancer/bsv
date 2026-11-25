@@ -24,6 +24,14 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     The mecha pack in `assets/sounds/MECHA_SOUNDS_ASSET_PACK` is not used.
 - `src/fx/` — GPU particles (`Particles.js`: analytic motion, write-once ring buffer), sky,
   celestial bodies, ship/station materials, debris, title scene, lighting rig.
+  - `Flares.js` (`fx.flares`): camera-facing star flares (hot core, halo, ring, N turning rays). Owners `add()` what
+    they hold each frame (torpedo heads, a missile's motor, beam emitters and strike points); `flash()` is
+    fire-and-forget (muzzle flashes, detonations). Paused frames keep what is on screen.
+  - Space weapon effects in `FX`: `shotMuzzle(kind)` (gun / rail / energy / beam / launch / tube), `detonate(det)` (burst,
+    flak, plasma, ion, nova, photic, quantal, implode, chronal, phase, rift), `beamCut` (spray while a beam holds),
+    `vent` (a damaged hull venting). The fight is in vacuum: nothing a shot does leaves smoke or a contrail (a motor
+    shows only as the short flame at its tail; an energy torpedo at most leaves a 0.1 s afterimage). `muzzle` /
+    `smokePuff` stay for the planet surface and story set pieces, which have air.
   - Ship materials (`materials.js` `hullMaterials(yard, glow, livery, paint)`): one cached set per key; nothing may
     mutate a cached set. The captain's paint (`data/paint.js`: 10 schemes + "Yard colours", and a separate
     running-lights accent) is a 4th key part with its own set, worn by the PLAYER's hull only: `Ship.setPaint` swaps
@@ -35,10 +43,20 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   (a star system + encounter director), `Player` (save data), `Autoplay`, `Loot`.
   - `data/` — chassis (60 ships + 60 explorers), items (bases/rarities/affixes/uniques),
     abilities, talents, elite modifiers, names. Pure data/logic: importable in node.
-    `data/weapons.js` adds 50 weapon bases (beams, torpedoes, missiles, guns) descended from the 16 core guns
+    `data/weapons.js` adds 64 weapon bases (beams, torpedoes, missiles, guns) descended from the 16 core guns
     (`of`): items.js derives their damage so each is worth its parent per slot on the gear score (type mix, area,
     disruption, built-in powers `innate`, reach traded), and a family drops as often as its core gun alone did.
     Enemies and `starterMix` (the balance contract) still use only core guns. New silhouettes: `model` in WeaponModels.
+    Looks and sounds: `data/ordnance.js` (pure). `SHOT` styles (tracer, bolt, slug, missile, warhead and the energy
+    torpedoes photic / quantal / plasmic / chronal / phase / polaric / rift / tricore / antimatter: rays, rings,
+    corkscrewing motes, swelling, pulse), `BEAM` styles (phaser, lance, pulse, tachyon, solar, spinal, disruptor, arc,
+    graviton, tractor, disintegrator: flowing pulses, rake across the target, lightning), `PATTERN` (pair, spread,
+    salvo: timing and fan only, never the volley's damage). A base picks with `fx` / `beam` / `pattern`, else by kind
+    and damage type (`shotStyle`, `beamStyle`); `weaponStats` carries `fx`, `beam`, `pattern`, `sfx`, `pitch`.
+    Beams (`Projectiles.js` `Beams`) draw out from the emitter, stay on both ships while they move and spray where
+    they cut; the damage still lands at once. Sounds are synthesised in `engine/Audio.js` (`play(kind, pos, mul, pitch,
+    dur)`): phasers are a held electric hum with pink-noise fuzz and a warbling whine, tube torpedoes a struck spring's
+    falling "pew" with its echoes. Review: `tools/weaponfx.cjs` (frames), `tools/sfx.html` (listen / render offline).
   - `ship/` — `HullBuilder` (lofted procedural hulls + hardpoints), `WeaponModels`, `Ship`.
     Gun laying (`Ship.updateWeapons` / `aim` / `aimPoint`): each mount fires at the ship's target when it bears, else on
     auto-fire at the nearest hostile in its own arc (`otherTarget`; enemy guns only take the captain's side, so factions
@@ -252,4 +270,7 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - The gates are noisy at the cell level (soak is unseeded; duel cells are chaotic): compare against
   the previous commit on a second port before blaming a change.
 - Visual intensity comes from HDR emissive (>1) + bloom; keep UI in the blue/violet holo palette.
+- Space is vacuum: shots leave no smoke or contrails, ships that blow up leave no lingering smoke
+  (`FX.explosion(..., vacuum = true)`), and a damaged hull vents gas that flashes and is gone in under a second
+  (`FX.vent`). `tests/ordnance.test.mjs` holds the projectile side of it.
 - Ship frame: +Z bow, +Y up, +X port. Heading `h` → forward `(sin h, 0, cos h)`.

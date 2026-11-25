@@ -99,15 +99,15 @@ export class World {
     for (let i = 0; i < n; i++) {
       this.schedule(i * 0.12 + Math.random() * 0.1, () => {
         ship.randomHullPoint(p);
-        this.fx.explosion(p, 0.35 + Math.random() * 0.4 * (L / 80));
+        this.fx.explosion(p, 0.35 + Math.random() * 0.4 * (L / 80), 0xff8a30, true);
       });
     }
     // drift and roll while dying
     ship.throttle = 0; ship.rudder = (Math.random() - 0.5) * 2;
     this.schedule(n * 0.12 + 0.25, () => {
       const big = 0.8 + L / 70;
-      this.fx.explosion(ship.position, big, 0xffa050);
-      this.fx.explosion(ship.position, big * 0.6, 0x9fd8ff);
+      this.fx.explosion(ship.position, big, 0xffa050, true);   // vacuum: flash, fire and debris, no lingering smoke
+      this.fx.explosion(ship.position, big * 0.6, 0x9fd8ff, true);
       if (this.camNear(ship.position, 300)) this.cam.addShake(2 + big * 2);
       this.engine.flash(0.08 * big, 0xffc080);
       this.debris.burst(ship);
