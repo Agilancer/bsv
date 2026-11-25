@@ -94,7 +94,7 @@ export function nebula(ph, engine) {
   const root = new THREE.Group(); root.position.set(ph.x, 0, ph.z);
   const t = engine.uTime, r = ph.r, so = (ph.seed % 1000) * 0.137;
   const layers = engine.quality === 'low' ? [-180, -80, 25] : [-240, -170, -110, -55, 25];
-  const geo = flatPlane(r * 2.5, r * 2.5);
+  const geo = flatPlane(r * 3.1, r * 3.1);   // wide enough that the ragged falloff always ends inside it
   layers.forEach((y, i) => {
     const top = y > 0;
     const m = P.dark ? new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide }) : addMat();
