@@ -32,7 +32,7 @@ import { RNG } from './src/engine/rng.js';
 const q = new URLSearchParams(location.search);
 const list1 = (k) => (q.get(k) ? q.get(k).split(',') : null);
 const frames = list1('frames') || Object.keys(EXPLORER_FRAMES);
-const marks = (list1('marks') || ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']).map(Number);
+const marks = (list1('marks') || ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']).map(Number);
 const cols = +(q.get('cols') || 0);
 const flow = q.get('grid') === 'frames';
 const heading = q.has('heading') ? +q.get('heading') : 0.75;
@@ -131,11 +131,11 @@ cam.lookAt(cx, aimY, cz);
 // labels under each vehicle
 const head = document.getElementById('head');
 if (q.has('title')) head.innerHTML = q.get('title').replace(/\|/g, '<small>') + (q.get('title').includes('|') ? '</small>' : '');
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 const labels = q.has('nolabels') ? [] : placed.map((p) => {
   const el = document.createElement('div'); el.className = 'lbl';
   const c = p.c;
-  el.innerHTML = `${c.name} Mk ${ROMAN[c.tier - 1]}<i>hull ${c.hp} · cargo ${c.cargo} · speed ${c.speed}<br>${c.slots.gun} gun · ${c.slots.tool} tool · ${c.slots.module} module · level ${c.level}</i>`;
+  el.innerHTML = `${c.name} Mk ${ROMAN[c.tier - 1]}<i>hull ${c.hp} · cargo ${c.cargo} · speed ${c.speed}<br>${c.slots.hp} hardpoint${c.slots.hp > 1 ? 's' : ''} · ${c.slots.tool} tool · ${c.slots.module} module · level ${c.level}</i>`;
   document.body.append(el);
   return { el, p };
 });

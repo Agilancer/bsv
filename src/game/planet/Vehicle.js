@@ -268,7 +268,7 @@ export class Vehicle {
       }
     }
     if (v.drill) v.drill.rotation.z += dt * (this.mode.mining ? 22 : 3);
-    for (const f of v.fans) f.rotation.y += dt * (v.glb ? 18 + moving * 10 : 30);
+    for (const f of v.fans) f.rotation.y += dt * (f.userData.spin ?? (v.glb ? 18 + moving * 10 : 30));   // extras.spin: a slow dish or halo
     if (v.flaps) for (const f of v.flaps) f.obj.rotation.z = f.base.z + Math.sin(t * 3 + f.phase) * 0.12 * (1 + moving);
     // hover pads: downwash dust + glow motes
     if (P.hover && v.pads.length && Math.random() < 0.5) {

@@ -129,22 +129,22 @@ def road_wheel(M, i, c, r, w, sx, C, kind='road'):
     g = f'wheel_{i}'
     x, y, z = c
     if kind == 'sprocket':
-        M.cyl(r * 0.82, w * 0.5, c, 'x', 'dark', 0x3a3a38, 20, bevel=0.02, group=g)
-        nt = 11
+        M.cyl(r * 0.82, w * 0.5, c, 'x', 'dark', 0x3a3a38, 16, bevel=0.02, group=g)
+        nt = 10
         for k in range(nt):
             a = k / nt * 360
             ar = math.radians(a)
             M.box(w * 0.46, r * 0.22, r * 0.26, (x, y + math.sin(ar) * r * 0.86, z + math.cos(ar) * r * 0.86), 'chrome', STEEL, 0,
                   rot=(90 - a, 0, 0), group=g, taper=(1, 0.55))
     else:
-        for e in (-1, 1):
-            M.cyl(r, w * 0.36, (x + e * w * 0.27, y, z), 'x', 'dark', 0x3a3a38, 20, bevel=0.03 * r, group=g)
+        M.cyl(r, w * 0.9, c, 'x', 'dark', 0x3a3a38, 16, bevel=0.06 * r, group=g)
+        M.cyl(r * 0.8, w * 0.96, c, 'x', 'dark', 0x242422, 12, bevel=0, group=g)
     fo = x + sx * w * 0.47
-    M.cyl(r * 0.56, 0.06 * w, (fo, y, z), 'x', 'hull', C['hull'], 16, bevel=0.01, group=g)
+    M.cyl(r * 0.56, 0.06 * w, (fo, y, z), 'x', 'hull', C['hull'], 12, bevel=0, group=g)
     for k in range(5):
         a = math.radians(k * 72 + 18)
-        M.cyl(r * 0.08, 0.08 * w, (fo + sx * 0.01 * w, y + math.sin(a) * r * 0.38, z + math.cos(a) * r * 0.38), 'x', 'dark', 0x202020, 6, bevel=0, group=g)
-    M.cyl(r * 0.18, 0.14 * w, (fo + sx * 0.04 * w, y, z), 'x', 'chrome', CHROME, 10, bevel=0.01, group=g)
+        M.box(0.06 * w, r * 0.14, r * 0.14, (fo + sx * 0.03 * w, y + math.sin(a) * r * 0.38, z + math.cos(a) * r * 0.38), 'dark', 0x202020, 0, group=g)
+    M.cyl(r * 0.18, 0.14 * w, (fo + sx * 0.04 * w, y, z), 'x', 'chrome', CHROME, 8, bevel=0, group=g)
     M.pivot(g, c)
 
 
@@ -208,7 +208,7 @@ def drill(M, m, st, s, y, z0, R, L, C):
     M.cyl(R * 1.08, 0.3 * s, (0, y, z0 + 0.15 * s), 'z', 'dark', dark, 24, group=g)
     M.cyl(R * 1.12, 0.08 * s, (0, y, z0 + 0.34 * s), 'z', 'trim', C['trim'], 24, bevel=0, group=g)
     zc = z0 + 0.38 * s
-    M.cyl(0.04 * s, L, (0, y, zc + L / 2), 'z', 'chrome', STEEL, 24, r2=R, group=g, bevel=0.02)
+    M.cyl(0.04 * s, L, (0, y, zc + L / 2), 'z', 'dark', 0x6a6c70, 24, r2=R, group=g, bevel=0.02)
     nf = 2 if st < 2 else 3
     nk = 16 + 4 * st
     for f in range(nf):
@@ -219,10 +219,10 @@ def drill(M, m, st, s, y, z0, R, L, C):
             rr = R * (1 - u) + 0.04 * s
             fw = 0.2 * s + R * 0.32 * (1 - u)
             p = (math.cos(ar) * (rr + fw * 0.3), y + math.sin(ar) * (rr + fw * 0.3), zc + u * L * 0.96)
-            M.box(fw, 0.06 * s, 0.22 * s * (1.2 - u * 0.6), p, 'dark', 0x3c3c3a, 0, rot=(0, 0, a), group=g)
+            M.box(fw, 0.07 * s, 0.22 * s * (1.2 - u * 0.6), p, 'chrome', STEEL, 0, rot=(0, 0, a), group=g)
             if k % 2 == 0:
                 q = (math.cos(ar) * (rr + fw * 0.82), y + math.sin(ar) * (rr + fw * 0.82), p[2])
-                M.box(0.1 * s, 0.12 * s, 0.1 * s, q, 'chrome', CHROME, 0, rot=(0, 0, a), group=g)
+                M.box(0.1 * s, 0.12 * s, 0.1 * s, q, 'dark', 0x2a2a28, 0, rot=(0, 0, a), group=g)
     if st == 2:
         # cutter crown: a ring of teeth round the collar
         nt = 14
@@ -353,6 +353,7 @@ def cab(M, m, s, C, at, w, h, d):
     M.box(w * 0.7, 0.08 * s, 0.05 * s, (x, y + h * 0.45, z + d * 0.47), 'glow', glow, 0)
     M.lights([(x + sx * w * 0.3, y + h + 0.06 * s, z + d * 0.3) for sx in (1, -1)], 0.16 * s)
     M.box(w * 0.85, 0.12 * s, 0.25 * s, (x, y + h + 0.02 * s, z + d * 0.3), 'dark', dark, 0.02)
+    M.box(w * 0.78, 0.06 * s, d * 0.55, (x, y + h + 0.02 * s, z - 0.08 * s - d * 0.1), 'trim', C['panel'], 0.02)
 
 
 def rails(M, pts, h, s, C, closed=False):
@@ -498,11 +499,13 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
     # stacks behind the upper block
     stacks(M, m, s, C, [(sx * (uw2 - 0.1 * s), y2, u0 - 0.35 * s) for sx in (1, -1)], 1.5 * s + 0.06 * (m - 5) * s)
     # hardpoints: top of the upper block (centre), the rear deck, shoulders of the lower block
-    yt = y3 + 0.02 * s
+    # black roof on the upper block; the main gun stands on it
+    M.box(2 * uw2 * 0.92 - 0.25 * s, 0.06 * s, (u1 - u0) * 0.92 - cd * 0.2 - 0.3 * s, (-0.2 * s, y3 + 0.03 * s, u0 + ((u1 - u0) * 0.92 - cd * 0.2) / 2), 'trim', panel, 0.02)
+    yt = y3 + 0.06 * s
 
     def topm(on):
-        M.box(1.0 * s, 0.12 * s, 1.0 * s, (0, yt - 0.04 * s, u0 + 0.75 * s), 'dark', dark, 0.04 * s)
-    hpc.append(((0, yt + 0.02 * s, u0 + 0.75 * s), topm))
+        M.box(1.0 * s, 0.12 * s, 1.0 * s, (0, yt + 0.06 * s, u0 + 0.75 * s), 'dark', dark, 0.04 * s, taper=(0.85, 0.85))
+    hpc.append(((0, yt + 0.12 * s, u0 + 0.75 * s), topm))
     if m >= 8:   # floodlight bar on the upper block's front edge
         M.box(2 * uw2 * 0.8, 0.16 * s, 0.16 * s, (0, y3 + 0.1 * s, u1 - 0.1 * s), 'dark', dark, 0.02)
         lamps(M, [(k * uw2 * 0.4 - uw2 * 0.6, y3 + 0.1 * s, u1 - 0.0 * s) for k in range(4) if abs(k * uw2 * 0.4 - uw2 * 0.6 - (uw2 - cw / 2 + 0.1 * s)) > cw / 2], s)
