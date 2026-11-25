@@ -87,6 +87,37 @@ def cut_bot(h, yw, tag='dark'):
     return h[:i + 1] + [(x, yw, tag), (0.0, yw, tag)]
 
 
+def bulge(h, ya, yb, xo, top, bot, tag='hull'):
+    """A housing swelling out of the flank to x = xo between heights top > bot, shouldered back to the profile at
+    ya and yb (a sponson, a blister, a flank fairing): cut_side then sinks the mount into its face."""
+    i1, x1 = _cross(h, ya)
+    i0, x0 = _cross(h, yb, True)
+    return h[:i1 + 1] + [(min(x1, xo), ya, tag), (xo, top, tag), (xo, bot, tag), (min(x0, xo), yb, h[i0][2])] + h[i0 + 1:]
+
+
+def cut_well(h, yw, xm, tag='dark'):
+    """A turret well of half-width xm sunk to yw in the crown (the housings outboard of it keep their roofs)."""
+    for i in range(len(h) - 1):
+        a, b = h[i], h[i + 1]
+        if b[0] > a[0] and a[0] <= xm <= b[0]:
+            y = a[1] + (b[1] - a[1]) * (xm - a[0]) / (b[0] - a[0])
+            if y > yw + 1e-4:
+                return [(0.0, yw, tag), (xm, yw, tag), (xm, y, a[2])] + h[i + 1:]
+            break
+    return cut_top(h, yw, tag)
+
+
+def cut_wellb(h, yw, xm, tag='dark'):
+    for i in range(len(h) - 1, 0, -1):
+        a, b = h[i], h[i - 1]
+        if b[0] > a[0] and a[0] <= xm <= b[0]:
+            y = a[1] + (b[1] - a[1]) * (xm - a[0]) / (b[0] - a[0])
+            if y < yw - 1e-4:
+                return h[:i] + [(xm, y, tag), (xm, yw, tag), (0.0, yw, tag)]
+            break
+    return cut_bot(h, yw, tag)
+
+
 def pring(h, z, sym=True):
     """Ring of game points and the material of each ring edge. sym: mirror the half profile across x."""
     if not sym:
@@ -244,6 +275,30 @@ class Part:
                     ring.append((at[0] + off, at[1] + c * squash, at[2] + s))
             rings.append(ring)
         return self.loft(rings, mats, caps=caps, cap_mat=cap_mat, mirror=mirror)
+
+    def sweep(self, path, radii, n=6, mat='hull', squash=1.0, up=(0, 1, 0), caps=(True, True), cap_mat=None, mirror=False, phase=0.5):
+        """A tube swept along a polyline (a horn, a truss, a rib): radii per path point; squash scales it along
+        the direction nearest `up`."""
+        rings = []
+        for i, (c, r) in enumerate(zip(path, radii)):
+            t = norm(sub(path[min(i + 1, len(path) - 1)], path[max(i - 1, 0)]))
+            s = cross(up, t)
+            s = norm(s) if dot(s, s) > 1e-8 else (1.0, 0.0, 0.0)
+            v = cross(t, s)
+            rings.append([add(c, add(mul(s, math.cos((k + phase) / n * math.tau) * r), mul(v, math.sin((k + phase) / n * math.tau) * r * squash))) for k in range(n)])
+        return self.loft(rings, mat, caps=caps, cap_mat=cap_mat, mirror=mirror)
+
+    def hoop(self, ring, k0, k1, z0, z1, mat='trim'):
+        """A closed hoop standing off a section: ring = [(x, y)] round the section, scaled k0 (inner) .. k1 (outer)."""
+        rs = [[(x * k0, y * k0, z0), (x * k1, y * k1, z0), (x * k1, y * k1, z1), (x * k0, y * k0, z1)] for x, y in ring]
+        return self.loft(rs + [rs[0]], mat, caps=(False, False))
+
+    def shift(self, dx=0.0, dy=0.0, dz=0.0):
+        """Move everything modelled so far (an offset command block)."""
+        for s, _ in self.solids:
+            s.verts[:] = [(x + dx, y + dy, z + dz) for x, y, z in s.verts]
+        self.markers[:] = [(mk, n, (a[0] + dx, a[1] + dy, a[2] + dz), pr) for mk, n, a, pr in self.markers]
+        return self
 
     # ---- numbers
     def tris(self):
