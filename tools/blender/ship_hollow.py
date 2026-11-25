@@ -17,7 +17,7 @@ class Hollow(K.Style):
 
     # the body: a bulging carapace. The section is a smooth curve whose plates overlap downward like scales (a lip
     # at every other point of the flanks), and every section swells amidships: a segmented shell
-    swell = 0.085
+    swell = 0.04                # (the body's bulge is the whole ship's: kitPlan.js PROFILE.hollow)
     wellrim = ((-0.5, 1.0), (-0.04, 0.9), (0.01, 0.86), (-0.01, 0.76), (0.075, 0.71), (0.075, 0.61))   # two overlapping scale lips
 
     @staticmethod

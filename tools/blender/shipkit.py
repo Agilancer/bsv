@@ -43,7 +43,8 @@ class Style:
     block_fore = block_aft = ((0.12, 0.9), (0.75, 0.3))     # a battery block's ends: (scale, distance x W) stations
     side = {}                   # side hull: bow / stern = [(scale, dz, dx) x W], w, ht, hb
     fair = None                 # fn(half profile) -> the rounded body section (shiplib.smooth), for a yard without facets
-    swell = 0.0                 # each battery and waist section swells by this share amidships (joints keep the section)
+    swell = 0.0                 # each battery and waist section swells by this share amidships (joints keep the section);
+                                # the ship's long profile is kitPlan.js PROFILE, so this is only a yard's segmenting
     wellrim = None              # a round rim over a turret well: [(height, radius) x W] from the crown, outside in
     def spinep(self, u, top, sh, base): return None         # the gun spine's half profile, crown down to its base
     def crossways(self, p, B, zs, cx, w): return False      # the side hull's crossways, when not the faceted ones
@@ -1235,7 +1236,7 @@ def main(style=None):
     global Y
     if style is not None:
         Y = style
-    shiplib.FAIR, shiplib.ZSEG = Y.fair, (0.9 if Y.swell else 0.0)
+    shiplib.FAIR, shiplib.ZSEG = Y.fair, (0.9 if (Y.swell or Y.fair) else 0.0)     # stations: the hull follows the whole-ship profile (kitPlan.js PROFILE)
     shiplib.reset()
     ps = parts() if Y.prow_n is None else yard_parts()
     roots = shiplib.build(ps)

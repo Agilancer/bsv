@@ -134,6 +134,39 @@ export function pickSpread(m, n) {
 const place = (part, s, sz, t, sx = 1, pair = false) => ({ part, s, sz, t, sx, pair });
 const at = (pl, p) => [pl.sx * pl.s * p[0] + pl.t[0], pl.s * p[1] + pl.t[1], pl.sz * p[2] + pl.t[2]];
 
+// The whole-ship profile (design-brief section 3): each yard's hull reads as one form, not a row of sections. After
+// the parts are placed, every point of the ship (vertices, hardpoints, nozzles alike, so mounts stay seated in
+// their housings) is scaled about the centreline by a curve over the length: beam (x, outboard of a core of W / 2), the hull above the
+// centreline and the hull below it. u runs 0 at the stern .. 1 at the bow; the curve is 1 between p0 and p1 and
+// falls to 1 - a at the ends as t^e ([beam, above, below, e]), so it never grows a hull: dims, the shield
+// ellipsoid and the hardpoint contract hold. Smooth yards use e = 2 (their sections are cut into stations by the
+// generator); faceted yards are straight between joints, so they taper or rake linearly. Velscour and Ironhold
+// keep a constant section.
+export const PROFILE = {
+  aurelian: { p0: 0.36, p1: 0.5, fore: [0.12, 0.1, 0.1, 2], aft: [0.1, 0.08, 0.08, 2] },         // swelling amidships, drawn in both ways
+  hollow: { p0: 0.4, p1: 0.5, fore: [0.18, 0.14, 0.12, 1.7], aft: [0.16, 0.12, 0.14, 1.7] },      // a bulging body
+  tidewright: { p0: 0.12, p1: 0.3, fore: [0.2, 0.14, 0.14, 1], aft: [0.03, 0.03, 0.03, 1] },      // a long fine taper to the stem
+  corsair: { p0: 0.3, p1: 0.3, fore: [0.05, 0.16, 0, 1], aft: [0, 0, 0.14, 1] },                   // raked: the crown falls to the bow, the keel rises to the stern
+};
+// the three scales at height u, into out = [kx, ky above, ky below]
+export function profileAt(pr, u, out) {
+  const side = u > pr.p1 ? pr.fore : u < pr.p0 ? pr.aft : null;
+  if (!side) { out[0] = out[1] = out[2] = 1; return out; }
+  const t = Math.min(1, Math.max(0, u > pr.p1 ? (u - pr.p1) / (1 - pr.p1) : (pr.p0 - u) / pr.p0)), q = side[3] === 1 ? t : side[3] === 2 ? t * t : Math.pow(t, side[3]);
+  out[0] = 1 - side[0] * q; out[1] = 1 - side[1] * q; out[2] = 1 - side[2] * q;
+  return out;
+}
+const KP = [1, 1, 1];
+// warp a point of the placed ship in place (p: array, o: offset)
+function warpAt(w, p, o = 0) {
+  profileAt(w.pr, (p[o + 2] - w.z0) / w.len, KP);
+  // the beam is drawn in outboard of a core half as wide as the hull: what stands on the centreline (turret wells,
+  // prow tubes, the command structure) keeps its shape and its pitch, and the flanks close on it
+  const x = p[o], ax = x < 0 ? -x : x;
+  if (ax > w.core) { KP[0] = 2 * KP[0] - 1; p[o] = (x < 0 ? -1 : 1) * (w.core + (ax - w.core) * KP[0]); } else KP[0] = 1;
+  p[o + 1] *= p[o + 1] >= 0 ? KP[1] : KP[2];
+}
+
 // The plan for a chassis: where every part goes, the hardpoints and engines read off the markers, and dims.
 // Returns { ok: false, why } when the kit cannot build this chassis (the caller keeps the old builder).
 export function planHull(chassis, kit) {
@@ -283,13 +316,28 @@ export function planHull(chassis, kit) {
   // ---- bounds of the art (step 8): top for dims; the hull's own top (without the command structure, which may
   // be a tall tower) and bottom for the depth test
   let top = -Infinity, bottom = Infinity, hullTop = -Infinity;
-  for (const pl of placements) {
+  const warp = PROFILE[kit.lang] ? { pr: PROFILE[kit.lang], z0: -L / 2, len: L, core: W / 2 } : null;
+  if (warp) {
+    for (const h of hardpoints) { h.pos = h.pos.slice(); warpAt(warp, h.pos); }
+    for (const e of engines) { e.pos = e.pos.slice(); warpAt(warp, e.pos); }
+    const q = [0, 0, 0];
+    placements.forEach((pl, i) => {
+      const cmd = isCommand(pl);
+      for (const m of shown[i]) for (const g of Object.values(m.geo)) for (let k = 0; k < g.pos.length; k += 3) {
+        q[1] = pl.s * g.pos[k + 1] + pl.t[1]; q[2] = pl.sz * g.pos[k + 2] + pl.t[2];
+        warpAt(warp, q);
+        if (q[1] > top) top = q[1];
+        if (!cmd && q[1] > hullTop) hullTop = q[1];
+        if (q[1] < bottom) bottom = q[1];
+      }
+    });
+  } else for (const pl of placements) {
     const y1 = pl.s * pl.part.bounds.max[1] + pl.t[1];
     top = Math.max(top, y1);
     if (!isCommand(pl)) hullTop = Math.max(hullTop, y1);
     bottom = Math.min(bottom, pl.s * pl.part.bounds.min[1] + pl.t[1]);
   }
-  return { ok: true, band, scale: s, stretch, chain: chain.map((p) => `${p.part}/${p.variant}`), placements, shown, hardpoints, engines, dims: { ...dims, top }, bottom, hullTop };
+  return { ok: true, band, scale: s, stretch, chain: chain.map((p) => `${p.part}/${p.variant}`), placements, shown, hardpoints, engines, dims: { ...dims, top }, bottom, hullTop, warp };
 }
 
 // Step 5: apply each placement to its part's geometry and merge per material. Returns flat, non-indexed
@@ -309,7 +357,7 @@ export function bakePlan(plan, only = null) {
   let tris = 0;
   plan.placements.forEach((pl, i) => {
     if (only && !only(pl)) return;
-    const { s, sz, t, sx } = pl, kx = sx * s;
+    const { s, sz, t, sx } = pl, kx = sx * s, warp = plan.warp;
     for (const m of plan.shown[i]) for (const [mat0, g] of Object.entries(m.geo)) {
       const mat = matOf(pl, mat0);
       const P = out[mat].position, N = out[mat].normal, { pos, nrm, idx } = g;
@@ -320,9 +368,11 @@ export function bakePlan(plan, only = null) {
         for (let c = 0; c < 3; c++) {
           const src = v + (sx < 0 ? (c === 1 ? 2 : c === 2 ? 1 : 0) : c), k = (idx ? idx[src] : src) * 3, d = o + c * 3;
           P[d] = kx * pos[k] + t[0]; P[d + 1] = s * pos[k + 1] + t[1]; P[d + 2] = sz * pos[k + 2] + t[2];
+          let wx = 1, wy = 1;
+          if (warp) { warpAt(warp, P, d); wx = KP[0]; wy = P[d + 1] >= 0 ? KP[1] : KP[2]; }
           if (nrm) {
-            // normals go by the inverse transpose of the scale
-            const nx = nrm[k] / kx, ny = nrm[k + 1] / s, nz = nrm[k + 2] / sz, l = Math.hypot(nx, ny, nz) || 1;
+            // normals go by the inverse transpose of the scale (the profile's slope along z is small: left out)
+            const nx = nrm[k] / (kx * wx), ny = nrm[k + 1] / (s * wy), nz = nrm[k + 2] / sz, l = Math.hypot(nx, ny, nz) || 1;
             N[d] = nx / l; N[d + 1] = ny / l; N[d + 2] = nz / l;
           }
         }
@@ -381,6 +431,7 @@ export function shieldLevel(dims, x, y, z) {
 // split prow's notch (the open gap between an upper and a lower blade: first station and the gap's upper and
 // lower edge from there to the last station that has one) and the command structure's span and height.
 // tools/kitprofiles.mjs writes this for every kit hull into kitProfiles.js, so the cutaway needs no kit loaded.
+const WQ = [0, 0, 0];
 export function kitSideProfile(plan, n = 96) {
   const r2 = (v) => Math.round(v * 100) / 100;
   const tri = [];       // [z0, y0, z1, y1, z2, y2, isCommand]
@@ -391,7 +442,9 @@ export function kitSideProfile(plan, n = 96) {
     for (const m of plan.shown[i]) for (const g of Object.values(m.geo)) {
       const { pos, idx } = g, cnt = idx ? idx.length : pos.length / 3, t = [];
       for (let v = 0; v < cnt; v++) {
-        const k = (idx ? idx[v] : v) * 3, z = pl.sz * pos[k + 2] + pl.t[2], y = pl.s * pos[k + 1] + pl.t[1];
+        const k = (idx ? idx[v] : v) * 3, z = pl.sz * pos[k + 2] + pl.t[2];
+        let y = pl.s * pos[k + 1] + pl.t[1];
+        if (plan.warp) { WQ[1] = y; WQ[2] = z; warpAt(plan.warp, WQ); y = WQ[1]; }
         t.push(z, y); zMin = Math.min(zMin, z); zMax = Math.max(zMax, z);
         if (t.length === 6) { tri.push([...t, cmd]); t.length = 0; }
       }
@@ -441,7 +494,8 @@ export function kitSideProfile(plan, n = 96) {
   let cmd = null;
   for (const pl of plan.placements) {
     if (pl.part.part !== 'command') continue;
-    const y1 = pl.s * pl.part.bounds.max[1] + pl.t[1];
+    let y1 = pl.s * pl.part.bounds.max[1] + pl.t[1];
+    if (plan.warp) { WQ[1] = y1; WQ[2] = pl.sz * (pl.part.bounds.min[2] + pl.part.bounds.max[2]) / 2 + pl.t[2]; warpAt(plan.warp, WQ); y1 = WQ[1]; }
     if (!cmd || y1 > cmd[2]) cmd = [r2(pl.sz * pl.part.bounds.min[2] + pl.t[2]), r2(pl.sz * pl.part.bounds.max[2] + pl.t[2]), r2(y1)];
   }
   return { z: zs.map(r2), t, b, ht, hb, notch, cmd };
