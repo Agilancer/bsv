@@ -4,6 +4,7 @@ import { Input } from './engine/Input.js';
 import { IsoCamera } from './engine/IsoCamera.js';
 import { preload, progress } from './engine/Assets.js';
 import { initMaterials } from './fx/materials.js';
+import { loadKit } from './game/ship/kitAssembler.js';
 import { Game } from './game/Game.js';
 import { load } from './game/Player.js';
 import { Audio } from './engine/Audio.js';
@@ -29,7 +30,8 @@ async function boot() {
   window.__engine = engine;
   loadTxt.textContent = `${engine.backend} online · loading textures`;
   progress.onChange = (d, n, name) => { loadBar.style.width = `${(d / n) * 100}%`; loadTxt.textContent = `Loading ${name}`; };
-  await preload(TEXTURES);
+  // hull part kits (docs/ships/kit-spec.md): a missing or broken kit leaves the procedural hulls in use
+  await Promise.all([preload(TEXTURES), loadKit('velscour')]);
   initMaterials(engine);
   const input = engine.add(new Input(engine.renderer.domElement));
   const cam = new IsoCamera(engine.camera, input);

@@ -51,18 +51,21 @@ weapon model changes.
 
 | Mount | Fixed part | Moving part | Clearance the kit must give |
 |---|---|---|---|
-| Broadside | Socket 0.5 s wide × 0.7 s tall × 0.9 s long | Gunhouse up to 2.8 s long (fore-aft); barrels reach 3.45 s outboard of the pivot; yaw ±0.95 rad, pitch ±0.45 rad | Mount pitch ≥ 2.9 s ≈ 2.1 W along the hull; nothing in the swept fan outboard |
-| Turret | Base 1.0 s across | Barrels about 1.0 s, full 360 degrees | Well ≥ 1.1 s ≈ 0.8 W across; nothing taller than the well rim within 1.2 s |
-| Prow | Housing up to 2.3 s wide (4 tubes at 1.2 s scale ≈ 2.8 s) × 0.85 s tall | Barrel up to 3.3 × 1.2 s long, yaw ±0.5 rad | A prow face wide enough for the mounts under the rule below; nothing ahead |
+| Broadside | Socket 0.5 s wide × 0.7 s tall × 0.9 s long, **centred on the pivot** | Gunhouse up to 2.8 s long (fore-aft), reaching 0.55 s outboard of the pivot; barrels reach 3.45 s outboard; yaw ±0.95 rad, pitch ±0.45 rad | Mount pitch ≥ 2.9 s ≈ 2.1 W along the hull; nothing in the swept fan outboard. The marker goes 0.25 s outboard of the casemate floor; a casemate at least 0.65 s ≈ 0.47 W deep and 0.8 s tall takes the socket and most of the gunhouse inside the armour |
+| Turret | Base 1.1 s across at the top, 1.36 s at the foot, 0.3 s tall, centred on the pivot | Barrels about 1.0 s, full 360 degrees | Well ≥ 1.5 s ≈ 1.1 W across; the marker goes 0.15 s above the well floor; nothing taller than the well rim within 1.2 s |
+| Prow | Housing up to 2.3 s wide (4 tubes at 1.2 s scale ≈ 2.8 s) × 0.85 s tall × 1.2 s long, centred on the pivot | Barrel up to 3.3 × 1.2 s long, yaw ±0.5 rad | The housing is wider than a band-S or band-M prow face, so it is **buried**: the marker sits at least 0.6 s behind the tube face, inside the prow, and only the barrels come out through the recessed (`dark`) face. Nothing ahead |
 
 These are the clearances to aim for. Some chassis cannot meet them (eight mounts on a dreadnought, four
 prow mounts on any hull; today's builder overlaps them too), so the binding rules are:
 
 - **Battery length** is 0.5 L, centred on the body.
-- **Rows needed** = `ceil(2.1 W × mounts per side / battery length)`, capped per band: S 1, M 2, L 3, C 3,
-  X 3, G 3. Rows are the hull's facet tiers. A chassis with `arch.outrig === 'hulls'` or `arch.galleries`
-  adds one more row on its side hulls or battery blocks.
-- **When the cap is reached,** mounts close up within their rows. Pitch is the centre-to-centre spacing
+- **Rows** come from the class (`design-brief.md` section 2, "Batteries per side"; `rows` in the class
+  layout). `ceil(2.1 W × mounts per side / battery length)` is only the number that would give every gun
+  its ideal clearance, capped per band: S 1, M 2, L 3, C 3, X 3, G 3. (The frigate's three mounts would
+  ask for two rows by that formula, and the brief gives it one tier.) Rows are the hull's facet tiers. A
+  chassis with `arch.outrig === 'hulls'` or `arch.galleries` adds one more row on its side hulls or
+  battery blocks.
+- **When a class has fewer rows than the formula asks for,** mounts close up within their rows. Pitch is the centre-to-centre spacing
   of neighbouring pivots in a row, with the pivots inside the battery length. It may shrink to a floor of
   1.2 W, where the longest gunhouses overlap their neighbours at rest. Below that floor the kit is wrong.
 - **Prow mounts** share one prow face and may interpenetrate: pitch at least 0.3 W, on a face at least
@@ -106,9 +109,12 @@ prow mounts on any hull; today's builder overlaps them too), so the binding rule
 assets/ships/kits/<lang>.glb   velscour aurelian tidewright ironhold corsair hollow rustborn silent brood
 assets/ships/kits/roles.glb    enemy role add-ons
 assets/ships/kits/common.glb   fixed-size detail: point-defence blisters, vents, domes, hatches, lights
-tools/blender/<lang>.py        the bpy script that builds that kit (kept, so kits can be rebuilt)
-tools/blender/export.py        export settings as code
+assets/ships/kits/<lang>.json  the same kit as plain data, for the node test (section 9)
+tools/blender/ship_<lang>.py   the bpy script that builds that kit and writes both files (kept, so kits can be rebuilt)
+tools/blender/shiplib.py       shared modelling helpers, the Blender scene builder and the export settings as code
 ```
+
+Run a kit script with any Python that has `bpy` (`python3 tools/blender/ship_velscour.py`), or inside Blender.
 
 **Identity is in custom properties, not names.** Blender makes object names unique per file (`.001`),
 and the three.js loader strips dots from names, so names are only labels. Every part root and every
@@ -117,10 +123,11 @@ marker carries custom properties, which the exporter writes to glTF `extras` and
 
 | On | Property | Values |
 |---|---|---|
-| Part root (an Empty; meshes and markers are its children) | `part` | role: `bow`, `fore`, `battery`, `waist`, `hangar`, `stern`, `command`, `sensor`, `ventral`, `array`, `appendage` |
+| Part root (an Empty; meshes and markers are its children; it may stand anywhere in the file, everything is read relative to it) | `part` | role: `bow`, `fore`, `battery`, `waist`, `hangar`, `stern`, `command`, `sensor`, `ventral`, `array`, `appendage` |
 | | `variant` | free text, e.g. `bastion`, `needle`, `2tier`, `trench`, `keep` |
 | | `band` | `S`, `M`, `L`, `C`, `X`, `G` |
 | | `len` | The part's length along the hull at reference size (sections only) |
+| | `fixed` | `true` on crew-scale parts placed at absolute size (section 5) |
 | Marker (an Empty) | `mk` | Marker type, table below |
 | | `n` | Order within the part (aft to fore) |
 | | other | Per type |
@@ -128,11 +135,11 @@ marker carries custom properties, which the exporter writes to glTF `extras` and
 | `mk` | Meaning | Extra properties |
 |---|---|---|
 | `sock.aft`, `sock.fore` | Section joints on the centreline at each end face | |
-| `sock.top`, `sock.bottom`, `sock.side` | Where a command module, sensor, ventral mass, array or appendage keys in | `kind`: which part roles fit |
+| `sock.top`, `sock.bottom`, `sock.side` | Where a command module, sensor, ventral mass, array or appendage keys in. `sock.side` is on the port side; the assembler mirrors what it carries | `kind`: which part roles fit (comma-separated) |
 | `hp.bs` | Broadside mount pivot, **port side only**; the assembler mirrors it | `tier` (0 = uppermost facet) |
-| `hp.tu`, `hp.tv` | Dorsal / ventral turret pivot | |
+| `hp.tu`, `hp.tv` | Dorsal / ventral turret pivot | `sock` (`top` / `bottom`): the well lies under that socket of the same part, and is not a mount when the socket is filled |
 | `hp.pr` | Prow mount | |
-| `hp.hg` | Hangar mouth, port side; mirrored | |
+| `hp.hg` | Hangar mouth, port side. The mouth is modelled on both sides: slot `i` uses marker `floor(i / 2)`, to port when `i` is even and mirrored to starboard when odd | |
 | `eng` | Nozzle exit centre | `r`: nozzle radius |
 | `det` | A run of fixed-size detail: the Empty's position is the start, its local -Y the direction | `kind` (`pd`, `vent`, `dome`, `hatch`, `light`), `run` (length), `side` (`port` runs are mirrored) |
 | `dorsal` | Points along the dorsal centreline, for liveries and emblems | |
@@ -140,7 +147,13 @@ marker carries custom properties, which the exporter writes to glTF `extras` and
 
 Only marker **positions** are read (plus the `det` direction). Mount directions come from the type.
 Spare `hp` markers are allowed: the assembler fills them in order and covers unused ones with the
-part's shutter mesh (a child mesh with property `shut` = the marker's `mk` and `n`).
+part's shutter mesh: a separate child mesh object with property `shut` = `"<mk>:<n>"` (e.g. `hp.bs:0`),
+left out when that marker carries a weapon or lies under a filled socket. Port-side shutters are modelled
+on both sides, like the mouths they close.
+
+**Part origins.** A section's origin is its `sock.aft` joint on the centreline, and it runs to `sock.fore`
+at z = `len` (game frame). A keyed part (command module, ventral mass, appendage) has its origin at the
+point that goes onto the socket. Appendages are modelled for the port side, +x outboard.
 
 ## 4. Materials
 
@@ -165,7 +178,7 @@ Plate textures and the window grid are projected in the merged mesh's own space 
 ## 5. Geometry rules
 
 - Sections are closed, watertight-looking solids with outward normals. Smooth shading with sharp edges
-  marked; no n-gons with holes.
+  marked, or flat shading throughout for a faceted language (Velscour); no n-gons with holes.
 - Don't model fixed-size detail into sections (no small vents, blisters, domes, hatches, lights). Place
   `det` markers; the assembler instances that detail from `common.glb` at absolute size (section 7).
 - Model the two crew-scale things that must not scale, the bridge and the hangar mouth, as their own
@@ -191,24 +204,39 @@ scaling the big forms doesn't break the scale cues. Enemy-only languages need on
 designs use.
 
 **Files and loading.** Each kit .glb should stay under about 1.2 MB. Kits load **on demand per language**:
-the player's yard and the current system's enemy languages, before ships of that language spawn.
+the player's yard and the current system's enemy languages, before ships of that language spawn. (While
+only the Velscour kit exists it is simply loaded at boot, by `main.js`, `tools/viewer.html` and
+`tools/gpuprobe.html`; a missing kit file leaves the procedural hulls in use.)
 
-## 7. Assembly (`ship/kitAssembler.js`)
+## 7. Assembly (`ship/kitPlan.js`, `ship/kitAssembler.js`)
+
+The maths is in `kitPlan.js`, which imports nothing and runs in node: `planHull(chassis, kit)` (steps 1-4,
+6 and 8: placements, hardpoints, engines, dims) and `bakePlan(plan)` (step 5: flat position and normal
+arrays per material). `kitAssembler.js` loads kits (`loadKit(lang)`), reads a .glb into the same plain
+data the JSON dump holds (`kitFromGLTF`), and wraps a baked plan in meshes with the yard's materials
+(`assembleHull(chassis, kit)`). A placement is a uniform scale, the z stretch, a translation and an
+optional mirror; parts are never rotated.
 
 1. **Inputs.** `chassis.yard`, `chassis.len`, `chassis.beam`, `chassis.tier`, `chassis.slots`,
-   `chassis.kit`. Band from W (section 6). Class layout from `design-brief.md` section 2 by tier: section
-   order, proportions, command module, ventral masses, appendages, nozzle count.
+   `chassis.kit`. Band from W (section 6). Class layout from `design-brief.md` section 2 by tier
+   (`CLASS_LAYOUT` in `kitPlan.js`): the bow, battery and stern variants, the battery rows, the keyed parts
+   (role, variant, socket type, station `u` from 0 at the stern to 1 at the bow, mirrored or not) and the
+   nozzle count.
 2. **Chain the sections** stern to bow by their `sock.aft` / `sock.fore` markers, scaled by `W / refW`:
    - battery sections until their `hp.bs` markers cover `slots.broadside` per side
    - hangar sections for `slots.hangar`
    - a prow and a stern of the class's variants
 3. **Fit the length** to exactly L:
-   - add or remove `waist` sections (each kit provides waists 0.5 W and 1.0 W long at reference size)
-     until the chain is within 8% of L
-   - then stretch along z by the remaining factor, kept within 0.92-1.08
-   - if that can't be reached, the class layout is wrong for that kit: fail the test
-4. **Key in** the command module, ventral masses, arrays and appendages at their sockets. `fixed` parts go
-   in at absolute size.
+   - add `waist` sections (each kit provides waists 0.5 W and 1.0 W long at reference size): the number of
+     half-W units nearest the missing length, as full waists plus at most one half waist, placed
+     alternately aft and fore of the batteries so the battery stays centred on the body
+   - then stretch along z by the remaining factor, kept within 0.92-1.08. The stretch applies to keyed
+     parts too (not to `fixed` ones), so they still fit the sections they sit on
+   - if that can't be reached (the fixed sections alone are too long, say), the class layout is wrong for
+     that kit: the plan fails, the chassis keeps the procedural builder, and the test fails
+4. **Key in** the command module, ventral masses, arrays and appendages: each goes on the socket of its
+   type (and `kind`) that lies nearest the layout's station `u`. `fixed` parts go in at absolute size.
+   A mirrored part (`sock.side`) is placed again with x negated.
 5. **Bake geometry.** Apply each part's matrix to its geometry, normals by the inverse-transpose. For
    mirrored copies (`side: port` runs, appendages on the starboard side) negate x and **reverse the
    triangle winding**. Merge per material into one mesh per slot.
@@ -216,41 +244,55 @@ the player's yard and the current system's enemy languages, before ships of that
    - broadside: the first `slots.broadside` `hp.bs` markers ordered by tier, then aft to fore; emit port
      and mirrored starboard under one index
    - turrets: `ceil(0.7 n)` from `hp.tu`, the rest from `hp.tv`; if the class has no ventral wells, all
-     dorsal
-   - prow and hangar likewise; engines from `eng` with `r` scaled
+     dorsal. Wells under a filled socket don't count. When there are more wells than turrets the turrets
+     are spread evenly over them, numbered aft to fore
+   - prow and hangar likewise; engines from every `eng` marker, `r` = 0.7 × the marker's nozzle radius ×
+     the scale. The nozzle count must equal the class layout's
    - too few markers of a type is a kit bug: fail the test
 7. **Instance fixed detail** along each `det` run at the detail's own pitch, merged into the same
    per-material meshes, capped by the triangle budget.
-8. **Set `dims`** (`top` measured from the baked geometry) and `userData`.
+8. **Set `dims`** (`top` measured from the placed parts' bounds, shutters excluded) and `userData`.
 
-**Availability and caching.** `hullFor` is synchronous and caches per chassis id. The assembler is used
-for a language only once its kit is loaded. Until then the old builder is used, and the cache entries
+**Availability and caching.** `hullFor` is synchronous and caches per chassis id. `buildHull` uses the
+assembler for a chassis when its language's kit is loaded and `planHull` succeeds (a layout for the tier,
+parts for the band, enough markers, a length that fits). Until liveries and role kits are re-seated on
+markers (section 1), a chassis with `chassis.livery` or `chassis.kit` also keeps the procedural builder.
+`buildHull(chassis, { kit: false })` and `setHullKits(false)` force the old builder (viewer: `&nokit`,
+`&vs`). Until then the old builder is used, and the cache entries
 for that language are **cleared when its kit finishes loading**, so later ships get the new hull. Ships
 already in the scene keep their mesh until they respawn.
 
-## 8. Export settings (`tools/blender/export.py`)
+## 8. Export settings (`shiplib.export`)
 
 - **Format:** glTF Binary (.glb), one collection per file.
 - **Transform:** +Y Up on.
 - **Mesh:** Apply Modifiers on; Normals on; UVs on; Tangents and vertex colours off.
 - **Data:** **Custom Properties on** (required: identity lives there). Empties export as nodes.
 - **Materials:** export, images off.
-- **Compression:** none, or `KHR_mesh_quantization`. No Draco (not vendored).
+- **Compression:** none for now. meshopt (`gltfpack`, as the explorer vehicles use) can be added once the
+  kits are final: the loader then needs `setMeshoptDecoder`. No Draco (not vendored).
+- **JSON dump:** written by the same call, read back from the Blender meshes after export:
+  `{ lang, refW, parts: [{ part, variant, band, len, fixed, markers: [{ mk, n, p, ...props }],
+  meshes: [{ shut?, pos, idx: { <material>: [...] } }], bounds, tris, area }] }`, in the game frame,
+  relative to the part root.
 
 ## 9. Checks before a kit is done
 
-- **Node test** (`tests/kit.test.mjs`, against a JSON dump written by `export.py` holding each part's
+- **Node test** (`tests/kit.test.mjs`, against the JSON dump of section 8, which holds each part's
   markers, vertex positions, indices and per-material areas, so it needs no GPU). For every chassis of the language, player and enemy:
   - hardpoint counts equal the slots; broadside pairs mirrored; engine count matches the class
   - `dims.L`, `W`, `Ht`, `Hb` unchanged
   - the section 1 mount rules hold (rows, pitch floor, prow pitch, turret well size)
   - every vertex inside the shield ellipsoid; appendage half-span ≤ 2.1 W
-  - at least 40% of hull depth below the centreline (design brief section 0)
-  - triangle and glow budgets met
+  - at least 40% of hull depth below the centreline (design brief section 0): `-minY / (maxY - minY)` of
+    the baked art
+  - triangle and glow budgets met (glow share = `glow` area over the area of all baked faces)
 - **Review set:** all ten player classes for the six player yards; for enemy use, one design per size
   band and per role kit of each faction (`tools/viewer.html?enemy=<size>&faction=<f>`).
 - **Renders:** `tools/viewer.html?yard=<lang>&fit&webgl`, the play camera and the title camera, reviewed
-  against `design-brief.md` section 4.
+  against `design-brief.md` section 4. Viewer flags: `&guns` mounts a weapon model at every hardpoint (the
+  game only does that in play), `&hp` draws a box at every hardpoint and nozzle, `&vs` puts the procedural
+  hull beside each kit hull, `&nokit` shows only the old builder.
 - **Gameplay gates** once per finished language: `node tools/duel.cjs 5,15,30,50 --gate` and
   `node tools/soak.cjs 10 --gate`. Mount positions move, so time-to-kill can shift a little; compare with
   the previous commit before retuning anything.
