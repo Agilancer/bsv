@@ -3,6 +3,7 @@
 import * as THREE from 'three/webgpu';
 import { icon } from './icons.js';
 import { drawHullPlan } from './hullPlan.js';
+import { installWindows } from './winman.js';
 import { ABILITIES } from '../game/data/abilities.js';
 import { BASES, RARITY, describe, itemShipStats, weaponStats } from '../game/data/items.js';
 import { slotKeys, slotType, xpForLevel, shipXpForLevel, itemScore, INV_SIZE } from '../game/Player.js';
@@ -33,6 +34,7 @@ export class UI {
     this.windows = {};
     this.renderers = {};   // id -> fn, for windows owned by feature modules
     this.buildHUD();
+    this.wm = installWindows(this);   // drag windows by their title bars, size them from their edges and corners
     this.resize();
     addEventListener('resize', () => this.resize());
   }
@@ -408,6 +410,8 @@ export class UI {
       <label class="opt"><span>Autoplay scraps outgrown hulls (35% of price)</span><input type="checkbox" id="oScrap" ${g.settings().autoScrapHulls ? 'checked' : ''}></label>
       <label class="opt"><span>Autoplay ambition</span><select id="oAuto"><option value="full">Full campaign</option><option value="hold">Hold this system</option><option value="combat">Combat &amp; loot only</option></select></label>
       <label class="opt"><span>Autoplay keeps</span><select id="oKeep"><option value="uncommon">Uncommon+</option><option value="rare">Rare+</option><option value="epic">Epic+</option><option value="legendary">Legendary+</option></select></label>
+      <label class="opt"><span>Ticker size <b id="oTkV">${Math.round((g.ticker ? g.ticker.scale : 1) * 100)}%</b></span><input type="range" id="oTicker" min="70" max="200" step="5" value="${Math.round((g.ticker ? g.ticker.scale : 1) * 100)}"></label>
+      <div class="opt wm-opt"><span>Windows: drag a title bar to move, an edge or the corner grip to resize; double-click a title bar to put it back</span><button class="btn" id="oLayout">Reset layout</button></div>
       <div class="label" style="margin:10px 0">Renderer: ${e.backend} · quality ${e.quality} · ${e.fps.toFixed(0)} fps${e.res && e.res.on ? ` · resolution ×${e.res.scale.toFixed(2)} (auto)` : ''}</div>
       <div style="display:flex;gap:8px"><button class="btn" id="oSave">Save now</button><button class="btn bad" id="oWipe">Delete save &amp; restart</button></div>`;
     const q = (id) => body.querySelector('#' + id);
@@ -421,6 +425,13 @@ export class UI {
     q('oAuto').value = AP.mode || 'full'; q('oKeep').value = AP.keep || 'rare';
     q('oAuto').onchange = (ev) => { AP.mode = ev.target.value; };
     q('oKeep').onchange = (ev) => { AP.keep = ev.target.value; };
+    q('oTicker').oninput = (ev) => {
+      if (!g.ticker) return;
+      g.ticker.scale = ev.target.value / 100;
+      q('oTkV').textContent = Math.round(g.ticker.scale * 100) + '%';
+      if (!g.ticker.busy) g.ticker.say('Ticker size · the lines along the top read at this size', { who: 'Comms', cls: 'dim' });   // something to judge it by
+    };
+    q('oLayout').onclick = () => { this.wm.reset(); this.toast('Window layout reset'); };
     q('oSave').onclick = () => { g.saveNow(); this.toast('Saved'); };
     q('oWipe').onclick = () => { if (confirm('Delete your captain and start over?')) { g.wipeSave(); location.reload(); } };
   }

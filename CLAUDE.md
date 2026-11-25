@@ -70,6 +70,17 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     interface hidden for autoplay, toasts, rank-ups, story lines and the autopilot's log go there too. The HUD along
     the top moves down while it is out (`html.tick-on`, `--tk`; phone layouts start from `--mt`, which includes it).
     Status that belongs to a match or an event goes on the ticker, not in a panel mid-screen.
+    `banner(text | null, {cls})` loops one warning across the lane while it holds (the crawl waits under it): nav shows
+    "WARNING : WARP DRIVES SPOOLING UP" from the moment the drive is engaged until the ship is away or the spool breaks.
+    `ticker.scale` (0.7–2: Options slider, or drag the bar's lower edge) multiplies every size in the bar (`--tk-s`,
+    `--u` in css/ui.css), and `--tk-h` with it, so the HUD steps down by the bar's real height.
+  - `ui/winman.js` (`ui.wm`) — desktop windows move by their title bar and resize from their edges or the grip in the
+    cut corner; the chat moves by its tab row. Double-click a title bar to reset it; Options resets all. The CSS
+    places them (`.wm-pos` / `.wm-size` with `--wx --wy --ww --wh`, all behind `body:not(.mobile)`, so phones keep
+    their sheets). On desktop a window's `.wbody` scrolls under a fixed title bar: keep a re-render's scroll on the
+    `.wbody` (phones still scroll the window). New `.win` panels appended to `#ui` are picked up on their own.
+  - `ui/prefs.js` — interface preferences kept per device in localStorage (`velscour.ui`: window layout, ticker
+    size), not in the captain's save.
 
 ## Extension points
 - `game.modes[name]` — called by `game.command(name)` (menu bar / hotkeys).
