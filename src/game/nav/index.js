@@ -139,8 +139,14 @@ export function installNav(game) {
     if (want > own) s.heading += sign * Math.min(Math.abs(off), (want - own) * dt);
   };
   const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+  // the warning across the top of the screen: from the moment the drive is engaged (coming about, then the spool)
+  // until the ship is away, or the spool is broken off
+  const SPOOL_WARNING = 'WARNING : WARP DRIVES SPOOLING UP';
+  let warned = false;
   game.engine.add({
     update(dt, t, realDt) {
+      const spooling = !!warp && warp.phase !== 'go' && !!game.player && game.mode === 'space';
+      if (spooling !== warned && game.ticker) { warned = spooling; game.ticker.banner(spooling ? SPOOL_WARNING : null, { cls: 'warn' }); }
       if (!warp || !game.player || game.mode !== 'space') return;
       const s = game.player, W = game.world, fx = W.fx, inp = game.input;
       if (!s.alive) { game.cancelWarp(); return; }
