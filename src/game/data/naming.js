@@ -9,8 +9,8 @@ export const DEFAULT_SHIP = 'Velscour';
 
 const FIRST = ['Ada', 'Bram', 'Corva', 'Dessa', 'Emeric', 'Fenna', 'Garrick', 'Hale', 'Ione', 'Jory', 'Kestrel', 'Lior', 'Maren', 'Nix', 'Orla', 'Perrin', 'Quill', 'Rook', 'Sabine', 'Tavish', 'Una', 'Vesper', 'Wynn', 'Yara', 'Zeno'];
 const LAST = ['Ashgrove', 'Bellweather', 'Calloway', 'Drummond', 'Everard', 'Fairwind', 'Greaves', 'Holloway', 'Ironside', 'Jessup', 'Kincaid', 'Lockhart', 'Merrow', 'Nightingale', 'Oakhurst', 'Pryce', 'Quarrel', 'Redfern', 'Stroud', 'Tolliver', 'Underwood', 'Varley', 'Whitlock', 'Yarrow'];
-// what a Velscour captain calls a ship when the registry clerk is not looking
-const SHIPS = ['Forty Credits', 'Reasonable Doubt', 'Second Opinion', 'Unpaid Invoice', 'Polite Disagreement', 'Last Clean Shirt', 'Mostly Paid For', 'Strongly Worded Letter', 'Aunt Hesper', 'Benefit of the Doubt', 'Calculated Risk', 'Dawn Chorus', 'Errand of Mercy', 'Fair Warning', 'Glass Half Full', 'Honest Mistake', 'Idle Threat', 'Just Looking', 'Kindly Light', 'Long Story', 'Minor Setback', 'No Refunds', 'Open Question', 'Patience of Saints', 'Quiet Word', 'Rainy Day Fund', 'Sharp Intake of Breath', 'Terms and Conditions', 'Unfinished Business', 'Velvet Hammer', 'Wishful Thinking', 'Yesterday\'s News'];
+// names a Velscour captain gives a hull
+const SHIPS = ['Steadfast', 'Resolute', 'Vigilant', 'Indomitable', 'Unbowed', 'Iron Meridian', 'Far Horizon', 'Hard Reckoning', 'Ashen Vow', 'Bastion', 'Calculated Risk', 'Dawn Chorus', 'Errand of Mercy', 'Fair Warning', 'Gallant', 'Harbinger', 'Iron Oath', 'Justiciar', 'Kindly Light', 'Last Light', 'Morning Star', 'Nightfall', 'Oathkeeper', 'Patience of Saints', 'Quietus', 'Retribution', 'Solace', 'Tempest', 'Unfinished Business', 'Velvet Hammer', 'Wayfarer', 'Yeoman'];
 
 // strip anything that is not a plain printable character, collapse whitespace, clamp the length
 export function cleanName(v, max = CAPTAIN_MAX) {

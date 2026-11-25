@@ -20,7 +20,7 @@ export function scansOwed(P) {
   return false;
 }
 // ...or anything else that only happens on the ground (the landing goal goes sooner for these)
-const GROUND_EVS = new Set(['scan', 'bank', 'gkill', 'dungeon', 'land', 'punt']);
+const GROUND_EVS = new Set(['scan', 'bank', 'gkill', 'dungeon', 'land']);
 export function storyNeedsGround(P) { const sq = P.story && P.story.q; return !!(sq && GROUND_EVS.has(sq.ev) && (sq.progress || 0) < sq.n); }
 
 export class PlanetPilot {

@@ -10,7 +10,7 @@
 import { MAX_ACTIVE, boardOffers, rotationOf, advance, isDone, chainNext, migrateContract, progressText, CAT_NAMES, ROTATION_SECONDS } from './data.js';
 import { questGoal, autoAccept } from './auto.js';
 import { installStory } from './storyRun.js';
-import { CURIO_KINDS } from '../planet/lifeData.js';
+import { CURIO_KINDS, CURIO_RENAMES, migrateLife } from '../planet/lifeData.js';
 import { galaxy } from '../galaxy.js';
 import { RARITY, rollItem } from '../data/items.js';
 import { INV_SIZE, save } from '../Player.js';
@@ -29,7 +29,7 @@ export function installQuests(game) {
   const resSnap = {}, curioSnap = {};
   let logTab = 'quests', lastMode = 'space', story = null;
   // planet-run counters we have already turned into events
-  const run = { mode: null, kills: 0, bosses: 0, curios: 0, punts: 0, dungeons: 0 };
+  const run = { mode: null, kills: 0, bosses: 0, curios: 0, dungeons: 0 };
 
   const P = () => game.data;
   const active = () => (P().contracts ||= []);
@@ -65,7 +65,7 @@ export function installQuests(game) {
       if (i < 0) return false;
       const [q] = A.splice(i, 1);
       dirty = true;
-      game.ui.chat('QUEST', null, `Abandoned: ${q.title}. ${q.giver} has been informed and is being brave about it.`, 'sys');
+      game.ui.chat('QUEST', null, `Abandoned: ${q.title}. ${q.giver} has been informed.`, 'sys');
       return true;
     },
     emit(ev, e) {
@@ -155,8 +155,11 @@ export function installQuests(game) {
   game.start = ((start) => (fresh) => {
     start(fresh);
     const D = P();
-    // older saves: three-field contracts become quests in place
-    D.contracts = (D.contracts || []).map(migrateContract);
+    // older saves: three-field contracts become quests in place; the retired wildlife-launch jobs
+    // are dropped; renamed curiosities and fauna carry their counts over
+    D.contracts = (D.contracts || []).map(migrateContract).filter((q) => q && q.ev !== 'punt');
+    migrateLife(D);
+    for (const q of [...D.contracts, D.story && D.story.q]) if (q && q.cond && CURIO_RENAMES[q.cond.kind]) q.cond.kind = CURIO_RENAMES[q.cond.kind];
     log();
     Q.resync();
     for (const k of CURIO_KINDS) curioSnap[k] = (D.curios && D.curios[k]) || 0;
@@ -227,7 +230,7 @@ export function installQuests(game) {
       const M = game.mode === 'planet' && game.planet ? game.planet.current : null;
       if (M && M.runStats) {
         if (run.mode !== M) {
-          run.mode = M; run.kills = run.bosses = run.curios = run.punts = run.dungeons = 0;
+          run.mode = M; run.kills = run.bosses = run.curios = run.dungeons = 0;
           _e.n = 1; _e.ptype = M.type; Q.emit('land', _e);
         }
         const S = M.runStats, bosses = S.bosses || 0, kills = S.kills || 0;
@@ -245,7 +248,6 @@ export function installQuests(game) {
           }
           if (left > 0) { _e.n = left; _e.kind = null; Q.emit('scan', _e); }
         }
-        if ((S.punts || 0) > run.punts) { _e.n = S.punts - run.punts; run.punts = S.punts; Q.emit('punt', _e); }
         let cleared = 0;
         if (M.dungeons) for (let i = 0; i < M.dungeons.length; i++) if (M.dungeons[i].dungeon && M.dungeons[i].dungeon.cleared) cleared++;
         if (cleared > run.dungeons) { _e.n = cleared - run.dungeons; run.dungeons = cleared; Q.emit('dungeon', _e); }
@@ -306,7 +308,7 @@ export function installQuests(game) {
     let h = `<div class="label" style="margin-bottom:6px">${esc(K.name || 'Station')} board · ${offers.length} posted · new postings in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} · pay is wired the moment the work is done</div>`;
     h += offers.map((q) => `<div class="svc quest"><div class="qmain"><div class="title">${catTag(q)}${esc(q.title)}</div>
       <div class="qobj">${esc(q.obj)}</div><div class="label qfrom">${esc(q.giver)}</div><div class="qtext">“${esc(q.text)}”</div></div>
-      <div class="qside">${rewardText(q.reward)}<button class="btn" data-qtake="${esc(q.id)}" ${A.length < MAX_ACTIVE ? '' : 'disabled'}>Accept</button></div></div>`).join('') || '<div class="label" style="padding:6px 10px">Board cleared. Come back when they have thought of more problems.</div>';
+      <div class="qside">${rewardText(q.reward)}<button class="btn" data-qtake="${esc(q.id)}" ${A.length < MAX_ACTIVE ? '' : 'disabled'}>Accept</button></div></div>`).join('') || '<div class="label" style="padding:6px 10px">Board cleared. New work is posted as it comes in.</div>';
     const sq = story.quest();
     if (sq) h += `<div class="label" style="margin:14px 0 6px">Story</div><div class="svc quest story"><div class="qmain"><div class="title"><span class="qcat c-story">Story</span>${esc(sq.title)}</div><div class="qobj">${esc(sq.obj)}</div><div class="label qfrom">${esc(sq.giver)} · ${progressText(sq)}</div></div><div class="qside">${rewardText(sq.reward)}</div></div>`;
     h += `<div class="label" style="margin:14px 0 6px">Your quests (${A.length}/${MAX_ACTIVE})</div>`;

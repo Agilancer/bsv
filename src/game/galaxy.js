@@ -107,7 +107,7 @@ const OUTPOST_NAMES = {
   haven: ['Den', 'Roost', 'Backdoor', 'Hollow', 'Free Dock'],
   shrine: ['Vigil', 'Shrine', 'Reliquary', 'Chapel', 'Watch'],
 };
-const OUTPOST_OWNERS = ['Old Ketch\'s', 'Mother Halloran\'s', 'Blind Yevgeny\'s', 'The Widow\'s', 'Three-Finger', 'Saint Orra\'s', 'Last Chance', 'Lucky Seventh', 'Nobody\'s', 'The Auditor\'s', 'Quiet Tam\'s', 'Second-Best', 'Honest Dregg\'s'];
+const OUTPOST_OWNERS = ['Old Ketch\'s', 'Mother Halloran\'s', 'Blind Yevgeny\'s', 'The Widow\'s', 'Three-Finger', 'Saint Orra\'s', 'Last Chance', 'Seventh Ring', 'Drifter\'s', 'The Auditor\'s', 'Quiet Tam\'s', 'Far Reach', 'Dregg\'s'];
 function addOutposts(sys, planets, belts, stations) {
   const rng = new RNG((sys.seed ^ 0x5ca1ab1e) >>> 0);
   // home gets a neighbour to run errands to; an empty system always gets one; a third of the rest get an extra

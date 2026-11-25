@@ -62,7 +62,7 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     save data in `data.contracts` (old three-field contracts migrate on load), history in `data.questLog`.
     Stations: `galaxy.js` gives every system at least one (94 total, 8 kinds in `STATION_KINDS`);
     outposts are appended from their own seeded stream so older stations keep index, seed and place.
-  - `flavor/` — space-side game feel: slow-mo on big kills, last words. (No kill-streak callouts, in space or on the
+  - `flavor/` — space-side game feel: slow-mo on big kills, last words (sober final transmissions). (No kill-streak callouts, in space or on the
     surface: they were removed on request. Do not add chained-kill counters or announcements back.)
 - `src/ui/` — HUD, overlay canvas, windows; `css/ui.css` holds the holo theme.
   - `ui/ticker.js` — `game.ticker`: one slim bar across the very top. `pin({tag, time, mid, act})` is the plate (a PvP
@@ -168,6 +168,9 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   and frames it from closer in (Game.js, `phoneWatch`); a hand on the camera holds that off for 12 s.
 
 ## Conventions
+- Tone is serious space opera. No novelty props (no rubber ducks, gnomes, vending machines), gag mechanics, joke names,
+  memes or punchline lore/descriptions; new assets are modelled for the setting, not swapped for a joke. Crew radio
+  chatter may carry a dry quip alongside serious lines. (The owner never asked for comedy; it was removed on request.)
 - Hot loops allocate nothing; reuse module-level temp vectors.
 - The gates are noisy at the cell level (soak is unseeded; duel cells are chaotic): compare against
   the previous commit on a second port before blaming a change.

@@ -381,7 +381,7 @@ export function installGuildUI(game, G) {
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
     if (!game.data || !game.ui || game.input.blocked || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'KeyO') game.command('guild');
-    else if (e.code === 'KeyH' && game.mode !== 'planet') game.command('pvp');   // on the surface H is the horn
+    else if (e.code === 'KeyH' && game.mode !== 'planet') game.command('pvp');   // on the surface H is the lure pulse
   });
 
   let hudT = 0, winT = 0;

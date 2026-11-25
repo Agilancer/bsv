@@ -125,6 +125,19 @@ export function installStory(game, Q, hooks) {
   }
 
   // ---------------------------------------------------------------- the chain
+  // a saved step is rebuilt from the script on load, so its words, giver and conditions follow the current
+  // story.js (the Custodian scans were once `kind: 'gnome'`); progress is kept while the work is the same kind,
+  // and starts again where it changed (e_later was once `ev: 'punt'`, an event that no longer exists)
+  function refresh() {
+    const s = S(), old = s.q;
+    if (!s.cur || !old) return;
+    const q = buildStoryQuest(s.cur, s.choices);
+    if (!q) return;
+    q.progress = old.ev === q.ev ? Math.min(q.n, old.progress || 0) : 0;
+    if (old.t0 != null) q.t0 = old.t0;
+    if (old.tp != null) q.tp = old.tp;
+    s.q = q;
+  }
   function begin(id) {
     const s = S(), st = resolveStep(id, s.choices), q = buildStoryQuest(id, s.choices);
     if (!st || !q) { s.wait = null; return; }
@@ -265,6 +278,7 @@ export function installStory(game, Q, hooks) {
       if (gapT > 0) gapT -= 0.5;
       else if (!cur && !queue.length && game.player && (!game.tutorialDone || game.tutorialDone()) && D.level >= STEP_BY_ID[s.wait].lvl) begin(s.wait);
     }
+    if (s.q && isDone(s.q) && !s.pending) { complete(); return; }   // finished but never closed (a rebuilt step with a smaller count)
     if (s.q) {
       setpiece();
       // the autopilot does not walk the decks: after a pause it takes the meeting by intercom
@@ -326,7 +340,7 @@ export function installStory(game, Q, hooks) {
   game.story = { state: S, say, choose, skip, complete, busy: () => !!cur || queue.length > 0, current: () => cur, titleCard, speaker };
   return {
     quest: () => (game.data && game.data.story ? game.data.story.q : null),
-    start() { S(); build(); gapT = 3; },
+    start() { S(); refresh(); build(); gapT = 3; },
     complete, tick, trackerHtml, trackerSig, tabHtml, bindTab,
   };
 }

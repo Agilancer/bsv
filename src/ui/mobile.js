@@ -2,7 +2,7 @@
 //   - left-thumb steering stick (push toward where the bow should point; how far is the throttle)
 //   - a helm tray: all stop (again: astern), next target (Tab), climb / dive (R / F, hold), zoom + / −
 //   - the ☰ sheet: every menubar button (whatever modules add to #menubar shows up by itself) plus
-//     the hotkey-only commands (system map, dock, scan, refinery, explorer bay, auto-fire, horn)
+//     the hotkey-only commands (system map, dock, scan, refinery, explorer bay, auto-fire, lure pulse)
 //   - pinch / twist / drag on the view are in engine/Input.js (space) and planet/Touch.js (surface)
 //   - press and hold anything with a tooltip to pin it, with buttons for what a left / right click
 //     would do (equip · salvage, buy, sell, learn…); a tap is still a plain click
@@ -19,7 +19,7 @@ export function isTouch() {
 const SHEET = [
   ['systemMap', 'SYSTEM MAP', 'space'], ['dock', 'DOCK', 'space'], ['scan', 'SCAN PLANET', 'space'],
   ['explorer', 'EXPLORER BAY', ''], ['refinery', 'REFINERY', ''],
-  ['autofire', 'AUTO-FIRE', 'space'], ['horn', 'HORN', 'planet'], ['fullscreen', 'FULL SCREEN', ''],
+  ['autofire', 'AUTO-FIRE', 'space'], ['lure', 'LURE', 'planet'], ['fullscreen', 'FULL SCREEN', ''],
 ];
 // press-and-hold actions: [selector, what a tap / left click does, what a right click does]
 const HOLD = [
@@ -99,7 +99,7 @@ export function installMobile(game) {
   // --- the sheet: hotkey-only commands join the menubar buttons ---
   const special = {
     autofire() { const s = game.player; if (s) { s.autoFire = !s.autoFire; ui.toast(`Auto-fire ${s.autoFire ? 'on' : 'off'}`); } },
-    horn() { const m = game.planet && game.planet.current; if (m && m.honk) m.honk(); },
+    lure() { const m = game.planet && game.planet.current; if (m && m.lure) m.lure(); },
     fullscreen() {
       const d = document, el = d.documentElement;
       if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
