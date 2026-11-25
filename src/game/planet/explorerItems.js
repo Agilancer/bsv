@@ -28,11 +28,11 @@ export const EX_BASES = {
   arc: { slot: 'gun', name: 'Arc Projector', kind: 'arc', dmg: 15, rof: 3.2, range: 50, chain: 3, color: 0x90a8ff, icon: 'ion' },
   // ---- drone bays (a swarm kept topped up from a pod on a hardpoint) ----
   // count drones, power per hit / per second, rof hits per second each, rebuild s per lost drone
-  sparrow: { slot: 'bay', name: 'Sparrow Gun Drones', kind: 'drone', drone: 'sparrow', count: 3, power: 4.6, rof: 4.2, range: 62, rebuild: 5, color: 0xffc040, icon: 'drone', blurb: 'Quad-drones orbit the vehicle and strafe the nearest creature.' },
-  scarab: { slot: 'bay', name: 'Scarab Crawlers', kind: 'drone', drone: 'scarab', count: 4, power: 62, rof: 0, range: 70, splash: 6, rebuild: 1.25, color: 0xff5030, icon: 'mine', blurb: 'Six-legged bomb-bots skitter to a creature and detonate. The bay builds more.' },
-  mender: { slot: 'bay', name: 'Mender Swarm', kind: 'drone', drone: 'mender', count: 3, power: 0.0028, rof: 0, range: 0, rebuild: 8, color: 0x60ff90, icon: 'repair', blurb: 'Repair drones knit the hull while it is damaged.' },
-  aegis: { slot: 'bay', name: 'Aegis Wing', kind: 'drone', drone: 'aegis', count: 3, power: 3, rof: 0, range: 0, rebuild: 7, color: 0x60c8ff, icon: 'shield', blurb: 'Shield drones fly close escort and catch hostile shots.' },
-  magpie: { slot: 'bay', name: 'Magpie Harvesters', kind: 'drone', drone: 'magpie', count: 2, power: 3.2, rof: 0, range: 46, rebuild: 9, color: 0xffd060, icon: 'tractor', blurb: 'Harvester drones mine resource nodes in reach and bring in what lies on the ground.' },
+  sparrow: { slot: 'bay', name: 'Sparrow Gun Drones', kind: 'drone', drone: 'sparrow', count: 3, power: 4.6, rof: 4.2, range: 62, rebuild: 5, color: 0xffc040, icon: 'sparrow', blurb: 'Quad-drones orbit the vehicle and strafe the nearest creature.' },
+  scarab: { slot: 'bay', name: 'Scarab Crawlers', kind: 'drone', drone: 'scarab', count: 4, power: 62, rof: 0, range: 70, splash: 6, rebuild: 1.25, color: 0xff5030, icon: 'scarab', blurb: 'Six-legged bomb-bots skitter to a creature and detonate. The bay builds more.' },
+  mender: { slot: 'bay', name: 'Mender Swarm', kind: 'drone', drone: 'mender', count: 3, power: 0.0028, rof: 0, range: 0, rebuild: 8, color: 0x60ff90, icon: 'mender', blurb: 'Repair drones knit the hull while it is damaged.' },
+  aegis: { slot: 'bay', name: 'Aegis Wing', kind: 'drone', drone: 'aegis', count: 3, power: 3, rof: 0, range: 0, rebuild: 7, color: 0x60c8ff, icon: 'aegis', blurb: 'Shield drones fly close escort and catch hostile shots.' },
+  magpie: { slot: 'bay', name: 'Magpie Harvesters', kind: 'drone', drone: 'magpie', count: 2, power: 3.2, rof: 0, range: 46, rebuild: 9, color: 0xffd060, icon: 'magpie', blurb: 'Harvester drones mine resource nodes in reach and bring in what lies on the ground.' },
   // ---- tools (mining) ----
   drill: { slot: 'tool', name: 'Plasma Drill', kind: 'tool', power: 9, range: 20, bonus: { ore: 1.5, isotope: 1.2 }, color: 0xffa040, icon: 'repair' },
   cutter: { slot: 'tool', name: 'Laser Cutter', kind: 'tool', power: 7, range: 34, bonus: { crystal: 1.6 }, color: 0xff4a7a, icon: 'laser' },
@@ -244,7 +244,7 @@ export function exItemScore(item) {
   return item.ilvl * 10 * (1 + RARITY[item.rarity].i * 0.18) * (1 + (item.lvl - 1) * 0.04) + item.affixes.length * 12 + (item.unique ? item.unique.length * 60 : 0);
 }
 
-export function exDescribe(item) {
+export function exDescribe(item, bonus = 0) {
   const b = EX_BASES[item.base], r = RARITY[item.rarity];
   const lines = [];
   if (b.slot === 'gun') {
@@ -257,7 +257,7 @@ export function exDescribe(item) {
     if (s.chain) lines.push(`Arcs to ${s.chain} more targets`);
     if (s.pierce) lines.push(`Pierces ${s.pierce} creatures`);
   } else if (b.slot === 'bay') {
-    const s = exDroneStats(item);
+    const s = exDroneStats(item, bonus);
     lines.push(b.blurb);
     const pl = s.count === 1 ? 'drone' : 'drones';
     if (s.type === 'sparrow') lines.push(`${s.count} ${pl} · ${s.power.toFixed(1)} damage × ${s.rof.toFixed(1)}/s each`, `DPS ${droneSheetDps(s).toFixed(0)} · reach ${s.range}`);
@@ -332,6 +332,7 @@ export function ensureExplorer(data) {
   data.refinery.ranks ||= {};
   const ex = data.explorer;
   ex.owned ||= [ex.chassis]; ex.scanned ||= {}; ex.inventory ||= []; ex.loadout ||= {};
+  ex.blueprints ||= ['chaingun', 'scatter', 'rockets', 'sparrow', 'mender'];   // economy.STARTER_BLUEPRINTS
   if (!EXPLORER_BY_ID[ex.chassis]) ex.chassis = 'ex_rover_1';
   ex.owned = ex.owned.filter((id) => EXPLORER_BY_ID[id]);
   if (!ex.owned.includes(ex.chassis)) ex.owned.push(ex.chassis);
@@ -389,6 +390,19 @@ export function explorerStats(ex) {
 }
 
 // ---------------- loadout management ----------------
+// Hardpoints hold guns and drone bays together: at least one gun stays fitted, at most one bay of a
+// support kind, and bays fill at most half the mounts (all but one on a drone carrier).
+export function bayCap(ch) { return ch.droneBonus ? Math.max(1, ch.slots.hp - 1) : Math.floor(ch.slots.hp / 2); }
+export function hpAllowed(ex, ch, it, replacing) {
+  if (it.slot !== 'bay') return true;
+  const fitted = exSlotKeys(ch).filter((k) => k.startsWith('hp:')).map((k) => ex.loadout[k]).filter((x) => x && x !== replacing);
+  const bays = fitted.filter((x) => x.slot === 'bay'), guns = fitted.filter((x) => x.slot === 'gun');
+  if (!guns.length && ch.slots.hp > 1 && fitted.length >= ch.slots.hp - 1) return false;   // keep a mount for a gun
+  if (ch.slots.hp === 1 || bays.length >= bayCap(ch)) return false;
+  const support = (x) => ['mender', 'aegis', 'magpie'].includes(EX_BASES[x.base].drone);
+  if (support(it) && bays.some((x) => x.base === it.base)) return false;
+  return true;
+}
 export function equipExItem(ex, item, slotKey = null) {
   const ch = EXPLORER_BY_ID[ex.chassis];
   const keys = exSlotKeys(ch).filter((k) => k.startsWith(SLOT_OF[item.slot] + ':'));
@@ -417,6 +431,7 @@ export function equipBestEx(ex) {
       if (!keys.length) continue;
       const empty = keys.find((k) => !ex.loadout[k]);
       const worst = keys.reduce((a, b) => (exItemScore(ex.loadout[a]) <= exItemScore(ex.loadout[b]) ? a : b));
+      if (!hpAllowed(ex, ch(), it, empty ? null : ex.loadout[worst])) continue;   // never strip the last gun for a bay
       if (empty || exItemScore(it) > exItemScore(ex.loadout[worst]) * 1.02) { equipExItem(ex, it, empty || worst); changed = true; break; }
     }
   }

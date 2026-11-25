@@ -20,8 +20,8 @@ import { Dungeon, portalMaterial } from './Dungeon.js';
 import { DUNGEON_THEMES } from './dungeonGen.js';
 import { landerGroup, beaconMaterial, texturedMat } from './siteModels.js';
 import { GeoBuilder, rockGeometry } from './geo.js';
-import { RESOURCES, bankCargo, loseCargo, cargoTotal, addResources, planetKey, groundKillReward } from './economy.js';
-import { ensureExplorer, explorerStats, grantExplorerXp, EX_INV_SIZE, scrapYield, rollExItem } from './explorerItems.js';
+import { RESOURCES, bankCargo, loseCargo, cargoTotal, addResources, planetKey, groundKillReward, learnBlueprint } from './economy.js';
+import { ensureExplorer, explorerStats, grantExplorerXp, EX_INV_SIZE, scrapYield, rollExItem, grantExItemXp, EX_BASES } from './explorerItems.js';
 import { pickPack } from './enemies.js';
 import { PlanetHUD } from './PlanetHUD.js';
 import { PLANET_ABILITIES } from './abilities.js';
@@ -307,7 +307,11 @@ export class PlanetMode {
     if (def.mech || plan === 'mech' || plan === 'drone' || plan === 'turret') {
       const n = (1 + def.size) * (e.elite ? 2 : 1) * (0.6 + Math.random() * 0.8);
       if (n >= 1) this.level.dropRes('tech', Math.round(n), p);
+      // war machines carry fabricator schematics
+      if (!this.pilot.duel && Math.random() < 0.03 + 0.04 * def.size + (e.elite ? 0.12 : 0)) this.blueprintFound('salvaged from the wreck');
     }
+    // fitted guns and drone bays earn mastery with every kill
+    for (const [k, it] of Object.entries(this.ex.loadout)) if (it && k.startsWith('hp:') && grantExItemXp(it, def.xp * (1 + 0.12 * (e.level - 1)) * 0.6)) this.toast(`${it.name}: mastery ${it.lvl}`, '');
     for (const [res, ev] of Object.entries(def.drops)) {
       const n = ev * sizeMul * (0.5 + Math.random());
       const k = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);
@@ -332,6 +336,15 @@ export class PlanetMode {
     }
   }
 
+  // a new fabricator blueprint (war machines, crates, level-ups): learn it and say so
+  blueprintFound(how) {
+    const k = learnBlueprint(this.data);
+    if (!k) return null;
+    this.toast(`Blueprint recovered: ${EX_BASES[k].name}`, 'epic');
+    this.game.ui.chat('LOOT', null, `Blueprint ${how}: ${EX_BASES[k].name} (Explorer Bay → Fabricator)`, 'loot', 'loot');
+    this.hud.refreshWindows && this.hud.refreshWindows();
+    return k;
+  }
   gainXp(xp) {
     const ex = this.ex;
     this.runStats.xp += xp;
@@ -343,6 +356,7 @@ export class PlanetMode {
       this.pfx.pillar(this.vehicle.position, 0x9a6bff, 30, 3, 40); this.pfx.ring(this.vehicle.position, 18, 0x9a6bff, 64);
       this.refreshStats();
       this.vehicle.hp = this.vehicle.stats.maxHp;
+      if ([3, 6, 9, 13, 17, 21, 26, 31, 37].includes(ex.level)) this.later(1.2, () => this.blueprintFound('decoded from survey data'));
     }
   }
   refreshStats() {
@@ -691,7 +705,7 @@ export class PlanetMode {
 
   readControls(dt) {
     const inp = this.input, m = inp.mouse, V = this.vehicle;
-    const ctl = { mx: 0, mz: 0, fire: false, mine: false, boost: false, abil: [false, false, false, false], probe: false, interact: false };
+    const ctl = { mx: 0, mz: 0, fire: false, mine: false, boost: false, abil: [false, false, false, false, false], probe: false, interact: false };
     // aim: cursor ray onto the ground (raymarch the heightfield)
     const auto = this.game.autoplay && this.pilot;
     if (this.touch && this.touch.active) this.touch.read(ctl);
@@ -705,7 +719,8 @@ export class PlanetMode {
       ctl.fire = !!(m.buttons & 1);
       ctl.mine = !!(m.buttons & 2) || k('KeyF');
       ctl.boost = k('ShiftLeft') || k('ShiftRight');
-      for (let i = 0; i < 4; i++) ctl.abil[i] = h('Digit' + (i + 1));
+      for (let i = 0; i < PLANET_ABILITIES.length; i++) ctl.abil[i] = h('Digit' + (i + 1));
+      if (h('KeyG')) ctl.abil[4] = true;   // G: swarm strike
       ctl.probe = h('KeyX'); ctl.interact = h('KeyR');
       if (h('KeyH')) this.honk();
       this.pickAim(m.nx, m.ny);
@@ -809,7 +824,7 @@ export class PlanetMode {
 
   // ---------------- abilities ----------------
   updateAbilities(dt, ctl) {
-    for (let i = 0; i < 4; i++) if (ctl.abil[i]) this.useAbility(i);
+    for (let i = 0; i < PLANET_ABILITIES.length; i++) if (ctl.abil[i]) this.useAbility(i);
     if (ctl.boost && this.vehicle.boostT <= 0.05) this.vehicle.boostT = 0.1;
   }
   abilityCd(a) { return a.cd * (1 - this.vehicle.stats.cdr); }

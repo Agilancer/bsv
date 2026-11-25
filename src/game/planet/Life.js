@@ -241,9 +241,10 @@ export class Flyers {
     b.sphere(0.2, 0, 0.08, 0.62, { color: F.belly }, 1, 1, 1, 0);
     b.cone(0.16, 0.6, 0, 0, -0.6, { color: F.body }, 4, -Math.PI / 2);
     for (const sx of [-1, 1]) {
-      b.box(1.5, 0.05, 0.75, sx * 0.85, 0.05, 0, { color: F.belly });
+      // wings in the body colour, tips barely lit: birds must never read as the explorer's drones
+      b.box(1.5, 0.05, 0.75, sx * 0.85, 0.05, 0, { color: F.body });
       b.box(0.9, 0.04, 0.45, sx * 1.9, 0.05, -0.12, { color: F.body });
-      b.sphere(0.07, sx * 2.3, 0.05, -0.1, { color: F.glow, emit: 2.5 }, 1, 1, 1, 0);
+      b.sphere(0.07, sx * 2.3, 0.05, -0.1, { color: F.glow, emit: 0.6 }, 1, 1, 1, 0);
     }
     const mat = vcMaterial(0.7);
     // wings flap in the vertex shader: lift grows with distance from the spine

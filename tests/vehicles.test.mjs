@@ -7,7 +7,7 @@ import { RNG } from '../src/engine/rng.js';
 import {
   makeExItem, exWeaponStats, exDroneStats, droneSheetDps, ensureExplorer, explorerStats, exSlotKeys, EX_BASES, EX_MAX_LEVEL, equipExItem, setExChassis,
 } from '../src/game/planet/explorerItems.js';
-import { BLUEPRINTS, craftCost, craftItem, chassisCost, RESOURCES } from '../src/game/planet/economy.js';
+import { BLUEPRINTS, craftCost, craftItem, chassisCost, RESOURCES, learnBlueprint, STARTER_BLUEPRINTS, BLUEPRINT_TIER, knowsBlueprint } from '../src/game/planet/economy.js';
 import { autoCraft, pickBlueprint, bayCap } from '../src/game/planet/autoCraft.js';
 import { expectedBuild } from '../src/game/planet/groundBalance.js';
 import { newPlayer } from '../src/game/Player.js';
@@ -109,12 +109,32 @@ test('blueprints: every gun and bay can be crafted from planet resources plus sa
   }
   const P = newPlayer(); ensureExplorer(P); P.credits = 1e6;
   P.resources = { ore: 1e5, crystal: 1e5, isotope: 1e5, biomass: 1e5, relic: 500, datacore: 500, tech: 1e5 };
+  assert.equal(craftItem(P, 'aegis', 12).ok, false, 'an unknown blueprint cannot be crafted');
+  assert.equal(learnBlueprint(P, 'aegis'), 'aegis');
+  learnBlueprint(P, 'rail');
   const before = P.resources.tech;
   const r = craftItem(P, 'aegis', 12, false, new RNG(3));
   assert.ok(r.ok && r.item.base === 'aegis' && r.item.slot === 'bay' && r.item.ilvl === 12 && P.resources.tech < before);
   for (let i = 0; i < 20; i++) assert.ok(RARITY[craftItem(P, 'rail', 12, true, new RNG(i)).item.rarity].i >= 2, 'masterwork is rare+');
+  // masterwork with a chosen affix guarantees it
+  for (let i = 0; i < 6; i++) assert.ok(craftItem(P, 'rail', 12, true, new RNG(40 + i), 'dmg').item.affixes.some((a) => a.k === 'dmg'));
   const broke = newPlayer(); ensureExplorer(broke);
   assert.equal(craftItem(broke, 'rail', 12).ok, false, 'no resources, no gun');
+});
+
+test('blueprints are earned: five to start, the rest by level tier, never twice', () => {
+  const P = newPlayer(); const ex = ensureExplorer(P);
+  assert.deepEqual(ex.blueprints, STARTER_BLUEPRINTS);
+  assert.equal(learnBlueprint(P, 'rail', new RNG(1)), 'rail', 'a mission can name any blueprint');
+  assert.equal(learnBlueprint(P, 'rail'), null, 'not twice');
+  ex.level = 1;
+  assert.equal(learnBlueprint(P, null, new RNG(2)), null, 'at level 1 every tier-0 blueprint is already known');
+  ex.level = 5;
+  const k = learnBlueprint(P, null, new RNG(3));
+  assert.ok(k && BLUEPRINT_TIER[k] === 1);
+  ex.level = 50;
+  for (let i = 0; i < 20; i++) learnBlueprint(P, null, new RNG(10 + i));
+  assert.ok(Object.keys(BLUEPRINTS).every((b) => knowsBlueprint(ex, b)), 'all can be learned');
 });
 
 test('old saves: gun slots become hardpoints and nothing is lost', () => {
@@ -150,6 +170,7 @@ test('autopilot: crafts for empty hardpoints, keeps a gun fitted, drone carriers
     const P = newPlayer(); P.level = 40; P.credits = 5e6;
     P.resources = { ore: 1e5, crystal: 1e5, isotope: 1e5, biomass: 1e5, relic: 900, datacore: 900, tech: 1e5 };
     const ex = ensureExplorer(P); ex.level = 50; ex.owned.push(id); setExChassis(ex, id);
+    ex.blueprints = Object.keys(BLUEPRINTS);
     for (let i = 0; i < 3; i++) autoCraft(P);
     const ch = EXPLORER_BY_ID[ex.chassis];
     const hp = exSlotKeys(ch).filter((k) => k.startsWith('hp:')).map((k) => ex.loadout[k]);

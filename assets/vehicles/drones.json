@@ -1,11 +1,11 @@
 {
  "drones": {
-  "bytes": 119924,
+  "bytes": 140652,
   "dims": {
-   "H": 1.355,
+   "H": 1.99,
    "L": 7.455,
    "W": 17.736,
-   "maxY": 0.975,
+   "maxY": 1.61,
    "minY": -0.38
   },
   "empties": {},
@@ -26,7 +26,7 @@
   "part": "drones",
   "scale": 1,
   "scarab_feet": -0.3,
-  "tris": 9904,
+  "tris": 12000,
   "types": 5
  }
 }

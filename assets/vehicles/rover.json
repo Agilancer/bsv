@@ -1,7 +1,7 @@
 {
  "ex_rover_1": {
   "axles": 3,
-  "bytes": 143456,
+  "bytes": 142888,
   "dims": {
    "H": 2.627,
    "L": 7.875,
@@ -38,13 +38,13 @@
   "mark": 1,
   "ride": 0,
   "scale": 1.0,
-  "tris": 13810,
+  "tris": 13786,
   "wheelR": 0.7,
   "wheels": 6
  },
  "ex_rover_10": {
   "axles": 5,
-  "bytes": 334348,
+  "bytes": 336144,
   "dims": {
    "H": 7.183,
    "L": 22.21,
@@ -55,7 +55,7 @@
   "empties": {
    "eng": 2,
    "hp": 5,
-   "light": 8,
+   "light": 6,
    "tool": 1
   },
   "file": "ex_rover_10.glb",
@@ -109,13 +109,13 @@
   "mark": 10,
   "ride": 0,
   "scale": 1.675,
-  "tris": 35292,
+  "tris": 34660,
   "wheelR": 1.362,
   "wheels": 10
  },
  "ex_rover_11": {
   "axles": 5,
-  "bytes": 346276,
+  "bytes": 346636,
   "dims": {
    "H": 8.968,
    "L": 23.205,
@@ -126,7 +126,7 @@
   "empties": {
    "eng": 2,
    "hp": 5,
-   "light": 8,
+   "light": 6,
    "tool": 1
   },
   "file": "ex_rover_11.glb",
@@ -180,13 +180,13 @@
   "mark": 11,
   "ride": 0,
   "scale": 1.75,
-  "tris": 36338,
+  "tris": 35706,
   "wheelR": 1.425,
   "wheels": 10
  },
  "ex_rover_12": {
   "axles": 5,
-  "bytes": 351860,
+  "bytes": 355812,
   "dims": {
    "H": 9.74,
    "L": 24.2,
@@ -197,7 +197,7 @@
   "empties": {
    "eng": 2,
    "hp": 6,
-   "light": 8,
+   "light": 6,
    "tool": 1
   },
   "file": "ex_rover_12.glb",
@@ -257,13 +257,13 @@
   "mark": 12,
   "ride": 0,
   "scale": 1.825,
-  "tris": 37092,
+  "tris": 36836,
   "wheelR": 1.489,
   "wheels": 10
  },
  "ex_rover_2": {
   "axles": 3,
-  "bytes": 159192,
+  "bytes": 158216,
   "dims": {
    "H": 2.807,
    "L": 8.466,
@@ -300,13 +300,13 @@
   "mark": 2,
   "ride": 0,
   "scale": 1.075,
-  "tris": 15746,
+  "tris": 15650,
   "wheelR": 0.754,
   "wheels": 6
  },
  "ex_rover_3": {
   "axles": 3,
-  "bytes": 175484,
+  "bytes": 177588,
   "dims": {
    "H": 2.988,
    "L": 9.056,
@@ -317,7 +317,7 @@
   "empties": {
    "eng": 2,
    "hp": 1,
-   "light": 2,
+   "light": 4,
    "tool": 1
   },
   "file": "ex_rover_3.glb",
@@ -343,13 +343,13 @@
   "mark": 3,
   "ride": 0,
   "scale": 1.15,
-  "tris": 17604,
+  "tris": 17768,
   "wheelR": 0.808,
   "wheels": 6
  },
  "ex_rover_4": {
   "axles": 3,
-  "bytes": 187856,
+  "bytes": 186856,
   "dims": {
    "H": 3.587,
    "L": 10.406,
@@ -360,7 +360,7 @@
   "empties": {
    "eng": 2,
    "hp": 2,
-   "light": 6,
+   "light": 4,
    "tool": 1
   },
   "file": "ex_rover_4.glb",
@@ -392,13 +392,13 @@
   "mark": 4,
   "ride": 0,
   "scale": 1.225,
-  "tris": 18540,
+  "tris": 18428,
   "wheelR": 0.985,
   "wheels": 6
  },
  "ex_rover_5": {
   "axles": 3,
-  "bytes": 190508,
+  "bytes": 191216,
   "dims": {
    "H": 4.991,
    "L": 11.31,
@@ -409,7 +409,7 @@
   "empties": {
    "eng": 2,
    "hp": 2,
-   "light": 6,
+   "light": 4,
    "tool": 1
   },
   "file": "ex_rover_5.glb",
@@ -441,13 +441,13 @@
   "mark": 5,
   "ride": 0,
   "scale": 1.3,
-  "tris": 18984,
+  "tris": 19016,
   "wheelR": 1.048,
   "wheels": 6
  },
  "ex_rover_6": {
   "axles": 3,
-  "bytes": 202240,
+  "bytes": 202496,
   "dims": {
    "H": 5.28,
    "L": 11.963,
@@ -458,7 +458,7 @@
   "empties": {
    "eng": 2,
    "hp": 3,
-   "light": 6,
+   "light": 4,
    "tool": 1
   },
   "file": "ex_rover_6.glb",
@@ -496,13 +496,13 @@
   "mark": 6,
   "ride": 0,
   "scale": 1.375,
-  "tris": 20396,
+  "tris": 20428,
   "wheelR": 1.11,
   "wheels": 6
  },
  "ex_rover_7": {
   "axles": 4,
-  "bytes": 258692,
+  "bytes": 257696,
   "dims": {
    "H": 5.824,
    "L": 16.334,
@@ -513,7 +513,7 @@
   "empties": {
    "eng": 2,
    "hp": 3,
-   "light": 8,
+   "light": 6,
    "tool": 1
   },
   "file": "ex_rover_7.glb",
@@ -553,13 +553,13 @@
   "mark": 7,
   "ride": 0,
   "scale": 1.45,
-  "tris": 26316,
+  "tris": 26204,
   "wheelR": 1.173,
   "wheels": 8
  },
  "ex_rover_8": {
   "axles": 4,
-  "bytes": 273412,
+  "bytes": 276044,
   "dims": {
    "H": 6.127,
    "L": 17.179,
@@ -570,7 +570,7 @@
   "empties": {
    "eng": 2,
    "hp": 4,
-   "light": 8,
+   "light": 6,
    "tool": 1
   },
   "file": "ex_rover_8.glb",
@@ -616,13 +616,13 @@
   "mark": 8,
   "ride": 0,
   "scale": 1.525,
-  "tris": 28232,
+  "tris": 28588,
   "wheelR": 1.236,
   "wheels": 8
  },
  "ex_rover_9": {
   "axles": 4,
-  "bytes": 280768,
+  "bytes": 284356,
   "dims": {
    "H": 7.078,
    "L": 18.024,
@@ -633,7 +633,7 @@
   "empties": {
    "eng": 2,
    "hp": 4,
-   "light": 8,
+   "light": 6,
    "tool": 1
   },
   "file": "ex_rover_9.glb",
@@ -679,7 +679,7 @@
   "mark": 9,
   "ride": 0,
   "scale": 1.6,
-  "tris": 29176,
+  "tris": 29620,
   "wheelR": 1.299,
   "wheels": 8
  }

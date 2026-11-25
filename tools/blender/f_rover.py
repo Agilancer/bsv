@@ -74,8 +74,8 @@ def tyre(M, i, c, r, w, sx, C, m):
               'dark', 0x5a5a58, 0, rot=(-a, 0, 0), group=g)
     M.cyl(r * 0.22, 0.2 * w, (fo + sx * 0.06 * w, y, z), 'x', 'chrome', CHROME, 16, bevel=0.02, group=g)
     M.cyl(r * 0.1, 0.1 * w, (fo + sx * 0.17 * w, y, z), 'x', 'dark', C['dark'], 10, bevel=0.01, group=g)
-    if m >= 10:
-        M.torus(r * 0.44, 0.022 * r, (fo + sx * 0.06 * w, y, z), 'x', 'glow', C['glow'], 24, 4, group=g)
+    if m >= 10:   # sand beadlock ring on the road-train rims
+        M.torus(r * 0.44, 0.03 * r, (fo + sx * 0.06 * w, y, z), 'x', 'trim', C['panel'], 20, 4, group=g)
     M.cyl(r * 0.5, 0.06 * w, (x - sx * w * 0.46, y, z), 'x', 'dark', 0x40403e, 16, bevel=0, group=g)
     M.pivot(g, c)
 
@@ -257,8 +257,6 @@ def cab(M, m, st, s, z0, z1, yb, hc, bw, C):
         M.box(1.0 * s, 0.06 * s, 0.05 * s, (0, yb + h1 * 0.25 + k * 0.1 * s, z1 + 0.01 * s), 'dark', dark, 0)
     M.box(2 * bw - 0.2 * s, 0.1 * s, 0.05 * s, (0, yb + h1 * 0.9, z1 - 0.01 * s), 'trim', panel, 0.01)
     M.lights([(sx * (bw - 0.32 * s), yb + h1 * 0.45, z1 + 0.02 * s) for sx in (1, -1)], 0.2 * s)
-    for sx in (1, -1):
-        M.box(0.18 * s, 0.07 * s, 0.05 * s, (sx * (bw - 0.32 * s), yb + h1 * 0.66, z1 + 0.01 * s), 'glow', glow, 0)
     # cab steps
     for sx in (1, -1):
         M.box(0.18 * s, 0.06 * s, 0.5 * s, (sx * (bw + 0.08 * s), yb + 0.05 * s, z0 + 0.45 * s), 'dark', dark, 0.01)
@@ -307,7 +305,7 @@ def roof_mount(M, m, st, s, z0, z1, yroof, bw, C):
             M.box(0.09 * s, 0.09 * s, rl + 0.1 * s, (sx * xr, y + rh, rz), 'dark', dark, 0.02)
         for zz in (rz - rl / 2, rz + rl / 2):
             M.box(2 * xr, 0.09 * s, 0.09 * s, (0, y + rh, zz), 'dark', dark, 0.02)
-        nl = 4 if st == 1 else 6
+        nl = 2 if st == 1 else 4                 # with the two headlamps: at most six lamps
         M.box(2 * xr * 0.8, 0.18 * s, 0.14 * s, (0, y + rh + 0.12 * s, rz + rl / 2), 'dark', dark, 0.02)
         M.lights([((k - (nl - 1) / 2) * 2 * xr * 0.75 / nl, y + rh + 0.12 * s, rz + rl / 2 + 0.08 * s) for k in range(nl)], 0.13 * s)
         # gear on the rack: jerry cans / spare wheel behind the gun
@@ -320,10 +318,15 @@ def roof_mount(M, m, st, s, z0, z1, yroof, bw, C):
         M.box(1.0 * s, 0.24 * s, 1.0 * s, (0, y - 0.12 * s, hpz), 'dark', dark, 0.04 * s, taper=(0.85, 0.85))
     else:
         M.box(1.1 * s, 0.1 * s, 1.1 * s, (0, y + 0.05 * s, hpz), 'dark', dark, 0.03 * s)
+        if m >= 3:   # light bar across the roof's front edge
+            M.box(2 * bw * 0.75, 0.14 * s, 0.14 * s, (0, y + 0.08 * s, rz + rl / 2 + 0.05 * s), 'dark', dark, 0.02)
+            for sx in (1, -1):
+                M.box(0.08 * s, 0.14 * s, 0.08 * s, (sx * bw * 0.7, y + 0.04 * s, rz + rl / 2 - 0.05 * s), 'dark', dark, 0)
+            M.lights([(sx * bw * 0.4, y + 0.08 * s, rz + rl / 2 + 0.12 * s) for sx in (1, -1)], 0.13 * s)
         y = y + 0.1 * s
     # amber beacons
     if m >= 2:
-        for sx in ((1, -1) if m >= 9 else (-1,)):
+        for sx in (-1,):
             M.cyl(0.1 * s, 0.08 * s, (sx * bw * 0.7, yroof + 0.04 * s, z0 + 0.25 * s), 'y', 'dark', dark, 10)
             M.cyl(0.08 * s, 0.14 * s, (sx * bw * 0.7, yroof + 0.15 * s, z0 + 0.25 * s), 'y', 'glow', glow, 10, bevel=0)
     if m >= 5:   # antenna whips
@@ -350,18 +353,18 @@ def masts(M, m, s, z0, yroof, bw, C):
             if m >= 11:
                 M.cyl(0.75 * s, 0.12 * s, (x, top + 0.45 * s, z), 'z', 'trim', panel, 20, r2=0.15 * s, rot=(-20, 30, 0))
                 M.cyl(0.04 * s, 0.6 * s, (x, top + 0.45 * s, z + 0.2 * s), 'z', 'dark', dark, 6, rot=(-20, 30, 0), bevel=0)
-                M.sphere(0.07 * s, (x + 0.15 * s, top + 0.6 * s, z + 0.5 * s), (1, 1, 1), 'glow', glow, 8)
+                M.sphere(0.07 * s, (x + 0.15 * s, top + 0.6 * s, z + 0.5 * s), (1, 1, 1), 'dark', dark, 8)
             else:
                 M.box(0.5 * s, 0.32 * s, 0.4 * s, (x, top + 0.1 * s, z), 'trim', panel, 0.06 * s)
-                M.box(0.3 * s, 0.14 * s, 0.05 * s, (x, top + 0.1 * s, z + 0.21 * s), 'glow', glow, 0)
+                M.box(0.3 * s, 0.14 * s, 0.05 * s, (x, top + 0.1 * s, z + 0.21 * s), 'glass', GLASS, 0)
         else:
             # survey head: a ring of sensor eyes
             M.cyl(0.32 * s, 0.3 * s, (x, top + 0.1 * s, z), 'y', 'hull', C['hull'], 14)
-            M.torus(0.32 * s, 0.04 * s, (x, top + 0.12 * s, z), 'y', 'glow', glow, 20, 4)
+            M.torus(0.32 * s, 0.04 * s, (x, top + 0.12 * s, z), 'y', 'chrome', CHROME, 20, 4)
             M.cyl(0.18 * s, 0.25 * s, (x, top + 0.35 * s, z), 'y', 'dark', dark, 10)
             if m >= 12:
                 M.cyl(0.02 * s, 1.2 * s, (x, top + 1.0 * s, z), 'y', 'dark', dark, 5, bevel=0)
-                M.sphere(0.07 * s, (x, top + 1.6 * s, z), (1, 1, 1), 'glow', glow, 8)
+                M.sphere(0.07 * s, (x, top + 1.6 * s, z), (1, 1, 1), 'dark', dark, 8)
 
 
 def flatbed(M, m, st, s, z0, z1, yd, bw, C, central, pairs):
@@ -375,8 +378,6 @@ def flatbed(M, m, st, s, z0, z1, yd, bw, C, central, pairs):
         M.box(2 * bw - 0.3 * s, 0.03 * s, 0.06 * s, (0, yd + 0.055 * s, z0 + 0.3 * s + k * 0.6 * s), 'dark', dark, 0)
     for sx in (1, -1):
         M.box(0.04 * s, 0.12 * s, L * 0.94, (sx * (bw + 0.01 * s), yd - 0.2 * s, zc), 'trim', panel, 0.01)
-        if m >= 8:
-            M.box(0.03 * s, 0.035 * s, L * 0.8, (sx * (bw + 0.02 * s), yd - 0.36 * s, zc), 'glow', glow, 0)
     # dropsides with sand caps (Mk II+)
     if m >= 2:
         nb = max(1, int(L / (1.1 * s)))
@@ -399,18 +400,26 @@ def flatbed(M, m, st, s, z0, z1, yd, bw, C, central, pairs):
         if on:
             M.box(0.95 * s, ph, 0.95 * s, (0, yd + ph / 2, pz), 'dark', dark, 0.06 * s, taper=(0.8, 0.8))
             M.box(1.0 * s, 0.1 * s, 0.4 * s, (0, yd + ph * 0.4, pz + 0.5 * s), 'trim', panel, 0.02)
-            for sx in ((1, -1) if m >= 7 else ()):
-                M.box(0.06 * s, 0.06 * s, 0.6 * s, (sx * 0.5 * s, yd + ph * 0.7, pz), 'glow', glow, 0)
         else:
             crate(M, (0.4 * s, yd + 0.3 * s, pz), 0.65 * s, 0.55 * s, 0.7 * s, panel, s, 'trim')
             crate(M, (-0.4 * s, yd + 0.26 * s, pz + 0.05 * s), 0.6 * s, 0.47 * s, 0.6 * s, hull, s)
     central.append(((0, yd + ph, pz), rear))
     if st == 0:
         cz = z1 - 0.85 * s
-        crate(M, (0.42 * s, yd + 0.38 * s, cz), 0.8 * s, 0.7 * s, 1.1 * s, panel, s, 'trim')
-        crate(M, (-0.45 * s, yd + 0.32 * s, cz - 0.1 * s), 0.75 * s, 0.6 * s, 0.9 * s, hull, s)
-        if m >= 2:
-            crate(M, (0.42 * s, yd + 0.98 * s, cz - 0.05 * s), 0.6 * s, 0.5 * s, 0.75 * s, hull, s)
+        if m == 1:   # loose crates
+            crate(M, (0.42 * s, yd + 0.38 * s, cz), 0.8 * s, 0.7 * s, 1.1 * s, panel, s, 'trim')
+            crate(M, (-0.45 * s, yd + 0.32 * s, cz - 0.1 * s), 0.75 * s, 0.6 * s, 0.9 * s, hull, s)
+        else:        # Mk II+: a full-width sand sample locker, ribbed, with an orange lid
+            lw, lh, ld = 2 * bw - 0.35 * s, 0.85 * s, 1.15 * s
+            M.box(lw, lh, ld, (0, yd + lh / 2, cz), 'trim', panel, 0.06 * s)
+            M.box(lw + 0.04 * s, 0.1 * s, ld + 0.04 * s, (0, yd + lh - 0.02 * s, cz), 'hull', hull, 0.03 * s)
+            for k in range(4):
+                for sx in (1, -1):
+                    M.box(0.05 * s, lh * 0.8, 0.07 * s, (sx * (lw / 2 + 0.02 * s), yd + lh * 0.45, cz - ld / 2 + 0.15 * s + k * (ld - 0.3 * s) / 3), 'dark', dark, 0)
+            M.box(lw * 0.5, 0.05 * s, 0.07 * s, (0, yd + lh + 0.05 * s, cz + ld * 0.3), 'dark', dark, 0)
+        if m >= 3:   # tool boxes under the deck edges
+            for sx in (1, -1):
+                M.box(0.28 * s, 0.32 * s, 0.9 * s, (sx * (bw - 0.06 * s), yd - 0.62 * s, cz - 1.3 * s), 'trim', panel, 0.03 * s)
         # drill rods racked along the bed (chrome / dark)
         nr = 4 if m < 3 else 6
         for k in range(nr):
@@ -420,12 +429,12 @@ def flatbed(M, m, st, s, z0, z1, yd, bw, C, central, pairs):
         for zz in (cz - 2.1 * s, cz - 0.9 * s):
             M.box(0.65 * s, 0.32 * s, 0.1 * s, (-0.53 * s, yd + 0.16 * s, zz), 'dark', dark, 0.01)
         if m >= 3:
-            # core-sample rack: upright canisters with glowing caps
+            # core-sample rack: upright canisters with orange caps
             for i in range(3):
                 for j in range(2):
                     p = (0.45 * s + (j - 0.5) * 0.3 * s, yd + 0.3 * s, cz - 1.5 * s + (i - 1) * 0.28 * s)
                     M.cyl(0.11 * s, 0.55 * s, p, 'y', 'trim', panel, 10)
-                    M.cyl(0.08 * s, 0.05 * s, (p[0], p[1] + 0.29 * s, p[2]), 'y', 'glow', glow, 10, bevel=0)
+                    M.cyl(0.08 * s, 0.05 * s, (p[0], p[1] + 0.29 * s, p[2]), 'y', 'hull', hull, 10, bevel=0)
             M.box(0.75 * s, 0.08 * s, 0.95 * s, (0.45 * s, yd + 0.35 * s, cz - 1.5 * s), 'dark', dark, 0.01)
     elif st == 1:
         # tarp-covered load (sand), lashed with dark straps
@@ -440,6 +449,12 @@ def flatbed(M, m, st, s, z0, z1, yd, bw, C, central, pairs):
             M.box(2 * tw + 0.06 * s, 0.06 * s, 0.1 * s, (0, yd + th + 0.02 * s, z), 'dark', dark, 0.01)
             for sx in (1, -1):
                 M.box(0.06 * s, th * 0.8, 0.1 * s, (sx * (tw + 0.01 * s), yd + th * 0.45, z), 'dark', dark, 0.01)
+        if m >= 5:   # survey mast at the bed's front port corner: sand sensor head on a dark pole
+            mx, mz = bw - 0.25 * s, z1 - 0.35 * s
+            M.box(0.3 * s, 0.2 * s, 0.3 * s, (mx, yd + 0.1 * s, mz), 'dark', dark, 0.02)
+            M.cyl(0.07 * s, 1.6 * s, (mx, yd + 0.9 * s, mz), 'y', 'dark', dark, 8, r2=0.05 * s, bevel=0)
+            M.box(0.5 * s, 0.3 * s, 0.4 * s, (mx, yd + 1.8 * s, mz), 'trim', panel, 0.06 * s)
+            M.box(0.36 * s, 0.14 * s, 0.05 * s, (mx, yd + 1.8 * s, mz + 0.21 * s), 'glass', GLASS, 0)
         if m >= 5:   # spare wheel on the tailgate
             M.cyl(0.55 * s, 0.32 * s, (0, yd + 0.1 * s, z0 - 0.15 * s), 'z', 'tire', TIRE, 20, bevel=0.06 * s)
             M.cyl(0.3 * s, 0.36 * s, (0, yd + 0.1 * s, z0 - 0.15 * s), 'z', 'dark', 0x4a4a48, 14)
@@ -477,6 +492,16 @@ def flatbed(M, m, st, s, z0, z1, yd, bw, C, central, pairs):
                     M.box(0.04 * s, 0.07 * s, cl * 0.8, (sx * (bw - 0.14 * s), yd + ch * 0.55, zc_), 'glow', glow, 0)
         pairs.insert(0, ((bw - 0.55 * s, yd + ch + 0.05 * s, zs[1]), None))
         pairs.append(((bw - 0.55 * s, yd + ch + 0.05 * s, zs[0] - 0.3 * s), None))
+        if m >= 8:   # water / fuel tank beside the crane: sand cylinder on dark cradles
+            tz = z1 - 0.65 * s
+            M.cyl(0.36 * s, 1.0 * s, (0.62 * s, yd + 0.42 * s, tz), 'z', 'trim', panel, 18, bevel=0.03 * s)
+            for dz in (-0.35 * s, 0.35 * s):
+                M.box(0.7 * s, 0.12 * s, 0.1 * s, (0.62 * s, yd + 0.42 * s, tz + dz), 'dark', dark, 0.01)
+                M.torus(0.37 * s, 0.03 * s, (0.62 * s, yd + 0.42 * s, tz + dz), 'z', 'dark', dark, 18, 4)
+        if m >= 9:   # sand armour skirts on the bed sides between the axle groups
+            for sx in (1, -1):
+                M.box(0.1 * s, 0.75 * s, 1.9 * s, (sx * (bw + 0.08 * s), yd - 0.3 * s, -0.25 * s), 'trim', panel, 0.04 * s, rot=(0, 0, sx * 8))
+                M.box(0.12 * s, 0.08 * s, 1.9 * s, (sx * (bw + 0.12 * s), yd - 0.05 * s, -0.25 * s), 'hull', hull, 0.01, rot=(0, 0, sx * 8))
         if m >= 8:   # crane outriggers stowed at the bed's front corners
             for sx in (1, -1):
                 M.box(0.5 * s, 0.22 * s, 0.3 * s, (sx * (bw + 0.15 * s), yd - 0.15 * s, z1 - 0.25 * s), 'dark', dark, 0.03 * s)
@@ -507,7 +532,6 @@ def module(M, m, s, z0, z1, yd, bw, C, central, pairs):
             M.box(0.1 * s, mh * 0.94, 0.14 * s, (sx * (mw - 0.02 * s), yd + mh * 0.48, z), 'dark', dark, 0.02, rot=(0, 0, sx * 2.0))
         # side hatch
         M.box(0.06 * s, mh * 0.5, 0.9 * s, (sx * (mw + 0.01 * s), yd + mh * 0.47, z1 - 1.2 * s), 'dark', 0x3c3c3a, 0.02)
-        M.box(0.04 * s, 0.05 * s, 0.6 * s, (sx * (mw + 0.05 * s), yd + mh * 0.6, z1 - 1.2 * s), 'glow', glow, 0)
         if m >= 11:   # ladder and armour skirt over the wheels
             for k in range(6):
                 M.box(0.05 * s, 0.04 * s, 0.4 * s, (sx * (mw + 0.08 * s), yd + 0.15 * s + k * 0.3 * s, z0 + 0.55 * s), 'chrome', CHROME, 0)
@@ -515,7 +539,7 @@ def module(M, m, s, z0, z1, yd, bw, C, central, pairs):
         for sx in (1, -1):
             M.box(0.1 * s, 0.8 * s, 0.1 * s, (sx * (mw * 0.93 - 0.15 * s), yd + mh + 0.4 * s, z0 + 0.25 * s), 'dark', dark, 0.01)
             M.box(0.36 * s, 0.2 * s, 0.16 * s, (sx * (mw * 0.93 - 0.15 * s), yd + mh + 0.82 * s, z0 + 0.25 * s), 'dark', dark, 0.02)
-            M.box(0.3 * s, 0.14 * s, 0.05 * s, (sx * (mw * 0.93 - 0.15 * s), yd + mh + 0.82 * s, z0 + 0.16 * s), 'lamp', 0xfff0d8, 0)
+            M.box(0.3 * s, 0.14 * s, 0.05 * s, (sx * (mw * 0.93 - 0.15 * s), yd + mh + 0.82 * s, z0 + 0.16 * s), 'glass', GLASS, 0)
     # rear doors and lamps
     M.box(2 * mw - 0.4 * s, mh * 0.8, 0.08 * s, (0, yd + mh * 0.45, z0 + 0.02 * s), 'dark', 0x3c3c3a, 0.02)
     M.box(0.06 * s, mh * 0.8, 0.1 * s, (0, yd + mh * 0.45, z0 + 0.0 * s), 'dark', dark, 0.0)
@@ -529,7 +553,6 @@ def module(M, m, s, z0, z1, yd, bw, C, central, pairs):
     for k in range(2):
         z = z1 - 1.55 * s - k * 2.4 * s
         M.box(0.85 * s, 0.12 * s, 0.85 * s, (-0.38 * s if k == 0 else 0, yt + 0.12 * s, z), 'trim', panel, 0.03 * s)
-        M.box(0.5 * s, 0.05 * s, 0.05 * s, (-0.38 * s if k == 0 else 0, yt + 0.19 * s, z + 0.3 * s), 'glow', glow, 0)
     yt += 0.08 * s
 
     def rear(on):
@@ -538,9 +561,13 @@ def module(M, m, s, z0, z1, yd, bw, C, central, pairs):
     central.append(((0, yt, z0 + 0.75 * s), rear))
     pairs.append(((mw * 0.93 - 0.62 * s, yt, z1 - 2.65 * s), None))
     pairs.append(((mw * 0.93 - 0.62 * s, yt, z0 + 2.1 * s), None))
+    if m >= 12:   # armour skirts hung along the module's lower flanks
+        for sx in (1, -1):
+            M.box(0.12 * s, 0.6 * s, L - 0.9 * s, (sx * (mw + 0.1 * s), yd + 0.05 * s, zc), 'dark', 0x3c3c3a, 0.04 * s, rot=(0, 0, sx * 6))
+            M.box(0.14 * s, 0.1 * s, L - 0.9 * s, (sx * (mw + 0.12 * s), yd + 0.3 * s, zc), 'trim', panel, 0.01, rot=(0, 0, sx * 6))
     if m >= 12:   # command crest: armoured fairing on the module's front edge
         M.box(2 * mw * 0.9, 0.45 * s, 0.4 * s, (0, yt + 0.15 * s, z1 + 0.05 * s), 'trim', panel, 0.08 * s, taper=(0.85, 0.5))
-        M.box(2 * mw * 0.6, 0.07 * s, 0.05 * s, (0, yt + 0.25 * s, z1 + 0.22 * s), 'glow', glow, 0)
+        M.box(2 * mw * 0.6, 0.07 * s, 0.05 * s, (0, yt + 0.25 * s, z1 + 0.22 * s), 'dark', dark, 0)
 
 
 def crane(M, m, st, s, zb, yd, bw, C):
@@ -557,7 +584,7 @@ def crane(M, m, st, s, zb, yd, bw, C):
     else:
         ch = 1.9 * s + 0.08 * (m - 10) * s
     M.box(0.5 * s, ch, 0.55 * s, (x, yb + 0.3 * s + ch / 2, z), 'hull', hull, 0.06 * s, taper=(0.85, 0.85))
-    M.box(0.05 * s, 0.06 * s, 0.5 * s, (x + 0.24 * s, yb + 0.3 * s + ch * 0.6, z), 'glow', glow, 0)
+    M.box(0.05 * s, 0.1 * s, 0.5 * s, (x + 0.24 * s, yb + 0.3 * s + ch * 0.6, z), 'trim', panel, 0)
     top = (x, yb + 0.3 * s + ch, z)
     M.cyl(0.28 * s, 0.6 * s, top, 'x', 'dark', dark, 14)
     if st == 2:
@@ -626,7 +653,7 @@ def drill_rig(M, m, st, s, zf, rw, bw, C):
     else:
         # rotary cutter head: a disc carrying three augers round a centre bit
         M.cyl(0.55 * s, 0.18 * s, (0, yd, z0 + 0.09 * s), 'z', 'dark', dark, 20, group=g)
-        M.torus(0.55 * s, 0.04 * s, (0, yd, z0 + 0.2 * s), 'z', 'glow', glow, 24, 4, group=g)
+        M.torus(0.55 * s, 0.04 * s, (0, yd, z0 + 0.2 * s), 'z', 'trim', trim, 24, 4, group=g)
         yd2 = yd
         for k in range(3):
             a = math.radians(90 + k * 120)

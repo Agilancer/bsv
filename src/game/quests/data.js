@@ -231,7 +231,7 @@ export const TEMPLATES = [
   { id: 'outfit', cat: 'mining', ev: 'craft', w: 2.5, kinds: ['shipyard', 'research', 'trade', 'military', 'mining'],
     titles: ['Field trials', 'Prototype run', 'Hardpoint certification'],
     lines: ['Build {n} from our blueprints at your Explorer Bay and run them on a live world. The salvaged tech is on us.', 'Our engineers want field data, and field data wants somebody else\'s explorer. Craft {n}.', 'A drone wing in every hold, the brochure says. Help us make the brochure true: craft {n}.'],
-    make: (c, r) => { const bay = r.chance(0.6), n = r.int(1, 2) + (bay ? 0 : 1); return { cond: { kind: bay ? 'bay' : 'gun' }, n, obj: `Craft ${n} ${bay ? `drone bay${n > 1 ? 's' : ''}` : 'explorer guns'} at the Explorer Bay fabricator`, effort: 2.5 + n, res: { tech: 4 * n } }; } },
+    make: (c, r) => { const bay = r.chance(0.6), n = r.int(1, 2) + (bay ? 0 : 1); return { cond: { kind: bay ? 'bay' : 'gun' }, n, obj: `Craft ${n} ${bay ? `drone bay${n > 1 ? 's' : ''}` : 'explorer guns'} at the Explorer Bay fabricator`, effort: 2.5 + n, res: { tech: 4 * n }, bp: true }; } },
   // ---- hunt: things with teeth, on the ground ----
   { id: 'cull', cat: 'hunt', ev: 'gkill', w: 4,
     titles: ['Surface cull', 'Clear the dig site', 'Hostile fauna, emphasis on hostile'],
@@ -244,7 +244,7 @@ export const TEMPLATES = [
   { id: 'dungeon', cat: 'hunt', ev: 'dungeon', w: 2,
     titles: ['Into the dark hole', 'Subsurface clearance', 'Precursor housekeeping'],
     lines: ['Clear one underground complex. Mind the architecture: some is load-bearing, some is teeth.', 'Something down there is using our sensor pings as a dinner bell. Go and ring it.', 'We lose telemetry underground. If you need us, yell upward.'],
-    make: (c, r) => ({ cond: {}, n: 1, obj: 'Clear a dungeon (defeat what guards it)', effort: 8, item: r.chance(0.4) ? 'epic' : 'rare', res: { relic: 3 } }) },
+    make: (c, r) => ({ cond: {}, n: 1, obj: 'Clear a dungeon (defeat what guards it)', effort: 8, item: r.chance(0.4) ? 'epic' : 'rare', res: { relic: 3 }, bp: true }) },
   // ---- trade: goods and money ----
   { id: 'recover', cat: 'trade', ev: 'collect', w: 3,
     titles: ['Lost property ({what})', 'Recovery agent', 'Finders, keepers, payers'],
@@ -332,6 +332,7 @@ export function questReward(tplCat, lvl, effort, kind, extra = {}) {
   const b = tplCat === 'bounty' ? kindOf(kind).bounty : 1, mul = (extra.mul || 1) * b;
   const reward = { credits: round5(38 * lvl * effort * mul), xp: Math.round(20 * lvl * effort * mul) };
   if (extra.item) reward.item = extra.item;
+  if (extra.bp) reward.bp = true;
   reward.res = { ...(extra.res || {}), tech: Math.max(2, Math.round(effort * (1.5 + lvl * 0.12) * Math.min(2, mul))) };
   return reward;
 }
@@ -346,7 +347,7 @@ function build(tpl, ctx, rng, id) {
     id, tpl: tpl.id, cat: tpl.cat, ev: tpl.ev, cond: m.cond, n: m.n, progress: 0,
     title: cap(fill(rng.pick(tpl.titles), tok)), text: fill(rng.pick(tpl.lines), tok), obj: m.obj,
     giver: rng.pick(ctx.givers), from: { sys: ctx.sys.id, st: ctx.index, name: ctx.st.name, kind: ctx.kind },
-    lvl, reward: questReward(tpl.cat, lvl, m.effort, ctx.kind, { item: m.item, res: m.res }),
+    lvl, reward: questReward(tpl.cat, lvl, m.effort, ctx.kind, { item: m.item, res: m.res, bp: m.bp }),
   };
   if (m.travel) q.travel = m.travel;
   return q;

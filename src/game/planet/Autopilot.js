@@ -70,6 +70,7 @@ export class PlanetPilot {
       const pack = M.creatures.list.filter((e) => e.alive && !e.under && e.pos.distanceToSquared(fight.pos) < 400).length;
       if ((pack >= 3 || fight.boss) && ready(2)) ctl.abil[2] = true;
       if ((pack >= 4 || fight.boss || fight.def.size >= 3) && ready(3)) ctl.abil[3] = true;
+      if ((pack >= 3 || fight.boss || fight.def.size >= 3) && ready(4) && M.drones && M.drones.combat()) ctl.abil[4] = true;
     }
     if (!this.duel && M.probes.active() < M.probes.stats.count && M.level.nearestNode(pos, 200, (n) => !n.claimed)) ctl.probe = true;
     // where to go: a full hold or a long run heads home through any fight (guns still track it)

@@ -8,13 +8,13 @@ HP = {'skiff': (1, 5), 'rover': (1, 6), 'strider': (2, 7), 'gunship': (2, 8), 'c
 
 # liveries: primary hull, secondary panels, dark structure, trim, glow (frame identity colours)
 LIVERY = {
-    'skiff':   dict(hull=0xdfe8f0, panel=0x5aa8c8, dark=0x2c343e, trim=0xb8c4d0, glow=0x58e0ff),
+    'skiff':   dict(hull=0x2f8fb8, panel=0xe6eef2, dark=0x22303a, trim=0xb8c4d0, glow=0x58e0ff),   # mid-cyan hull, ivory panels
     'rover':   dict(hull=0xd88a3a, panel=0xe8d8b8, dark=0x30302e, trim=0xc8b898, glow=0xffa040),
     'strider': dict(hull=0x6a5a8a, panel=0xb8b0d0, dark=0x26242e, trim=0x9890b0, glow=0xb07aff),
     'gunship': dict(hull=0xb02e3a, panel=0xdcd2c0, dark=0x26282e, trim=0xc8c0b0, glow=0xff4a5a),
-    'crawler': dict(hull=0xe0b028, panel=0x2a2a2a, dark=0x2a2a28, trim=0xc8c0a8, glow=0xffd040),
-    'lancer':  dict(hull=0x5a7898, panel=0xe4eaf0, dark=0x242a32, trim=0xb0bcc8, glow=0x8ab8ff),
-    'seraph':  dict(hull=0xeef0f2, panel=0x2aa898, dark=0x2a2e34, trim=0xd8c08a, glow=0x5affe0),
+    'crawler': dict(hull=0xe0b028, panel=0x262624, dark=0x2a2a28, trim=0xc8c0a8, glow=0xffd040),
+    'lancer':  dict(hull=0x3c4450, panel=0x9fd4ff, dark=0x1e232a, trim=0xc8d2dc, glow=0x8ab8ff),   # dark gunmetal, ice-blue accents
+    'seraph':  dict(hull=0xeef0f2, panel=0x2aa898, dark=0x2a2e34, trim=0xe0b04a, glow=0x5affe0),   # pearl, teal, real gold
 }
 
 

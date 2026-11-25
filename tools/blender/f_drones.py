@@ -10,12 +10,12 @@
 #   aegis    arrowhead interceptor: swept pale wings, raised emitter ring   (glow 0x60c8ff, steel blue)
 #   magpie   black-and-white hover body, pincer beak round a tractor lens, belly pouch, long tail (glow 0xffd060)
 import math
-from f_guns import PartsModel, Part, mix, tilt, DARK, DARK2, CHROME, TRIM
+from f_guns import PartsModel, Part, mix, tilt, DARK, DARK2, BODY, CHROME, TRIM
 
 MARKS = [1]
 TYPES = ['sparrow', 'scarab', 'mender', 'aegis', 'magpie']
 GLOW = {'sparrow': 0xffc040, 'scarab': 0xff5030, 'mender': 0x60ff90, 'aegis': 0x60c8ff, 'magpie': 0xffd060}
-POD_HULL = 0xa4acb6
+POD_HULL = 0x737b85   # steel; each bay leans it a little toward its drone's colour
 SPACING = 4.0
 SCARAB_FEET = -0.30
 
@@ -51,21 +51,29 @@ def box_pod(P, glow, hull):
     P.box(1.24, 0.06, 1.16, (0, 0.715, -0.06), 'dark', DARK2, 0.015)
 
 
-def clam_doors(P, glow, z=0.0, depth=0.92, half=0.40, w=0.34, open_deg=15, y=0.77):
-    for sx in (1, -1):
-        a = math.radians(open_deg)
-        cx = sx * (half - w / 2 * math.cos(a))
-        P.box(w, 0.05, depth, (cx, y + w / 2 * math.sin(a), z), 'trim', TRIM, 0.012, rot=(0, 0, -sx * open_deg))
-        P.box(0.05, 0.06, depth * 0.9, (sx * half, y - 0.01, z), 'dark', DARK, 0.01)   # hinge
-    P.box(0.16, 0.02, depth - 0.06, (0, y - 0.025, z), 'glow', glow, 0)
+def dock(P, dx, dy, dz):
+    """a Part in the same group as P, offset by (dx, dy, dz), that leaves P's pivot alone: a drone parked on its bay"""
+    return Part(P.M, P.g, P.o[0] + dx, P.o[2] + dz, P.o[1] + dy, pivot=False)
 
 
 def pod_sparrow(P, glow):
-    hex_pod(P, glow, mix(POD_HULL, glow, 0.12))
-    clam_doors(P, glow)
+    hex_pod(P, glow, mix(POD_HULL, glow, 0.10))
+    # launch rail with a quad-drone docked on it, inside a four-post rotor cage
+    for sx in (1, -1):
+        P.box(0.06, 0.08, 1.12, (sx * 0.17, 0.78, 0.02), 'chrome', CHROME, 0.01)
+        for z in (-0.38, 0.38):
+            P.box(0.12, 0.08, 0.10, (sx * 0.17, 0.76, z), 'dark', DARK, 0.01)
+    P.box(0.46, 0.10, 0.06, (0, 0.80, 0.58), 'dark', DARK2, 0.01)                  # front stop
+    P.box(0.30, 0.02, 0.06, (0, 0.86, 0.58), 'glow', glow, 0)
+    for sx in (1, -1):
+        for sz in (1, -1):
+            P.cyl(0.03, 0.34, (sx * 0.60, 0.91, sz * 0.34), 'y', 'chrome', CHROME, 6)
+            P.box(0.06, 0.04, 0.06, (sx * 0.60, 1.09, sz * 0.34), 'glow', glow, 0)
+        P.box(0.04, 0.04, 0.74, (sx * 0.60, 1.03, 0), 'dark', DARK2, 0)             # cage rail
+    drone_sparrow(dock(P, 0, 0.96, 0.0), glow)
     for sx in (1, -1):   # chevron on the front flat
         P.box(0.26, 0.05, 0.03, (sx * 0.10, 0.50, 0.745), 'glow', glow, 0, rot=(8, 0, sx * -30))
-    P.empty('launch_sparrow', (0, 0.82, 0))
+    P.empty('launch_sparrow', (0, 0.96, 0))
 
 
 def pod_mender(P, glow):
@@ -94,29 +102,65 @@ def pod_aegis(P, glow):
 
 
 def pod_scarab(P, glow):
-    box_pod(P, glow, mix(0x8a8478, glow, 0.10))
-    # two drop hatches, slightly ajar over a red chute, each with a hazard band at its outer end
+    """an open crawler garage: low walls, a roofed back, a lowered ramp, and a scarab sat at the top of it"""
+    hull = mix(0x7c828a, glow, 0.08)
+    P.cyl(0.42, 0.10, (0, 0.05, 0), 'y', 'dark', DARK, 16, bevel=0.01)
+    P.box(1.50, 0.16, 1.40, (0, 0.18, 0), 'dark', DARK, 0.03)
+    P.box(1.40, 0.08, 1.30, (0, 0.30, 0), 'dark', DARK2, 0.01)                      # floor
     for sx in (1, -1):
-        x = sx * 0.31
-        P.box(0.50, 0.05, 0.86, (x, 0.765, -0.08), 'trim', TRIM, 0.012, rot=(0, 0, -sx * 6))
-        P.box(0.40, 0.012, 0.14, (x, 0.79, -0.40), 'trim', 0xe0b030, 0, rot=(0, 0, -sx * 6))
-        P.box(0.40, 0.012, 0.14, (x, 0.79, 0.24), 'trim', 0xe0b030, 0, rot=(0, 0, -sx * 6))
-        for z in (-0.40, 0.24):
-            for k in (-1, 0, 1):
-                P.box(0.04, 0.016, 0.17, (x + k * 0.12, 0.792, z), 'dark', DARK, 0, rot=(0, 40, -sx * 6))
-    P.box(0.10, 0.02, 0.80, (0, 0.745, -0.08), 'glow', glow, 0)
-    P.empty('launch_scarab', (0, 0.80, -0.08))
+        P.box(0.16, 0.50, 1.36, (sx * 0.71, 0.51, -0.02), 'hull', hull, 0.04, 2, taper=(0.8, 1))
+        P.box(0.04, 0.025, 1.10, (sx * 0.71, 0.77, 0.04), 'glow', glow, 0)          # wall-top strips
+        for k in range(4):
+            P.box(0.03, 0.05, 0.05, (sx * 0.795, 0.46, -0.45 + k * 0.30), 'chrome', CHROME, 0)
+    P.box(1.58, 0.54, 0.30, (0, 0.53, -0.57), 'hull', hull, 0.04, 2)                 # roofed back
+    P.box(1.30, 0.03, 0.22, (0, 0.815, -0.57), 'trim', 0xe0b030, 0)                 # hazard band
+    for k in range(-3, 4):
+        P.box(0.05, 0.035, 0.26, (k * 0.17, 0.818, -0.57), 'dark', DARK, 0, rot=(0, 40, 0))
+    P.box(1.10, 0.04, 0.03, (0, 0.62, -0.41), 'glow', glow, 0)                      # bay light
+    # ramp hinged at the floor's front edge, lowered 30 degrees, with treads and a hazard lip
+    hinge, ang = (0, 0.32, 0.65), 30
+    d = (0, -math.sin(math.radians(ang)), math.cos(math.radians(ang)))
+    at = lambda k: (0, hinge[1] + d[1] * k, hinge[2] + d[2] * k)
+    P.box(1.10, 0.05, 0.50, at(0.25), 'dark', BODY, 0.01, rot=(ang, 0, 0))
+    for k in (0.10, 0.22, 0.34):
+        P.box(0.96, 0.02, 0.04, (0, at(k)[1] + 0.03, at(k)[2]), 'chrome', CHROME, 0, rot=(ang, 0, 0))
+    P.box(1.10, 0.02, 0.06, (0, at(0.47)[1] + 0.03, at(0.47)[2]), 'trim', 0xe0b030, 0, rot=(ang, 0, 0))
+    drone_scarab(dock(P, 0, 0.64, 0.16), glow)
+    P.empty('launch_scarab', (0, 0.70, 0.40))
 
 
 def pod_magpie(P, glow):
-    box_pod(P, glow, mix(0x9ca2a8, glow, 0.10))
-    clam_doors(P, glow, z=0.18, depth=0.62, half=0.42, w=0.36, open_deg=12, y=0.765)
-    # cargo hopper at the back: a funnel with a grille
-    P.box(0.80, 0.22, 0.42, (0, 0.84, -0.40), 'dark', DARK2, 0.02, taper=(1.15, 1.25))
-    for k in range(4):
-        P.box(0.84, 0.03, 0.04, (0, 0.955, -0.55 + k * 0.10), 'chrome', CHROME, 0)
-    P.box(0.86, 0.03, 0.05, (0, 0.96, -0.12), 'glow', glow, 0)
-    P.empty('launch_magpie', (0, 0.82, 0.18))
+    """a cargo hopper the harvesters fly into, with a claw crane reaching over its mouth"""
+    box_pod(P, glow, mix(POD_HULL, glow, 0.08))
+    hx, hz, ytop = 0.10, -0.20, 1.085
+    P.box(0.62, 0.34, 0.56, (hx, 0.915, hz), 'trim', 0xa8905a, 0.02, taper=(1.55, 1.5))   # brass funnel
+    P.box(0.86, 0.02, 0.74, (hx, ytop + 0.002, hz), 'dark', DARK, 0)                 # the dark mouth
+    for k in range(5):
+        P.box(0.90, 0.025, 0.035, (hx, ytop + 0.02, hz - 0.30 + k * 0.15), 'chrome', CHROME, 0)
+    for sx in (1, -1):
+        P.box(0.04, 0.04, 0.88, (hx + sx * 0.47, ytop + 0.01, hz), 'chrome', CHROME, 0)
+        P.box(0.98, 0.04, 0.04, (hx, ytop + 0.01, hz + sx * 0.42), 'chrome', CHROME, 0)
+    P.box(0.70, 0.02, 0.05, (hx, ytop + 0.015, hz - 0.075), 'glow', glow, 0)
+    P.box(0.70, 0.02, 0.05, (hx, ytop + 0.015, hz + 0.075), 'glow', glow, 0)
+    # claw crane on the front starboard corner, reaching back over the hopper
+    base = (-0.46, 0.78, 0.30)
+    P.cyl(0.13, 0.12, (base[0], 0.80, base[2]), 'y', 'dark', DARK, 12)
+    sh, el, wr = (base[0], 0.90, base[2]), (-0.40, 1.50, 0.12), (hx, 1.46, hz)
+    P.box(0.16, 0.16, 0.16, sh, 'dark', DARK2, 0.02)
+    P.strut(sh, el, 0.11, 0.13, 'chrome', CHROME, 0.015)
+    P.box(0.14, 0.14, 0.14, el, 'dark', DARK, 0.015)
+    P.box(0.05, 0.05, 0.05, (el[0], el[1] + 0.085, el[2]), 'glow', glow, 0)
+    P.strut(el, wr, 0.10, 0.11, 'chrome', CHROME, 0.015)
+    P.box(0.15, 0.09, 0.15, wr, 'dark', DARK2, 0.015)
+    for k in range(3):   # three-finger claw
+        a = math.radians(90 + k * 120)
+        c, s_ = math.cos(a), math.sin(a)
+        mid = (wr[0] + c * 0.14, wr[1] - 0.12, wr[2] + s_ * 0.14)
+        tip = (wr[0] + c * 0.06, wr[1] - 0.26, wr[2] + s_ * 0.06)
+        P.strut((wr[0] + c * 0.04, wr[1] - 0.03, wr[2] + s_ * 0.04), mid, 0.045, 0.045, 'chrome', CHROME)
+        P.strut(mid, tip, 0.04, 0.04, 'dark', DARK2)
+    P.sphere(0.045, (wr[0], wr[1] - 0.08, wr[2]), 'glow', glow, segs=8)
+    P.empty('launch_magpie', (hx, ytop + 0.05, hz))
 
 
 # ---------------------------------------------------------------- drones

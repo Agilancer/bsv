@@ -9,6 +9,7 @@
 // Measured duels (pilot.duel) keep drones, so the ground contract sees what a fitted bay does.
 import * as THREE from 'three/webgpu';
 import { droneTemplate, glbMats } from './vehicleGLB.js';
+import { attribute, float, vec3, dot, normalView, positionView } from 'three/tsl';
 import { cargoTotal, RESOURCES } from './economy.js';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _a = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _e = new THREE.Euler();
@@ -16,6 +17,7 @@ const TYPES = ['sparrow', 'scarab', 'mender', 'aegis', 'magpie'];
 const CAP = 48;
 const FLY = { sparrow: 30, mender: 26, aegis: 34, magpie: 22, scarab: 0 };
 const SIZE = { sparrow: 1.0, scarab: 1.0, mender: 0.9, aegis: 1.0, magpie: 1.05 };
+const TYPE_HEX = { sparrow: 0xffc040, scarab: 0xff5030, mender: 0x60ff90, aegis: 0x60c8ff, magpie: 0xffd060 };
 
 function segD2(a, b, c) {
   const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
@@ -75,16 +77,22 @@ export class Drones {
     const tpl = droneTemplate(type, mats);
     const list = [];
     const parts = [];
+    // the swarm's colour on every drone body: a faint self-glow and a strong rim, so a swarm reads as yours
+    const col = new THREE.Color(TYPE_HEX[type]);
+    const body = new THREE.MeshStandardNodeMaterial({ roughness: 0.45, metalness: 0.35 });
+    const rim = float(1).sub(dot(normalView, positionView.normalize().negate()).clamp(0, 1)).pow(2);
+    body.colorNode = attribute('color', 'vec3').mul(1.1);
+    body.emissiveNode = vec3(col.r, col.g, col.b).mul(rim.mul(1.8).add(0.22));
     if (tpl) {
       tpl.updateMatrixWorld(true);
-      tpl.traverse((o) => { if (o.isMesh) parts.push({ geo: o.geometry.clone().applyMatrix4(o.matrixWorld), mat: o.material }); });
+      tpl.traverse((o) => { if (o.isMesh) parts.push({ geo: o.geometry.clone().applyMatrix4(o.matrixWorld), mat: o.material === mats.glow || o.material === mats.lamp ? o.material : body }); });
     } else {
       const g = new THREE.BoxGeometry(0.9, 0.35, 0.9);
       const col = new Float32Array(g.attributes.position.count * 3).fill(0.6);
       g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-      parts.push({ geo: g, mat: mats.dark });
+      parts.push({ geo: g, mat: body });
       const s = new THREE.SphereGeometry(0.22, 8, 6); s.translate(0, 0.2, 0);
-      const c = new THREE.Color({ sparrow: 0xffc040, scarab: 0xff5030, mender: 0x60ff90, aegis: 0x60c8ff, magpie: 0xffd060 }[type]);
+      const c = col;
       const sc = new Float32Array(s.attributes.position.count * 3); for (let i = 0; i < sc.length; i += 3) { sc[i] = c.r; sc[i + 1] = c.g; sc[i + 2] = c.b; }
       s.setAttribute('color', new THREE.BufferAttribute(sc, 3));
       parts.push({ geo: s, mat: mats.glow });
@@ -102,7 +110,8 @@ export class Drones {
   remesh() { this.dispose(); for (const t of TYPES) this.ensureMeshes(t); }
 
   // drones grow a little with the mark so a Mk XII's swarm still reads beside it
-  sizeK() { const v = this.mode.vehicle.v; return v && v.size ? Math.min(1.35, 0.85 + v.size * 0.2) : 1; }
+  // drones are 2.4-3.4 m: big enough to read beside a Mk XII hull from the field camera
+  sizeK() { const v = this.mode.vehicle.v; return 2.3 + Math.min(0.8, Math.max(0, ((v && v.size) || 1) - 1)) * 1.1; }
   draw() {
     const counts = {};
     for (const t of TYPES) counts[t] = 0;
@@ -133,6 +142,8 @@ export class Drones {
     const M = this.mode, V = M.vehicle;
     this.t += dt;
     if (!V.alive || !this.swarms.length) { this.draw(); return; }
+    if (this.focusT > 0 && ((this.focusT -= dt) <= 0 || !this.focus || !this.focus.alive)) { this.focusT = 0; this.focus = null; }
+    const focus = this.focusT > 0 ? this.focus : null;
     const vp = V.position, rad = V.radius;
     for (const s of this.swarms) {
       const ds = s.ds;
@@ -152,28 +163,31 @@ export class Drones {
         const ang = this.t * (s.type === 'aegis' ? 1.6 : 0.9) + d.i / n * Math.PI * 2 + s.bi * 0.7;
         let ox = 0, oz = 0, oy = 0, speed = FLY[s.type];
         if (s.type === 'sparrow') {
-          if (!d.target || !d.target.alive || d.target.pos.distanceTo(vp) > ds.range * 1.3) d.target = M.creatures.nearestTo(vp, ds.range);
+          if (focus) d.target = focus;
+          else if (!d.target || !d.target.alive || d.target.pos.distanceTo(vp) > ds.range * 1.3) d.target = M.creatures.nearestTo(vp, ds.range);
           if (d.target) {
             const e = d.target, R = e.radius + 6;
             ox = e.pos.x + Math.sin(ang * 1.6) * R; oz = e.pos.z + Math.cos(ang * 1.6) * R; oy = e.pos.y + Math.max(3, e.height * 0.7);
             d.cd -= dt;
             if (d.cd <= 0 && d.pos.distanceTo(e.pos) < 28) { d.cd += 1 / ds.rof; if (d.cd < 0) d.cd = 0; this.fire(s, d, e); }
-          } else { ox = vp.x + Math.sin(ang) * (rad + 5); oz = vp.z + Math.cos(ang) * (rad + 5); oy = vp.y + 4 + Math.sin(ang * 2) * 0.6; }
+          } else { ox = vp.x + Math.sin(ang) * (rad + 8); oz = vp.z + Math.cos(ang) * (rad + 8); oy = vp.y + 5 + Math.sin(ang * 2) * 0.8; }
         } else if (s.type === 'mender') {
-          ox = vp.x + Math.sin(ang) * (rad + 2.5); oz = vp.z + Math.cos(ang) * (rad + 2.5); oy = vp.y + 3;
+          ox = vp.x + Math.sin(ang) * (rad + 4.5); oz = vp.z + Math.cos(ang) * (rad + 4.5); oy = vp.y + 4;
           if (V.hp < V.stats.maxHp && M.state === 'play' && d.pos.distanceTo(vp) < rad + 9) {   // repairs only from close escort
             V.heal(V.stats.maxHp * ds.power * dt);
             d.cd -= dt;
             if (d.cd <= 0) { d.cd = 0.3 + Math.random() * 0.2; _w.copy(vp); _w.y += 1.2; M.pfx.timedBeam(d.pos.clone(), _w.clone(), 0.25, ds.color, 1.2, 0.14); }
           }
         } else if (s.type === 'aegis') {
-          ox = vp.x + Math.sin(ang) * (rad + 2.2); oz = vp.z + Math.cos(ang) * (rad + 2.2); oy = vp.y + 1.8 + Math.sin(ang * 3) * 0.4;
+          ox = vp.x + Math.sin(ang) * (rad + 4); oz = vp.z + Math.cos(ang) * (rad + 4); oy = vp.y + 2.4 + Math.sin(ang * 3) * 0.5;
         } else if (s.type === 'magpie') {
           const t = this.harvest(s, d, dt);
           if (t) { ox = t.x; oy = t.y; oz = t.z; }
-          else { ox = vp.x + Math.sin(ang) * (rad + 7); oz = vp.z + Math.cos(ang) * (rad + 7); oy = vp.y + 5; }
+          else { ox = vp.x + Math.sin(ang) * (rad + 10); oz = vp.z + Math.cos(ang) * (rad + 10); oy = vp.y + 6; }
         }
         this.steer(d, ox, oy, oz, speed, dt);
+        // a short trail in the bay's colour: the swarm reads as yours, and as moving
+        if ((d.tr = (d.tr || 0) - dt) <= 0) { d.tr = 0.05; M.pfx.trail(d.pos, ds.color, 0.9, 0.28); }
       }
     }
     this.draw();
@@ -196,15 +210,16 @@ export class Drones {
     _w.copy(e.pos); _w.y += Math.min(e.height * 0.5, e.radius);
     _v.subVectors(_w, d.pos).normalize();
     const crit = Math.random() < ds.crit;
-    const dmg = ds.power * V.stats.dmgMul * M.dmgBuff * (crit ? 1.5 + ds.critDmg : 1);
+    const dmg = ds.power * V.stats.dmgMul * M.dmgBuff * (crit ? 1.5 + ds.critDmg : 1) * (this.focusT > 0 && e === this.focus ? 1.3 : 1);
     M.shots.spawn({ pos: d.pos, vel: _v.multiplyScalar(150), team: 0, dmg, crit: crit ? 1 : 0, kind: 'bullet', color: ds.color, size: 0.12, len: 2.6, life: 0.4 });
-    M.pfx.muzzle(d.pos, _v.normalize(), ds.color, 0.5);
+    if (Math.random() < 0.5) M.pfx.muzzle(d.pos, _v.normalize(), ds.color, 0.35);   // a swarm of muzzles must not white out the fight
     d.yaw = Math.atan2(_v.x, _v.z);
   }
   // scarabs run along the ground to a creature and blow up beside it
   crawl(s, d, dt) {
     const M = this.mode, V = M.vehicle, ds = s.ds, vp = V.position;
-    if (!d.target || !d.target.alive || d.target.under || d.target.air) {
+    if (this.focusT > 0 && this.focus && this.focus.alive && !this.focus.under && !this.focus.air) d.target = this.focus;
+    else if (!d.target || !d.target.alive || d.target.under || d.target.air) {
       d.target = M.creatures.nearestTo(vp, ds.range);
       if (d.target && (d.target.under || d.target.air)) d.target = null;
     }
@@ -234,7 +249,7 @@ export class Drones {
     const crit = Math.random() < ds.crit;
     const dmg = ds.power * V.stats.dmgMul * M.dmgBuff * (crit ? 1.5 + ds.critDmg : 1);
     M.creatures.forInRadius(d.pos, R, (e, dd) => M.hitEnemy(e, dmg * (1 - 0.45 * dd / R), _v.copy(e.pos).setY(e.pos.y + 1), { crit }));
-    fx.explode(d.pos, 0.7, ds.color); fx.ring(d.pos, R, ds.color, 32); fx.dust(d.pos, 2, M.dustHex, 2, 4);
+    fx.explode(d.pos, 0.42, ds.color); fx.ring(d.pos, R * 0.85, ds.color, 20); fx.dust(d.pos, 2, M.dustHex, 2, 4);   // kept small: a friendly blast must not bury the explorer
     M.sfx('cannon', d.pos, 0.35);
     this.killDrone(s, d, false);
   }
@@ -271,7 +286,7 @@ export class Drones {
   catchShot(a, b, p) {
     if (!this.swarms.length || p.kind === 'boulder') return false;
     for (const s of this.swarms) {
-      const R = s.type === 'aegis' ? 2.3 : s.type === 'scarab' ? 0 : 0.55;
+      const R = s.type === 'aegis' ? 3 : s.type === 'scarab' ? 0 : 0.9;
       if (!R) continue;
       for (const d of s.drones) {
         if (!d.alive || segD2(a, b, d.pos) > R * R) continue;
@@ -287,6 +302,19 @@ export class Drones {
       }
     }
     return false;
+  }
+  // Swarm Strike: every combat drone on one creature for 6 s, +30% damage
+  combat() { return this.swarms.some((s) => (s.type === 'sparrow' || s.type === 'scarab') && s.drones.some((d) => d.alive)); }
+  command(e) {
+    const M = this.mode;
+    if (!this.combat()) { M.toast('No combat drones fitted (sparrows or scarabs)', 'warn'); return false; }
+    if (!e || !e.alive) { M.toast('No target for the swarm', 'warn'); return false; }
+    this.focus = e; this.focusT = 6;
+    for (const s of this.swarms) if (s.type === 'sparrow' || s.type === 'scarab') for (const d of s.drones) if (d.alive) d.target = e;
+    M.telegraph(e.pos, e.radius + 3, 0xffc040, 0.6, e);
+    M.pfx.ring(M.vehicle.position, 12, 0xffc040, 40);
+    M.sfx('ui', null, 0.8);
+    return true;
   }
   // HUD: [{type, color, alive, count, rebuild}]
   summary() { return this.swarms.map((s) => ({ type: s.type, color: s.ds.color, name: s.item.name, alive: s.drones.filter((d) => d.alive).length, count: s.drones.length, rebuild: Math.max(0, s.rebuildT) })); }

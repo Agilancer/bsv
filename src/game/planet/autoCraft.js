@@ -13,11 +13,13 @@ import { RARITY, ITEM_MAX_LVL } from '../data/items.js';
 import { EXPLORER_BY_ID } from '../data/chassis.js';
 import {
   ensureExplorer, exSlotKeys, exWeaponStats, exToolStats, exDroneStats, droneSheetDps, exItemScore, equipExItem, setExChassis, scrapYield, EX_BASES, EX_SLOTS, EX_INV_SIZE, SLOT_OF,
+  bayCap, hpAllowed,
 } from './explorerItems.js';
+export { bayCap };
 import {
   RES_KEYS, RESOURCES, SHIP_UPGRADES, PROBE_UPGRADES, upgradeCost, buyShipUpgrade, buyProbeUpgrade, affordable, addResources, chassisCost,
   buyChassis, fabricateCost, fabricate, workshop, empowerCost, empowerCap, overchargeCost, imbueCost, canImbue,
-  ORBITAL_PROBE_COST, orbitalProbeYield, pay, craftCost, craftItem,
+  ORBITAL_PROBE_COST, orbitalProbeYield, pay, craftCost, craftItem, knowsBlueprint,
 } from './economy.js';
 
 // what a unit of each resource is worth to the captain when choosing where to dig (the rare
@@ -74,20 +76,6 @@ export function exAutoScore(item, weights = RES_VALUE) {
 
 // Fit the loadout from everything aboard (fitted + bay), slot type by slot type. Returns true
 // when something changed. `weights` steers the tools (see landingWeights).
-// Hardpoints hold guns and drone bays together: at least one gun stays fitted, at most one bay of a
-// support kind, and bays fill at most half the mounts (all but one on a drone carrier).
-export function bayCap(ch) { return ch.droneBonus ? Math.max(1, ch.slots.hp - 1) : Math.floor(ch.slots.hp / 2); }
-function hpAllowed(ex, ch, it, replacing) {
-  if (it.slot !== 'bay' && it.slot !== 'gun') return true;
-  const fitted = exSlotKeys(ch).filter((k) => k.startsWith('hp:')).map((k) => ex.loadout[k]).filter((x) => x && x !== replacing);
-  const bays = fitted.filter((x) => x.slot === 'bay'), guns = fitted.filter((x) => x.slot === 'gun');
-  if (it.slot === 'gun') return true;
-  if (!guns.length && ch.slots.hp > 1 && fitted.length >= ch.slots.hp - 1) return false;   // keep a mount for a gun
-  if (bays.length >= bayCap(ch)) return false;
-  const support = (x) => ['mender', 'aegis', 'magpie'].includes(EX_BASES[x.base].drone);
-  if (support(it) && bays.some((x) => x.base === it.base)) return false;
-  return true;
-}
 export function fitExplorer(ex, weights = RES_VALUE) {
   const ch = EXPLORER_BY_ID[ex.chassis];
   let changed = false;
@@ -178,15 +166,18 @@ function canSpend(data, cost, reserve, floor = 0) {
 // What to craft for the hardpoints: guns until there are two, then the frame's drones (the Seraph and
 // big frames field swarms; menders and aegis wings once the combat mounts are covered), else a gun.
 const GUN_TASTE = { skiff: 'chaingun', rover: 'chaingun', strider: 'plasma', gunship: 'rockets', crawler: 'mortar', lancer: 'rail', seraph: 'arc' };
+const GUN_ORDER = ['rail', 'plasma', 'rockets', 'arc', 'mortar', 'chaingun', 'flamer', 'scatter'];
 export function pickBlueprint(ex, ch) {
+  const known = (b) => knowsBlueprint(ex, b);
+  const gun = (prefer) => (known(prefer) ? prefer : GUN_ORDER.find(known) || 'chaingun');
   const fitted = exSlotKeys(ch).filter((k) => k.startsWith('hp:')).map((k) => ex.loadout[k]).filter(Boolean);
   const guns = fitted.filter((x) => x.slot === 'gun').length, bays = fitted.filter((x) => x.slot === 'bay');
   const has = (b) => bays.some((x) => x.base === b) || ex.inventory.some((x) => x.base === b);
-  if (guns < Math.min(2, ch.slots.hp) && !(ch.droneBonus && guns >= 1)) return guns ? 'plasma' : GUN_TASTE[ch.frame] || 'chaingun';
+  if (guns < Math.min(2, ch.slots.hp) && !(ch.droneBonus && guns >= 1)) return gun(guns ? 'plasma' : GUN_TASTE[ch.frame]);
   if (bays.length < bayCap(ch)) {
-    for (const b of ch.droneBonus ? ['sparrow', 'scarab', 'aegis', 'mender', 'sparrow'] : ['sparrow', 'mender', 'scarab', 'aegis']) if (!has(b) || b === 'sparrow' && bays.length >= 3) return b;
+    for (const b of ch.droneBonus ? ['sparrow', 'scarab', 'aegis', 'mender', 'sparrow'] : ['sparrow', 'mender', 'scarab', 'aegis']) if (known(b) && (!has(b) || b === 'sparrow' && bays.length >= 3)) return b;
   }
-  return GUN_TASTE[ch.frame] || 'chaingun';
+  return gun(GUN_TASTE[ch.frame]);
 }
 
 function explorerPass(data, ex, log, floor) {

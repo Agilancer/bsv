@@ -56,6 +56,25 @@ class CModel(Model):
             else:
                 self.box(depth, h * 0.98, ws, (at[0] + sg * depth * 0.6, at[1], at[2] + u), 'trim', black, 0, shear=(0, h))
 
+    def hazard_tilt(self, at, w, h, n, yellow, black, s, depth=0.04):
+        """Hazard panel w x h centred at `at` on a raked plate whose outward normal is n = (ny, nz) in the
+        y-z plane; the stripes run up the slope."""
+        th = math.atan2(-n[0], n[1])
+        rx = math.degrees(th)
+        self.box(w, h, depth, at, 'hull', yellow, 0.01, rot=(rx, 0, 0))
+        ws = h * 0.45
+        k = max(1, int((w - h) / (2 * ws)))
+        span = w - h - ws
+        oy, oz = -depth * 0.6 * math.sin(th), depth * 0.6 * math.cos(th)
+        for i in range(k):
+            u = -w / 2 + ws / 2 + (span * (i + 0.5) / k if k > 1 else span / 2)
+            self.box(ws, h * 0.98, depth, (at[0] + u, at[1] + oy, at[2] + oz), 'trim', black, 0, shear=(h, 0), rot=(rx, 0, 0))
+
+    def seams(self, x, y0, y1, zs, s, sx):
+        """Dark vertical panel seams on a yellow flank at x (facing sx)."""
+        for z in zs:
+            self.box(0.03 * s, y1 - y0, 0.05 * s, (x + sx * 0.01 * s, (y0 + y1) / 2, z), 'dark', 0x3a3220, 0)
+
 
 # ---------------------------------------------------------------------------- tracks
 def _hull2(pts):
@@ -295,7 +314,8 @@ def build(m):
     for i, (q, fn) in enumerate(cands):
         if fn:
             fn(i in used)
-    M.facts = {'frame': F, 'mark': m, 'ride': 0, 'tracks': tracks, 'wheels': wi, 'scale': round(s, 3), 'drillR': round(R, 3)}
+    M.facts = {'frame': F, 'mark': m, 'ride': 0, 'tracks': tracks, 'wheels': wi, 'scale': round(s, 3), 'drillR': round(R, 3),
+               'wheelR': round((0.22 if st == 0 else 0.13) * Ht, 3)}
     return M
 
 
@@ -336,6 +356,9 @@ def stacks(M, m, s, C, pts, h):
     dark, glow = C['dark'], C['glow']
     for (x, y, z) in pts:
         M.cyl(0.2 * s, h, (x, y + h / 2, z), 'y', 'dark', dark, 12, r2=0.17 * s)
+        if m >= 4:   # yellow armoured shroud round the stack's foot
+            M.box(0.62 * s, h * 0.32, 0.62 * s, (x, y + h * 0.16, z), 'hull', C['hull'], 0.05 * s, taper=(0.85, 0.85))
+            M.box(0.64 * s, 0.08 * s, 0.64 * s, (x, y + h * 0.2, z), 'trim', C['panel'], 0.01)
         M.cyl(0.24 * s, h * 0.45, (x, y + h * 0.4, z), 'y', 'chrome', STEEL, 12, bevel=0.01)
         for k in range(4):
             M.box(0.05 * s, h * 0.4, 0.08 * s, (x + math.cos(k * 1.57) * 0.25 * s, y + h * 0.4, z + math.sin(k * 1.57) * 0.25 * s), 'dark', dark, 0)
@@ -353,7 +376,7 @@ def cab(M, m, s, C, at, w, h, d):
     M.box(w * 0.86, h * 0.18, 0.06 * s, (x, y + h * 0.63, z + d * 0.46), 'glass', GLASS, 0.01)
     for sx in (1, -1):
         M.box(0.06 * s, h * 0.18, d * 0.6, (x + sx * w * 0.45, y + h * 0.63, z), 'glass', GLASS, 0.01)
-    M.box(w * 0.7, 0.08 * s, 0.05 * s, (x, y + h * 0.45, z + d * 0.47), 'glow', glow, 0)
+    M.box(w * 0.7, 0.08 * s, 0.05 * s, (x, y + h * 0.45, z + d * 0.47), 'dark', 0x141414, 0)
     M.lights([(x + sx * w * 0.3, y + h + 0.06 * s, z + d * 0.3) for sx in (1, -1)], 0.16 * s)
     M.box(w * 0.85, 0.12 * s, 0.25 * s, (x, y + h + 0.02 * s, z + d * 0.3), 'dark', dark, 0.02)
     M.box(w * 0.78, 0.06 * s, d * 0.55, (x, y + h + 0.02 * s, z - 0.08 * s - d * 0.1), 'trim', C['panel'], 0.02)
@@ -398,12 +421,21 @@ def body_box(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
     for sx in (1, -1):
         M.box(0.5 * s, 0.3 * s, 0.25 * s, (sx * (hw - 0.4 * s), yl, gz(yl) + 0.2 * s), 'dark', dark, 0.03 * s)
     lamps(M, [(sx * (hw - 0.4 * s), yl, gz(yl) + 0.33 * s) for sx in (1, -1)], s)
-    # side armour: black skirts along the upper hull, bolted; glow line above
+    # hazard panel across the glacis face
+    gl = math.dist(g0, g1)
+    gn = ((g0[2] - g1[2]) / gl, (g1[1] - g0[1]) / gl)
+    gm = tuple(a + (b - a) * 0.42 for a, b in zip(g0, g1))
+    M.hazard_tilt((0, gm[1] + gn[0] * 0.17 * s, gm[2] + gn[1] * 0.17 * s), 2 * uw - 1.3 * s, gl * 0.42, gn, hull, panel, s)
+    # two-tone flanks: black lower band (bolted), yellow upper plates with panel seams, one glow accent
+    hb = (top - Ht) * 0.5
     for sx in (1, -1):
-        M.box(0.12 * s, (top - Ht) * 0.55, L * 0.7, (sx * (uw - 0.02 * s), Ht + (top - Ht) * 0.35, zc - 0.3 * s), 'trim', panel, 0.03 * s, rot=(0, 0, sx * 5))
-        for k in range(5):
-            M.cyl(0.05 * s, 0.06 * s, (sx * (uw + 0.05 * s), Ht + (top - Ht) * 0.5, zc - 0.3 * s - L * 0.3 + k * L * 0.15), 'x', 'chrome', STEEL, 6, bevel=0)
-        M.box(0.04 * s, 0.045 * s, L * 0.5, (sx * (uw * 0.93 + 0.02 * s), top - 0.25 * s, zc - 0.3 * s), 'glow', glow, 0)
+        M.box(0.12 * s, hb, L - 0.7 * s, (sx * (uw - 0.03 * s), Ht + hb / 2 + 0.02 * s, zc - 0.3 * s), 'trim', panel, 0.03 * s, rot=(0, 0, sx * 5))
+        for k in range(6):
+            M.cyl(0.05 * s, 0.06 * s, (sx * (uw + 0.04 * s), Ht + hb * 0.75, zc - 0.3 * s - L * 0.38 + k * L * 0.15), 'x', 'chrome', STEEL, 6, bevel=0)
+        M.seams(sx * (uw * 0.95 + 0.01 * s), Ht + hb + 0.05 * s, top - 0.05 * s, [zc - 0.3 * s + k * 1.25 * s for k in (-2, -1, 0, 1)], s, sx)
+        M.box(0.04 * s, 0.045 * s, L * 0.5, (sx * (uw * 0.94 + 0.02 * s), Ht + hb + 0.05 * s, zc - 0.3 * s), 'glow', glow, 0)
+    # black rear roof deck under the engine cover; seam across the roof
+    M.box(2 * rw_ - 0.25 * s, 0.05 * s, (rz1 - rz0) * 0.5, (0, ytop + 0.02 * s, rz0 + (rz1 - rz0) * 0.25 + 0.05 * s), 'trim', panel, 0.02)
     # engine deck: a raised black cover with grilles; rear bumper with hazard stripes
     ez = rz0 + 1.25 * s
     M.box(2 * rw_ - 0.5 * s, 0.24 * s, 2.0 * s, (0, ytop + 0.12 * s, ez), 'trim', panel, 0.06 * s, taper=(0.92, 0.92))
@@ -423,10 +455,20 @@ def body_box(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
         rails(M, [(-rw_ + 0.08 * s, ytop, rz1 - 0.3 * s), (-rw_ + 0.08 * s, ytop, rz0 + 0.3 * s)], 0.4 * s, s, C)
         for k in range(4):
             M.box(0.04 * s, 0.04 * s, 0.4 * s, (-(uw + 0.12 * s), Ht + 0.2 * s + k * 0.28 * s, zF - 2.2 * s), 'chrome', STEEL, 0)
-        for sx in (1, -1):   # tool boxes on the track fenders
-            M.box(0.5 * s, 0.4 * s, 1.0 * s, (sx * (uw + 0.05 * s), Ht + 0.22 * s, zB + 1.0 * s), 'trim', panel, 0.04 * s)
+        for sx in (1, -1):   # black tool lockers on the track tops
+            M.box(0.6 * s, 0.45 * s, 1.0 * s, (sx * (uw + 0.12 * s), Ht + 0.365 * s, zB + 0.8 * s), 'trim', panel, 0.04 * s)
+            M.box(0.62 * s, 0.06 * s, 0.1 * s, (sx * (uw + 0.12 * s), Ht + 0.5 * s, zB + 1.31 * s), 'hull', hull, 0)
     if m >= 3:   # roof armour plate and a beacon
         M.cyl(0.1 * s, 0.16 * s, (-(rw_ - 0.3 * s), ytop + 0.08 * s, rz1 - 0.3 * s), 'y', 'glow', glow, 10, bevel=0)
+    if m >= 3:   # yellow fenders over the front of the tracks, hazard-striped noses
+        for sx in (1, -1):
+            xc_ = sx * (hw + 0.6 * s)
+            M.box(1.2 * s, 0.1 * s, 1.4 * s, (xc_, Ht + 0.09 * s, zF - 0.9 * s), 'hull', hull, 0.03 * s)
+            M.hazard((xc_, Ht - 0.05 * s, zF - 0.18 * s), 1.1 * s, 0.32 * s, '+z', hull, panel, s, n=2)
+    if m >= 2:   # rear track fenders carrying black tool lockers
+        for sx in (1, -1):
+            xc_ = sx * (hw + 0.6 * s)
+            M.box(1.2 * s, 0.1 * s, 1.2 * s, (xc_, Ht + 0.09 * s, zB + 0.75 * s), 'hull', hull, 0.03 * s)
     if m >= 4:   # front push-bar teeth under the yoke arms (ripper shoes)
         for sx in (1, -1):
             M.box(0.3 * s, 0.5 * s, 0.6 * s, (sx * (hw - 0.25 * s), 0.35 * s, zF + 0.3 * s), 'dark', dark, 0.04 * s, taper=(0.6, 0.5))
@@ -467,12 +509,20 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
     h1 = 1.15 * s + 0.04 * (m - 5) * s
     M.box(2 * sw, h1, z1 - z0, (0, yk + 0.18 * s + h1 / 2, (z0 + z1) / 2), 'hull', hull, 0.14 * s, taper=(0.94, 0.95))
     y2 = yk + 0.18 * s + h1
-    # black side panels and glow line on the lower block
+    # two-tone lower block: black lower half (bolted), yellow upper plates with seams, one glow accent
     for sx in (1, -1):
-        M.box(0.1 * s, h1 * 0.5, (z1 - z0) * 0.8, (sx * (sw + 0.01 * s), yk + 0.18 * s + h1 * 0.45, (z0 + z1) / 2), 'trim', panel, 0.03 * s)
-        M.box(0.04 * s, 0.045 * s, (z1 - z0) * 0.6, (sx * (sw * 0.96 + 0.03 * s), y2 - 0.22 * s, (z0 + z1) / 2), 'glow', glow, 0)
-    # glacis from the deck front down to the yoke
-    M.beam((0, Ht * 0.55, zF + 0.1 * s), (0, y2 - 0.2 * s, z1 - 0.6 * s), 2 * sw - 0.2 * s, 0.32 * s, 'hull', hull, 0.06 * s)
+        M.box(0.1 * s, h1 * 0.5, (z1 - z0) * 0.92, (sx * (sw + 0.01 * s), yk + 0.18 * s + h1 * 0.27, (z0 + z1) / 2), 'trim', panel, 0.03 * s)
+        for k in range(5):
+            M.cyl(0.05 * s, 0.06 * s, (sx * (sw + 0.07 * s), yk + 0.18 * s + h1 * 0.4, z0 + 0.3 * s + k * (z1 - z0 - 0.6 * s) / 4), 'x', 'chrome', STEEL, 6, bevel=0)
+        M.seams(sx * (sw * 0.97 + 0.01 * s), yk + 0.18 * s + h1 * 0.53, y2 - 0.05 * s, [z0 + (z1 - z0) * f for f in (0.25, 0.5, 0.75)], s, sx)
+        M.box(0.04 * s, 0.045 * s, (z1 - z0) * 0.6, (sx * (sw * 0.97 + 0.03 * s), yk + 0.18 * s + h1 * 0.53, (z0 + z1) / 2), 'glow', glow, 0)
+    # glacis from the deck front down to the yoke, hazard-striped
+    g0, g1 = (0, Ht * 0.55, zF + 0.1 * s), (0, y2 - 0.2 * s, z1 - 0.6 * s)
+    M.beam(g0, g1, 2 * sw - 0.2 * s, 0.32 * s, 'hull', hull, 0.06 * s)
+    gl = math.dist(g0, g1)
+    gn = ((g0[2] - g1[2]) / gl, (g1[1] - g0[1]) / gl)
+    gm = tuple(a + (b - a) * 0.5 for a, b in zip(g0, g1))
+    M.hazard_tilt((0, gm[1] + gn[0] * 0.18 * s, gm[2] + gn[1] * 0.18 * s), 2 * sw - 1.0 * s, gl * 0.35, gn, hull, panel, s)
     M.box(2 * sw * 0.94 - 0.2 * s, 0.44 * s, 0.16 * s, (0, y2 - 0.12 * s, z1 + 0.02 * s), 'dark', dark, 0.03 * s)
     M.hazard((0, y2 - 0.12 * s, z1 + 0.11 * s), 2 * sw * 0.94 - 0.4 * s, 0.36 * s, '+z', hull, panel, s)
     for sx in (1, -1):
@@ -486,11 +536,26 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
     M.box(2 * uw2 + 0.1 * s, 0.12 * s, u1 - u0 + 0.1 * s, (0, y2 + 0.06 * s, (u0 + u1) / 2), 'trim', panel, 0.03 * s)
     y3 = y2 + h2
     M.box(2 * sw * 0.7, 0.08 * s, z1 - u1 - 0.5 * s, (0, y2 + 0.04 * s, (z1 + u1) / 2 - 0.1 * s), 'trim', panel, 0.02)
+    for sx in (1, -1):   # black walkway strips down the lower block's roof edges
+        M.box(0.5 * s, 0.06 * s, u1 - u0, (sx * (sw * 0.94 - 0.3 * s), y2 + 0.03 * s, (u0 + u1) / 2), 'trim', panel, 0.02)
     M.vents((0, y2 + 0.08 * s, (z1 + u1) / 2 - 0.1 * s), 1.2 * s, (z1 - u1) * 0.5, 4, tint=0x141414)
     for sx in (1, -1):   # black grille panels on the upper block's flanks
         M.box(0.08 * s, h2 * 0.5, (u1 - u0) * 0.6, (sx * (uw2 * 0.95 + 0.02 * s), y2 + h2 * 0.5, (u0 + u1) / 2), 'trim', panel, 0.02)
         for k in range(4):
             M.box(0.1 * s, 0.05 * s, (u1 - u0) * 0.5, (sx * (uw2 * 0.95 + 0.05 * s), y2 + h2 * (0.32 + 0.12 * k), (u0 + u1) / 2), 'dark', 0x141414, 0)
+    if m >= 8:   # yellow armour skirts on the chassis between the pods, black-edged
+        for sx in (1, -1):
+            M.box(0.14 * s, 0.9 * s, L * 0.2, (sx * (hw + 0.2 * s), yk - 0.5 * s, zc + (0.3 * s if st == 2 else 0)), 'hull', hull, 0.04 * s)
+            M.box(0.16 * s, 0.1 * s, L * 0.2, (sx * (hw + 0.2 * s), yk - 0.95 * s, zc + (0.3 * s if st == 2 else 0)), 'trim', panel, 0.01)
+    if m >= 10:  # ore conveyor: a black belt chute from the drill yoke up the starboard side to the hopper
+        cx = -(sw + 0.55 * s)
+        c0, c1 = (cx, yk + 0.1 * s, zF - 0.7 * s), (cx, yk + 1.6 * s, z0 - 1.0 * s)
+        M.beam(c0, c1, 0.6 * s, 0.22 * s, 'trim', panel, 0.03 * s)
+        M.beam((cx + 0.32 * s, c0[1] + 0.12 * s, c0[2]), (cx + 0.32 * s, c1[1] + 0.12 * s, c1[2]), 0.08 * s, 0.3 * s, 'hull', hull, 0.01)
+        M.beam((cx - 0.32 * s, c0[1] + 0.12 * s, c0[2]), (cx - 0.32 * s, c1[1] + 0.12 * s, c1[2]), 0.08 * s, 0.3 * s, 'hull', hull, 0.01)
+        for f in (0.3, 0.7):
+            q = tuple(a + (b - a) * f for a, b in zip(c0, c1))
+            M.box(0.12 * s, q[1] - yk, 0.12 * s, (cx, (q[1] + yk) / 2, q[2]), 'dark', dark, 0.01)
     if m >= 7 and st == 1 or m >= 10:   # ladders up the flanks to the walkways
         for sx in (1, -1):
             for k in range(5):
@@ -514,14 +579,14 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
     hpc.append(((0, yt + 0.12 * s, u0 + 0.75 * s), topm))
     if m >= 8:   # floodlight bar on the upper block's front edge
         M.box(2 * uw2 * 0.8, 0.16 * s, 0.16 * s, (0, y3 + 0.1 * s, u1 - 0.1 * s), 'dark', dark, 0.02)
-        lamps(M, [(k * uw2 * 0.4 - uw2 * 0.6, y3 + 0.1 * s, u1 - 0.0 * s) for k in range(4) if abs(k * uw2 * 0.4 - uw2 * 0.6 - (uw2 - cw / 2 + 0.1 * s)) > cw / 2], s)
+        lamps(M, [(-uw2 * 0.6, y3 + 0.1 * s, u1), (-uw2 * 0.2, y3 + 0.1 * s, u1)], s)   # 6 lamps in all
     if m >= 12:  # command crest: black-and-gold fin on the cab roof
         M.box(0.12 * s, 0.5 * s, 1.0 * s, (uw2 - cw / 2 + 0.1 * s, y3 + chh + 0.2 * s, u1 - cd / 2 - 0.2 * s), 'trim', panel, 0.03 * s, taper=(1, 0.5), shear=(0, -0.3 * s))
-        M.box(0.04 * s, 0.08 * s, 0.6 * s, (uw2 - cw / 2 + 0.1 * s, y3 + chh + 0.32 * s, u1 - cd / 2 - 0.3 * s), 'glow', glow, 0)
+        M.box(0.04 * s, 0.08 * s, 0.6 * s, (uw2 - cw / 2 + 0.1 * s, y3 + chh + 0.32 * s, u1 - cd / 2 - 0.3 * s), 'hull', hull, 0)
     if m >= 6:   # sensor mast
         M.cyl(0.05 * s, 1.3 * s, (-(uw2 - 0.25 * s), y3 + 0.65 * s, u0 + 0.25 * s), 'y', 'dark', dark, 6, bevel=0)
         M.box(0.5 * s, 0.08 * s, 0.08 * s, (-(uw2 - 0.25 * s), y3 + 1.2 * s, u0 + 0.25 * s), 'dark', dark, 0)
-        M.sphere(0.08 * s, (-(uw2 - 0.25 * s), y3 + 1.32 * s, u0 + 0.25 * s), (1, 1, 1), 'glow', glow, 8)
+        M.sphere(0.12 * s, (-(uw2 - 0.25 * s), y3 + 1.32 * s, u0 + 0.25 * s), (1, 1, 1), 'hull', hull, 10)
     if st == 1:
         # rear: engine deck with grilles and a rear bumper
         M.box(2 * sw, 1.0 * s, z0 - zB, (0, yk + 0.18 * s + 0.5 * s, (z0 + zB) / 2), 'hull', hull, 0.1 * s, taper=(0.95, 0.95))
@@ -555,7 +620,7 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
 
 
 def hopper(M, m, s, C, sw, yk, zB, z0, hpc, hpp):
-    """Rear ore hopper: flared yellow bin with black ribs, heaped ore with a few glowing crystals."""
+    """Rear ore hopper: flared yellow bin with black ribs and rim, heaped ore with a few gold crystals."""
     hull, panel, dark, trim, glow = C['hull'], C['panel'], C['dark'], C['trim'], C['glow']
     hz0, hz1 = zB + 0.1 * s, z0 - 1.2 * s
     hl = hz1 - hz0
@@ -571,6 +636,8 @@ def hopper(M, m, s, C, sw, yk, zB, z0, hpc, hpp):
         M.hazard((sx * (ww + 0.12 * s), yb + hh * 0.82, hzc), hl * 0.8, 0.28 * s, '+x' if sx > 0 else '-x', hull, panel, s)
     for zz in (hz0, hz1):
         M.box(2 * ww, hh, 0.18 * s, (0, yb + hh / 2, zz), 'hull', hull, 0.05 * s)
+    for sx in (1, -1):
+        M.box(0.3 * s, 0.12 * s, hl + 0.2 * s, (sx * (ww + 0.07 * s), yb + hh, hzc), 'trim', panel, 0.02)
     M.box(2 * ww + 0.2 * s, 0.14 * s, 0.25 * s, (0, yb + hh, hz1), 'trim', panel, 0.03 * s)
     M.box(2 * ww - 0.3 * s, hh * 0.6, 0.06 * s, (0, yb + hh * 0.45, hz0 - 0.1 * s), 'trim', panel, 0.02)
     M.hazard((0, yb + hh * 0.85, hz0 - 0.12 * s), 2 * ww - 0.4 * s, 0.3 * s, '-z', hull, panel, s)
@@ -585,7 +652,7 @@ def hopper(M, m, s, C, sw, yk, zB, z0, hpc, hpp):
                  'dark' if k % 4 else 'chrome', 0x4a4038 if k % 4 else 0x9a8a70, 7, rot=(rnd.uniform(0, 40), rnd.uniform(0, 90), 0))
     for k in range(3 + (m >= 11)):
         u, v = rnd.uniform(-0.6, 0.6), rnd.uniform(-0.6, 0.6)
-        M.cyl(0.12 * s, 0.6 * s, (u * (ww - 0.5 * s), yb + hh + 0.15 * s, hzc + v * (hl / 2 - 0.5 * s)), 'y', 'glow', glow, 6,
+        M.cyl(0.12 * s, 0.6 * s, (u * (ww - 0.5 * s), yb + hh + 0.15 * s, hzc + v * (hl / 2 - 0.5 * s)), 'y', 'trim', 0xd8b048, 6,
               r2=0.0, bevel=0, rot=(rnd.uniform(-25, 25), 0, rnd.uniform(-25, 25)))
     # module hardpoints: on the hopper's rear corners (a pair) and the front wall top (centre)
     yt = yb + hh

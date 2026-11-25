@@ -33,7 +33,7 @@ export function partsReady() { const a = files.get('assets/vehicles/guns.glb'), 
 
 // ---------------------------------------------------------------- materials
 const HULL_BY_TIER = (t) => (t <= 3 ? 'hull_apc' : t <= 6 ? 'hull_dropship' : t <= 9 ? 'hull_naval' : 'hull_glacier');
-const fresnel = () => float(1).sub(dot(normalView, positionView.normalize().negate()).clamp(0, 1)).pow(2.5);
+const fresnel = () => float(1).sub(dot(normalView, positionView.normalize().negate()).clamp(0, 1)).pow(4);   // silhouette only
 function hdr(hex, m) { const c = new THREE.Color(hex); return vec3(c.r * m, c.g * m, c.b * m); }
 function tri(t, s) {
   let bf = abs(normalLocal).pow(vec3(4)); bf = bf.div(bf.x.add(bf.y).add(bf.z));
@@ -49,7 +49,7 @@ export function glbMats(frame, tier, engine) {
   if (matCache.has(key)) return matCache.get(key);
   const glowHex = (FRAME_STYLE[frame] || FRAME_STYLE.rover).glow;
   const vc = attribute('color', 'vec3');
-  const rim = () => hdr(glowHex, 0.9).mul(fresnel()).mul(uRoverRim);
+  const rim = () => hdr(glowHex, 0.7).mul(fresnel()).mul(uRoverRim);
   const plate = (t, rough, metal, s, amt, gain = 1.15) => {
     const m = new THREE.MeshStandardNodeMaterial();
     m.colorNode = vc.mul(detail(t, s, amt)).mul(gain);
@@ -58,9 +58,9 @@ export function glbMats(frame, tier, engine) {
     return m;
   };
   const glow = new THREE.MeshBasicNodeMaterial();
-  glow.colorNode = vc.mul(sin(engine.uTime.mul(2.2).add(positionLocal.z.mul(1.5))).mul(0.15).add(1)).mul(3.4);
+  glow.colorNode = vc.mul(sin(engine.uTime.mul(2.2).add(positionLocal.z.mul(1.5))).mul(0.15).add(1)).mul(2.3);
   const lamp = new THREE.MeshBasicNodeMaterial();
-  lamp.colorNode = vc.mul(5);
+  lamp.colorNode = vc.mul(3.2);
   const glass = new THREE.MeshStandardNodeMaterial({ roughness: 0.06, metalness: 0.9 });
   glass.colorNode = vec3(0.05, 0.09, 0.15);
   glass.emissiveNode = hdr(glowHex, 0.18).add(hdr(0xa8d8ff, 0.45).mul(fresnel()));
@@ -88,6 +88,21 @@ function applyMats(obj, mats) {
   });
 }
 const num = (s) => +(s.match(/_(\d+)$/) || [0, 0])[1];
+let discMat = null;
+function bladeDisc(rotor) {
+  const box = new THREE.Box3().setFromObject(rotor);
+  const r = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) * 0.5;
+  if (!discMat) {
+    discMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    const d = positionLocal.xz.length();   // 0 at the hub, 1 at the tip (geometry is unit radius)
+    discMat.colorNode = mix(vec3(0.42, 0.44, 0.48), vec3(0.9, 0.92, 0.95), smoothstep(0.75, 0.98, d));
+    discMat.opacityNode = smoothstep(0.2, 0.45, d).mul(0.3).add(smoothstep(0.84, 0.96, d).mul(0.35)).mul(smoothstep(1.0, 0.97, d));
+  }
+  const g = new THREE.CircleGeometry(1, 40); g.rotateX(-Math.PI / 2);
+  const m = new THREE.Mesh(g, discMat);
+  m.scale.set(r, 1, r); m.position.y = 0.04; m.renderOrder = 2;
+  return m;
+}
 
 // Build the runtime vehicle object (same contract as vehicleModels.buildVehicle, plus hardpoints).
 export function buildVehicleGLB(gltf, chassis, engine) {
@@ -119,6 +134,8 @@ export function buildVehicleGLB(gltf, chassis, engine) {
     else if (n.startsWith('flap_')) (out.flaps ||= []).push({ obj: o, base: o.rotation.clone(), phase: num(n) * 0.7 });
   }
   out.hardpoints = out.hardpoints.filter(Boolean);
+  // spinning rotors read as a translucent blade disc with lit tips, not as spokes
+  for (const f of out.fans) if (f.name.startsWith('rotor_')) f.add(bladeDisc(f));
   // leg templates are cloned per hip below; take them out of the model so they never count in its bounds
   for (const t of Object.values(legT)) t.removeFromParent();
   // walker legs: one upper / lower / foot per hip, laid by Vehicle.walk (two-bone IK)
