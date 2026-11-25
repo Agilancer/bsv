@@ -16,6 +16,7 @@ export const FRAME_STYLE = {
   gunship: { glow: 0xff4a5a, tint: 0xc8ccd4, len: 6.8 },
   crawler: { glow: 0xffd040, tint: 0xe0d0a0, len: 7.6 },
   lancer: { glow: 0x8ab8ff, tint: 0xe8ecf4, len: 7.0 },
+  seraph: { glow: 0x5affe0, tint: 0xeef0f2, len: 6.0 },
 };
 const HULL_BY_TIER = (t) => (t <= 3 ? 'hull_apc' : t <= 6 ? 'hull_dropship' : t <= 8 ? 'hull_naval' : 'hull_glacier');
 

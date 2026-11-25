@@ -1,0 +1,575 @@
+{
+ "ex_skiff_1": {
+  "bytes": 50396,
+  "dims": {
+   "H": 1.55,
+   "L": 5.615,
+   "W": 3.274,
+   "maxY": 1.49,
+   "minY": -0.06
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 1,
+   "light": 2,
+   "pad": 4,
+   "tool": 1
+  },
+  "engines": 2,
+  "fans": 0,
+  "file": "ex_skiff_1.glb",
+  "frame": "skiff",
+  "groups": [
+   "body"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    1.47,
+    -0.144,
+    0.85
+   ]
+  ],
+  "mark": 1,
+  "pads": 4,
+  "pontoons": 2,
+  "ride": 1.5,
+  "scale": 1.0,
+  "tris": 6804
+ },
+ "ex_skiff_10": {
+  "bytes": 168004,
+  "dims": {
+   "H": 6.475,
+   "L": 11.834,
+   "W": 10.705,
+   "maxY": 6.374,
+   "minY": -0.101
+  },
+  "empties": {
+   "eng": 7,
+   "hp": 4,
+   "light": 4,
+   "pad": 8,
+   "tool": 1
+  },
+  "engines": 7,
+  "fans": 1,
+  "file": "ex_skiff_10.glb",
+  "frame": "skiff",
+  "groups": [
+   "body",
+   "fan_0"
+  ],
+  "hardpoints": [
+   [
+    4.188,
+    2.739,
+    0.432,
+    1.424
+   ],
+   [
+    -4.188,
+    2.739,
+    0.432,
+    1.424
+   ],
+   [
+    4.188,
+    2.739,
+    -2.377,
+    1.424
+   ],
+   [
+    -4.188,
+    2.739,
+    -2.377,
+    1.424
+   ]
+  ],
+  "mark": 10,
+  "pads": 8,
+  "pontoons": 4,
+  "ride": 1.77,
+  "scale": 1.675,
+  "tris": 24280
+ },
+ "ex_skiff_11": {
+  "bytes": 178500,
+  "dims": {
+   "H": 7.165,
+   "L": 12.364,
+   "W": 11.465,
+   "maxY": 7.06,
+   "minY": -0.105
+  },
+  "empties": {
+   "eng": 7,
+   "hp": 4,
+   "light": 4,
+   "pad": 8,
+   "tool": 1
+  },
+  "engines": 7,
+  "fans": 1,
+  "file": "ex_skiff_11.glb",
+  "frame": "skiff",
+  "groups": [
+   "body",
+   "fan_0"
+  ],
+  "hardpoints": [
+   [
+    4.515,
+    2.852,
+    0.451,
+    1.488
+   ],
+   [
+    -4.515,
+    2.852,
+    0.451,
+    1.488
+   ],
+   [
+    4.515,
+    2.852,
+    -2.483,
+    1.488
+   ],
+   [
+    -4.515,
+    2.852,
+    -2.483,
+    1.488
+   ]
+  ],
+  "mark": 11,
+  "pads": 8,
+  "pontoons": 4,
+  "ride": 1.8,
+  "scale": 1.75,
+  "tris": 25584
+ },
+ "ex_skiff_12": {
+  "bytes": 189636,
+  "dims": {
+   "H": 7.889,
+   "L": 15.33,
+   "W": 12.248,
+   "maxY": 7.779,
+   "minY": -0.109
+  },
+  "empties": {
+   "eng": 7,
+   "hp": 5,
+   "light": 4,
+   "pad": 8,
+   "tool": 1
+  },
+  "engines": 7,
+  "fans": 1,
+  "file": "ex_skiff_12.glb",
+  "frame": "skiff",
+  "groups": [
+   "body",
+   "fan_0"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    4.298,
+    0.356,
+    1.551
+   ],
+   [
+    4.854,
+    2.966,
+    0.471,
+    1.551
+   ],
+   [
+    -4.854,
+    2.966,
+    0.471,
+    1.551
+   ],
+   [
+    4.854,
+    2.966,
+    -2.59,
+    1.551
+   ],
+   [
+    -4.854,
+    2.966,
+    -2.59,
+    1.551
+   ]
+  ],
+  "mark": 12,
+  "pads": 8,
+  "pontoons": 4,
+  "ride": 1.83,
+  "scale": 1.825,
+  "tris": 27344
+ },
+ "ex_skiff_2": {
+  "bytes": 55524,
+  "dims": {
+   "H": 1.929,
+   "L": 6.036,
+   "W": 3.519,
+   "maxY": 1.865,
+   "minY": -0.065
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 1,
+   "light": 2,
+   "pad": 4,
+   "tool": 1
+  },
+  "engines": 2,
+  "fans": 0,
+  "file": "ex_skiff_2.glb",
+  "frame": "skiff",
+  "groups": [
+   "body"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    1.564,
+    -0.179,
+    0.914
+   ]
+  ],
+  "mark": 2,
+  "pads": 4,
+  "pontoons": 2,
+  "ride": 1.53,
+  "scale": 1.075,
+  "tris": 7388
+ },
+ "ex_skiff_3": {
+  "bytes": 62904,
+  "dims": {
+   "H": 2.634,
+   "L": 6.457,
+   "W": 6.494,
+   "maxY": 2.565,
+   "minY": -0.069
+  },
+  "empties": {
+   "eng": 2,
+   "hp": 1,
+   "light": 2,
+   "pad": 4,
+   "tool": 1
+  },
+  "engines": 2,
+  "fans": 0,
+  "file": "ex_skiff_3.glb",
+  "frame": "skiff",
+  "groups": [
+   "body"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    1.659,
+    -0.217,
+    0.977
+   ]
+  ],
+  "mark": 3,
+  "pads": 4,
+  "pontoons": 2,
+  "ride": 1.56,
+  "scale": 1.15,
+  "tris": 8300
+ },
+ "ex_skiff_4": {
+  "bytes": 103300,
+  "dims": {
+   "H": 2.805,
+   "L": 7.123,
+   "W": 7.212,
+   "maxY": 2.732,
+   "minY": -0.073
+  },
+  "empties": {
+   "eng": 4,
+   "hp": 2,
+   "light": 2,
+   "pad": 6,
+   "tool": 1
+  },
+  "engines": 4,
+  "fans": 0,
+  "file": "ex_skiff_4.glb",
+  "frame": "skiff",
+  "groups": [
+   "body"
+  ],
+  "hardpoints": [
+   [
+    1.617,
+    1.435,
+    1.083,
+    1.041
+   ],
+   [
+    -1.617,
+    1.435,
+    1.083,
+    1.041
+   ]
+  ],
+  "mark": 4,
+  "pads": 6,
+  "pontoons": 2,
+  "ride": 1.59,
+  "scale": 1.225,
+  "tris": 14112
+ },
+ "ex_skiff_5": {
+  "bytes": 107640,
+  "dims": {
+   "H": 2.977,
+   "L": 7.559,
+   "W": 7.653,
+   "maxY": 2.899,
+   "minY": -0.078
+  },
+  "empties": {
+   "eng": 4,
+   "hp": 2,
+   "light": 2,
+   "pad": 6,
+   "tool": 1
+  },
+  "engines": 4,
+  "fans": 0,
+  "file": "ex_skiff_5.glb",
+  "frame": "skiff",
+  "groups": [
+   "body"
+  ],
+  "hardpoints": [
+   [
+    1.716,
+    1.51,
+    1.149,
+    1.105
+   ],
+   [
+    -1.716,
+    1.51,
+    1.149,
+    1.105
+   ]
+  ],
+  "mark": 5,
+  "pads": 6,
+  "pontoons": 2,
+  "ride": 1.62,
+  "scale": 1.3,
+  "tris": 14632
+ },
+ "ex_skiff_6": {
+  "bytes": 119872,
+  "dims": {
+   "H": 3.149,
+   "L": 7.996,
+   "W": 8.095,
+   "maxY": 3.066,
+   "minY": -0.082
+  },
+  "empties": {
+   "eng": 6,
+   "hp": 2,
+   "light": 2,
+   "pad": 6,
+   "tool": 1
+  },
+  "engines": 6,
+  "fans": 0,
+  "file": "ex_skiff_6.glb",
+  "frame": "skiff",
+  "groups": [
+   "body"
+  ],
+  "hardpoints": [
+   [
+    1.815,
+    1.585,
+    1.215,
+    1.169
+   ],
+   [
+    -1.815,
+    1.585,
+    1.215,
+    1.169
+   ]
+  ],
+  "mark": 6,
+  "pads": 6,
+  "pontoons": 2,
+  "ride": 1.65,
+  "scale": 1.375,
+  "tris": 16440
+ },
+ "ex_skiff_7": {
+  "bytes": 143368,
+  "dims": {
+   "H": 4.886,
+   "L": 10.131,
+   "W": 9.406,
+   "maxY": 4.799,
+   "minY": -0.087
+  },
+  "empties": {
+   "eng": 7,
+   "hp": 3,
+   "light": 2,
+   "pad": 8,
+   "tool": 1
+  },
+  "engines": 7,
+  "fans": 0,
+  "file": "ex_skiff_7.glb",
+  "frame": "skiff",
+  "groups": [
+   "body"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    1.95,
+    1.055,
+    1.232
+   ],
+   [
+    2.349,
+    1.66,
+    1.879,
+    1.232
+   ],
+   [
+    -2.349,
+    1.66,
+    1.879,
+    1.232
+   ]
+  ],
+  "mark": 7,
+  "pads": 8,
+  "pontoons": 3,
+  "ride": 1.68,
+  "scale": 1.45,
+  "tris": 20284
+ },
+ "ex_skiff_8": {
+  "bytes": 152728,
+  "dims": {
+   "H": 5.597,
+   "L": 10.77,
+   "W": 9.893,
+   "maxY": 5.505,
+   "minY": -0.091
+  },
+  "empties": {
+   "eng": 7,
+   "hp": 3,
+   "light": 2,
+   "pad": 8,
+   "tool": 1
+  },
+  "engines": 7,
+  "fans": 0,
+  "file": "ex_skiff_8.glb",
+  "frame": "skiff",
+  "groups": [
+   "body"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    2.04,
+    1.117,
+    1.296
+   ],
+   [
+    2.47,
+    1.735,
+    1.976,
+    1.296
+   ],
+   [
+    -2.47,
+    1.735,
+    1.976,
+    1.296
+   ]
+  ],
+  "mark": 8,
+  "pads": 8,
+  "pontoons": 3,
+  "ride": 1.71,
+  "scale": 1.525,
+  "tris": 21736
+ },
+ "ex_skiff_9": {
+  "bytes": 161624,
+  "dims": {
+   "H": 6.352,
+   "L": 11.454,
+   "W": 10.38,
+   "maxY": 6.256,
+   "minY": -0.096
+  },
+  "empties": {
+   "eng": 7,
+   "hp": 3,
+   "light": 2,
+   "pad": 8,
+   "tool": 1
+  },
+  "engines": 7,
+  "fans": 0,
+  "file": "ex_skiff_9.glb",
+  "frame": "skiff",
+  "groups": [
+   "body"
+  ],
+  "hardpoints": [
+   [
+    0.0,
+    2.13,
+    1.179,
+    1.36
+   ],
+   [
+    2.592,
+    1.81,
+    2.074,
+    1.36
+   ],
+   [
+    -2.592,
+    1.81,
+    2.074,
+    1.36
+   ]
+  ],
+  "mark": 9,
+  "pads": 8,
+  "pontoons": 3,
+  "ride": 1.74,
+  "scale": 1.6,
+  "tris": 22848
+ }
+}

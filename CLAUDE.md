@@ -6,6 +6,11 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 ## Layout
 - `src/engine/` — renderer + post (`Engine`), input map (`Input`), iso camera, assets, seeded RNG,
   procedural `Audio`. `Engine.simulate(seconds)` steps systems without drawing.
+  - Graphics device loss (GPU reset, the browser reclaiming a background tab's GPU): three would stop drawing for good,
+    so `Engine.gpuLost` holds the sim and rebuilds the renderer + post chain on the same canvas once the tab is visible
+    (`engine.onGpu` hooks: lost / restored / failed). Read `engine.renderer` fresh each time; never keep it. If it cannot
+    be rebuilt (5 losses a minute, or a WebGL context that is not restored in 10 s), main.js saves and reloads straight
+    back into the game (sessionStorage `velscour.gpuResume`), on WebGL2 for the rest of the session after WebGPU fails.
 - `src/fx/` — GPU particles (`Particles.js`: analytic motion, write-once ring buffer), sky,
   celestial bodies, ship/station materials, debris, title scene, lighting rig.
 - `src/game/` — `Game` (orchestrator, helm, rewards, equipment), `World` (sim hub), `Sector`
@@ -35,6 +40,17 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     management, the `PvP sortie` goal), `zones.js` (contested Voidglass fields in the open galaxy),
     `arena.js` (instanced modes), `bots.js` (PvP captains), `ui.js` + `css/guild.css`. Save:
     `data.guild`, `data.pvp`, `data.diplo`. Hostile PvP captains use teams 8+ (`s.pvp`, `noLoot`).
+  - Explorer vehicles (`planet/`): 7 frames x 12 marks (`data/chassis.js` `EXPLORER_FRAMES`, Mk m buildable at explorer
+    level `exMarkLevel(m)`: Mk XII at the cap of 50). Every mark is a Blender model (`tools/blender`, below) that grows
+    physically (more wheels / legs / ducts / hulls). Loadout keys are `hp:i` **hardpoints** (a gun or a drone bay; physical
+    mounts on the model), `tool:i`, `module:i`; old `gun:i` saves migrate in `ensureExplorer`. Drone bays (`EX_BASES`
+    slot `bay`: sparrow / scarab / mender / aegis / magpie) run as swarms in `planet/Drones.js` (rebuilt one at a time
+    from the pod; aegis drones catch hostile shots via `Shots.update`). The Seraph frame carries +1 drone per swarm.
+    Crafting: `economy.js` `BLUEPRINTS` / `craftCost` / `craftItem` (planet resources + **Salvaged Tech** `tech`, paid by
+    missions, space salvage and derelicts, war machines and crates on planets); the `outfit` quest asks for crafting.
+    A combat bay is sized to about one gun per hardpoint (`droneSheetDps`), so the ground contract (`expectedBuild`: every
+    hardpoint an uncommon gun) holds when mounts are swapped. Autopilot: `autoCraft.js` `pickBlueprint` / `fitExplorer`
+    (a gun always fitted, bays capped by `bayCap`).
   - `planet/` living layer: `lifeData.js` (pure data: fauna, curios, radio lines, weather,
     time of day, report rating), `Life.js` (wildlife herds, flyers, curios), `Weather.js` (fronts +
     telegraphed strikes), `Extras.js` (comm strip, discovery cards, expedition
@@ -83,13 +99,16 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   contract in `planet/groundBalance.js`; `--dungeon` for dungeons)
 - The duel harnesses load with `&dynres=0`: the frame-rate governor thins particles on a slow machine, and
   particle counts draw from the same seeded stream as the fight. They also clear loot between duels (the
-  pilot drives to gear drops). A kiting boss cell still reads up to ~2x apart with what ran before it.
+  pilot drives to gear drops). A kiting boss cell still reads up to ~2x apart with what ran before it. In
+  `groundduel.cjs` the static explorer's kill run fires through the kin a boss summons (`capRoot`): they still
+  fight, but adds parked in its line of fire read a 4x kill time. The kiting pilot's shots hit whatever they meet.
 - A new game starts docked with the tutorial running: `?play&new` still skips the title, and the duel
   harnesses undock first. Timers (planetfall, overlays) only fire between `page.evaluate` calls, so drive
   long autoplay runs in chunks like `tools/soak.cjs` does, not in one synchronous loop.
 - `python3 tools/serve.py 8420`, then `node tools/shot.cjs "index.html?play&new&webgl" out.png 15000`
   (`EVAL="…"`, `POSTWAIT=ms`). Headless WebGPU canvases screenshot black: use `&webgl` for
-  pictures and `tools/gpuprobe.html` to verify the WebGPU path by pixel readback.
+  pictures and `tools/gpuprobe.html` to verify the WebGPU path by pixel readback. (Headless SwiftShader WebGPU loses
+  its device within seconds, so the game itself now reloads onto WebGL2 there; headed under `xvfb-run` it holds.)
 - Story: `node tools/story.cjs manual|auto|mobile` plays the opening for real; `node tools/storyff.cjs [0|1|2] --gate`
   fast-forwards the live story runtime to an ending (every briefing, choice and set piece stages; fights are not played).
 - Touch / phones: `node tools/touch.cjs --gate [--shots=dir]` emulates 360x640 and 800x360 with
@@ -99,6 +118,15 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   `engine/Input.js` (view gestures), `planet/Touch.js`; phone layouts are the last blocks of
   `css/ui.css` / `css/planet.css` (`--ml/--mr/--mt/--mb` = margins + safe-area insets). Anything
   added to `#menubar` shows in the phone sheet; new fixed HUD panels need a slot in both orientations.
+- Explorer models: `tools/blender/` (bpy 5.x headless; `pip install bpy` gives Blender as a Python module). `vlib.py` is
+  the kit (game coordinates: +x port, +y up, +z bow; bevelled parts, lofted hulls, AO baked into vertex colours, named
+  groups `body` / `wheel_i` / `rotor_i` / `flap_i` / `drill` and empties `hp_i` / `pad_i` / `eng_i` / `light_i` / `hip_i`),
+  `frames.py` (hardpoint counts + liveries, mirrored from `chassis.js`), `f_<frame>.py` per frame, `f_guns.py` /
+  `f_drones.py` for hardpoint parts. `python build.py <frame|guns|drones> [marks]` writes `assets/vehicles/<id>.glb`
+  (meshopt-packed with `gltfpack`, `GLTFPACK=` env) and `<frame>.json` facts that `tests/vehicles.test.mjs` checks
+  against the game data (`node tools/dronecheck.cjs` checks the drone parts draw with size in game: meshopt GLB
+  parts are quantized, so bake them through Float32 before applying a matrix). The game reads them in `planet/vehicleGLB.js` (procedural `vehicleModels.js` is the fallback
+  while a file loads). `tools/vehicle_viewer.html?webgl&frames=gunship&marks=1,6,12` lays them out (`&bays` mounts drone pods).
 - `tools/viewer.html?yard=velscour` lays hulls out for visual review (`&enemy=<size>&faction=`,
   comma lists, `also=`). Faction liveries: `data/liveries.js`; hull numbers (node-safe):
   `ship/hullPlan.js` (`sideProfile` feeds the crew cutaway).

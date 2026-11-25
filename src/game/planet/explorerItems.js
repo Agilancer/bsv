@@ -1,14 +1,18 @@
-// Explorer gear: the planet vehicle's own guns, mining tools and modules.
+// Explorer gear: the planet vehicle's own guns, drone bays, mining tools and modules.
 // Same item model as the warship gear (plain JSON, rarities, affixes, uniques, mastery) and the
 // same RARITIES table, but its own bases and affix pool, so nothing in data/items.js changes.
-// An explorer item: { uid, ex: true, base, slot: 'gun'|'tool'|'module', rarity, ilvl, affixes:[{k,v}], unique:[], xp, lvl, name, value }
+// An explorer item: { uid, ex: true, base, slot: 'gun'|'bay'|'tool'|'module', rarity, ilvl, affixes:[{k,v}], unique:[], xp, lvl, name, value }
+// Loadout keys: 'hp:i' hardpoints (a gun or a drone bay, mounted on the model), 'tool:i', 'module:i'.
 // Pure data + logic: importable in node (tests) without a DOM.
 import { RNG } from '../../engine/rng.js';
 import { RARITIES, RARITY, AFFIXES, newUid, rollRarity, itemXpNeeded, ITEM_MAX_LVL } from '../data/items.js';
 import { EXPLORER_BY_ID } from '../data/chassis.js';
 
-export const EX_SLOTS = ['gun', 'tool', 'module'];
-export const EX_SLOT_LABEL = { gun: 'Gun', tool: 'Tool', module: 'Module' };
+export const EX_SLOTS = ['hp', 'tool', 'module'];
+export const EX_SLOT_LABEL = { hp: 'Hardpoint', gun: 'Gun', bay: 'Drone bay', tool: 'Tool', module: 'Module' };
+// which loadout slot an item goes in
+export const SLOT_OF = { gun: 'hp', bay: 'hp', tool: 'tool', module: 'module' };
+export const slotAccepts = (key, item) => !!item && SLOT_OF[item.slot] === key.split(':')[0];
 
 // kinds: bullet (fast tracer), scatter (pellet cone), rocket (homing, splash), plasma (bolt, splash),
 // flame (short cone, burns), rail (instant piercing line), mortar (lobbed, big splash), arc (chain lightning)
@@ -22,6 +26,13 @@ export const EX_BASES = {
   rail: { slot: 'gun', name: 'Rail Lance', kind: 'rail', dmg: 78, rof: 0.75, range: 135, pierce: 5, color: 0xa0c8ff, icon: 'rail' },
   mortar: { slot: 'gun', name: 'Siege Mortar', kind: 'mortar', dmg: 52, rof: 0.75, range: 118, splash: 10, color: 0xffb050, icon: 'torpedo' },
   arc: { slot: 'gun', name: 'Arc Projector', kind: 'arc', dmg: 15, rof: 3.2, range: 50, chain: 3, color: 0x90a8ff, icon: 'ion' },
+  // ---- drone bays (a swarm kept topped up from a pod on a hardpoint) ----
+  // count drones, power per hit / per second, rof hits per second each, rebuild s per lost drone
+  sparrow: { slot: 'bay', name: 'Sparrow Gun Drones', kind: 'drone', drone: 'sparrow', count: 3, power: 4.6, rof: 4.2, range: 62, rebuild: 5, color: 0x5aa0ff, icon: 'sparrow', blurb: 'Quad-drones orbit the vehicle and strafe the nearest creature.' },
+  scarab: { slot: 'bay', name: 'Scarab Crawlers', kind: 'drone', drone: 'scarab', count: 4, power: 62, rof: 0, range: 70, splash: 6, rebuild: 1.25, color: 0xff4030, icon: 'scarab', blurb: 'Six-legged bomb-bots skitter to a creature and detonate. The bay builds more.' },
+  mender: { slot: 'bay', name: 'Mender Swarm', kind: 'drone', drone: 'mender', count: 3, power: 0.0028, rof: 0, range: 0, rebuild: 8, color: 0x50ff50, icon: 'mender', blurb: 'Repair drones knit the hull while it is damaged.' },
+  aegis: { slot: 'bay', name: 'Aegis Wing', kind: 'drone', drone: 'aegis', count: 3, power: 3, rof: 0, range: 0, rebuild: 7, color: 0xe8f4ff, icon: 'aegis', blurb: 'Shield drones fly close escort and catch hostile shots.' },
+  magpie: { slot: 'bay', name: 'Magpie Harvesters', kind: 'drone', drone: 'magpie', count: 2, power: 3.2, rof: 0, range: 46, rebuild: 9, color: 0xff50e0, icon: 'magpie', blurb: 'Harvester drones mine resource nodes in reach and bring in what lies on the ground.' },
   // ---- tools (mining) ----
   drill: { slot: 'tool', name: 'Plasma Drill', kind: 'tool', power: 9, range: 20, bonus: { ore: 1.5, isotope: 1.2 }, color: 0xffa040, icon: 'repair' },
   cutter: { slot: 'tool', name: 'Laser Cutter', kind: 'tool', power: 7, range: 34, bonus: { crystal: 1.6 }, color: 0xff4a7a, icon: 'laser' },
@@ -66,6 +77,10 @@ export const EX_AFFIXES = {
   cargo: { scope: 'gear', suf: ['of Holding', 'of the Pack Mule'], v: (l, r) => r.float(0.08, 0.2), fmt: (v) => `${pct(v)} cargo capacity` },
   pickup: { scope: 'gear', suf: ['of Attraction', 'of the Lodestone'], v: (l, r) => r.float(0.2, 0.5), fmt: (v) => `${pct(v)} pickup radius` },
   hullRegen: { scope: 'gear', suf: ['of Mending', 'of the Hive'], v: (l, r) => r.float(0.002, 0.005), fmt: (v) => `Repairs ${(v * 100).toFixed(1)}% hull/s` },
+  // drone bays
+  dpow: { scope: 'bay', pre: ['Overclocked', 'Hunter-Killer', 'Ascendant'], v: (l, r) => r.float(0.1, 0.25) + l * 0.002, fmt: (v) => `${pct(v)} drone power` },
+  swarm: { scope: 'bay', suf: ['of the Swarm', 'of the Hive'], v: () => 1, fmt: () => '+1 drone in the swarm' },
+  rebuild: { scope: 'bay', suf: ['of the Forge', 'of Renewal'], v: (l, r) => r.float(0.15, 0.3), fmt: (v) => `Drones rebuilt ${pct(v)} faster` },
 };
 
 export const EX_UNIQUES = {
@@ -77,6 +92,7 @@ export const EX_UNIQUES = {
   motherlode: { name: 'Motherlode', desc: 'Mining has a 25% chance to extract double.', slot: 'tool' },
   aegis: { name: 'Aegis', desc: 'Shield regenerates three times as fast.', slot: 'module' },
   overdrive: { name: 'Overdrive', desc: 'Below half hull: +40% fire rate and speed.' },
+  hivemind: { name: 'Hivemind', desc: 'Two more drones, and the bay rebuilds twice as fast.', slot: 'bay' },
 };
 
 const LEGEND_NAMES = ['Dustwalker', 'The Long Dark', 'Sunderhorn', 'Lantern of Kessrin', 'Hive Bane', 'Old Faithful', 'The Prospector\'s Oath', 'Wyrmbreaker',
@@ -91,8 +107,9 @@ export function exAffixPool(baseKey) {
     if (a.only && !a.only.includes(b.kind)) return false;
     if (a.scope === 'gun') return b.slot === 'gun';
     if (a.scope === 'tool') return b.slot === 'tool';
-    if (a.scope === 'gear') return b.slot !== 'gun';
-    return true;
+    if (a.scope === 'gear') return b.slot === 'tool' || b.slot === 'module';
+    if (a.scope === 'bay') return b.slot === 'bay';
+    return b.slot !== 'bay' || ['crit', 'critDmg', 'hull', 'shield', 'cdr'].includes(k);
   });
 }
 
@@ -130,8 +147,8 @@ function exItemName(item, rng) {
 }
 
 export function rollExItem(ilvl, rng, { luck = 0, slot = null, rarity = null } = {}) {
-  const keys = slot ? EX_BASE_KEYS_BY_SLOT[slot] : Object.keys(EX_BASES);
-  const weights = keys.map((k) => [k, EX_BASES[k].slot === 'gun' ? 1.2 : 1]);
+  const keys = slot === 'hp' ? [...EX_BASE_KEYS_BY_SLOT.gun, ...EX_BASE_KEYS_BY_SLOT.bay] : slot ? EX_BASE_KEYS_BY_SLOT[slot] : Object.keys(EX_BASES);
+  const weights = keys.map((k) => [k, EX_BASES[k].slot === 'gun' ? 1.2 : EX_BASES[k].slot === 'bay' ? 0.55 : 1]);
   return makeExItem(rng.weighted(weights), ilvl, rarity || rollRarity(rng, luck), rng);
 }
 
@@ -169,6 +186,35 @@ export function exWeaponStats(item) {
   if (s.unique.includes('incendiary')) s.burn += 0.8;
   return s;
 }
+// final numbers for a drone bay. bonus: extra drones from the frame (the Seraph carries one more per swarm)
+export function exDroneStats(item, bonus = 0) {
+  const b = EX_BASES[item.base];
+  const u = item.unique || [];
+  const s = {
+    base: item.base, type: b.drone, color: b.color, count: b.count + bonus + (u.includes('hivemind') ? 2 : 0), rof: b.rof, range: b.range,
+    rebuild: b.rebuild * (u.includes('hivemind') ? 0.5 : 1), splash: b.splash || 0, crit: 0, critDmg: 0, unique: u,
+    // combat drones hit for item-scaled damage; menders heal and aegis drones catch shots by rarity (a share of the hull)
+    power: b.kind === 'drone' && (b.drone === 'mender' || b.drone === 'aegis') ? b.power * RARITY[item.rarity].mult : b.power * scaleOf(item),
+  };
+  for (const a of item.affixes) {
+    switch (a.k) {
+      case 'dpow': s.power *= 1 + a.v; break;
+      case 'swarm': s.count += 1; break;
+      case 'rebuild': s.rebuild /= 1 + a.v; break;
+      case 'crit': s.crit += a.v; break;
+      case 'critDmg': s.critDmg += a.v; break;
+    }
+  }
+  if (b.drone === 'aegis') s.charges = Math.round(s.power);
+  return s;
+}
+// sustained damage of a bay on the sheet (for gear scores and the balance contract): sparrows fire
+// continuously, scarabs one blast per rebuild (and the opening swarm), splash counted once
+export function droneSheetDps(ds) {
+  if (ds.type === 'sparrow') return ds.count * ds.power * ds.rof * 0.85;
+  if (ds.type === 'scarab') return ds.power / ds.rebuild * (1 + Math.min(0.4, ds.splash / 20));
+  return 0;
+}
 export function exToolStats(item) {
   const b = EX_BASES[item.base];
   const s = { base: item.base, color: b.color, power: b.power * scaleOf(item), range: b.range, bonus: { ...b.bonus }, mine: 0, unique: item.unique || [] };
@@ -179,6 +225,7 @@ export function exToolStats(item) {
 // explorer-wide contributions (module base stats + non-weapon affixes + uniques)
 export function exItemStats(item, out) {
   const b = EX_BASES[item.base];
+  if (b.slot === 'bay') { for (const a of item.affixes) if (EX_AFFIXES[a.k].scope !== 'bay' && a.k !== 'crit' && a.k !== 'critDmg') out[a.k] = (out[a.k] || 0) + a.v; for (const u of item.unique || []) out['u_' + u] = 1; return out; }
   if (b.stats) {
     const m = RARITY[item.rarity].mult * (1 + item.ilvl * 0.02) * (1 + (item.lvl - 1) * 0.04);
     for (const [k, v] of Object.entries(b.stats)) out[k] = (out[k] || 0) + (k === 'armor' ? v * (1 + item.ilvl * 0.1) : v * m);
@@ -197,7 +244,7 @@ export function exItemScore(item) {
   return item.ilvl * 10 * (1 + RARITY[item.rarity].i * 0.18) * (1 + (item.lvl - 1) * 0.04) + item.affixes.length * 12 + (item.unique ? item.unique.length * 60 : 0);
 }
 
-export function exDescribe(item) {
+export function exDescribe(item, bonus = 0) {
   const b = EX_BASES[item.base], r = RARITY[item.rarity];
   const lines = [];
   if (b.slot === 'gun') {
@@ -205,10 +252,20 @@ export function exDescribe(item) {
     const per = s.kind === 'scatter' ? ` × ${s.pellets} pellets` : s.barrels > 1 ? ` × ${s.barrels}` : '';
     lines.push(`${s.dmg.toFixed(s.dmg < 10 ? 1 : 0)} damage${per}`);
     lines.push(`${s.rof.toFixed(1)} shots/s · range ${s.range.toFixed(0)}`);
-    lines.push(`DPS ${(s.dmg * s.pellets * s.barrels * s.rof).toFixed(0)}`);
+    lines.push(`Base DPS ${(s.dmg * s.pellets * s.barrels * s.rof).toFixed(0)}`);
     if (s.splash) lines.push(`Blast radius ${s.splash.toFixed(1)}`);
     if (s.chain) lines.push(`Arcs to ${s.chain} more targets`);
     if (s.pierce) lines.push(`Pierces ${s.pierce} creatures`);
+  } else if (b.slot === 'bay') {
+    const s = exDroneStats(item, bonus);
+    lines.push(b.blurb);
+    const pl = s.count === 1 ? 'drone' : 'drones';
+    if (s.type === 'sparrow') lines.push(`${s.count} ${pl} · ${s.power.toFixed(1)} damage × ${s.rof.toFixed(1)}/s each`, `Base DPS ${droneSheetDps(s).toFixed(0)} · reach ${s.range}`);
+    else if (s.type === 'scarab') lines.push(`${s.count} crawlers · ${s.power.toFixed(0)} blast damage, radius ${s.splash}`, `One rebuilt every ${s.rebuild.toFixed(1)}s · Base DPS ${droneSheetDps(s).toFixed(0)}`);
+    else if (s.type === 'mender') lines.push(`${s.count} ${pl} · each repairs ${(s.power * 100).toFixed(2)}% hull/s`);
+    else if (s.type === 'aegis') lines.push(`${s.count} ${pl} · each catches ${s.charges} shots`);
+    else if (s.type === 'magpie') lines.push(`${s.count} ${pl} · mining ${s.power.toFixed(1)}/s each · reach ${s.range}`);
+    lines.push(`Lost drones rebuilt every ${s.rebuild.toFixed(1)}s`);
   } else if (b.slot === 'tool') {
     const s = exToolStats(item);
     lines.push(`Mining power ${s.power.toFixed(1)}/s · range ${s.range}`);
@@ -255,7 +312,7 @@ export function starterExplorer() {
   return {
     v: 1, chassis: 'ex_rover_1', owned: ['ex_rover_1'], level: 1, xp: 0,
     loadout: {
-      'gun:0': makeExItem('chaingun', 1, 'common', rng),
+      'hp:0': makeExItem('chaingun', 1, 'common', rng),
       'tool:0': makeExItem('drill', 1, 'common', rng),
       'tool:1': makeExItem('harvester', 1, 'common', rng),
       'module:0': makeExItem('plating', 1, 'common', rng),
@@ -275,7 +332,22 @@ export function ensureExplorer(data) {
   data.refinery.ranks ||= {};
   const ex = data.explorer;
   ex.owned ||= [ex.chassis]; ex.scanned ||= {}; ex.inventory ||= []; ex.loadout ||= {};
+  ex.blueprints ||= ['chaingun', 'scatter', 'rockets', 'sparrow', 'mender'];   // economy.STARTER_BLUEPRINTS
   if (!EXPLORER_BY_ID[ex.chassis]) ex.chassis = 'ex_rover_1';
+  ex.owned = ex.owned.filter((id) => EXPLORER_BY_ID[id]);
+  if (!ex.owned.includes(ex.chassis)) ex.owned.push(ex.chassis);
+  // gun slots became hardpoints (a gun or a drone bay): 'gun:i' -> 'hp:i', overflow to the bay
+  if (!ex.hp) {
+    const L = ex.loadout, ch = EXPLORER_BY_ID[ex.chassis];
+    for (const k of Object.keys(L)) {
+      if (!k.startsWith('gun:')) continue;
+      const it = L[k]; delete L[k];
+      const i = +k.split(':')[1];
+      if (it && i < ch.slots.hp && !L[`hp:${i}`]) L[`hp:${i}`] = it; else if (it) ex.inventory.push(it);
+    }
+    for (const k of Object.keys(L)) if (!exSlotKeys(ch).includes(k)) { if (L[k]) ex.inventory.push(L[k]); delete L[k]; }
+    ex.hp = 1;
+  }
   return ex;
 }
 
@@ -291,12 +363,13 @@ export function grantExplorerXp(ex, xp) {
 export function explorerStats(ex) {
   const ch = EXPLORER_BY_ID[ex.chassis];
   const st = {};
-  const guns = [], tools = [];
+  const guns = [], tools = [], bays = [];
   for (const key of exSlotKeys(ch)) {
     const it = ex.loadout[key];
     if (!it) continue;
     exItemStats(it, st);
     if (it.slot === 'gun') guns.push({ key, item: it, ws: exWeaponStats(it) });
+    else if (it.slot === 'bay') bays.push({ key, item: it, ds: exDroneStats(it, ch.droneBonus || 0) });
     else if (it.slot === 'tool') tools.push({ key, item: it, ts: exToolStats(it) });
   }
   const lvlMul = 1 + (ex.level - 1) * 0.05;
@@ -309,16 +382,43 @@ export function explorerStats(ex) {
     pickup: 12 * (1 + (st.pickup || 0)), dmgMul: (1 + (st.dmg || 0)) * (1 + (ex.level - 1) * 0.045),
     crit: 0.05 + (st.crit || 0), critDmg: 0.5 + (st.critDmg || 0), cdr: Math.min(0.5, st.cdr || 0),
     mineMul: (1 + (st.mine || 0)) * (1 + (ex.level - 1) * 0.02), yieldMul: 1 + (st.yield || 0), lootFind: st.lootFind || 0, xpMul: 1 + (st.xp || 0),
-    leech: st.u_leech ? 0.05 : 0, overdrive: !!st.u_overdrive, guns, tools, raw: st,
+    leech: st.u_leech ? 0.05 : 0, overdrive: !!st.u_overdrive, guns, bays, tools, raw: st,
   };
   for (const g of guns) { g.ws.crit += out.crit; g.ws.critDmg += out.critDmg; }
+  for (const b of bays) { b.ds.crit += out.crit; b.ds.critDmg += out.critDmg; }
   return out;
 }
 
 // ---------------- loadout management ----------------
+// Hardpoints hold guns and drone bays together: at least one gun stays fitted, at most one bay of a
+// support kind, and bays fill at most half the mounts (all but one on a drone carrier).
+export function bayCap(ch) { return ch.droneBonus ? Math.max(1, ch.slots.hp - 1) : Math.floor(ch.slots.hp / 2); }
+// why a bay may not go on a mount (replacing what is there now), or '' when it may
+export function hpWhy(ex, ch, it, replacing) {
+  if (it.slot === 'gun') {
+    return '';
+  }
+  if (it.slot !== 'bay') return '';
+  const fitted = exSlotKeys(ch).filter((k) => k.startsWith('hp:')).map((k) => ex.loadout[k]).filter((x) => x && x !== replacing);
+  const bays = fitted.filter((x) => x.slot === 'bay'), guns = fitted.filter((x) => x.slot === 'gun');
+  const cap = bayCap(ch);
+  if (!cap) {
+    let m = ch.tier;
+    while (m < 12 && !bayCap(EXPLORER_BY_ID[`ex_${ch.frame}_${m}`])) m++;
+    const at = EXPLORER_BY_ID[`ex_${ch.frame}_${m}`];
+    const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][ch.tier - 1];
+    return `${ch.cls} Mk ${roman} carries only a gun: drone bays fit from ${at.fullName} (explorer level ${at.level}), or from Mk I on the Strider, Gunship, Lancer and Seraph`;
+  }
+  if (!guns.length && (fitted.length >= ch.slots.hp - 1 || (replacing && replacing.slot === 'gun'))) return 'One mount must keep a gun';
+  if (bays.length >= cap) return `This mark carries at most ${cap} drone bay${cap > 1 ? 's' : ''}`;
+  const support = (x) => ['mender', 'aegis', 'magpie'].includes(EX_BASES[x.base].drone);
+  if (support(it) && bays.some((x) => x.base === it.base)) return `One ${EX_BASES[it.base].name} at a time: support swarms don't stack`;
+  return '';
+}
+export const hpAllowed = (ex, ch, it, replacing) => !hpWhy(ex, ch, it, replacing);
 export function equipExItem(ex, item, slotKey = null) {
   const ch = EXPLORER_BY_ID[ex.chassis];
-  const keys = exSlotKeys(ch).filter((k) => k.startsWith(item.slot + ':'));
+  const keys = exSlotKeys(ch).filter((k) => k.startsWith(SLOT_OF[item.slot] + ':'));
   if (!keys.length) return false;
   let key = slotKey && keys.includes(slotKey) ? slotKey : keys.find((k) => !ex.loadout[k]);
   if (!key) key = keys.reduce((a, b) => (exItemScore(ex.loadout[a]) <= exItemScore(ex.loadout[b]) ? a : b));
@@ -340,10 +440,11 @@ export function equipBestEx(ex) {
   while (changed && guard++ < 40) {
     changed = false;
     for (const it of ex.inventory.slice().sort((a, b) => exItemScore(b) - exItemScore(a))) {
-      const keys = exSlotKeys(ch()).filter((k) => k.startsWith(it.slot + ':'));
+      const keys = exSlotKeys(ch()).filter((k) => k.startsWith(SLOT_OF[it.slot] + ':'));
       if (!keys.length) continue;
       const empty = keys.find((k) => !ex.loadout[k]);
       const worst = keys.reduce((a, b) => (exItemScore(ex.loadout[a]) <= exItemScore(ex.loadout[b]) ? a : b));
+      if (!hpAllowed(ex, ch(), it, empty ? null : ex.loadout[worst])) continue;   // never strip the last gun for a bay
       if (empty || exItemScore(it) > exItemScore(ex.loadout[worst]) * 1.02) { equipExItem(ex, it, empty || worst); changed = true; break; }
     }
   }
@@ -354,8 +455,35 @@ export function setExChassis(ex, id) {
   ex.chassis = id;
   const keys = new Set(exSlotKeys(EXPLORER_BY_ID[id]));
   for (const k of Object.keys(ex.loadout)) if (!keys.has(k)) { ex.inventory.push(ex.loadout[k]); delete ex.loadout[k]; }
+  const before = Object.values(ex.loadout).filter((x) => x && x.slot === 'bay').length;
   equipBestEx(ex);
+  enforceHardpoints(ex);
+  equipBestEx(ex);   // refill what the rules emptied (equipBestEx keeps to hpAllowed)
+  const ch = EXPLORER_BY_ID[id], after = Object.values(ex.loadout).filter((x) => x && x.slot === 'bay').length;
+  ex.swapNote = after < before ? `${before - after} drone bay${before - after > 1 ? 's' : ''} to the gear bay: ${ch.fullName} carries ${bayCap(ch)}` : '';
   return true;
+}
+// the hardpoint rules on whatever is fitted (after a frame swap): extra or doubled bays go to the bay,
+// and when bays fly without a gun, the best gun aboard takes a mount
+export function enforceHardpoints(ex) {
+  const ch = EXPLORER_BY_ID[ex.chassis], L = ex.loadout;
+  const mounts = exSlotKeys(ch).filter((k) => k.startsWith('hp:'));
+  const bayKeys = () => mounts.filter((k) => L[k] && L[k].slot === 'bay').sort((a, b) => exItemScore(L[a]) - exItemScore(L[b]));
+  const seen = new Set();
+  for (const k of bayKeys().reverse()) {   // best first: a doubled support swarm keeps its best copy
+    const it = L[k], d = EX_BASES[it.base].drone;
+    if (['mender', 'aegis', 'magpie'].includes(d) && seen.has(d)) { ex.inventory.push(it); delete L[k]; } else seen.add(d);
+  }
+  let b = bayKeys();
+  while (b.length > bayCap(ch)) { const k = b.shift(); ex.inventory.push(L[k]); delete L[k]; b = bayKeys(); }
+  if (b.length && !mounts.some((k) => L[k] && L[k].slot === 'gun')) {
+    const gun = ex.inventory.filter((x) => x.slot === 'gun').sort((x, y) => exItemScore(y) - exItemScore(x))[0];
+    if (gun) {
+      const k = mounts.find((m) => !L[m]) || b[0];
+      if (L[k]) ex.inventory.push(L[k]);
+      ex.inventory.splice(ex.inventory.indexOf(gun), 1); L[k] = gun;
+    } else { for (const k of b) { ex.inventory.push(L[k]); delete L[k]; } }   // no gun aboard: the bays wait rather than fly unescorted
+  }
 }
 
 // what scrapping an explorer item gives back (resources)
@@ -363,6 +491,7 @@ export function scrapYield(item) {
   const r = RARITY[item.rarity].i;
   const n = Math.round((3 + item.ilvl * 0.8) * (1 + r * 0.7));
   const out = { ore: n };
+  if (item.slot === 'gun' || item.slot === 'bay') out.tech = Math.max(1, Math.round(n * (item.slot === 'bay' ? 0.3 : 0.15)));
   if (r >= 1) out.crystal = Math.round(n * 0.4);
   if (r >= 2) out.isotope = Math.round(n * 0.25);
   if (r >= 3) out.datacore = Math.max(1, Math.round(r - 2));

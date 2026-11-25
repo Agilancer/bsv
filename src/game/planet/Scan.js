@@ -7,6 +7,7 @@ import { surveyPlanet, planetKey, featureName, RESOURCES, RES_KEYS, ORBITAL_PROB
 import { ensureExplorer, explorerStats } from './explorerItems.js';
 import { biomeFor } from './biomes.js';
 import { PlanetMode } from './PlanetMode.js';
+import { loadVehicle, loadParts } from './vehicleGLB.js';
 
 const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
@@ -245,7 +246,9 @@ export class Scanner {
     this.entry.querySelector('#pEntrySub').textContent = `${info.name} · ${site.name}`;
     this.entry.classList.add('show');
     G.planet.windows.closeAll(); G.ui.closeAll();
-    setTimeout(() => {
+    // the explorer's Blender model and its hardpoint parts load behind the entry overlay
+    const ready = Promise.race([Promise.all([loadVehicle(ensureExplorer(G.data).chassis), loadParts()]), new Promise((r) => setTimeout(r, 4000))]);
+    ready.then(() => setTimeout(() => {
       try {
         const mode = new PlanetMode(G, { info, sys: G.sector ? G.sector.sys : { id: 0, danger: 1 }, survey, site });
         mode.enter();
@@ -254,6 +257,6 @@ export class Scanner {
       this.state = 'idle';
       this.close();
       setTimeout(() => this.entry.classList.remove('show'), 700);
-    }, 450);
+    }, 450));
   }
 }

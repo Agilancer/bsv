@@ -259,7 +259,7 @@ export class CreatureBatch {
     const g = new THREE.Color(v.glow);
     const rim = float(1).sub(dot(normalView, positionView.normalize().negate()).clamp(0, 1)).pow(2.2);
     mat.emissiveNode = vc.mul(em).mul(sin(engine.uTime.mul(3).add(st.x.mul(0.7))).mul(0.2).add(0.9).add(st.z.mul(1.5)))
-      .add(vec3(3, 2.6, 2.2).mul(st.y)).add(vec3(g.r, g.g, g.b).mul(st.z).mul(2.5).mul(em.min(1)))
+      .add(vec3(1.05, 0.8, 0.55).mul(st.y)).add(vec3(g.r, g.g, g.b).mul(st.z).mul(2.5).mul(em.min(1)))
       .add(vec3(g.r, g.g, g.b).mul(rim).mul(uCreatureRim));
     const L = LEG[plan];
     if (L) {

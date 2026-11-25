@@ -238,7 +238,8 @@ test('fabrication, banking and cargo loss', () => {
   assert.equal(q.resources.ore, 0);
   const sy = scrapYield(makeExItem('rail', 10, 'legendary', new RNG(1)));
   assert.ok(sy.ore > 0 && sy.relic > 0);
-  assert.equal(Object.keys(RESOURCES).length, 6);
+  assert.equal(Object.keys(RESOURCES).length, 7);
+  assert.ok(sy.tech > 0, 'guns scrap for salvaged tech');
 });
 
 test('terrain height is deterministic, finite and flattened at the landing pad', () => {
@@ -368,10 +369,10 @@ test('explorer loadout: equip, unequip, best, and chassis swaps keep every item'
   const big = makeExItem('rail', 30, 'legendary', new RNG(12));
   ex.inventory.push(big);
   equipBestEx(ex);
-  assert.equal(ex.loadout['gun:0'], big, 'the better gun goes in');
+  assert.equal(ex.loadout['hp:0'], big, 'the better gun goes in');
   assert.equal(count(), n0 + 1);
-  assert.equal(unequipExItem(ex, 'gun:0'), true);
-  assert.equal(ex.loadout['gun:0'], undefined);
+  assert.equal(unequipExItem(ex, 'hp:0'), true);
+  assert.equal(ex.loadout['hp:0'], undefined);
   assert.equal(equipExItem(ex, big), true);
   ex.owned.push('ex_skiff_1');
   assert.equal(setExChassis(ex, 'ex_skiff_1'), true);
@@ -448,7 +449,8 @@ test('ground contract: landed shares and exposure are applied per archetype', ()
   }
   // the build the duel harness fields is the one the contract assumes
   const B = expectedBuild(20);
-  assert.ok(B.loadout['gun:0'] && B.loadout['tool:0'] && B.chassis.startsWith('ex_rover_'));
+  assert.ok(B.loadout['hp:0'] && B.loadout['tool:0'] && B.chassis.startsWith('ex_rover_'));
+  for (let i = 0; i < EXPLORER_BY_ID[B.chassis].slots.hp; i++) assert.ok(B.loadout[`hp:${i}`], `hardpoint ${i} filled`);
 });
 
 // ---- the living layer: fauna, curiosities, radio, report ----

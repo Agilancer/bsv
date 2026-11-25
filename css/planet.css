@@ -49,6 +49,11 @@
 #pGear .grow { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; white-space: nowrap; overflow: hidden; }
 #pGear .grow span:first-child { overflow: hidden; text-overflow: ellipsis; }
 #pGear .grow.tool span:first-child::before { content: '⛏ '; color: var(--text-dim); }
+#pGear .grow.drone span:first-child::before { content: '◈ '; color: var(--text-dim); }
+#pGear .dpips { display: flex; gap: 3px; align-items: center; }
+#pGear .dpips i { width: 6px; height: 6px; border: 1px solid rgba(160, 200, 255, 0.5); transform: rotate(45deg); }
+#pGear .dpips i.on { background: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+#pGear .dpips em { font-style: normal; font-size: 10px; color: var(--text-dim); margin-left: 3px; }
 .probe-row { display: grid; grid-template-columns: 70px 1fr 50px; gap: 6px; align-items: center; margin-top: 3px; font-family: var(--head); font-size: 9px; color: #7af0ff; }
 .probe-row .bar { height: 5px; }
 .probe-row .bar > i { background: #7af0ff; }
@@ -125,7 +130,41 @@ body.planet-hud-hidden .toast:not(.legend) { display: none; }
 .grid .cell.sel { border-color: var(--violet); box-shadow: inset 0 0 12px rgba(154, 107, 255, 0.5); }
 #wkDetail { font-size: 13px; }
 .hangar { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
-.hrow { display: grid; grid-template-columns: 80px repeat(10, 1fr); gap: 3px; align-items: center; }
+.hrow { display: grid; grid-template-columns: 80px repeat(12, 1fr); gap: 3px; align-items: center; }
+/* hardpoints (a gun or a drone bay) and the blueprint fabricator */
+.slots.hps .slot.hp { border-color: rgba(255, 190, 90, 0.35); box-shadow: inset 0 0 0 1px rgba(255, 190, 90, 0.12); }
+.slots.hps .slot.hp:empty::after { content: '◎'; display: block; text-align: center; line-height: 40px; color: rgba(255, 190, 90, 0.35); font-size: 18px; }
+.slots.hps .slot.bay { border-color: rgba(120, 255, 200, 0.45); box-shadow: inset 0 0 10px rgba(90, 255, 200, 0.18); }
+.bps { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-top: 6px; }
+.bps + .bps { grid-template-columns: repeat(5, 1fr); }
+.bp { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 2px; border: 1px solid rgba(80, 120, 200, 0.25); background: rgba(6, 12, 28, 0.6); cursor: pointer; font-family: var(--head); font-size: 9px; letter-spacing: 0.06em; color: var(--text-dim); text-transform: uppercase; text-align: center; }
+.bp svg { width: 20px; height: 20px; }
+.bp.bay { border-color: rgba(90, 255, 200, 0.25); }
+.bp:hover { border-color: var(--cyan); color: var(--white); }
+.bp.on { border-color: var(--violet); color: #e8dcff; box-shadow: inset 0 0 12px rgba(154, 107, 255, 0.55); }
+.bpinfo { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding: 8px 10px; border: 1px solid rgba(80, 120, 200, 0.2); background: rgba(6, 12, 28, 0.5); }
+.bpbtns { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+.mwork { display: flex; gap: 6px; align-items: flex-start; flex-wrap: wrap; }
+.mwork select { background: rgba(6, 12, 28, 0.85); color: var(--text); border: 1px solid rgba(154, 107, 255, 0.45); font: 12px var(--body, sans-serif); padding: 3px 4px; max-width: 220px; }
+.bp.locked { opacity: 0.42; filter: grayscale(0.7); }
+.bp .lock { font-style: normal; font-size: 10px; }
+.bp { position: relative; }
+.bpvs { font-size: 12px; margin-top: 5px; }
+.exhead { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 6px; }
+.slots.hps .hpi { position: absolute; left: 0; right: 0; bottom: -15px; text-align: center; font-size: 10px; color: var(--text-dim); white-space: nowrap; pointer-events: none; }
+.slots.hps { row-gap: 20px; margin-bottom: 14px; }
+.hprev { display: flex; gap: 12px; align-items: flex-start; margin-top: 10px; }
+.hprev .schem { flex: 0 0 340px; margin: 0; }
+.hprev #exChassisInfo { line-height: 1.5; font-size: 12px; text-transform: none; letter-spacing: 0; color: var(--text); }
+.bptext { flex: 1; min-width: 0; }
+.schem { display: block; width: 100%; max-width: 340px; aspect-ratio: 340 / 220; margin: 8px 0 2px; border: 1px solid rgba(88, 160, 255, 0.25); background: radial-gradient(ellipse at center, rgba(20, 50, 110, 0.35), rgba(4, 8, 22, 0.6)); }
+.slots.hps .slot { position: relative; }
+.slots.hps .slot.selm { border-color: var(--violet); box-shadow: inset 0 0 14px rgba(154, 107, 255, 0.7), 0 0 8px rgba(154, 107, 255, 0.5); }
+.item.bayitem svg { color: var(--bc, #6affd0); }
+.item .baybadge { position: absolute; right: 3px; top: 1px; font-size: 11px; color: var(--bc); text-shadow: 0 0 6px var(--bc); pointer-events: none; }
+.slots.hps .hpn { position: absolute; left: 3px; top: 1px; font-family: var(--head); font-size: 10px; color: rgba(255, 200, 120, 0.85); pointer-events: none; }
+.bpdesc { font-size: 12px; line-height: 1.4; color: var(--text); margin-top: 3px; }
+.slots.hps { grid-template-columns: repeat(5, 1fr); }
 .hname { font-family: var(--head); font-size: 10px; letter-spacing: 0.1em; color: var(--text); text-transform: uppercase; }
 .hmk { font-family: var(--head); font-size: 10px; text-align: center; padding: 3px 0; border: 1px solid rgba(80, 120, 200, 0.2); color: var(--text-dim); background: rgba(6, 12, 28, 0.6); cursor: pointer; }
 .hmk.owned { color: var(--white); border-color: var(--cyan-dim); background: rgba(30, 70, 130, 0.5); }
@@ -147,10 +186,18 @@ body.planet-hud-hidden .toast:not(.legend) { display: none; }
 #pTouch .tmine.on { border-color: var(--good); box-shadow: 0 0 18px rgba(74, 222, 128, 0.7); }
 
 @media (max-width: 900px) {
+  .bps { grid-template-columns: repeat(4, 1fr); }
+  .bps + .bps { grid-template-columns: repeat(3, 1fr); }
+  .bpinfo { flex-direction: column; align-items: stretch; }
+  .hprev { flex-direction: column; }
+  .hprev .schem { flex: none; width: 100%; }
+  .bpbtns { flex-wrap: wrap; }
+  .hrow { grid-template-columns: 56px repeat(12, 1fr); gap: 2px; }
+  .hmk { font-size: 9px; }
   .pwin, #pScanPanel { left: 8px; right: 8px; width: auto; transform: none; }
   .pcols { grid-template-columns: 1fr; }
   .sites { grid-template-columns: 1fr; }
-  .hrow { grid-template-columns: 60px repeat(10, 1fr); }
+  .hrow { grid-template-columns: 56px repeat(12, 1fr); gap: 2px; }
 }
 /* survey + bay windows sit over bright planets: keep them readable */
 #pScanPanel, .pwin { background: linear-gradient(160deg, rgba(14, 28, 66, 0.96), rgba(5, 10, 26, 0.97) 40%, rgba(9, 7, 30, 0.97)); backdrop-filter: blur(6px); }

@@ -24,7 +24,8 @@ const TEXTURES = ['hull_naval', 'hull_graphite', 'hull_gold', 'hull_glacier', 'h
   'pl_dune', 'pl_redsand', 'pl_clay', 'pl_salt', 'pl_canyon', 'pl_basalt', 'pl_scrub', 'pl_gypsum', 'pl_volcanic', 'pl_ochre', 'pl_shale', 'pl_granite', 'pl_banded', 'pl_grass', 'pl_rock'];
 
 async function boot() {
-  const engine = await new Engine(document.body).init();
+  const resume = readResume();                  // set when the last page reloaded for a lost graphics device
+  const engine = await new Engine(document.body).init({ webgl: !!(resume && resume.webgl) });
   window.__engine = engine;
   loadTxt.textContent = `${engine.backend} online · loading textures`;
   progress.onChange = (d, n, name) => { loadBar.style.width = `${(d / n) * 100}%`; loadTxt.textContent = `Loading ${name}`; };
@@ -35,6 +36,14 @@ async function boot() {
   const game = new Game(engine, input, cam);
   game.audio = new Audio();
   window.__game = game;
+  // graphics device lost (engine rebuilds the renderer): tell the captain; if it cannot be rebuilt,
+  // save and reload straight back into the game
+  engine.onGpu.push((state) => {
+    const ui = game.data && game.ui;
+    if (state === 'lost' && ui) ui.toast('Graphics device lost · restoring', 'warn');
+    else if (state === 'restored' && ui) ui.toast('Graphics restored');
+    else if (state === 'failed') gpuFailed(game, engine);
+  });
   // optional modules register themselves on the game (autoplay, stations, crew, planets...)
   await import('./game/modules.js').then((m) => m.install(game)).catch((e) => console.warn('modules', e));
   loadTxt.textContent = 'Systems nominal';
@@ -69,7 +78,30 @@ async function boot() {
   // render the title backdrop while waiting
   engine.start();
   const auto = new URLSearchParams(location.search);
-  if (auto.has('play')) go(auto.has('new') || !hasSave);
+  if (resume && resume.play && hasSave) {
+    // back from a graphics reload: straight into the saved game (even under ?play&new), autopilot as it was.
+    // The time and the backend stay noted: no second reload within a minute, WebGL2 for the rest of the session.
+    writeResume({ t: resume.t, webgl: resume.webgl });
+    go(false);
+    if (resume.auto && !game.autoplay) game.toggleAutoplay();
+  } else if (auto.has('play')) go(auto.has('new') || !hasSave);
+}
+
+// --- reload after a graphics device that could not be rebuilt ---
+const RESUME = 'velscour.gpuResume';
+function readResume() { try { return JSON.parse(sessionStorage.getItem(RESUME) || 'null'); } catch (e) { return null; } }
+function writeResume(v) { try { sessionStorage.setItem(RESUME, JSON.stringify(v)); } catch (e) { /* storage blocked: reload to the title */ } }
+function gpuFailed(game, engine) {
+  if (game.data && game.saveT < 1e8) game.saveNow();
+  const last = readResume() || {};
+  // WebGPU that cannot be kept running comes back once on WebGL2; WebGL2 reloads too, but not twice in a minute
+  const toGL = engine.backend === 'WebGPU';
+  if (!toGL && last.t && Date.now() - last.t < 60000) {
+    if (game.ui) { game.ui.toast('Graphics device lost · reload the page', 'warn'); game.ui.chat('SYS', null, 'The graphics device was lost and could not be restored. Progress is saved: reload the page to carry on.', 'sys'); }
+    return;
+  }
+  writeResume({ t: Date.now(), play: !!game.data, auto: !!game.autoplay, webgl: toGL || !!last.webgl });
+  location.reload();
 }
 
 boot().catch((e) => {

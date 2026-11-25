@@ -15,7 +15,8 @@ import { galaxy } from '../galaxy.js';
 import { RARITY, rollItem } from '../data/items.js';
 import { INV_SIZE, save } from '../Player.js';
 import { RNG } from '../../engine/rng.js';
-import { RESOURCES, RES_KEYS, addResources } from '../planet/economy.js';
+import { RESOURCES, RES_KEYS, addResources, learnBlueprint } from '../planet/economy.js';
+import { EX_BASES } from '../planet/explorerItems.js';
 import { kindOf } from '../station/services.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -113,6 +114,7 @@ export function installQuests(game) {
       else { const v = Math.round(it.value * 0.6); D.credits += v; extra += ` · hold full: ${it.name} sold for ${fmt(v)} ¢`; }
     }
     if (r.res) { addResources(D, r.res); extra += ' · ' + Object.entries(r.res).map(([k, v]) => `${v} ${RESOURCES[k] ? RESOURCES[k].short : k}`).join(' '); }
+    if (r.bp && D.explorer) { const k = learnBlueprint(D, null); if (k) extra += ` · blueprint: ${EX_BASES[k].name}`; }
     Q.resync();
     return extra;
   }
@@ -282,7 +284,7 @@ export function installQuests(game) {
   }
 
   // ---------------------------------------------------------------- shared pieces of quest UI
-  const rewardText = (r) => `<span class="val" style="color:#ffd66a">${fmt(r.credits || 0)} ¢</span> <span class="label">· ${fmt(r.xp || 0)} XP${r.item ? ` · <span style="color:${RARITY[r.item] ? RARITY[r.item].color : '#fff'}">${r.item} item</span>` : ''}${r.res ? ' · ' + Object.entries(r.res).map(([k, v]) => `${v} ${RESOURCES[k] ? RESOURCES[k].short : k}`).join(' ') : ''}</span>`;
+  const rewardText = (r) => `<span class="val" style="color:#ffd66a">${fmt(r.credits || 0)} ¢</span> <span class="label">· ${fmt(r.xp || 0)} XP${r.item ? ` · <span style="color:${RARITY[r.item] ? RARITY[r.item].color : '#fff'}">${r.item} item</span>` : ''}${r.res ? ' · ' + Object.entries(r.res).map(([k, v]) => `${v} ${RESOURCES[k] ? RESOURCES[k].short : k}`).join(' ') : ''}${r.bp ? ' · <span style="color:#ff7ad0">blueprint</span>' : ''}</span>`;
   const catTag = (q) => `<span class="qcat c-${q.cat}">${CAT_NAMES[q.cat] || 'Job'}</span>`;
   function activeRow(q) {
     const pct = Math.round(100 * Math.min(1, (q.progress || 0) / q.n));
