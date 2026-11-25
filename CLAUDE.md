@@ -13,6 +13,13 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     back into the game (sessionStorage `velscour.gpuResume`), on WebGL2 for the rest of the session after WebGPU fails.
 - `src/fx/` — GPU particles (`Particles.js`: analytic motion, write-once ring buffer), sky,
   celestial bodies, ship/station materials, debris, title scene, lighting rig.
+  - Ship materials (`materials.js` `hullMaterials(yard, glow, livery, paint)`): one cached set per key; nothing may
+    mutate a cached set. The captain's paint (`data/paint.js`: 10 schemes + "Yard colours", and a separate
+    running-lights accent) is a 4th key part with its own set, worn by the PLAYER's hull only: `Ship.setPaint` swaps
+    it onto the player's hull clone by material slot (procedural and kit hulls alike; no HullBuilder change) and sets
+    `ship.yard` so trails and effects follow. `game.setPaint({scheme, accent})` repaints in place and saves
+    `data.ship.paint` (per hull; `data.paint` = last choice, which a new hull takes). UI: `ui/paint.js`, folded in the
+    Ship window. Enemies, PvP captains, derelicts and the title line keep their own colours.
 - `src/game/` — `Game` (orchestrator, helm, rewards, equipment), `World` (sim hub), `Sector`
   (a star system + encounter director), `Player` (save data), `Autoplay`, `Loot`.
   - `data/` — chassis (60 ships + 60 explorers), items (bases/rarities/affixes/uniques),
@@ -26,6 +33,13 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     auto-fire at the nearest hostile in its own arc (`otherTarget`; enemy guns only take the captain's side, so factions
     do not fight each other); otherwise it keeps training on the ship's target. Barrels lead by the shot's real flight
     time, and launchers loft (`LOFT`: the mount elevates, the warhead climbs out and homes down); launch() uses the same line.
+    Part kits (docs/ships: `design-brief.md`, `kit-spec.md`): hulls are being rebuilt as Blender-made part kits, one
+    per design language. `tools/blender/ship_<lang>.py` (+ `shiplib.py`; `python3` with `bpy`) writes
+    `assets/ships/kits/<lang>.glb` and a `.json` dump; `ship/kitPlan.js` (pure: class layouts, section chain, length
+    fit, hardpoints from markers, bake) and `ship/kitAssembler.js` (loader, meshes) build the hull, and `buildHull`
+    uses them when the language's kit is loaded and `planHull` succeeds, else the procedural builder. So far: the
+    Velscour frigate (`velscour_3`) only. `tests/kit.test.mjs` checks the contract from the JSON dump.
+    Viewer: `&guns`, `&hp`, `&vs` (kit beside procedural), `&nokit`.
   - `combat/` — projectiles/beams (instanced), damage model, hangar craft. `ai/ShipAI.js`.
   - Feature modules install through `src/game/modules.js`: `station/`, `nav/`, `mmo/`,
     `autoplay/goals.js` (+ crew/bridge and planet modules).

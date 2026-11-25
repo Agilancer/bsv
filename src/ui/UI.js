@@ -4,6 +4,7 @@ import * as THREE from 'three/webgpu';
 import { icon } from './icons.js';
 import { drawHullPlan } from './hullPlan.js';
 import { installWindows } from './winman.js';
+import { paintPanel } from './paint.js';
 import { ABILITIES } from '../game/data/abilities.js';
 import { BASES, RARITY, describe, itemShipStats, weaponStats } from '../game/data/items.js';
 import { slotKeys, slotType, xpForLevel, shipXpForLevel, itemScore, INV_SIZE } from '../game/Player.js';
@@ -284,6 +285,7 @@ export class UI {
       <div class="title" style="color:var(--cyan)">${esc(P.ship.name)}</div>
       <div class="label" style="margin:2px 0 10px">${ch.fullName} · ${y.name} · Captain ${esc(P.name || 'Captain')}${P.title ? ', ' + esc(P.title) : ''}</div>
       <div id="charNames"></div>
+      <div id="charPaint"></div>
       <div style="font-size:13px;margin-bottom:6px">${y.blurb}</div>
       <div style="font-size:13px;margin-bottom:10px;color:var(--cyan)">${YARD_TRAITS[ch.yard] || ''}</div>
       <div class="label">Ship level ${P.ship.level}</div><div class="bar xp" style="margin:4px 0 12px"><i style="width:${(P.ship.xp / shipXpForLevel(P.ship.level) * 100).toFixed(1)}%"></i></div>
@@ -304,6 +306,7 @@ export class UI {
         ${row('Credits', fmt(P.credits) + ' ¢')}
       </div>`;
     if (g.namesPanel) g.namesPanel(body.querySelector('#charNames'));
+    paintPanel(g, body.querySelector('#charPaint'));
   }
 
   renderSkills() {

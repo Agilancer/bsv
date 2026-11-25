@@ -8,6 +8,7 @@ import {
 import { tex } from '../engine/Assets.js';
 import { YARDS } from '../game/data/chassis.js';
 import { LIVERIES } from '../game/data/liveries.js';
+import { paintKey, paintPalette } from '../game/data/paint.js';
 
 const cache = new Map();
 let engineRef = null;
@@ -28,15 +29,24 @@ export function windowsNode(winHex, density = 0.45, scale = 1) {
   return hdr(winHex, 2.2).mul(win).mul(on.add(flick).min(1)).mul(side);
 }
 
+export function hullMaterialsKey(yardKey, glowOverride = null, liveryKey = null, paint = null) {
+  const pk = paint ? paintKey(paint) : '';
+  return `${yardKey}:${glowOverride ?? ''}:${liveryKey ?? ''}` + (pk ? ':' + pk : '');
+}
+
 // One material set per yard (+ glow override, + faction livery). A livery (data/liveries.js)
 // repaints the yard's plating and colours the three marking materials: paint (lit livery colour),
 // mark (HDR stripes and seams) and glyph (HDR insignia).
-export function hullMaterials(yardKey, glowOverride = null, liveryKey = null) {
-  const key = `${yardKey}:${glowOverride ?? ''}:${liveryKey ?? ''}`;
+// `paint` ({ scheme, accent }, data/paint.js) is the captain's own colours: a painted set is built and
+// cached under its own key, so the sets every other ship shares are never touched.
+export function hullMaterials(yardKey, glowOverride = null, liveryKey = null, paint = null) {
+  const pk = paint ? paintKey(paint) : '';
+  const key = hullMaterialsKey(yardKey, glowOverride, liveryKey, paint);
   if (cache.has(key)) return cache.get(key);
   const lv = liveryKey ? LIVERIES[liveryKey] : null;
   let y = lv ? { ...YARDS[yardKey], ...lv.palette } : YARDS[yardKey];
   if (glowOverride != null) y = { ...y, glow: glowOverride, window: lv?.palette.window ?? glowOverride, engine: glowOverride };
+  if (pk) y = paintPalette(y, paint);
   const scale = float(1 / 16);
   const plate = (name, tint, rough, metal, windows = false, plain = false) => {
     const m = new THREE.MeshStandardNodeMaterial();

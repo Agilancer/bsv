@@ -16,6 +16,7 @@ import { PLAYER_NAMES, CHAT } from './data/names.js';
 import { Audio } from '../engine/Audio.js';
 import { installMobile, stickHeading } from '../ui/mobile.js';
 import { SHIP_PREFIX } from './Player.js';
+import { ensurePaint, normPaint } from './data/paint.js';
 
 const _v = new THREE.Vector3();
 
@@ -99,8 +100,8 @@ export class Game {
   }
 
   spawnPlayer(pos) {
-    const P = this.data;
-    const s = this.world.addShip({ chassis: CHASSIS_BY_ID[P.ship.chassis], loadout: P.ship.loadout, team: 1, isPlayer: true, name: P.ship.name, level: P.ship.level, faction: 'player' }, false);
+    const P = ensurePaint(this.data);   // old saves: yard colours; a new hull: the captain's last choice
+    const s = this.world.addShip({ chassis: CHASSIS_BY_ID[P.ship.chassis], loadout: P.ship.loadout, team: 1, isPlayer: true, name: P.ship.name, level: P.ship.level, faction: 'player', paint: P.ship.paint }, false);
     s.position.copy(pos);
     s.persistent = true;
     s.extraStats = this.extraStats(); s.weaponMod = talentWeaponMod(P); s.refit(); s.hull = s.maxHull;
@@ -124,6 +125,18 @@ export class Game {
     if (this.docked) s.invuln = true;
     this.ui.refresh();
     return s;
+  }
+
+  // The captain's colours (data/paint.js): { scheme?, accent? } repaints the flagship where she lies
+  // (materials only: position, damage and state are untouched) and is saved with the hull.
+  setPaint(patch) {
+    const P = this.data;
+    P.ship.paint = normPaint({ ...normPaint(P.ship.paint), ...patch });
+    P.paint = { ...P.ship.paint };
+    if (this.player && this.player.alive) this.player.setPaint(P.ship.paint);
+    save(P);
+    if (this.ui) this.ui.refresh();
+    return P.ship.paint;
   }
 
   // the battle zone furthest from anything hostile (respawns without a station)
