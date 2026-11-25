@@ -151,8 +151,8 @@ function rockShape(seed) {
     }
     pos.setXYZ(i, v.x * k * stretch.x, v.y * k * stretch.y, v.z * k * stretch.z);
   }
-  const ng = g.toNonIndexed(); ng.computeVertexNormals();
-  return ng;
+  g.computeVertexNormals();   // (polyhedra are already non-indexed: faceted)
+  return g;
 }
 let ROCK_GEO = null, ROCK_MAT = null;
 export function asteroidField(ph, engine) {
@@ -203,6 +203,7 @@ function beamGeo(len, w0, w1) {
   g.setAttribute('position', new THREE.Float32BufferAttribute([-w0, 0, 0, w0, 0, 0, -w1, 0, len, w1, 0, len], 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 1, 1], 2));
   g.setIndex([0, 2, 1, 1, 2, 3]);
+  g.computeVertexNormals();
   return g;
 }
 export function pulsar(ph, engine) {
@@ -275,8 +276,8 @@ export function quasarJet(ph, engine) {
   const s2 = float(1).sub(abs(mx_noise_float(vec3(u.mul(23), v.mul(ph.len / 120).add(t.mul(4.1)), 7.7)))).pow(9);
   const core = smoothstep(1, 0, across).pow(1.5);
   const ends = smoothstep(0, 0.06, v).mul(smoothstep(1, 0.94, v));
-  m.colorNode = mix(col(0x6a5aff, 2), col(0xf0f0ff, 5), core.mul(s1.add(s2)));
-  m.opacityNode = clamp(core.mul(0.22).add(s1.mul(0.5).add(s2.mul(0.4)).mul(smoothstep(1, 0.2, across))), 0, 1).mul(ends);
+  m.colorNode = mix(col(0x5a4adf, 0.9), col(0xe0e0ff, 2), core.mul(s1.add(s2)));
+  m.opacityNode = clamp(core.mul(0.1).add(s1.mul(0.3).add(s2.mul(0.22)).mul(smoothstep(1, 0.2, across))), 0, 1).mul(ends);
   const ribbon = mesh(g, m, 3);
   ribbon.position.set(ph.x, -20, ph.z);
   ribbon.rotation.y = Math.atan2(ph.dx, ph.dz);
