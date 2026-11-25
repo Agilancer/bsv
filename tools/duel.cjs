@@ -37,7 +37,7 @@ const { chromium } = require('playwright');
         if (!ONLY.includes(si)) continue;
         for (const s of W.ships.slice()) if (s !== g.player) W.removeShip(s);
         // nothing carried over from the previous duel: shots and torpedoes in flight, hangar craft, loot, scheduled spawns
-        W.projectiles.clear(); W.beams.clear(); W.hangars.clear(); W.loot.clear(); W.timers.length = 0; W.fields.length = 0; W.warnings.length = 0;
+        W.projectiles.clear(); W.beams.clear(); W.hangars.clear(); if (W.mines) W.mines.clear(); W.loot.clear(); W.timers.length = 0; W.fields.length = 0; W.warnings.length = 0;
         g.data.level = L; g.data.ship.level = L; g.data.ship.chassis = `velscour_${E.tier}`;
         g.data.ship.loadout = starterLoadout({ ...(await import('./src/game/data/chassis.js')).CHASSIS_BY_ID[`velscour_${E.tier}`] }, L, new RNG(L + si + sample * 101), 'rare');
         g.data.talents = standardTalents(L).talents;     // the contract's captain has the standard build

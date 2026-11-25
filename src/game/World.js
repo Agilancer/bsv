@@ -6,6 +6,7 @@ import { SpaceLights } from '../fx/lighting.js';
 import { Projectiles, Beams } from './combat/Projectiles.js';
 import { Combat } from './combat/Combat.js';
 import { Hangars } from './combat/Hangars.js';
+import { Mines } from './combat/Mines.js';
 import { Loot } from './Loot.js';
 import { Debris } from '../fx/Debris.js';
 import { ELITE_MODS } from './data/eliteMods.js';
@@ -13,6 +14,7 @@ import { spawnDesign } from './enemyFactory.js';
 import { Ship } from './ship/Ship.js';
 import { ShipAI } from './ai/ShipAI.js';
 import { ABILITY_BY_KEY } from './data/abilities.js';
+import { LAY, minesUnlocked } from './data/mines.js';
 
 export class Events {
   constructor() { this.h = {}; }
@@ -38,6 +40,7 @@ export class World {
     this.projectiles = new Projectiles(this);
     this.beams = new Beams(this);
     this.hangars = new Hangars(this);
+    this.mines = new Mines(this);
     this.loot = new Loot(this);
     this.debris = new Debris(this);
     this.combat = new Combat(this);
@@ -117,6 +120,12 @@ export class World {
   }
 
   npcAbility(s, tg) {
+    // PvP captains carry a mine rack like the player's (a kind of their rank, chosen once)
+    if (s.npcPlayer && s.level >= LAY.unlock && Math.random() < 0.2) {
+      if (!s.mineType) { const have = minesUnlocked(s.level); s.mineType = have[Math.floor(Math.random() * have.length)].k; }
+      ABILITY_BY_KEY.mines.run(this, s);
+      return;
+    }
     const pick = Math.random();
     const k = pick < 0.4 ? 'volley' : pick < 0.6 ? 'shields' : pick < 0.85 ? 'torpspread' : 'evasive';
     ABILITY_BY_KEY[k].run(this, s);
@@ -137,6 +146,8 @@ export class World {
     this.projectiles.update(dt);
     this.beams.update(dt);
     this.hangars.update(dt, t);
+    this.mines.update(dt, t);
+    this.mines.draw(t);
     this.loot.update(dt, t);
     this.debris.update(dt);
     this.updateFields(dt, t);
@@ -189,7 +200,7 @@ export class World {
             const pull = (1 - d / f.r) * 90 * dt;
             s.position.lerp(f.pos, Math.min(0.5, pull / Math.max(1, d)));
             s.velocity.multiplyScalar(Math.exp(-dt * 2));
-            this.combat.damage(s, f.dps * dt * (1 - d / f.r * 0.5), 'energy', s.position, f.owner, null);
+            this.combat.damage(s, f.dps * dt * (1 - d / f.r * 0.5), 'energy', f.pos, f.owner, null);
           }
         }
       }
@@ -199,7 +210,7 @@ export class World {
 
   clearAll(keepPlayer = true) {
     for (const s of this.ships.slice()) if (!(keepPlayer && s === this.player)) this.removeShip(s);
-    this.projectiles.clear(); this.beams.clear(); this.hangars.clear(); this.loot.clear(); this.debris.clear();
+    this.projectiles.clear(); this.beams.clear(); this.hangars.clear(); this.mines.clear(); this.loot.clear(); this.debris.clear();
     this.timers.length = 0; this.fields.length = 0; this.warnings.length = 0;
     for (const b of this.bodies) this.engine.scene.remove(b);
     this.bodies.length = 0;

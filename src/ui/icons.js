@@ -32,6 +32,7 @@ export const ICONS = {
   gravity: S('<circle cx="16" cy="16" r="3" fill="currentColor"/><path d="M16 5a11 11 0 0 1 11 11M27 16a11 11 0 0 1-11 11M16 27A11 11 0 0 1 5 16M5 16A11 11 0 0 1 16 5"/><path d="M16 9a7 7 0 0 1 7 7M9 16a7 7 0 0 1 7-7"/>'),
   crew: S('<circle cx="16" cy="10" r="5"/><path d="M6 28c0-6 4-10 10-10s10 4 10 10"/>'),
   map: S('<circle cx="16" cy="16" r="12"/><path d="M4 16h24M16 4c4 4 4 20 0 24M16 4c-4 4-4 20 0 24"/>'),
+  mine: S('<circle cx="16" cy="16" r="7"/><circle cx="16" cy="16" r="2" fill="currentColor"/><path d="M16 3v6M16 23v6M3 16h6M23 16h6M7 7l4 4M21 21l4 4M25 7l-4 4M11 21l-4 4"/>'),
   auto: S('<circle cx="16" cy="16" r="11"/><path d="M13 11l8 5-8 5z" fill="currentColor"/>'),
 };
 export const icon = (k) => ICONS[k] || ICONS.reactor;
