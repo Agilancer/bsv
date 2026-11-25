@@ -131,6 +131,24 @@ export class Audio {
     this.burst(t + 0.01, 0.32, 0.16 * g, 5200, 3, 'bandpass', 2400);
     return 0.5;
   }
+  // a long engine / re-entry roar: low noise swelling and dying away under a sub-bass drone
+  rumble(t, g) {
+    const c = this.ctx, D = 3.2;
+    const s = c.createBufferSource(), fl = c.createBiquadFilter(), gn = c.createGain();
+    s.buffer = this.noise; s.loop = true; s.playbackRate.value = 0.5;
+    fl.type = 'lowpass'; fl.frequency.setValueAtTime(140, t); fl.frequency.linearRampToValueAtTime(320, t + D * 0.4); fl.frequency.linearRampToValueAtTime(120, t + D); fl.Q.value = 0.8;
+    gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.5 * g, t + 0.5); gn.gain.exponentialRampToValueAtTime(0.0001, t + D);
+    s.connect(fl).connect(gn).connect(this.sfx); gn.connect(this.verb);
+    s.start(t, Math.random()); s.stop(t + D + 0.05);
+    this.osc('sine', 46, 32, t, D, 0.35 * g);
+    return 1.2;
+  }
+  // a sonic boom: the double crack of the bow and tail shocks, then a rolling tail
+  boom(t, g) {
+    for (const dt of [0, 0.11]) { this.osc('sine', 90, 26, t + dt, 0.7, 0.8 * g); this.burst(t + dt, 0.25, 0.7 * g, 2400, 0.5, 'lowpass', 160); }
+    this.burst(t + 0.15, 2.2, 0.3 * g, 600, 0.4, 'lowpass', 60).connect(this.verb);
+    return 1;
+  }
   whoosh(t, g) { this.burst(t, 0.42, 0.22 * g, 500, 1.6, 'bandpass', 3400); this.osc('sawtooth', 70, 160, t, 0.4, 0.04 * g); return 0.3; }
   loot(t, g) { [1046, 1318, 1568, 2093].forEach((f, i) => this.osc('sine', f, f, t + i * 0.06, 0.6, 0.08 * g).connect(this.verb)); return 0.5; }
 
