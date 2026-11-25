@@ -11,6 +11,7 @@
 import * as THREE from 'three/webgpu';
 import { wrapAngle, clamp } from '../engine/rng.js';
 import { ABILITY_BY_KEY } from './data/abilities.js';
+import { pickMine } from './data/mines.js';
 import { buildFor, spendTalentPoints, describeTalents } from './autoplay/build.js';
 import { holdTriage } from './autoplay/refit.js';
 
@@ -204,6 +205,7 @@ export class Autoplay {
       const away = Math.atan2(s.position.x - c.x, s.position.z - c.z);
       s.steerHeading(away, 1);
       this.ability('evasive'); this.ability('shields');
+      if (foes.length) this.layMines(foes, foes[0]);   // a field across the pursuit
       if (s.hull / s.maxHull > 0.55 || !foes.length) this.state = 'patrol';
       return;
     }
@@ -278,6 +280,19 @@ export class Autoplay {
     if (dist < range * 1.1) this.ability('overcharge');
     if (foes.filter((o) => o.position.distanceTo(tg.position) < 300).length >= 2 || tg.elite) this.ability('gravwell');
     if (tg.elite || tg.maxHull > s.maxHull * 1.5) this.ability('nova');
+    // mines: sown astern when a hostile is close behind, or a pack is close in
+    const near = foes.filter((o) => o.position.distanceToSquared(s.position) < 560 * 560);
+    const fx = Math.sin(s.heading), fz = Math.cos(s.heading);
+    if (near.some((o) => (o.position.x - s.position.x) * fx + (o.position.z - s.position.z) * fz < 0) || near.length >= 2) this.layMines(foes, tg);
+  }
+
+  // load the kind that suits the fight (data/mines.js pickMine), then sow
+  layMines(foes, tg) {
+    const g = this.game, s = g.player, a = ABILITY_BY_KEY.mines;
+    if (!a || g.data.level < a.unlock || (g.cooldowns.mines || 0) > g.engine.time) return false;
+    const k = pickMine({ level: g.data.level, foes: foes.length, targetShield: tg ? tg.shieldTotal() / Math.max(1, tg.maxShield * 1.2) : 0, targetBig: !!tg && (tg.elite > 0 || tg.maxHull > s.maxHull * 1.5), fast: !!tg && tg.maxSpeed > s.maxSpeed * 1.1 });
+    g.loadMine(k, true);
+    return this.ability('mines');
   }
 
   ability(k) {

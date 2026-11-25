@@ -26,6 +26,7 @@ const HOLD = [
   ['#inventory .cell', 'Equip', 'Salvage'], ['#inventory .slot', 'Unequip', ''],
   ['.pwin .cell[data-i]', 'Equip', 'Scrap'], ['.pwin .slot', 'Unequip', ''],
   ['[data-buy]', 'Buy', ''], ['[data-sell]', 'Sell', ''], ['.tal.can', 'Learn', ''],
+  ['#abilities .ab[data-k="mines"]', 'Lay', 'Next kind'],
 ];
 const HOLD_MS = 450, HOLD_SLOP = 10;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

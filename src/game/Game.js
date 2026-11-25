@@ -5,6 +5,7 @@ import { Sector } from './Sector.js';
 import { UI } from '../ui/UI.js';
 import { CHASSIS_BY_ID } from './data/chassis.js';
 import { ABILITIES, ABILITY_BY_KEY } from './data/abilities.js';
+import { MINE_BY_KEY, minesUnlocked } from './data/mines.js';
 import { RARITY, rollItem, grantItemXp, BASES } from './data/items.js';
 import { newPlayer, load, save, wipe, xpForLevel, shipXpForLevel, MAX_LEVEL, INV_SIZE, slotKeys, slotType, itemScore, setScoreRef } from './Player.js';
 import { THROTTLE_STEPS } from './ship/Ship.js';
@@ -337,6 +338,23 @@ export class Game {
     if (this.data.credits < cost) { this.ui.toast(`Respec costs ${cost} ¢`, 'warn'); return; }
     this.data.credits -= cost; this.data.talents = {}; this.refitPlayer();
   }
+  // the Mine Rack: which kind ability 9 sows (save data: data.mineType)
+  loadMine(k, quiet) {
+    const m = MINE_BY_KEY[k];
+    if (!m) return false;
+    if (this.data.level < m.unlock) { if (!quiet) this.ui.toast(`${m.name} unlocks at rank ${m.unlock}`, 'warn'); return false; }
+    if (this.data.mineType === k) return true;
+    this.data.mineType = k;
+    if (!quiet) this.ui.toast(`Mine Rack: ${m.name} loaded`);
+    if (this.ui.refresh) this.ui.refresh();
+    return true;
+  }
+  cycleMine() {
+    const have = minesUnlocked(this.data.level);
+    if (!have.length) { this.ui.toast(`Mines unlock at rank ${ABILITY_BY_KEY.mines.unlock}`, 'warn'); return false; }
+    const i = have.findIndex((m) => m.k === this.data.mineType);
+    return this.loadMine(have[(i + 1) % have.length].k);
+  }
   useAbility(k) {
     const a = ABILITY_BY_KEY[k], s = this.player;
     if (!a || !s || !s.alive) return false;
@@ -430,7 +448,8 @@ export class Game {
     }
     if (inp.hit('nextTarget')) this.cycleTarget();
     if (inp.hit('fire')) this.useAbility('volley');
-    for (let i = 0; i < 8; i++) if (inp.hit('ab' + (i + 1))) this.useAbility(ABILITIES[i].k);
+    for (let i = 0; i < 9; i++) if (inp.hit('ab' + (i + 1))) this.useAbility(ABILITIES[i].k);
+    if (inp.hit('mineRack')) this.cycleMine();
     // keep a target: if none, take the nearest hostile that is shooting at us
     if ((!s.target || !s.target.alive) && s.lastAttacker && s.lastAttacker.alive) s.target = s.lastAttacker;
   }

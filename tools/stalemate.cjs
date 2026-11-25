@@ -31,7 +31,7 @@ const { chromium } = require('playwright');
         if (!d) continue;
         for (const stat of [false, true]) {
           for (const s of W.ships.slice()) if (s !== g.player) W.removeShip(s);
-          W.projectiles && W.projectiles.clear && W.projectiles.clear();
+          W.projectiles && W.projectiles.clear && W.projectiles.clear(); if (W.mines) W.mines.clear();
           g.data.level = L; g.data.ship.level = L; g.data.ship.chassis = `velscour_${E.tier}`;
           g.data.ship.loadout = starterLoadout(CHASSIS_BY_ID[`velscour_${E.tier}`], L, new RNG(L * 7 + 3), 'rare');
           g.data.talents = {};

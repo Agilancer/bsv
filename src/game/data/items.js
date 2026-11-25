@@ -94,6 +94,8 @@ export const DMG_TYPES = {
   explosive: { shield: 0.6, hull: 1.45 },
   ion: { shield: 2.2, hull: 0.25 },
 };
+// what a shield flare looks like by what it absorbed (the bubble's ripple, its sparks, the facing arcs)
+export const SHIELD_HIT = { kinetic: 0xfff0c8, energy: 0x8ae8ff, explosive: 0xffa860, ion: 0xb48aff };
 // Ion disruption: a struck ship's shields stop regenerating and its guns reload this much
 // slower for the weapon's `disrupt` seconds. The captain's fire control is hardened against
 // it: on the player's ship only the shield lock applies.

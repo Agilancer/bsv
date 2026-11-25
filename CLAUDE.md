@@ -27,6 +27,19 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     do not fight each other); otherwise it keeps training on the ship's target. Barrels lead by the shot's real flight
     time, and launchers loft (`LOFT`: the mount elevates, the warhead climbs out and homes down); launch() uses the same line.
   - `combat/` — projectiles/beams (instanced), damage model, hangar craft. `ai/ShipAI.js`.
+  - Shields you can see: `fx/materials.js` `shieldMaterial` lights each of the four facings by its own charge (`facing`
+    uniform; `idle` = the standing shell, always on the captain's ship, fainter on their target), and ripples a hit in
+    the colour of what it absorbed (`items.js` `SHIELD_HIT` by damage type, `Ship.onShieldHit`). The overlay
+    (`UI.drawShieldArcs`) draws the facings as arcs round the nav ring under the captain's ship. `Combat.damage` leaves
+    `lastShield` / `lastHull` (what the bubble took, what got through) for riders that need a breach.
+  - Mines (`data/mines.js` pure + `combat/Mines.js`, `world.mines`): ten kinds, every one worth the same `VALUE`
+    (`sec x (1 + edge)`, test-enforced): contact, frag, ion, plasma, tether, seeker, cluster, graviton, phantom, lance.
+    A mine senses the shield bubble (`shipCapsule`), so the facing toward it takes the blast; `absorb` says what the
+    bubble stops (a plasma burn needs a breach, a tether passes it). The captain: ability 9 sows `LAY.count` of the kind in
+    the Mine Rack (`data.mineType`; skills window tab, key 0 / right-click cycles; autoplay `pickMine`). Enemies: the
+    `mines` special lays its faction's two-kind kit (`enemyMineKit`) at the old budget (`ENEMY_SEC`, through the damage
+    window); PvP and MMO captains (`npcPlayer`, rank 4+) sometimes sow their own kind (`World.npcAbility`). Wake of
+    Thorns lays contact mines through the same system.
   - Feature modules install through `src/game/modules.js`: `station/`, `nav/`, `mmo/`,
     `autoplay/goals.js` (+ crew/bridge and planet modules).
   - The autoplay captain's decisions are pure, node-tested modules called from one line each:

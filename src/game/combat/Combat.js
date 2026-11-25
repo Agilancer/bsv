@@ -6,7 +6,7 @@
 //    poor vs shields), ion (strips shields, barely scratches hull).
 import * as THREE from 'three/webgpu';
 import { dpsCapVs } from '../data/balance.js';
-import { DMG_TYPES as TYPE } from '../data/items.js';
+import { DMG_TYPES as TYPE, SHIELD_HIT } from '../data/items.js';
 // a single telegraphed strike may take up to this share of the captain's effective HP
 export const TELEGRAPH_HIT = 0.22;
 // weapon-stats tag for telegraphed special damage (no crit roll, no uniques)
@@ -128,7 +128,10 @@ export class Combat {
   }
 
   // Core damage entry. Returns damage dealt.
+  // (lastShield / lastHull: what the bubble absorbed and what got through on the latest call,
+  // for riders that only a breach carries, like a plasma mine's burn)
   damage(ship, amount, type, point, source, ws) {
+    this.lastShield = 0; this.lastHull = 0;
     if (!ship.alive || ship.invuln) return 0;
     const W = this.world;
     const T = TYPE[type] || TYPE.kinetic;
@@ -184,14 +187,14 @@ export class Combat {
       const take = Math.min(sh, want);
       ship.shields[fi] -= take; shieldDealt = take;
       dmg = (want - take) / sMul; // leftover goes to hull at hull rate
-      ship.onShieldHit(point, fi);
-      W.fx.impact(point, ship.shieldColor, 1, true);
+      ship.onShieldHit(point, fi, type, take, ship.shields[fi] <= 0);
+      W.fx.impact(point, SHIELD_HIT[type] || ship.shieldColor, 1, true);
     } else if (sh > 0 && ignoreShield) {
       const sMul = T.shield * (1 + (ws.shieldDmg || 0));
       const take = Math.min(sh, dmg * sMul * (1 - ignoreShield));
       ship.shields[fi] -= take; shieldDealt = take;
       dmg = dmg * ignoreShield;
-      ship.onShieldHit(point, fi);
+      ship.onShieldHit(point, fi, type, take, ship.shields[fi] <= 0);
     }
     // Retribution: a collapsing facing bursts outward and re-forms
     if (sh > 0 && ship.shields[fi] <= 0 && ship.stats && ship.stats.u_retribution && now > (ship._retributionT || 0)) this.retribution(ship, fi, now);
@@ -225,6 +228,7 @@ export class Combat {
     if (source && source.alive && source.trait === 'covenant') source.repair(total * 0.08);   // the Covenant feed
     ship.recentDmg = (ship.recentDmg || 0) + total;
     W.events.emit('damage', { ship, amount: total, crit, shield: hullDealt < 0.01, point, source });
+    this.lastShield = shieldDealt; this.lastHull = hullDealt;   // (after any chained damage above)
     if (ship.hull <= 0) W.kill(ship, source);
     return total;
   }

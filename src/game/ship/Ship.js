@@ -7,7 +7,7 @@ import * as THREE from 'three/webgpu';
 import { hullFor } from './HullBuilder.js';
 import { buildWeapon } from './WeaponModels.js';
 import { shieldMaterial, rimVariant } from '../../fx/materials.js';
-import { BASES, weaponStats, itemShipStats, DISRUPT } from '../data/items.js';
+import { BASES, weaponStats, itemShipStats, DISRUPT, SHIELD_HIT } from '../data/items.js';
 import { YARDS } from '../data/chassis.js';
 import { clamp, wrapAngle, damp } from '../../engine/rng.js';
 
@@ -20,8 +20,7 @@ const ALT_SCAN = 0.4;   // s between a gun's looks round for something else to s
 const ARC = { broadside: 0.95, turret: 2.4, prow: 0.5, hangar: Math.PI };   // turret: half-angle from the bow (blind astern)
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
 const _a = new THREE.Vector3();   // aim point (Ship.aim)
-// reused spawn spec for Wake of Thorns mines (Projectiles.spawn copies what it needs)
-const MINE = { pos: new THREE.Vector3(), vel: new THREE.Vector3(0, 0, 0.001), kind: 'mine', team: 1, owner: null, dmg: 0, dmgType: 'explosive', ws: { crit: 0, unique: [] }, life: 14, splash: 55, color: 0xffa040, size: 2.4, len: 3, trail: 0 };
+const MINE_OPT = { dmg: 0, life: 14 };   // Wake of Thorns (reused: Mines.lay copies what it needs)
 let SHIP_ID = 1;
 
 export const THROTTLE_STEPS = [-0.25, 0, 0.25, 0.5, 0.75, 1];
@@ -63,6 +62,10 @@ export class Ship {
     this.shieldMesh.position.y = this.dims.top * 0.25;
     this.shieldMesh.renderOrder = 12;
     this.body.add(this.shieldMesh);
+    // per facing: when it last absorbed something, what, and when it last collapsed (the overlay's facing arcs)
+    this.shieldHitT = [-100, -100, -100, -100];
+    this.shieldHitType = ['energy', 'energy', 'energy', 'energy'];
+    this.shieldBreakT = [-100, -100, -100, -100];
 
     this.position = this.root.position;
     this.velocity = new THREE.Vector3();
@@ -159,11 +162,22 @@ export class Ship {
   get forward() { return _v.set(Math.sin(this.heading), 0, Math.cos(this.heading)); }
   shieldTotal() { return this.shields[0] + this.shields[1] + this.shields[2] + this.shields[3]; }
 
-  onShieldHit(point, facing) {
-    const u = this.shieldMat.userData;
+  // the bubble absorbed `taken` of a `type` hit on facing fi (broke: the facing collapsed under it)
+  onShieldHit(point, fi = 0, type = 'energy', taken = 0, broke = false) {
+    const u = this.shieldMat.userData, now = this.world.engine.time;
     this.shieldMesh.worldToLocal(_w.copy(point));
     u.hitPos.value.copy(_w).normalize();
-    u.hitTime.value = this.world.engine.time;
+    // small rapid hits do not restart a big ripple that is still running
+    const amp = broke ? 1.8 : clamp(0.45 + taken / Math.max(1, this.maxShield * 0.3) * 3, 0.45, 1.4);
+    if (now - u.hitTime.value > 0.12 || amp >= u.hitAmp.value) {
+      u.hitTime.value = now; u.hitAmp.value = amp;
+      u.hitCol.value.set(SHIELD_HIT[type] || this.shieldColor);
+    }
+    this.shieldHitT[fi] = now; this.shieldHitType[fi] = type;
+    if (broke) {
+      this.shieldBreakT[fi] = now;
+      this.world.fx.impact(point, SHIELD_HIT[type] || this.shieldColor, 2.2, true);
+    }
   }
 
   // cloaking: hull and guns vanish (only a faint shimmer of the bubble), untargetable
@@ -246,7 +260,11 @@ export class Ship {
       this.sowMine();
     }
     const lvl = this.shieldTotal() / (this.maxShield * 1.2);
-    this.shieldMat.userData.level.value = lvl;
+    const su = this.shieldMat.userData, fc = Math.max(1e-6, cap);
+    su.level.value = lvl;
+    su.facing.value.set(this.shields[0] / fc, this.shields[1] / fc, this.shields[2] / fc, this.shields[3] / fc);
+    // the standing shell: always on the captain's ship, fainter on the ship they have targeted
+    su.idle.value = damp(su.idle.value, this.isPlayer ? 1 : W.player && W.player.target === this ? 0.55 : 0, 4, dt);
     this.shieldMesh.visible = lvl > 0.02;
 
     // burning
@@ -295,12 +313,9 @@ export class Ship {
   // drop a proximity mine off the stern (Wake of Thorns): 3 s of this ship's firepower
   sowMine() {
     const back = this.dims.L * 0.55;
-    MINE.pos.set(this.position.x - Math.sin(this.heading) * back, this.position.y, this.position.z - Math.cos(this.heading) * back);
-    MINE.team = this.team; MINE.owner = this;
-    MINE.dmg = (this.rawDps || 20) * 3;
-    MINE.splash = 50 + this.dims.W;
-    this.world.projectiles.spawn(MINE);
-    MINE.owner = null;
+    _w.set(this.position.x - Math.sin(this.heading) * back, this.position.y, this.position.z - Math.cos(this.heading) * back);
+    MINE_OPT.dmg = (this.rawDps || 20) * 3;
+    this.world.mines.lay(this, 'contact', _w, MINE_OPT);
   }
 
   randomHullPoint(out) {
