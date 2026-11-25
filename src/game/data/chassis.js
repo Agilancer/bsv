@@ -163,6 +163,9 @@ const EXPLORER_NAMES = {
   crawler: ['Mole', 'Grub', 'Tortoise', 'Delver', 'Ironback', 'Bore', 'Deepcrusher', 'Monolith', 'Earthshaker', 'Worldeater'],
   lancer: ['Pike', 'Glaive', 'Halberd', 'Partisan', 'Spear', 'Longinus', 'Javelin', 'Trident', 'Gungnir', 'Dawnspear'],
 };
+// the explorer's level cap (re-exported by planet/explorerItems.js, which stops grantExplorerXp at it);
+// it lives here so the chassis table stays importable without a cycle and no mark can ask for more
+export const EX_MAX_LEVEL = 50;
 export const EXPLORERS = [];
 for (const [fk, f] of Object.entries(EXPLORER_FRAMES)) {
   for (let m = 1; m <= 10; m++) {
@@ -171,7 +174,7 @@ for (const [fk, f] of Object.entries(EXPLORER_FRAMES)) {
       name: EXPLORER_NAMES[fk][m - 1], fullName: `${EXPLORER_NAMES[fk][m - 1]} ${f.name} Mk ${MARK[m - 1]}`,
       hp: Math.round(300 * Math.pow(m, 1.35) * f.armor), speed: +(22 * f.speed * (1 + m * 0.03)).toFixed(1),
       cargo: Math.round(40 * m * f.cargo), slots: { ...f.hard, gun: f.hard.gun + (m >= 6 ? 1 : 0), module: f.hard.module + (m >= 4 ? 1 : 0) },
-      level: Math.max(1, (m - 1) * 6), price: Math.round(600 * Math.pow(m, 2.4)), hover: f.hover, legs: f.legs || 0,
+      level: Math.min(EX_MAX_LEVEL, Math.max(1, (m - 1) * 6)), price: Math.round(600 * Math.pow(m, 2.4)), hover: f.hover, legs: f.legs || 0,
     });
   }
 }

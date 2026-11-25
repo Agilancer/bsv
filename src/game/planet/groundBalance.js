@@ -58,11 +58,13 @@ export const HP_BY_SIZE = [1, 1.15, 1.25, 1.4, 1.2, 1.2];
 // percentage armour, as in space: a hull hit is scaled by 100 / (100 + armour)
 export const armorMul = (armor) => 100 / (100 + Math.max(0, armor));
 
-// the vehicle an average explorer drives at level L: rover of mark ~1 + L/6, uncommon gear at ilvl L
+// the vehicle an average explorer drives at level L: the highest rover mark its level allows (~1 + L/6,
+// read from the chassis table so Mk X comes at the level cap), uncommon gear at ilvl L
 // (tools/groundduel.cjs fields exactly this build)
 export function expectedBuild(L) {
   L = Math.max(1, Math.min(60, Math.round(L)));
-  const tier = Math.max(1, Math.min(10, 1 + Math.floor(L / 6)));
+  let tier = 1;
+  while (tier < 10 && EXPLORER_BY_ID[`ex_rover_${tier + 1}`].level <= L) tier++;
   const rng = new RNG(L * 17 + 3);
   const ch = EXPLORER_BY_ID[`ex_rover_${tier}`];
   const loadout = { 'gun:0': makeExItem('chaingun', L, 'uncommon', rng), 'tool:0': makeExItem('drill', L, 'common', rng), 'module:0': makeExItem('plating', L, 'uncommon', rng), 'module:1': makeExItem('fieldgen', L, 'common', rng) };

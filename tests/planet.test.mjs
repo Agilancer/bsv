@@ -117,6 +117,17 @@ test('explorer levels up separately and stops at the cap', () => {
   assert.ok(explorerStats(ex).maxHp > explorerStats(starterExplorer()).maxHp);
 });
 
+test('every explorer mark is reachable at or below the level cap', () => {
+  for (const c of EXPLORERS) assert.ok(c.level <= EX_MAX_LEVEL, `${c.id} needs explorer level ${c.level} > cap ${EX_MAX_LEVEL}`);
+  for (const c of EXPLORERS) if (c.tier > 1) assert.ok(c.level >= EXPLORER_BY_ID[`ex_${c.frame}_${c.tier - 1}`].level, `${c.id} unlocks in order`);
+  // a capped explorer can walk every frame up to Mk X, and the ground contract fields that rover at the cap
+  const p = richPlayer();
+  grantExplorerXp(p.explorer, 1e12);
+  for (const c of EXPLORERS) if (!p.explorer.owned.includes(c.id)) assert.equal(buyChassis(p, c.id).ok, true, c.id);
+  assert.equal(p.explorer.owned.length, EXPLORERS.length);
+  assert.equal(expectedBuild(EX_MAX_LEVEL).chassis, 'ex_rover_10');
+});
+
 test('surveys are deterministic, rich in the right resources, and list 3-5 sites', () => {
   const g = galaxy();
   for (const sys of g.systems.slice(0, 12)) {

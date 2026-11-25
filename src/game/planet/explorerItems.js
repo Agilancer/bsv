@@ -5,7 +5,7 @@
 // Pure data + logic: importable in node (tests) without a DOM.
 import { RNG } from '../../engine/rng.js';
 import { RARITIES, RARITY, AFFIXES, newUid, rollRarity, itemXpNeeded, ITEM_MAX_LVL } from '../data/items.js';
-import { EXPLORER_BY_ID } from '../data/chassis.js';
+import { EXPLORER_BY_ID, EX_MAX_LEVEL } from '../data/chassis.js';
 
 export const EX_SLOTS = ['gun', 'tool', 'module'];
 export const EX_SLOT_LABEL = { gun: 'Gun', tool: 'Tool', module: 'Module' };
@@ -240,7 +240,7 @@ export function fmtExStat(k, v) {
 }
 
 // ---------------- the explorer (vehicle + pilot progression) ----------------
-export const EX_MAX_LEVEL = 50;
+export { EX_MAX_LEVEL };   // the cap is defined with the chassis table (data/chassis.js)
 export const EX_INV_SIZE = 40;
 export const explorerXpForLevel = (l) => Math.round(110 * Math.pow(l, 1.7));
 
