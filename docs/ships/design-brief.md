@@ -36,7 +36,7 @@ dimensions.
 |---|---|
 | Open top deck: a flat walkable surface, planking, bulwarks, railings | A crowned, armour-plated **dorsal hull**: convex or faceted in section, carrying turret wells, sensor blisters, radiators and hatches. No flat horizontal dorsal run longer than 15% of L, except a carrier's flight deck (section 2). |
 | Boat hull: everything built upward from a deck, with only a keel below | A **3D pressure hull**: at least 40% of the hull's depth lies below the centreline, with real ventral masses (reactor bulge, ventral turrets, hangar or magazine pod). |
-| Stern castle, forecastle, bridge tower: a building standing on the hull at one end | A **command module sunk into the hull** amidships (40-65% of L from the bow) or inside the head, with hull mass rising beside it to at least half its height (rule 12). |
+| A sterncastle or forecastle: a house standing on an open deck at one end | A **command structure that is part of the hull** (rule 12). Big bridge towers are allowed (the captain's ruling): an armoured tower rising out of the hull plating, as on a capital spacecraft. |
 | A wooden gun deck: ports in a plank wall under an open deck | **Armoured gun decks are allowed** (the captain's ruling): rows of guns along a battery deck are fine, provided the deck is plainly part of a spacecraft: recessed into armour, with turreted mounts, on a hull that passes the tests below (rule 8). |
 | Gun ports, one hole per gun | **Turreted mounts** in armoured casemates, blisters, sponsons or a recessed battery trench. |
 | Masts, spires, rigging, pennants | Low **sensor arrays**: domes, dish clusters, antenna farms, at most 0.6 Ht above the hull. |
@@ -52,7 +52,7 @@ decks, a castle on deck, masts and sails, and a clipper's sheer and rake.
 
 **Tests (all three must pass):**
 1. **Paint-off test:** with the textures removed, the silhouette does not read as any vessel on water
-   (no deck, castle, mast, keel, bowsprit, funnel).
+   (no open deck, deck-house castle, mast, keel, bowsprit, funnel). A bridge tower is fine.
 2. **Inversion test:** flipped upside down, the silhouette still reads as a warship.
 3. **Depth test:** at least 40% of the hull's depth is below the centreline.
 
@@ -110,14 +110,18 @@ Where they seem to collide, the class decides *what and where*, the language dec
     volume behind them [BSG] and are a fixed absolute size on every class.
 
 **Command, engines, detail, light.**
-12. **The command module** is sunk into the hull.
-    - **Position:** amidships (40-65% of L from the bow), or inside the head.
-    - **Shoulders:** hull mass rises beside it to at least half its height, so it never stands alone.
-    - **Height above the dorsal hull:** at most 1.0 Ht on bands S and M (the size bands are defined in
-      `kit-spec.md` section 6); from band L up it is a **fixed
-      absolute height** (that of the largest band-M module), so it shrinks against bigger hulls [SW: the
-      largest ship's tower was the same size as the destroyer's].
-    - **Bridge windows and sensor domes:** fixed absolute size on every class.
+12. **The command structure** may be anything from a sunk bridge blister to a **big bridge tower** (the
+    captain's ruling: towers are fine, and big ones suit the capital classes).
+    - **Built as spacecraft armour:** the tower rises out of the hull plating on a broad, sloped base that
+      is keyed into the hull, with terraces or facets in the language's own shapes. It is never a house
+      on an open deck.
+    - **Position:** anywhere from amidships to the aft third, or in the head, as the class and language
+      suit.
+    - **Height:** up to about a quarter of L on capital classes; smaller classes keep it lower. It must
+      stay inside the shield bubble (`kit-spec.md`).
+    - **Bridge windows and sensor domes:** fixed absolute size on every class, so a big tower shows many
+      window rows, not big windows.
+    - **Sensor masts** on the tower are allowed, stout and few.
 13. **The engine block** fills the whole stern cross-section.
     - **Length:** up to a third of L on capitals, 35-45% on escorts [BFG].
     - **Nozzles:** 2-3 sizes, a dominant centre or banks [SW]. Counts per class are in section 2.
@@ -310,7 +314,7 @@ palette, don't-list.
 3. **Structure:** nothing floats, no boards or sticks, no posts, every appendage rooted.
 4. **Broadside:** battery rows recessed in armour (stacked gun decks or facets), arcs clear, prow
    weapons in the prow face.
-5. **Command module:** sunk, shouldered, inside the height limit.
+5. **Command structure:** part of the hull (a tower on a keyed, sloped base is fine), inside the shield.
 6. **Detail:** 40-60% rest areas; detail in bands.
 7. **Light:** within the glow budget; no glow outlines.
 8. **`trim`:** never on a large flat face.
