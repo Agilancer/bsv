@@ -33,11 +33,16 @@ Read this first when picking the work up (new session or another model). Then `C
     battery blocks, on belly trusses out past the beam and as the T8 wings; lozenge blocks and fine lozenge keels).
     Array size is capped by the shield ellipsoid (measure with a per-class shieldLevel script before growing them);
     on T9/T10 they are still small for the hull.
-  - Ironhold: not started (see "Next" 1).
+  - Ironhold: DONE (armour-brick battery blocks, brick gun ridge, blunt brick side hulls, smelter-block pods with
+    grilles, radiator banks on blocks, side hulls and engine decks).
+  All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
+  session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 
 ## Next, in order
-1. Give each yard its own body shapes in its `Style` (Aurelian and Hollow curved; Tidewright's collector
-   arrays visible from the play camera; real Corsair carrier flight decks; Ironhold bricks).
+1. Body shapes, second pass (what the first pass left): the main hull sections are still straight prisms of a
+   6-point section (h[1]..h[4] are indexed all over `shipkit.py`, so more points need care); turret wells and
+   broadside housings are square-cut on the curved yards (Aurelian, Hollow); Corsair decks are on the flanks, not over
+   the crown; Tidewright arrays are small on T9/T10; Corsair still uses the ladder's pods.
 2. Run the critic loop on renders per yard (`tools/kitshots.cjs`, viewer `?yard=<lang>&fit&webgl&guns`).
    Known weak classes: cutter, frigate, destroyer and cruiser read alike; destroyer snout is short.
 3. Gameplay gates, never run since the rework: `node tools/duel.cjs 5,15,30,50 --gate`,
