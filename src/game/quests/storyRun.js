@@ -81,7 +81,11 @@ export function installStory(game, Q, hooks) {
       const b = document.createElement('button'); b.className = 'btn sb-opt' + (o.k === cur.auto ? '' : ' violet');
       const t = document.createElement('b'); t.textContent = o.label; const h = document.createElement('span'); h.textContent = o.hint;
       b.append(t, h); b.onclick = () => choose(o.k); opts.append(b);
-    } else if (game.ui) game.ui.chat('STORY', sk.name, text, 'guild');
+    } else if (game.ui) {
+      game.ui.chat('STORY', sk.name, text, 'guild');
+      // interface hidden for autoplay: the briefing is not on screen, so its lines crawl along the ticker
+      if (game.hudHidden && game.ticker) { game.ticker.say(text, { who: sk.name, hex: sk.hex }); if (last && cur.obj) game.ticker.say(cur.obj, { cls: 'gold' }); }
+    }
     pageT = 0;
   }
   // briefings wait for a quiet deck: not on a planet surface or the bridge, and not in the middle of an arena match

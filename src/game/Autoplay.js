@@ -29,7 +29,8 @@ export class Autoplay {
     this.lastDock = game.playtime || 0;
     this.extra = (game.autoplayGoals || []).map((f) => f(this));   // [{name, score(game), update(dt) -> done?}]
     this.goal = null;
-    this.log = (m) => game.ui.chat('AUTO', null, m, 'sys');
+    // the captain's log goes to chat; with the interface hidden it also crawls along the ticker, so a watcher can follow
+    this.log = (m) => { game.ui.chat('AUTO', null, m, 'sys'); if (game.hudHidden && game.ticker) game.ticker.say(m, { who: 'Helm', cls: 'dim' }); };
   }
   yield(sec) { this.yieldT = sec; this.active = false; }
   onLoot(item) { this.manageT = Math.min(this.manageT, 0.5); }
@@ -109,7 +110,14 @@ export class Autoplay {
       o._runT = away > o.maxSpeed * 0.4 && d > 260 ? (o._runT || 0) + 0.25 : 0;
       o._atk = o.target === s && t - (o.lastFire || -100) < 3.5 && d < 1500;
       o._run = o._runT >= 1.5 && (!o._atk || o.hull / o.maxHull < 0.3);
-      if (o._run && d > reach * 1.15 && !o.elite && !o.storyTag && !o.pvp) {
+      o._d = d;
+    }
+    // (a captain set to fight only, with nothing else in the fight, sees a lone runner through)
+    const mode = (this.game.data.autoplay && this.game.data.autoplay.mode) || 'full';
+    const may = mode !== 'combat' || list.some((o) => !o._run);
+    for (const o of list) {
+      const d = o._d;
+      if (may && o._run && d > reach * 1.15 && !o.elite && !o.storyTag && !o.pvp) {
         o._outT = (o._outT || 0) + 0.25;
         if (o._outT >= 3.5) { o._letGo = t + 25; o._outT = 0; if (s.target === o) s.target = null; }
       } else o._outT = 0;

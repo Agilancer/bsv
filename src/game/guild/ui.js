@@ -23,7 +23,7 @@ export function installGuildUI(game, G) {
   const S = galaxy().systems, sym = D.RESOURCE.sym;
   let gTab = 'roster', pTab = 'queue', renaming = false;
   const draft = { name: '', tag: '', emblem: 'azure' };
-  let hud, feedEl, marks, result, board, showBoard = false;
+  let hud, marks, result, board, showBoard = false;
   const sig = { guild: '', pvp: '' };
 
   const typing = (el) => { const a = document.activeElement; return !!(a && el.contains(a) && a.tagName === 'INPUT'); };
@@ -262,38 +262,50 @@ export function installGuildUI(game, G) {
     const side = (n, title) => `<div class="bside s${n}"><div class="bh">${title} · ${M.score[n]}</div>${rows.filter((r) => r.side === n).map((r) => `<div class="br${r.you ? ' you' : ''}${r.alive ? '' : ' dead'}"><span>${tag(r.guild)}${esc(r.name)}</span><em>${r.k} / ${r.d}</em></div>`).join('')}</div>`;
     return side(0, 'Your team') + side(1, 'Opponents');
   }
+  // The match / field strip lives on the ticker (src/ui/ticker.js): a plate at the top-left of the screen with the
+  // mode, the clock and the score, and the kill feed crawling along the bar beside it.
+  let fedT = 0, subT = 0, pinnedHere = false;
   function drawHud() {
-    const A = G.arena, M = A.match, C = G.zones.cur, now = game.engine.realTime;
-    let h = '';
+    const A = G.arena, M = A.match, C = G.zones.cur, now = game.engine.realTime, T = game.ticker;
+    const watching = !!(game.autoplay && game.autoplay.active);
+    let pin = null, sub = '';
     if (M) {
       const me = M.score[0], them = M.score[1], P = game.player;
       const unit = M.key === 'convoy' ? (M.convoy.role === 'escort' ? ['SAFE', 'LOST'] : ['SUNK', 'ESCAPED']) : ['YOU', 'THEM'];
-      h = `<div class="ph-top"><b>${M.mode.name.toUpperCase()}</b><span>${M.phase === 'countdown' ? `STARTS IN ${Math.ceil(M.cd)}` : M.phase === 'over' ? 'MATCH OVER' : mmss(M.left)}</span></div>
-        <div class="ph-score"><span class="me">${unit[0]} ${me}</span><em>${M.key === 'duel' ? 'vs' : `to ${M.key === 'convoy' ? 2 : M.mode.goal}`}</em><span class="them">${them} ${unit[1]}</span></div>`;
-      if (M.points) h += `<div class="ph-caps">${M.points.map((p) => capBar(p, '0', (o) => (o == null ? '#6a7a9a' : +o === 0 ? '#58c8ff' : '#ff5a8a'))).join('')}</div>`;
-      if (M.key === 'duel' && M.opp) h += `<div class="ph-sub">${tag(M.opp.guild)}${esc(M.opp.name)} · ${M.opp.rating}</div>`;
-      if (M.convoy) h += `<div class="ph-sub">${M.convoy.role === 'escort' ? 'Escort the freighters to the jump point' : 'Sink the freighters before they jump'} · ${M.convoy.ships.filter((f) => f.alive).length} under way</div>`;
-      if (M.phase === 'live' && !P.alive && M.mode.respawn) h += `<div class="ph-sub warn">Respawning in ${Math.max(1, Math.ceil(M.pl.rt))}…</div>`;
-      else if (M.phase === 'live') h += `<div class="ph-sub">${M.pl.kills} kills · ${M.pl.deaths} deaths <button class="mini" data-act="board">${showBoard ? 'hide' : 'scores'}</button></div>`;
+      let mid = `<span class="me">${unit[0]} ${me}</span><em>${M.key === 'duel' ? 'vs' : `to ${M.key === 'convoy' ? 2 : M.mode.goal}`}</em><span class="them">${them} ${unit[1]}</span>`;
+      if (M.points) mid += `<span class="ph-caps">${M.points.map((p) => capBar(p, '0', (o) => (o == null ? '#6a7a9a' : +o === 0 ? '#58c8ff' : '#ff5a8a'))).join('')}</span>`;
+      pin = { tag: M.mode.name.toUpperCase(), time: M.phase === 'countdown' ? `IN ${Math.ceil(M.cd)}` : M.phase === 'over' ? 'OVER' : mmss(M.left), mid,
+        act: watching || M.phase === 'over' ? '' : `<button class="mini" data-act="board">${showBoard ? 'hide' : 'scores'}</button>` };
+      if (M.phase === 'live' && !P.alive && M.mode.respawn) sub = 'Hull lost · respawning';
+      else if (M.key === 'duel' && M.opp) sub = `Duel against ${tag(M.opp.guild)}<b>${esc(M.opp.name)}</b> · rated ${M.opp.rating}`;
+      else if (M.convoy) sub = `${M.convoy.role === 'escort' ? 'Escort the freighters to the jump point' : 'Sink the freighters before they jump'} · ${M.convoy.ships.filter((f) => f.alive).length} under way`;
+      else if (M.phase === 'live') sub = `${M.pl.kills} kills · ${M.pl.deaths} deaths`;
+      if (!M._said) { M._said = true; T.say(`${M.mode.name} at ${M.arena.name} · ${M.mode.sub}`, { cls: 'epic' }); subT = now + 5; }
+      if (M.phase === 'over' && M.rewards && !M._res) {
+        M._res = true;
+        const rw = M.rewards, word = M.result >= 1 ? 'VICTORY' : M.result <= 0 ? 'DEFEAT' : 'DRAW';
+        T.say(`<b>${word}</b> · ${esc(M.mode.name)} ${M.score[0]}–${M.score[1]} · rating ${M.delta >= 0 ? '+' : ''}${M.delta} (${M.newRating}) · +${rw.honour} honour · +${rw.glass} ${sym} · +${rw.credits} ¢`, { html: true, cls: M.result >= 1 ? 'win' : M.result <= 0 ? 'loss' : 'dim' });
+      }
     } else if (C && (C.near || C.phase === 'battle')) {
       const my = G.side();
       let foes = 0, allies = 0;
       for (const sd of C.sides) { if (sd.ally) allies += sd.ships.length; else foes += sd.ships.length + sd.reserve; }
-      h = `<div class="ph-top"><b>${sym} ${esc(C.zone.name.toUpperCase())}</b><span>${C.phase === 'battle' ? `PAYS IN ${Math.ceil(C.tickT)}s` : C.hotT > 0 ? `HOT ${Math.ceil(C.hotT)}s` : C.st.cool > (game.data.playtime || 0) ? 'QUIET' : 'CONTESTED'}</span></div>
-        <div class="ph-caps">${C.pts.map((p) => capBar(p, my, G.sideColor)).join('')}</div>
-        <div class="ph-sub">${C.phase === 'battle' ? `${foes} hostile captain${foes === 1 ? '' : 's'} · ${allies} all${allies === 1 ? 'y' : 'ies'}` : my ? 'Stand on an extractor to claim it' : 'Found a guild to claim extractors'}${C.earned ? ` · <b class="glass">+${C.earned} ${sym}</b>` : ''}</div>`;
+      pin = { tag: `${sym} ${C.zone.name.toUpperCase()}`, time: C.phase === 'battle' ? `PAYS ${Math.ceil(C.tickT)}s` : C.hotT > 0 ? `HOT ${Math.ceil(C.hotT)}s` : C.st.cool > (game.data.playtime || 0) ? 'QUIET' : 'OPEN',
+        mid: `<span class="ph-caps">${C.pts.map((p) => capBar(p, my, G.sideColor)).join('')}</span>` };
+      sub = `${C.phase === 'battle' ? `${foes} hostile captain${foes === 1 ? '' : 's'} · ${allies} all${allies === 1 ? 'y' : 'ies'}` : my ? 'Stand on an extractor to claim it' : 'Found a guild to claim extractors'}${C.earned ? ` · <b class="glass">+${C.earned} ${sym}</b>` : ''}`;
     }
-    if (hud._h !== h) { hud._h = h; hud.innerHTML = h; hud.style.display = h ? '' : 'none'; }
-    // kill feed: the last few lines, fading after 8 s
+    if (pin || pinnedHere) { T.pin(pin); pinnedHere = !!pin; }
+    // the kill feed crawls along the bar; when it is quiet, the standing line (opponent, objective, tally) comes round
     while (G.feed.length > 12) G.feed.shift();
-    let f = '';
-    if (h) for (let i = Math.max(0, G.feed.length - 5); i < G.feed.length; i++) if (now - G.feed[i].t < 9) f += line(G.feed[i]);
-    if (feedEl._h !== f) { feedEl._h = f; feedEl.innerHTML = f; }
+    if (pin) {
+      for (const e of G.feed) if (e.t > fedT) { fedT = e.t; T.say(`<b style="color:${e.ca || ''}">${esc(e.a)}</b> ${e.verb} <b style="color:${e.cb || ''}">${esc(e.b)}</b>`, { html: true, cls: e.mine ? 'mine' : 'theirs' }); subT = now + 5; }
+      if (sub && !T.busy && now > subT) { subT = now + 9; T.say(sub, { html: true, cls: 'dim' }); }
+    } else fedT = Math.max(fedT, now - 1);
     // scoreboard / result
     const b = M && showBoard && M.phase !== 'over' ? boardHtml(M, A.board()) : '';
     if (board._h !== b) { board._h = b; board.innerHTML = b; board.style.display = b ? '' : 'none'; }
     let r = '';
-    if (M && M.phase === 'over' && M.rewards) {
+    if (M && M.phase === 'over' && M.rewards && !watching) {
       const rw = M.rewards, word = M.result >= 1 ? 'VICTORY' : M.result <= 0 ? 'DEFEAT' : 'DRAW';
       r = `<div class="res-t ${M.result >= 1 ? 'win' : M.result <= 0 ? 'loss' : ''}">${word}</div><div class="res-s">${M.mode.name} · ${esc(M.arena.name)} · ${M.score[0]}–${M.score[1]}</div>
         <div class="res-r"><div><b>${M.delta >= 0 ? '+' : ''}${M.delta}</b><span>rating (${M.newRating})</span></div><div><b>+${rw.honour}</b><span>honour</span></div><div><b>+${rw.glass} ${sym}</b><span>${D.RESOURCE.name}</span></div><div><b>+${rw.credits}</b><span>credits</span></div></div>
@@ -354,13 +366,13 @@ export function installGuildUI(game, G) {
       if (mb) mb.insertBefore(b, auto || null);
     }
     const mk = (id, cls = '') => { const el = document.createElement('div'); el.id = id; if (cls) el.className = cls; root.append(el); return el; };
-    hud = mk('pvpHud', 'holo'); hud.style.display = 'none';
-    feedEl = mk('pvpFeed'); board = mk('pvpBoard', 'holo'); board.style.display = 'none';
+    hud = game.ticker.el;
+    board = mk('pvpBoard', 'holo'); board.style.display = 'none';
     result = mk('pvpResult', 'holo');
     marks = mk('pvpMarks');
     marks.innerHTML = '<i>A</i><i>B</i><i>C</i><i class="ptr"></i>';
     for (const el of marks.children) el.style.display = 'none';
-    hud.addEventListener('click', (e) => { if (e.target.closest('[data-act="board"]')) { showBoard = !showBoard; hud._h = null; } });
+    hud.addEventListener('click', (e) => { if (e.target.closest('[data-act="board"]')) showBoard = !showBoard; });
     result.addEventListener('click', (e) => { if (e.target.closest('[data-act="dismiss"]')) G.arena.dismiss(); });
   })(game.start.bind(game));
 
@@ -379,7 +391,7 @@ export function installGuildUI(game, G) {
       const space = game.mode === 'space';
       if ((hudT -= realDt) <= 0) {
         hudT = 0.2;
-        if (space) drawHud(); else if (hud._h) { hud._h = ''; hud.innerHTML = ''; hud.style.display = 'none'; feedEl.innerHTML = ''; feedEl._h = ''; }
+        if (space) drawHud(); else if (pinnedHere) { pinnedHere = false; game.ticker.pin(null); }
       }
       if (space) { drawMarks(); drawPointer(); } else for (const el of marks.children) if (el._on) { el._on = false; el.style.display = 'none'; }
       // open windows follow the world (only when something they show has changed)

@@ -264,6 +264,24 @@ async function run(name, vp, browser) {
   await ev(() => { __game.planet.current.finish(); __engine.simulate(0.5); document.querySelectorAll('#pReport').forEach((x) => x.remove()); });
   L = await ev(([s, t]) => { __game.player.target = __game.world.ships.find((o) => o.alive && o.team !== 1) || null; __engine.simulate(0.3); return TT.layout(s, t); }, [SPACE_HUD, TAPS]);
   check(layoutOk(L), `rotated: space HUD clean after returning to orbit`, layoutOk(L) ? undefined : L);
+  // a PvP match: its strip is the ticker, one slim bar across the very top (not a panel in the middle of the screen),
+  // and the HUD below it is still clean
+  const tk = await ev(([s, t]) => {
+    const g = __game;
+    for (const o of g.world.ships.slice()) if (o !== g.player && g.world.hostile(g.player, o)) g.world.removeShip(o);
+    g.data.level = Math.max(g.data.level, 8);
+    const started = g.guild.arena.start('duel') !== false && !!g.guild.arena.match;
+    for (let i = 0; i < 8; i++) __engine.simulate(0.25);
+    const el = document.getElementById('ticker'), r = el.getBoundingClientRect();
+    const out = { started, on: el.classList.contains('on'), top: el.offsetTop, h: el.offsetHeight, w: Math.round(r.width), ww: innerWidth, tag: el.querySelector('.tk-tag').textContent, score: el.querySelector('.tk-mid').textContent,
+      lines: el.querySelectorAll('.tk-call').length, old: !!document.getElementById('pvpHud'), layout: TT.layout(s, t) };
+    g.guild.arena.forfeit(); for (let i = 0; i < 8; i++) __engine.simulate(0.25);
+    out.gone = !g.guild.arena.match;
+    return out;
+  }, [SPACE_HUD, TAPS]);
+  check(tk.started && tk.on && tk.top <= 2 && tk.h <= 32 && tk.w >= tk.ww - 2 && tk.tag === 'DUEL' && /YOU/.test(tk.score) && tk.lines >= 1 && !tk.old && tk.gone,
+    'PvP duel: the match strip is a ticker bar across the top', { ...tk, layout: undefined });
+  check(layoutOk(tk.layout), 'PvP duel: HUD clean under the ticker', layoutOk(tk.layout) ? undefined : tk.layout);
   check(!errs.length, 'no console errors', errs.slice(0, 5));
   await ctx.close();
 }

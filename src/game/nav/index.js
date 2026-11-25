@@ -97,6 +97,11 @@ export function installNav(game) {
     if (!game.warpTo(pos)) return false;
     autoWarpAt = now; return true;
   };
+  // can the autopilot reach `pos` without a long sail? (near enough to sail, or the drive is ready or nearly so)
+  game.autoReach = (pos) => {
+    const s = game.player; if (!s) return false;
+    return Math.hypot(pos.x - s.position.x, pos.z - s.position.z) < AUTO_WARP_MIN || game.engine.time - autoWarpAt > AUTO_WARP_GAP - 12 || game.engine.time < autoWarpAt;
+  };
   game.isWarping = () => !!warp;
   game.warpState = () => warp;   // debug/tools
   game.cancelWarp = () => { if (!warp) return; warp = null; fade.style.opacity = '0'; game.engine.camera.fov = 32; game.engine.camera.updateProjectionMatrix(); };

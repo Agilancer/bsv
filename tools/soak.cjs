@@ -69,8 +69,8 @@ const { chromium } = require('playwright');
     const ground = (r.states.planet || 0) / total, spaceT = Math.max(1, total - (r.states.planet || 0));
     const patrol = (r.states.patrol || 0) / spaceT, between = patrol + (r.states.travel || 0) / spaceT;
     const kpm = r.kills / (spaceT / 60);
-    // the drive is used sparingly (under one warp a minute), and the captain does not trail runners across the system
-    if (r.warps / minutes > 1) bad.push(`${(r.warps / minutes).toFixed(2)} warps per minute > 1`);
+    // the drive is used sparingly (well under one warp a minute; it was over two), and the captain does not trail runners across the system
+    if (r.warps / minutes > 0.8) bad.push(`${(r.warps / minutes).toFixed(2)} warps per minute > 0.8`);
     if (r.chase / spaceT > 0.08) bad.push(`trailing a fleeing ship ${(100 * r.chase / spaceT).toFixed(0)}% of space time > 8%`);
     if (kpm < 2) bad.push(`kills per space-minute ${kpm.toFixed(1)} < 2`);
     if (patrol > 0.25) bad.push(`idle patrol ${(100 * patrol).toFixed(0)}% of space time > 25%`);

@@ -138,6 +138,9 @@ export class UI {
 
   // ---------------- toasts, chat, level up ----------------
   toast(msg, kind = '') {
+    // interface hidden for autoplay: the toast would not be seen, so it crawls along the ticker instead
+    const g = this.game;
+    if (g && g.hudHidden && g.ticker) { g.ticker.say(msg, { cls: kind || 'dim' }); return; }
     const t = h(`<div class="toast ${kind}"></div>`); t.textContent = msg;
     $('#toasts').append(t);
     setTimeout(() => t.remove(), 3200);
@@ -155,6 +158,8 @@ export class UI {
     while (this.chatLog.children.length > 60) this.chatLog.firstChild.remove();
   }
   levelUp(big, small, sub = '') {
+    // interface hidden for autoplay: the banner would sit over the ship, so the news crawls along the ticker instead
+    if (this.game.hudHidden && this.game.ticker) { this.game.ticker.say(`${small} ${big}${sub ? ' · ' + sub : ''}`, { cls: 'gold' }); return; }
     const el = $('#levelup'); $('#luBig').textContent = big; $('#luSmall').textContent = small; $('#luSub').textContent = sub;
     el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   }
@@ -640,7 +645,7 @@ export class UI {
     const pxPerUnit = innerHeight / (2 * Math.tan(camera.fov * Math.PI / 360) * cam.distance);
 
     // broadside arc compass around the player: two short wedges, green when the target bears
-    if (s && s.alive && g.showArcs) {
+    if (s && s.alive && g.showArcs && !g.hudHidden) {
       const tg = s.target && s.target.alive ? s.target : null;
       const c0 = proj(s.position);
       if (c0) for (const side of [1, -1]) {

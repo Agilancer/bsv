@@ -9,6 +9,7 @@
 // Also here, on every device: the "hide interface during autoplay" strip, pausing audio and saving
 // when the tab goes to the background, and the particle step-down when the frame rate stays low.
 import * as THREE from 'three/webgpu';
+import { xpForLevel } from '../game/Player.js';
 
 export function isTouch() {
   return matchMedia('(pointer: coarse)').matches || innerWidth < 900 || new URLSearchParams(location.search).has('mobile');
@@ -51,7 +52,7 @@ export function installMobile(game) {
       <button id="mZout" class="mbtn mz" data-zoom="2.5" aria-label="Zoom out">−</button>
     </div>
     <div id="tipActs"></div>
-    <div id="hudPeek"><span id="peekTxt"></span><button class="btn" id="peekShow">Show interface</button><button class="btn bad" id="peekStop">Stop autoplay</button></div>`);
+    <div id="hudPeek"><div class="pk-bars"><i class="pk-hull"><b></b></i><i class="pk-sh"><b></b></i><i class="pk-xp"><b></b></i></div><span id="peekTxt"></span><button class="btn" id="peekShow">Show interface</button><button class="btn bad" id="peekStop">Stop autoplay</button></div>`);
   const $ = (id) => document.getElementById(id);
 
   // --- steering stick ---
@@ -135,6 +136,7 @@ export function installMobile(game) {
   addEventListener('pointerdown', (e) => { if (game.hudHidden && e.target.id === 'view') peekUntil = performance.now() + 6000; });
 
   const mAuto = $('mAuto'), stopLab = $('mStop').querySelector('i');
+  let pkBars = null;
   game.engine.add({
     update() {
       const s = game.settings();
@@ -153,6 +155,12 @@ export function installMobile(game) {
         // one line on phones: the short form
         const txt = innerWidth < 700 ? `AUTO · ${st} · R${P.level} · ${hull}%` : `AUTOPLAY · ${st} · Rank ${P.level} · Hull ${hull}% · ${Math.round(P.credits).toLocaleString()} ¢`;
         const el = $('peekTxt'); if (el.textContent !== txt) el.textContent = txt;
+        if (p) {
+          const bars = pkBars || (pkBars = [...document.querySelectorAll('#hudPeek .pk-bars b')]);
+          const need = xpForLevel(P.level);
+          const f = [p.hull / p.maxHull, p.maxShield ? p.shieldTotal() / (p.maxShield * 1.2) : 0, need ? (P.xp || 0) / need : 0];
+          for (let i = 0; i < 3; i++) { const v = `scaleX(${Math.max(0, Math.min(1, f[i] || 0)).toFixed(3)})`; if (bars[i] && bars[i]._v !== v) { bars[i]._v = v; bars[i].style.transform = v; } }
+        }
       }
     },
   });

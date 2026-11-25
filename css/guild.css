@@ -55,23 +55,14 @@
 .g-list.tight { gap: 2px; } .g-lad span { width: 22px; color: var(--text-dim); } .g-lad b { flex: 1; color: var(--text); font-weight: 500; overflow-wrap: anywhere; } .g-lad.cur b { color: var(--white); }
 
 /* HUD: zone / match strip, capture bars, kill feed, scoreboard, result */
-#pvpHud { position: fixed; left: 50%; top: 58px; transform: translateX(-50%); min-width: 250px; max-width: calc(100vw - 16px); padding: 8px 14px; text-align: center; z-index: 4; pointer-events: auto; }
-.ph-top { display: flex; justify-content: space-between; gap: 14px; font-family: var(--head); font-size: 11px; letter-spacing: 0.16em; color: var(--violet); }
-.ph-top span { color: var(--white); }
-.ph-score { display: flex; justify-content: center; align-items: baseline; gap: 12px; font-family: var(--head); font-size: 20px; margin-top: 2px; }
-.ph-score .me { color: var(--cyan); } .ph-score .them { color: #ff7a9a; } .ph-score em { font-style: normal; font-size: 10px; color: var(--text-dim); letter-spacing: 0.1em; }
 .ph-caps { display: flex; gap: 6px; justify-content: center; margin-top: 6px; }
 .ph-caps .cap { position: relative; width: 64px; height: 18px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 28%, rgba(5, 10, 24, 0.9)); overflow: hidden; }
 .ph-caps .cap.mine { box-shadow: 0 0 10px var(--c); }
 .ph-caps .cap i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--cc); opacity: 0.75; }
 .ph-caps .cap b { position: relative; z-index: 1; font-family: var(--head); font-size: 11px; line-height: 17px; color: #fff; text-shadow: 0 0 3px #000; }
-.ph-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
-.ph-sub.warn { color: var(--warn); } .ph-sub .glass { color: #c88cff; }
-.ph-sub .mini { background: none; border: 1px solid var(--edge); color: var(--cyan); font-family: var(--head); font-size: 9px; letter-spacing: 0.1em; padding: 3px 8px; margin-left: 6px; cursor: pointer; text-transform: uppercase; }
-#pvpFeed { position: fixed; right: 16px; top: 120px; width: 250px; text-align: right; font-size: 12px; pointer-events: none; z-index: 4; text-shadow: 0 0 4px #000, 0 0 2px #000; }
-#pvpFeed div { margin: 2px 0; color: var(--text-dim); } #pvpFeed .mine b:first-child { color: var(--cyan); } #pvpFeed .theirs b:first-child { color: #ff7a9a; }
+#ticker .glass { color: #c88cff; }
 #pvpBoard, #pvpResult .res-b { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-#pvpBoard { position: fixed; left: 50%; top: 190px; transform: translateX(-50%); width: min(520px, calc(100vw - 16px)); padding: 10px; z-index: 5; }
+#pvpBoard { position: fixed; left: 50%; top: calc(var(--sat) + var(--tk-h) + 10px); transform: translateX(-50%); width: min(520px, calc(100vw - 16px)); padding: 10px; z-index: 5; }
 .bside .bh { font-family: var(--head); font-size: 10px; letter-spacing: 0.14em; margin-bottom: 4px; color: var(--cyan); }
 .bside.s1 .bh { color: #ff7a9a; }
 .bside .br { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; padding: 2px 4px; color: var(--text); }
@@ -89,7 +80,7 @@
 #pvpMarks { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 3; }
 #pvpMarks i { position: absolute; left: -13px; top: -13px; width: 26px; height: 26px; line-height: 26px; text-align: center; font-style: normal; font-family: var(--head); font-size: 12px; color: #050a18; background: var(--c, #6a7a9a); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); filter: drop-shadow(0 0 6px var(--c)); }
 #pvpMarks i.ptr { left: -34px; top: -11px; width: 68px; height: 22px; line-height: 22px; clip-path: none; background: rgba(20, 10, 50, 0.85); border: 1px solid #c88cff; color: #c88cff; font-size: 10px; letter-spacing: 0.08em; }
-body.hud-hidden #pvpMarks, body.hud-hidden #pvpFeed, body.win-open #pvpFeed, body.win-open #pvpBoard, body[data-mode]:not([data-mode="space"]) #pvpHud, body[data-mode]:not([data-mode="space"]) #pvpMarks, body[data-mode]:not([data-mode="space"]) #pvpFeed { display: none !important; }
+body.hud-hidden #pvpMarks, body.win-open #pvpBoard, body[data-mode]:not([data-mode="space"]) #pvpMarks { display: none !important; }
 
 /* narrow screens and phones: rows become cards, bigger tap targets */
 @media (max-width: 760px), (pointer: coarse) {
@@ -99,11 +90,7 @@ body.hud-hidden #pvpMarks, body.hud-hidden #pvpFeed, body.win-open #pvpFeed, bod
   .g-cols { grid-template-columns: 1fr; }
   .g-modes { grid-template-columns: 1fr 1fr; }
   .g-form input { width: 100%; } .g-form label { flex: 1 1 140px; }
-  #pvpFeed { width: 190px; right: 8px; font-size: 11px; }
   .res-r { grid-template-columns: 1fr 1fr; }
   .res-t { font-size: 26px; }
 }
 @media (max-width: 420px) { .g-mem { grid-template-columns: 1fr; } .g-head { flex-wrap: wrap; } .g-emblem { width: 34px; height: 34px; } #pvpResult .res-b, #pvpBoard { grid-template-columns: 1fr; } }
-body.mobile #pvpHud { top: 96px; padding: 6px 10px; min-width: 210px; }
-body.mobile #pvpFeed { top: 200px; }
-@media (max-aspect-ratio: 1/1) { body.mobile #pvpHud { top: 150px; } body.mobile #pvpFeed { top: 262px; } }
