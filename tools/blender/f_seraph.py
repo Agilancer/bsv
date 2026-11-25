@@ -154,9 +154,9 @@ def build(m):
         M.box(0.1 * k, 0.42 * k, 0.5 * k, (sx * 0.46 * k, 0.28 * k, 0.04 * k), 'hull', hull, 0.03 * k, rot=(0, 0, sx * 14), taper=(1, 0.85))
         if m >= 6:
             M.box(0.04 * k, 0.32 * k, 0.06 * k, (sx * 0.52 * k, 0.28 * k, 0.3 * k), 'trim', trim, 0.01, rot=(0, 0, sx * 14))
-    M.cyl(0.3 * k, 0.3 * k, (0, 0.62 * k, 0), 'y', 'dark', dark, 16)
+    M.cyl(0.3 * k, 0.3 * k, (0, 0.62 * k, 0), 'y', 'dark', dark, 14)
     for t in (0.55, 0.7):
-        M.cyl(0.32 * k, 0.04 * k, (0, t * k, 0), 'y', 'chrome', 0x9aa0aa, 16, bevel=0.005)
+        M.cyl(0.32 * k, 0.04 * k, (0, t * k, 0), 'y', 'chrome', 0x9aa0aa, 14, bevel=0)
     M.box(0.58 * k, 0.2 * k, 0.42 * k, (0, 0.78 * k, 0.02 * k), 'hull', hull2, 0.05 * k, taper=(1.15, 1.1))   # abdomen
     if m >= 2:   # teal waist band
         M.box(0.46 * k, 0.06 * k, 0.05 * k, (0, 0.8 * k, 0.25 * k), 'trim', panel, 0.01)
@@ -184,18 +184,19 @@ def build(m):
     if m >= 8:   # layered chest armour
         for sx in (1, -1):
             M.box(0.36 * k, 0.32 * k, 0.1 * k, (sx * 0.42 * k, 1.12 * k, 0.4 * k), 'hull', hull, 0.04 * k, rot=(-10, sx * 18, 0), taper=(0.85, 1))
-    M.lights([(sx * 0.32 * k, 1.12 * k, 0.47 * k) for sx in (1, -1)] if m >= 2 else [(0, 1.08 * k, 0.46 * k)], 0.1 * k)
     M.empty('tool', (0, 0.42 * k, 0.42 * k))
 
     # ---- head: helmet, visor, crest, V-fin from Mk IV, a crown of fins from Mk XI
-    hy0 = 2.38 * k
-    hs = 1.15 * k                              # the head reads first: a size up on the body
-    M.cyl(0.14 * k, 0.32 * k, (0, 2.02 * k, 0.02 * k), 'y', 'dark', dark, 12)
-    M.cyl(0.17 * k, 0.05 * k, (0, 1.96 * k, 0.02 * k), 'y', 'chrome', 0x9aa0aa, 12, bevel=0.005)
+    hy0 = 2.45 * k
+    hs = 1.3 * k                               # the head reads first: a size up on the body
+    M.cyl(0.15 * k, 0.4 * k, (0, 2.08 * k, 0.02 * k), 'y', 'dark', dark, 12)
+    M.cyl(0.3 * k, 0.12 * k, (0, 1.94 * k, 0.0), 'y', 'dark', dark, 16, r2=0.22 * k)                       # gorget
+    M.cyl(0.19 * k, 0.05 * k, (0, 2.02 * k, 0.02 * k), 'y', 'chrome', 0x9aa0aa, 12, bevel=0.005)
     M.box(0.5 * hs, 0.46 * hs, 0.54 * hs, (0, hy0, 0.04 * hs), 'hull', hull, 0.1 * hs, taper=(0.84, 0.8))
+    M.box(0.34 * hs, 0.05 * hs, 0.38 * hs, (0, hy0 + 0.235 * hs, 0.02 * hs), 'trim', panel, 0.02 * hs)                   # teal crown plate
     M.box(0.44 * hs, 0.2 * hs, 0.16 * hs, (0, hy0 - 0.13 * hs, 0.24 * hs), 'hull', hull2, 0.05 * hs, taper=(0.72, 1))       # faceplate
-    M.box(0.44 * hs, 0.13 * hs, 0.06 * hs, (0, hy0 + 0.03 * hs, 0.29 * hs), 'glass', 0x0a1420, 0.02 * hs, rot=(-10, 0, 0))   # visor
-    M.box(0.34 * hs, 0.035 * hs, 0.03 * hs, (0, hy0 + 0.03 * hs, 0.325 * hs), 'glow', glow, 0)
+    M.box(0.53 * hs, 0.14 * hs, 0.5 * hs, (0, hy0 + 0.03 * hs, 0.07 * hs), 'glass', 0x0a1420, 0.03 * hs)                   # wraparound visor
+    M.box(0.38 * hs, 0.035 * hs, 0.03 * hs, (0, hy0 + 0.03 * hs, 0.325 * hs), 'glow', glow, 0)
     M.box(0.06 * hs, 0.17 * hs, 0.48 * hs, (0, hy0 + 0.25 * hs, -0.02 * hs), 'trim', trim, 0.015 * hs, taper=(1, 0.55), shear=(0, -0.1 * hs))   # crest
     for sx in (1, -1):   # ear sensors
         M.cyl(0.08 * hs, 0.12 * hs, (sx * 0.27 * hs, hy0, -0.02 * hs), 'x', 'dark', dark, 12)
@@ -231,10 +232,11 @@ def build(m):
         M.box(0.38 * k, 0.1 * k, 0.5 * k, (fa[0] + sx * 0.04 * k, 0.86 * k, 0.32 * k), 'dark', dark, 0.03 * k)
         M.box(0.06 * k, 0.12 * k, 0.6 * k, (fa[0] + sx * 0.19 * k, 1.02 * k, 0.4 * k), 'trim', panel, 0.01)
         M.box(0.4 * k, 0.36 * k, 0.07 * k, (fa[0], 1.0 * k, 0.83 * k), 'trim', trim, 0.02 * k)               # cuff
+        M.lights([(fa[0] - sx * 0.12 * k, 0.86 * k, 0.88 * k)], 0.08 * k)                                      # floodlight under the cuff
         # fist
         M.box(0.26 * k, 0.24 * k, 0.24 * k, (fa[0], 0.96 * k, 0.98 * k), 'dark', dark, 0.04 * k)
         for f in range(3):
-            M.box(0.06 * k, 0.07 * k, 0.16 * k, (fa[0] + (f - 1) * 0.08 * k, 0.88 * k, 1.1 * k), 'dark', dark, 0.015 * k, rot=(30, 0, 0))
+            M.box(0.06 * k, 0.07 * k, 0.16 * k, (fa[0] + (f - 1) * 0.08 * k, 0.88 * k, 1.1 * k), 'dark', dark, 0.015 * k, rot=(30, 0, 0), segs=1)
         if m >= 3:   # forearm blade
             M.box(0.04 * k, 0.16 * k, 0.7 * k, (fa[0] + sx * 0.2 * k, 0.94 * k, 0.5 * k), 'trim', trim if st >= 2 else hull2, 0.01, taper=(1, 0.5), shear=(0, 0.1 * k))
         if st >= 1:   # shoulder pod: a drone launcher behind the pauldron, mouth up and aft
@@ -249,9 +251,9 @@ def build(m):
     # ---- lower body: a thruster skirt on the drone-bot, folded legs with jet boots from Mk IV
     pads = []
     if st == 0:
-        M.cyl(0.32 * k, 0.5 * k, (0, -0.05 * k, 0), 'y', 'hull', hull2, 16, r2=0.36 * k)
-        M.cyl(0.24 * k, 0.24 * k, (0, -0.4 * k, 0), 'y', 'dark', dark, 16, r2=0.3 * k)
-        M.cyl(0.2 * k, 0.03 * k, (0, -0.53 * k, 0), 'y', 'glow', glow, 16, bevel=0)
+        M.cyl(0.32 * k, 0.5 * k, (0, -0.05 * k, 0), 'y', 'hull', hull2, 14, r2=0.36 * k)
+        M.cyl(0.24 * k, 0.24 * k, (0, -0.4 * k, 0), 'y', 'dark', dark, 14, r2=0.3 * k)
+        M.cyl(0.2 * k, 0.03 * k, (0, -0.53 * k, 0), 'y', 'glow', glow, 14, bevel=0)
         for sx in (1, -1):
             M.box(0.06 * k, 0.36 * k, 0.3 * k, (sx * 0.34 * k, -0.2 * k, 0), 'hull', hull, 0.02, rot=(0, 0, sx * 20), taper=(1, 0.5))
         pads.append((0, -0.6 * k, 0))
@@ -322,7 +324,7 @@ def build(m):
 
     # ---- halo: fan_0, a ring floating above and behind the head (Mk VII+)
     if st >= 2:
-        hy = (3.05 if st == 2 else 3.25) * k
+        hy = (3.32 if st == 2 else 3.42) * k
         hz = -0.35 * k
         R = (0.62 if st == 2 else 0.76) * k
         g = 'fan_0'
@@ -363,14 +365,14 @@ def build(m):
             bar(M, (sx * 0.3 * k, 0.9 * k, -0.74 * k), (sx * 0.56 * k, -0.15 * k, -1.24 * k), 0.06 * k, 0.07 * k, hint=(sx, 0, 0), mat='trim', tint=trim, bevel=0.01, taper=(0.3, 1))
 
     # ---- hardpoints: shoulders, forearms, wing roots, back racks (all on top)
-    central = [(0, 2.42 * k, -0.98 * k)]      # a dorsal cannon post, carrying its gun over the head
+    central = [(0, 2.82 * k, -0.98 * k)]      # a dorsal cannon post, carrying its gun over the head
     pairs = [(1.08 * k, 1.94 * k, 0.0), (1.12 * k, 1.16 * k, 0.32 * k), (0.78 * k, 2.39 * k, -0.8 * k)]
     if rack_tops:
         pairs.append((abs(rack_tops[0][0]), rack_tops[0][1], rack_tops[0][2]))
     for p in frames.pick_hardpoints(central, pairs, frames.hp_count(F, m)):
         if p == central[0]:
-            bar(M, (0, 1.84 * k, -0.62 * k), (0, 2.38 * k, -0.98 * k), 0.2 * k, 0.24 * k, hint=(1, 0, 0), mat='dark', tint=dark, bevel=0.03 * k)
-            M.box(0.4 * k, 0.07 * k, 0.4 * k, (0, 2.385 * k, -0.98 * k), 'hull', hull, 0.03 * k)
+            bar(M, (0, 1.84 * k, -0.62 * k), (0, 2.78 * k, -0.98 * k), 0.2 * k, 0.24 * k, hint=(1, 0, 0), mat='dark', tint=dark, bevel=0.03 * k)
+            M.box(0.4 * k, 0.07 * k, 0.4 * k, (0, 2.785 * k, -0.98 * k), 'hull', hull, 0.03 * k)
         M.socket(p, 0.36 * s, dark, props={'size': round(0.85 * s, 3)})
 
     M.facts = {'frame': F, 'mark': m, 'ride': round(5.5 + 0.12 * (m - 1), 2), 'wings': 2 * nb, 'halo': st >= 2, 'scale': round(s, 3)}

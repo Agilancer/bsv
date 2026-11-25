@@ -252,13 +252,14 @@ export class Vehicle {
     v.root.updateMatrixWorld(true);
     // wheels: spin + suspension
     if (v.wheels.length) {
-      this.wheelSpin += (this.velocity.x * Math.sin(this.heading) + this.velocity.z * Math.cos(this.heading)) * dt / 0.72;
+      this.wheelSpin += (this.velocity.x * Math.sin(this.heading) + this.velocity.z * Math.cos(this.heading)) * dt / ((v.info && v.info.wheelR) || 0.72);
+      const tracked = this.frame === 'crawler';   // road wheels ride inside fixed track plates: no bob
       const S = this.mode.S;
       for (const w of v.wheels) {
         w.obj.rotation.x = this.wheelSpin;
         _v.set(w.x, 0, w.z); v.root.localToWorld(_v);
         const g = S.ground(_v.x, _v.z);
-        const off = clamp((g - _v.y) / v.scale, -0.35, 0.45);
+        const off = tracked ? 0 : clamp((g - _v.y) / v.scale, -0.35, 0.45);
         w.obj.position.y = damp(w.obj.position.y, w.rest + off, 20, dt);
       }
       if (moving > 0.3 && Math.random() < moving * 0.9) {

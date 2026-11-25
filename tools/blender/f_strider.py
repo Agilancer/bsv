@@ -7,6 +7,7 @@
 # modelled here in real units (so joints stay round and bevels even), baked for AO away from the hull, then
 # squashed to unit length with their normals corrected; the game's non-uniform scale undoes the squash.
 import math
+import bpy
 from mathutils import Matrix, Vector
 from vlib import Model, G
 import frames
@@ -46,6 +47,7 @@ class WalkerModel(Model):
         super().bake_ao(dist)
         for ob in moved:
             ob.location = (0, 0, 0)
+        bpy.context.view_layer.update()   # refresh matrix_world before build.py measures the bounds
 
     def finish(self, ao=True, ao_dist=1.6, subdiv_len=1.0):
         joined = super().finish(ao, ao_dist, subdiv_len)
@@ -291,24 +293,30 @@ def build(m):
     if st == 2:   # walking fortress: flank sponsons and a raised command tower
         tz = -0.32 * bl
         tb = deck
-        # tower: a dark pylon with buttresses, an overhanging bridge with a wraparound window band, a roof cap
-        ph = 1.05 * bh
-        M.box(0.52 * bw, ph, 0.4 * bl, (0, tb + ph / 2, tz), 'dark', dark, 0.06 * s, taper=(0.82, 0.86))
+        # tower: a dark pylon with buttresses, a bridge with a wraparound window band, a raked roof
+        ph = 1.25 * bh
+        M.box(0.5 * bw, ph, 0.38 * bl, (0, tb + ph / 2, tz), 'dark', dark, 0.06 * s, taper=(0.86, 0.9))
         for sx in (1, -1):
-            M.box(0.16 * s, ph * 0.7, 0.34 * bl, (sx * 0.3 * bw, tb + ph * 0.3, tz), 'hull', hull2, 0.04 * s, rot=(0, 0, sx * 24), taper=(0.5, 0.9))
-        M.box(0.3 * bw, 0.05 * s, 0.06 * s, (0, tb + ph * 0.6, tz + 0.2 * bl), 'glow', glow, 0)
+            M.box(0.16 * s, ph * 0.8, 0.34 * bl, (sx * 0.3 * bw, tb + ph * 0.36, tz), 'hull', hull2, 0.04 * s, rot=(0, 0, -sx * 18), taper=(0.5, 0.9))
+            M.box(0.05 * s, ph * 0.5, 0.06 * s, (sx * 0.22 * bw, tb + ph * 0.55, tz + 0.19 * bl), 'trim', panel, 0.01)
+        M.box(0.26 * bw, 0.05 * s, 0.06 * s, (0, tb + ph * 0.72, tz + 0.19 * bl), 'glow', glow, 0)
         by = tb + ph
-        bhh = 0.72 * bh
-        M.box(0.8 * bw, 0.2 * bh, 0.42 * bl, (0, by + 0.05 * bh, tz), 'dark', dark, 0.04 * s, taper=(1.25, 1.12))         # chin
-        M.box(1.06 * bw, bhh, 0.5 * bl, (0, by + 0.15 * bh + bhh / 2, tz), 'hull', hull, 0.08 * s, taper=(0.84, 0.8))
-        M.box(1.0 * bw, 0.2 * bh, 0.47 * bl, (0, by + 0.15 * bh + bhh * 0.55, tz + 0.012 * bl), 'glass', 0x0a1420, 0.02, taper=(0.97, 0.97))
-        ttop = by + 0.15 * bh + bhh
+        M.box(0.86 * bw, 0.18 * bh, 0.44 * bl, (0, by + 0.02 * bh, tz), 'dark', dark, 0.04 * s, taper=(1.25, 1.14))         # chin
+        bhh = 0.5 * bh
+        bc = by + 0.11 * bh + bhh / 2
+        M.box(1.1 * bw, bhh, 0.5 * bl, (0, bc, tz), 'hull', hull, 0.06 * s)
+        M.box(1.14 * bw, 0.3 * bh, 0.54 * bl, (0, bc + 0.03 * bh, tz + 0.005 * bl), 'glass', 0x0a1420, 0.02)
+        for dy in (-0.14, 0.2):
+            M.box(1.17 * bw, 0.05 * bh, 0.56 * bl, (0, bc + dy * bh, tz + 0.005 * bl), 'dark', dark, 0.01)
+        rt = bc + bhh / 2
+        M.box(1.12 * bw, 0.22 * bh, 0.52 * bl, (0, rt + 0.1 * bh, tz), 'hull', hull, 0.05 * s, taper=(0.78, 0.76))       # raked roof
+        ttop = rt + 0.21 * bh
         if m >= 10:   # bridge wings and a second tier
             for sx in (1, -1):
-                M.box(0.36 * bw, 0.24 * bh, 0.2 * bl, (sx * 0.62 * bw, by + 0.15 * bh + bhh * 0.5, tz + 0.08 * bl), 'hull', hull2, 0.04 * s, taper=(0.8, 0.85))
-                M.box(0.3 * bw, 0.1 * bh, 0.03 * s, (sx * 0.62 * bw, by + 0.15 * bh + bhh * 0.55, tz + 0.18 * bl), 'glass', 0x0a1420, 0.01)
+                M.box(0.34 * bw, 0.26 * bh, 0.22 * bl, (sx * 0.68 * bw, bc, tz + 0.08 * bl), 'hull', hull2, 0.04 * s, taper=(0.8, 0.85))
+                M.box(0.3 * bw, 0.1 * bh, 0.23 * bl, (sx * 0.7 * bw, bc + 0.04 * bh, tz + 0.08 * bl), 'glass', 0x0a1420, 0.01)
             t2 = 0.5 * bh
-            M.box(0.64 * bw, t2, 0.32 * bl, (0, ttop + t2 / 2, tz - 0.04 * bl), 'hull', hull, 0.06 * s, taper=(0.84, 0.82))
+            M.box(0.62 * bw, t2, 0.3 * bl, (0, ttop + t2 / 2, tz - 0.04 * bl), 'hull', hull, 0.06 * s, taper=(0.86, 0.84))
             M.box(0.6 * bw, 0.13 * bh, 0.3 * bl, (0, ttop + t2 * 0.55, tz - 0.035 * bl), 'glass', 0x0a1420, 0.02)
             ttop += t2
         M.box(0.72 * bw if m < 10 else 0.5 * bw, 0.1 * s, 0.34 * bl if m < 10 else 0.25 * bl, (0, ttop + 0.05 * s, tz - 0.03 * bl), 'trim', panel, 0.03)
@@ -327,6 +335,10 @@ def build(m):
             M.cyl(0.12 * s, 2.6 * s, (0, ttop + 1.3 * s, tz + 0.12 * bl), 'y', 'dark', dark, 8, r2=0.05 * s)
             M.box(0.7 * s, 0.5 * s, 0.08 * s, (0, ttop + 1.9 * s, tz + 0.12 * bl), 'trim', panel, 0.02, taper=(0.3, 1))
             M.sphere(0.12 * s, (0, ttop + 2.65 * s, tz + 0.12 * bl), (1, 1, 1), 'glow', glow, 10)
+        # rear citadel: an armoured drone hangar behind the tower
+        M.box(0.62 * bw, 0.5 * bh, 0.3 * bl, (0, deck + 0.25 * bh, -0.78 * bl), 'hull', hull2, 0.06 * s, taper=(0.85, 0.8))
+        M.vents((0, deck + 0.5 * bh, -0.78 * bl), 0.4 * bw, 0.2 * bl, 4, tint=0x18161e)
+        M.box(0.4 * bw, 0.26 * bh, 0.04 * s, (0, deck + 0.2 * bh, -0.935 * bl), 'dark', dark, 0.01)
         # front glacis: a raked armour wedge ahead of the tower with lilac chevrons
         M.box(1.2 * bw, 0.28 * bh, 0.32 * bl, (0, deck + 0.0 * bh, 0.6 * bl), 'hull', hull, 0.05 * s, taper=(0.8, 0.6), rot=(6, 0, 0))
         for sx in (1, -1):
@@ -337,6 +349,8 @@ def build(m):
                 x = sx * 0.8 * bw
                 M.box(0.7 * bw * 0.6, 0.5 * bh, 0.3 * bl, (x, deck - 0.2 * bh, z), 'dark', dark, 0.05 * s, taper=(0.9, 0.9))
                 M.box(0.5 * bw, 0.14 * bh, 0.34 * bl, (x, deck + 0.07 * bh, z), 'hull', hull, 0.04 * s, taper=(0.9, 0.9))
+                for dz in (-0.11, 0.11):   # battlements on the outer lip
+                    M.box(0.08 * bw, 0.22 * bh, 0.08 * bl, (x + sx * 0.24 * bw, deck + 0.2 * bh, z + dz * bl), 'hull', hull2, 0.03 * s, taper=(0.85, 0.85))
                 if m >= 10:
                     M.box(0.05 * s, 0.06 * s, 0.26 * bl, (x + sx * 0.25 * bw, deck + 0.04 * bh, z), 'glow', glow, 0)
         if m >= 12:   # gold-trimmed armour bands across the deck

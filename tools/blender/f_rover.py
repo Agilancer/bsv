@@ -277,6 +277,10 @@ def cab(M, m, st, s, z0, z1, yb, hc, bw, C):
         M.box(2 * bw + 0.06 * s, h1 * 0.42, 0.14 * s, (0, yb + h1 * 0.3, z1 + 0.06 * s), 'trim', panel, 0.04 * s, rot=(-10, 0, 0))
         for k in range(3):
             M.box(0.9 * s, 0.05 * s, 0.05 * s, (0, yb + h1 * (0.18 + k * 0.12), z1 + 0.14 * s), 'dark', dark, 0)
+    if m >= 5:   # snorkel up the starboard A-pillar
+        xs = -(bw + 0.12 * s)
+        M.box(0.2 * s, h1 + hg + hr + 0.25 * s, 0.2 * s, (xs, yb + (h1 + hg + hr + 0.25 * s) / 2 + 0.2 * s, z1 - 0.45 * s), 'dark', dark, 0.03 * s)
+        M.box(0.24 * s, 0.22 * s, 0.4 * s, (xs, yb + h1 + hg + hr + 0.4 * s, z1 - 0.35 * s), 'dark', dark, 0.04 * s)
     if st >= 2:
         # heavy cab: roof visor and side air intakes
         M.box(2 * bw, 0.1 * s, 0.4 * s, (0, yb + h1 + hg + hr * 0.3, rz + gd * tz / 2 + 0.15 * s), 'dark', dark, 0.02, rot=(-8, 0, 0))
@@ -372,7 +376,7 @@ def flatbed(M, m, st, s, z0, z1, yd, bw, C, central, pairs):
     for sx in (1, -1):
         M.box(0.04 * s, 0.12 * s, L * 0.94, (sx * (bw + 0.01 * s), yd - 0.2 * s, zc), 'trim', panel, 0.01)
         if m >= 8:
-            M.box(0.03 * s, 0.05 * s, L * 0.9, (sx * (bw + 0.02 * s), yd - 0.36 * s, zc), 'glow', glow, 0)
+            M.box(0.03 * s, 0.035 * s, L * 0.8, (sx * (bw + 0.02 * s), yd - 0.36 * s, zc), 'glow', glow, 0)
     # dropsides with sand caps (Mk II+)
     if m >= 2:
         nb = max(1, int(L / (1.1 * s)))
@@ -389,14 +393,14 @@ def flatbed(M, m, st, s, z0, z1, yd, bw, C, central, pairs):
         M.box(0.08 * s, 0.9 * s, 0.14 * s, ((k - 1.5) * 0.5 * s, yd + 0.45 * s, z1 - 0.08 * s), 'dark', 0x464644, 0.01)
     # rear gun pedestal (the 2nd centre-line hardpoint), or cargo there when it carries no gun
     pz = z0 + 0.8 * s
-    ph = (0.55 if st < 2 else 0.85) * s
+    ph = (0.55, 0.95, 1.35)[st] * s          # tall enough for the gun to clear the load
 
     def rear(on):
         if on:
             M.box(0.95 * s, ph, 0.95 * s, (0, yd + ph / 2, pz), 'dark', dark, 0.06 * s, taper=(0.8, 0.8))
             M.box(1.0 * s, 0.1 * s, 0.4 * s, (0, yd + ph * 0.4, pz + 0.5 * s), 'trim', panel, 0.02)
-            for sx in (1, -1):
-                M.box(0.06 * s, 0.06 * s, 0.6 * s, (sx * 0.5 * s, yd + ph * 0.7, pz), 'glow', glow, 0) if m >= 7 else None
+            for sx in ((1, -1) if m >= 7 else ()):
+                M.box(0.06 * s, 0.06 * s, 0.6 * s, (sx * 0.5 * s, yd + ph * 0.7, pz), 'glow', glow, 0)
         else:
             crate(M, (0.4 * s, yd + 0.3 * s, pz), 0.65 * s, 0.55 * s, 0.7 * s, panel, s, 'trim')
             crate(M, (-0.4 * s, yd + 0.26 * s, pz + 0.05 * s), 0.6 * s, 0.47 * s, 0.6 * s, hull, s)
@@ -446,16 +450,17 @@ def flatbed(M, m, st, s, z0, z1, yd, bw, C, central, pairs):
                 M.box(2 * bw - 0.1 * s, 0.1 * s, 0.1 * s, (0, yd + th + 0.35 * s, z), 'dark', dark, 0.02)
             for sx in (1, -1):
                 M.box(0.08 * s, 0.08 * s, tz1 - tz0 - 0.1 * s, (sx * (bw - 0.06 * s), yd + th + 0.35 * s, (tz0 + tz1) / 2), 'dark', dark, 0.02)
-        # side mounts: gun pads cantilevered outboard of the dropsides
-        pz = (tz0 + tz1) / 2 - 0.2 * s
+        # side mounts: gun pads on the roll cage's middle hoop, above the load
+        pz = (tz0 + tz1) / 2
+        yc = yd + th + 0.35 * s
 
         def side(on):
             if not on:
                 return
             for sx in (1, -1):
-                M.box(0.6 * s, 0.14 * s, 0.9 * s, (sx * (bw + 0.05 * s), yd + 0.5 * s, pz), 'dark', dark, 0.03 * s)
-                M.box(0.18 * s, 0.5 * s, 0.3 * s, (sx * (bw + 0.18 * s), yd + 0.2 * s, pz), 'dark', dark, 0.02, rot=(0, 0, -sx * 25))
-        pairs.append(((bw + 0.1 * s, yd + 0.57 * s, pz), side))
+                M.box(0.8 * s, 0.1 * s, 0.8 * s, (sx * (bw - 0.4 * s), yc + 0.1 * s, pz), 'dark', dark, 0.03 * s)
+                M.box(0.1 * s, 0.4 * s, 0.1 * s, (sx * (bw - 0.75 * s), yc - 0.15 * s, pz), 'dark', dark, 0.01)
+        pairs.append(((bw - 0.4 * s, yc + 0.15 * s, pz), side))
     else:
         # long bed: two ribbed survey containers (gun pads on their roofs), side lockers
         cl, ch = 2.0 * s, 1.25 * s
@@ -506,11 +511,16 @@ def module(M, m, s, z0, z1, yd, bw, C, central, pairs):
         if m >= 11:   # ladder and armour skirt over the wheels
             for k in range(6):
                 M.box(0.05 * s, 0.04 * s, 0.4 * s, (sx * (mw + 0.08 * s), yd + 0.15 * s + k * 0.3 * s, z0 + 0.55 * s), 'chrome', CHROME, 0)
+    if m >= 11:   # floodlight posts on the rear corners
+        for sx in (1, -1):
+            M.box(0.1 * s, 0.8 * s, 0.1 * s, (sx * (mw * 0.93 - 0.15 * s), yd + mh + 0.4 * s, z0 + 0.25 * s), 'dark', dark, 0.01)
+            M.box(0.36 * s, 0.2 * s, 0.16 * s, (sx * (mw * 0.93 - 0.15 * s), yd + mh + 0.82 * s, z0 + 0.25 * s), 'dark', dark, 0.02)
+            M.box(0.3 * s, 0.14 * s, 0.05 * s, (sx * (mw * 0.93 - 0.15 * s), yd + mh + 0.82 * s, z0 + 0.16 * s), 'lamp', 0xfff0d8, 0)
     # rear doors and lamps
     M.box(2 * mw - 0.4 * s, mh * 0.8, 0.08 * s, (0, yd + mh * 0.45, z0 + 0.02 * s), 'dark', 0x3c3c3a, 0.02)
     M.box(0.06 * s, mh * 0.8, 0.1 * s, (0, yd + mh * 0.45, z0 + 0.0 * s), 'dark', dark, 0.0)
-    for k in range(4):
-        M.box(2 * mw - 0.6 * s, 0.1 * s, 0.05 * s, (0, yd + mh * (0.2 + 0.18 * k), z0 - 0.02 * s), 'trim', panel, 0.01) if k in (0, 3) else None
+    for k in (0, 3):
+        M.box(2 * mw - 0.6 * s, 0.1 * s, 0.05 * s, (0, yd + mh * (0.2 + 0.18 * k), z0 - 0.02 * s), 'trim', panel, 0.01)
     # roof: edge rails, walkway, hatches; gun pads at the corners and the rear
     yt = yd + mh
     M.box(2 * mw * 0.93 - 0.3 * s, 0.08 * s, L - 0.5 * s, (0, yt + 0.04 * s, zc), 'dark', dark, 0.02)
@@ -586,7 +596,7 @@ def crane(M, m, st, s, zb, yd, bw, C):
 def drill_rig(M, m, st, s, zf, rw, bw, C):
     """Front core drill: a boom under the bumper holding a motor and the spinning drill (group 'drill')."""
     hull, panel, dark, trim, glow = C['hull'], C['panel'], C['dark'], C['trim'], C['glow']
-    yd = rw * 0.62
+    yd = rw * 0.62 if st < 3 else max(rw * 0.62, 0.68 * s)
     sc = 1 + 0.2 * st
     zm = zf + 0.05 * s
     # boom and motor housing (static)

@@ -152,9 +152,10 @@ def track_long(M, wi, sx, xc, zc, Lt, Ht, tw, nroad, s, C, m):
     """Classic low track: raised idler at the front, sprocket at the rear, road wheels along the bottom."""
     t = 0.16 * s
     Ri, Rs, Rw = 0.3 * Ht, 0.32 * Ht, 0.22 * Ht
+    g = 0.065 * s                                  # grouser depth: the grouser tips touch y = 0
     zi, yi = zc + Lt / 2 - t - Ri, Ht - t - Ri - 0.06 * s
     zs, ys = zc - Lt / 2 + t + Rs, Ht - t - Rs
-    yw = t + Rw
+    yw = t + Rw + g
     span = Lt * 0.5
     roads = [zc - span / 2 + span * k / (nroad - 1) for k in range(nroad)]
     belt(M, sx * xc, [(zs, ys, Rs), (zi, yi, Ri)] + [(z, yw, Rw) for z in roads], tw, t, 0.36 * s, s, C)
@@ -175,9 +176,10 @@ def track_delta(M, wi, sx, xc, zc, Lt, Ht, tw, nroad, s, C, m):
     t = 0.17 * s
     Ri, Rs, Rw = 0.21 * Ht, 0.25 * Ht, 0.13 * Ht
     zf, zr = zc + Lt / 2 - t - Ri, zc - Lt / 2 + t + Ri
-    yi = t + Ri + 0.05 * s
+    g = 0.065 * s                                  # grouser depth: the grouser tips touch y = 0
+    yi = t + Ri + 0.05 * s + g
     zs, ys = zc - 0.04 * Lt, Ht - t - Rs
-    yw = t + Rw
+    yw = t + Rw + g
     span = (zf - zr) - 2 * (Ri + Rw) * 0.92
     roads = [zc - span / 2 + span * k / max(1, nroad - 1) for k in range(nroad)] if nroad > 1 else [zc]
     belt(M, sx * xc, [(zs, ys, Rs), (zf, yi, Ri), (zr, yi, Ri)] + [(z, yw, Rw) for z in roads], tw, t, 0.36 * s, s, C)
@@ -217,7 +219,7 @@ def drill(M, m, st, s, y, z0, R, L, C):
             a = f * 360 / nf + u * 540
             ar = math.radians(a)
             rr = R * (1 - u) + 0.04 * s
-            fw = 0.2 * s + R * 0.32 * (1 - u)
+            fw = 0.16 * s + R * 0.22 * (1 - u)
             p = (math.cos(ar) * (rr + fw * 0.3), y + math.sin(ar) * (rr + fw * 0.3), zc + u * L * 0.96)
             M.box(fw, 0.07 * s, 0.22 * s * (1.2 - u * 0.6), p, 'chrome', STEEL, 0, rot=(0, 0, a), group=g)
             if k % 2 == 0:
@@ -274,8 +276,9 @@ def build(m):
         yd = Ht * 0.45
         tracks = 4
     # ------------------------------------------------------------ drill and yoke
-    R = (0.72 + 0.04 * (m - 1)) * s * (1.0 if st < 2 else 1.18)
+    R = (0.72 + (0.04 if st < 2 else 0.03) * (m - 1)) * s * (1.0 if st < 2 else 1.18)
     L = (2.0 + 0.06 * (m - 1)) * s * (1.0 if st < 2 else 1.15)
+    yd = max(yd, R * 1.15 * 1.08 + 0.08 * s, R * 1.18 + 0.25 * s)   # housing and flights clear the ground
     zy = zF + (0.35 * s if st == 0 else 0.55 * s)
     yoke(M, m, st, s, C, yd, zF, zy, R, hw)
     tip = drill(M, m, st, s, yd, zy + 0.35 * s, R, L, C)
@@ -461,7 +464,7 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
     sw = hw - 0.05 * s
     z1 = zF - 0.4 * s
     z0 = zc - (0.3 * s if st == 1 else 0.9 * s)
-    h1 = 1.2 * s + 0.05 * (m - 5) * s
+    h1 = 1.15 * s + 0.04 * (m - 5) * s
     M.box(2 * sw, h1, z1 - z0, (0, yk + 0.18 * s + h1 / 2, (z0 + z1) / 2), 'hull', hull, 0.14 * s, taper=(0.94, 0.95))
     y2 = yk + 0.18 * s + h1
     # black side panels and glow line on the lower block
@@ -478,7 +481,7 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
     # upper block (narrower, set back) with the command cab
     uw2 = sw * 0.72
     u0, u1 = z0 + 0.2 * s, z1 - 0.9 * s
-    h2 = 0.9 * s + 0.04 * (m - 5) * s
+    h2 = 0.85 * s + 0.03 * (m - 5) * s
     M.box(2 * uw2, h2, u1 - u0, (0, y2 + h2 / 2, (u0 + u1) / 2), 'hull', hull, 0.12 * s, taper=(0.92, 0.92))
     M.box(2 * uw2 + 0.1 * s, 0.12 * s, u1 - u0 + 0.1 * s, (0, y2 + 0.06 * s, (u0 + u1) / 2), 'trim', panel, 0.03 * s)
     y3 = y2 + h2
@@ -497,7 +500,10 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
     cw, chh, cd = 1.5 * s, 0.95 * s, 1.3 * s
     cab(M, m, s, C, (uw2 - cw / 2 + 0.1 * s, y3 - 0.05 * s, u1 - cd / 2 - 0.1 * s), cw, chh, cd)
     # stacks behind the upper block
-    stacks(M, m, s, C, [(sx * (uw2 - 0.1 * s), y2, u0 - 0.35 * s) for sx in (1, -1)], 1.5 * s + 0.06 * (m - 5) * s)
+    sp = [(sx * (uw2 - 0.1 * s), y2, u0 - 0.35 * s) for sx in (1, -1)]
+    if m >= 11:   # quad stacks
+        sp += [(sx * (uw2 - 0.65 * s), y2, u0 - 0.35 * s) for sx in (1, -1)]
+    stacks(M, m, s, C, sp, 1.5 * s + 0.06 * (m - 5) * s)
     # hardpoints: top of the upper block (centre), the rear deck, shoulders of the lower block
     # black roof on the upper block; the main gun stands on it
     M.box(2 * uw2 * 0.92 - 0.25 * s, 0.06 * s, (u1 - u0) * 0.92 - cd * 0.2 - 0.3 * s, (-0.2 * s, y3 + 0.03 * s, u0 + ((u1 - u0) * 0.92 - cd * 0.2) / 2), 'trim', panel, 0.02)
