@@ -84,11 +84,11 @@ def leg_upper(M, L, ru, s, st, C):
         M.cyl(0.075 * s, L * 0.36, (0, L * 0.66, z), 'y', 'chrome', 0xb8bcc8, 8, group=g, bevel=0.01)
         for t in (0.08, 0.86):
             M.box(0.24 * s, 0.14 * s, ru * 0.55, (0, L * t, sz * ru * 0.92), 'dark', dark, 0.02, group=g, segs=1)
-    # knee: hinge drum across the leg plane, armoured caps, a glow ring
+    # knee: hinge drum across the leg plane, armoured caps with chrome pins
     M.cyl(ru * 1.05, ru * 2.55, (0, L, 0), 'z', 'dark', dark, 16, group=g)
     for sz in (1, -1):
         M.cyl(ru * 0.82, 0.14 * s, (0, L, sz * ru * 1.32), 'z', 'hull', hull, 16, group=g, bevel=0.02)
-        M.cyl(ru * 0.26, 0.04 * s, (0, L, sz * (ru * 1.32 + 0.08 * s)), 'z', 'glow', glow, 10, group=g, bevel=0)
+        M.cyl(ru * 0.3, 0.05 * s, (0, L, sz * (ru * 1.32 + 0.08 * s)), 'z', 'chrome', 0xb8bcc8, 10, group=g, bevel=0)
     for sx in (1, -1):   # knee guard over the joint (shows on top), spiked on the fortress
         M.box(ru * 0.45, ru * 1.5, ru * 1.6, (sx * ru * 0.95, L - ru * 0.25, 0), 'hull', hull, 0.03 * s, taper=(0.6, 0.8), group=g)
         if st >= 2:
@@ -205,12 +205,10 @@ def build(m):
     for sx in (1, -1):
         M.box(0.2 * s, 0.05 * s, 1.08 * bl, (sx * 0.46 * bw, deck + 0.005, -0.1 * bl), 'trim', panel, 0.015)
     M.box(0.34 * s, 0.1 * s, 1.15 * bl, (0, deck + 0.03 * s, -0.1 * bl), 'dark', dark, 0.02)
-    # flank armour: long plates sloping off the deck edge over the darker lower hull; glow seam from Mk II
+    # flank armour: long plates sloping off the deck edge over the darker lower hull
     for sx in (1, -1):
         M.box(0.62 * bw, 0.1 * s + 0.08 * bh, 1.4 * bl, (sx * 0.8 * bw, 0.66 * bh, -0.08 * bl), 'hull', hull, 0.05 * s,
               rot=(0, 0, -sx * 30), taper=(0.9, 0.93))
-        if m >= 2:
-            M.box(0.05 * s, 0.06 * s, 1.2 * bl, (sx * 1.07 * bw, 0.46 * bh, -0.08 * bl), 'glow', glow, 0, rot=(0, 0, -sx * 30))
     # front glacis sloping down to the head
     M.box(1.28 * bw, 0.1 * s + 0.08 * bh, 0.34 * bl, (0, 0.86 * bh, 0.66 * bl), 'hull', hull, 0.05 * s, rot=(20, 0, 0), taper=(0.82, 1))
 
@@ -225,11 +223,17 @@ def build(m):
     for ry, k in rows:
         for j in range(k):
             x = (j - (k - 1) / 2) * 0.22 * bw
-            M.sphere(0.075 * s * (1.25 if abs(x) < 0.15 * bw else 1), (x, ry * bh - 0.02 * bh, hzc + 0.22 * bl + 0.01), (1, 1, 0.6), 'glow', glow, 10)
+            main = ry == 0.0 and abs(x) < 0.15 * bw          # two glowing main eyes, the rest dark lenses
+            M.sphere(0.075 * s * (1.25 if main else 1), (x, ry * bh - 0.02 * bh, hzc + 0.22 * bl + 0.01), (1, 1, 0.6),
+                     'glow' if main else 'glass', glow if main else 0x0a1420, 10)
     M.lights([(sx * 0.36 * bw, -0.3 * bh, hzc + 0.215 * bl) for sx in (1, -1)], 0.2 * s)
     if m >= 2:   # chin sensor
         M.sphere(0.24 * s, (0, -0.48 * bh, hzc + 0.12 * bl), (1, 1, 1), 'dark', dark, 14)
-        M.cyl(0.12 * s, 0.05 * s, (0, -0.48 * bh, hzc + 0.12 * bl + 0.23 * s), 'z', 'glow', glow, 12, bevel=0)
+        M.cyl(0.12 * s, 0.05 * s, (0, -0.48 * bh, hzc + 0.12 * bl + 0.23 * s), 'z', 'glass', 0x0a1420, 12, bevel=0)
+        for sx in (1, -1):   # sensor horns raked back over the brow
+            M.box(0.3 * s, 0.28 * s, 0.5 * bl, (sx * 0.32 * bw, 0.72 * bh, hzc - 0.06 * bl), 'hull', hull, 0.04 * s, rot=(-14, 0, 0), taper=(0.6, 0.5))
+            M.box(0.22 * s, 0.16 * s, 0.03 * s, (sx * 0.32 * bw, 0.68 * bh, hzc + 0.19 * bl), 'glass', 0x0a1420, 0.01)
+            M.box(0.08 * s, 0.04 * s, 0.44 * bl, (sx * 0.32 * bw, 0.72 * bh + 0.15 * s, hzc - 0.06 * bl), 'trim', panel, 0.005, rot=(-14, 0, 0))
     M.empty('tool', (0, -0.62 * bh, hzc + 0.2 * bl))
     if st >= 1:  # grapple mandibles under the head (it climbs)
         for sx in (1, -1):
@@ -261,12 +265,32 @@ def build(m):
     # ---- rear power pack
     M.box(1.1 * bw, 0.66 * bh, 0.34 * bl, (0, 0.02 * bh, -0.98 * bl), 'dark', dark, 0.05 * s, taper=(0.9, 0.9))
     M.vents((0, 0.36 * bh, -0.98 * bl), 0.8 * bw, 0.26 * bl, 4, tint=0x18161e)
-    for sx in (1, -1):
-        M.cyl(0.18 * s, 0.1 * s, (sx * 0.32 * bw, 0.02 * bh, -1.15 * bl), 'z', 'glow', glow, 12, bevel=0)
-    if m >= 4 and st == 0:   # dorsal sensor pod and whip antenna
+    if m < 3:
+        for sx in (1, -1):
+            M.cyl(0.18 * s, 0.1 * s, (sx * 0.32 * bw, 0.02 * bh, -1.15 * bl), 'z', 'glow', glow, 12, bevel=0)
+    else:   # Mk III+: an armoured spider abdomen behind the pack (battery and exhaust), lilac chevrons on top
+        M.loft([
+            (-1.8 * bl, 0.18 * bw, 0.2 * bh, 0.3 * bh, 2.6),
+            (-1.68 * bl, 0.44 * bw, 0.46 * bh, 0.3 * bh, 2.8),
+            (-1.42 * bl, 0.58 * bw, 0.62 * bh, 0.28 * bh, 3.0),
+            (-1.15 * bl, 0.54 * bw, 0.56 * bh, 0.22 * bh, 3.0),
+            (-0.98 * bl, 0.42 * bw, 0.42 * bh, 0.15 * bh, 2.8),
+        ], 'hull', hull, n=20)
+        M.box(0.8 * bw, 0.2 * bh, 0.62 * bl, (0, -0.2 * bh, -1.4 * bl), 'dark', dark, 0.04 * s, taper=(1.15, 1.05))   # ventral plate
+        for sx in (1, -1):
+            for q in range(2):
+                M.box(0.48 * bw, 0.04 * s, 0.12 * s, (sx * 0.2 * bw, 0.87 * bh - q * 0.04 * bh, -1.3 * bl - q * 0.18 * bl), 'trim', panel, 0.01,
+                      rot=(-8, sx * 30, 0))
+            M.cyl(0.14 * s, 0.08 * s, (sx * 0.14 * bw, 0.28 * bh, -1.8 * bl), 'z', 'glow', glow, 12, bevel=0)
+    if m >= 4 and st == 0:   # raised gun platforms for the flank pair
+        for sx in (1, -1):
+            M.box(0.8 * s, 0.3 * bh, 0.8 * s, (sx * 0.5 * bw, deck + 0.13 * bh, -0.36 * bl), 'dark', dark, 0.04 * s, taper=(0.85, 0.85))
+            M.box(1.0 * s, 0.1 * bh, 1.0 * s, (sx * 0.5 * bw, deck + 0.3 * bh, -0.36 * bl), 'hull', hull, 0.04 * s, taper=(0.9, 0.9))
+            M.box(0.05 * s, 0.06 * s, 0.8 * s, (sx * (0.5 * bw + 0.48 * s), deck + 0.3 * bh, -0.36 * bl), 'trim', panel, 0.01)
+    if m >= 2 and st == 0:   # dorsal sensor pod and whip antenna
         M.box(0.6 * s, 0.32 * s, 0.7 * s, (0.28 * bw, deck + 0.16 * s, -0.78 * bl), 'dark', dark, 0.05 * s, taper=(0.8, 0.8))
         M.cyl(0.03 * s, 1.1 * s, (0.28 * bw, deck + 0.85 * s, -0.84 * bl), 'y', 'dark', dark, 6, bevel=0)
-        M.sphere(0.06 * s, (0.28 * bw, deck + 1.42 * s, -0.84 * bl), (1, 1, 1), 'glow', glow, 8)
+        M.sphere(0.06 * s, (0.28 * bw, deck + 1.42 * s, -0.84 * bl), (1, 1, 1), 'trim', panel, 8)
 
     top_rear = deck
     if st == 1:   # raised rear module: reactor housing with vents, fins and a sensor mast
@@ -280,14 +304,14 @@ def build(m):
                     M.box(0.06 * s, mh * 0.8, 0.5 * s, (sx * 0.56 * bw, deck + mh * 0.45, -0.42 * bl - k * 0.13 * bl), 'dark', dark, 0.01, rot=(0, 0, sx * 8))
             M.cyl(0.05 * s, 1.6 * s, (-0.38 * bw, top_rear + 0.8 * s, -0.78 * bl), 'y', 'dark', dark, 6, bevel=0)
             M.box(0.5 * s, 0.08 * s, 0.08 * s, (-0.38 * bw, top_rear + 1.3 * s, -0.78 * bl), 'dark', dark, 0.01)
-            M.sphere(0.08 * s, (-0.38 * bw, top_rear + 1.62 * s, -0.78 * bl), (1, 1, 1), 'glow', glow, 8)
+            M.sphere(0.08 * s, (-0.38 * bw, top_rear + 1.62 * s, -0.78 * bl), (1, 1, 1), 'trim', panel, 8)
         if m >= 7:
             for sx in (1, -1):
                 M.box(0.14 * s, 0.05 * s, 0.5 * bl, (sx * 0.42 * bw, top_rear - 0.02 * s, -0.6 * bl), 'trim', panel, 0.01)
         if m >= 8:   # exhaust stacks
             for sx in (1, -1):
                 M.cyl(0.16 * s, 0.9 * s, (sx * 0.3 * bw, top_rear + 0.3 * s, -0.82 * bl), 'y', 'dark', dark, 10)
-                M.cyl(0.11 * s, 0.04 * s, (sx * 0.3 * bw, top_rear + 0.76 * s, -0.82 * bl), 'y', 'glow', glow, 10, bevel=0)
+                M.cyl(0.11 * s, 0.04 * s, (sx * 0.3 * bw, top_rear + 0.76 * s, -0.82 * bl), 'y', 'dark', 0x101014, 10, bevel=0)
 
     tower_top = None
     if st == 2:   # walking fortress: flank sponsons and a raised command tower
@@ -299,7 +323,6 @@ def build(m):
         for sx in (1, -1):
             M.box(0.16 * s, ph * 0.8, 0.34 * bl, (sx * 0.3 * bw, tb + ph * 0.36, tz), 'hull', hull2, 0.04 * s, rot=(0, 0, -sx * 18), taper=(0.5, 0.9))
             M.box(0.05 * s, ph * 0.5, 0.06 * s, (sx * 0.22 * bw, tb + ph * 0.55, tz + 0.19 * bl), 'trim', panel, 0.01)
-        M.box(0.26 * bw, 0.05 * s, 0.06 * s, (0, tb + ph * 0.72, tz + 0.19 * bl), 'glow', glow, 0)
         by = tb + ph
         M.box(0.86 * bw, 0.18 * bh, 0.44 * bl, (0, by + 0.02 * bh, tz), 'dark', dark, 0.04 * s, taper=(1.25, 1.14))         # chin
         bhh = 0.5 * bh
@@ -322,15 +345,15 @@ def build(m):
         M.box(0.72 * bw if m < 10 else 0.5 * bw, 0.1 * s, 0.34 * bl if m < 10 else 0.25 * bl, (0, ttop + 0.05 * s, tz - 0.03 * bl), 'trim', panel, 0.03)
         ttop += 0.1 * s
         tower_top = (0, ttop, tz + 0.02 * bl)
-        # masts with glow tips
+        # masts with lilac tips
         for sx in (1, -1):
             M.cyl(0.04 * s, 1.8 * s, (sx * 0.24 * bw, ttop + 0.9 * s, tz - 0.17 * bl), 'y', 'dark', dark, 6, bevel=0)
-            M.sphere(0.08 * s, (sx * 0.24 * bw, ttop + 1.82 * s, tz - 0.17 * bl), (1, 1, 1), 'glow', glow, 8)
+            M.sphere(0.08 * s, (sx * 0.24 * bw, ttop + 1.82 * s, tz - 0.17 * bl), (1, 1, 1), 'trim', panel, 8)
         if m >= 11:   # sensor dish on a yoke behind the gun
             dc = (-0.0, ttop + 0.7 * s, tz - 0.2 * bl)
             M.cyl(0.08 * s, 0.7 * s, (dc[0], ttop + 0.35 * s, dc[2]), 'y', 'dark', dark, 8, bevel=0)
             M.cyl(0.62 * s, 0.14 * s, dc, 'z', 'trim', panel, 20, r2=0.25 * s, rot=(-25, 0, 0))
-            M.sphere(0.1 * s, (dc[0], dc[1] + 0.05 * s, dc[2] + 0.2 * s), (1, 1, 1), 'glow', glow, 8)
+            M.sphere(0.1 * s, (dc[0], dc[1] + 0.05 * s, dc[2] + 0.2 * s), (1, 1, 1), 'chrome', 0xb8bcc8, 8)
         if m >= 12:   # command spire with a crest
             M.cyl(0.12 * s, 2.6 * s, (0, ttop + 1.3 * s, tz + 0.12 * bl), 'y', 'dark', dark, 8, r2=0.05 * s)
             M.box(0.7 * s, 0.5 * s, 0.08 * s, (0, ttop + 1.9 * s, tz + 0.12 * bl), 'trim', panel, 0.02, taper=(0.3, 1))
@@ -351,8 +374,6 @@ def build(m):
                 M.box(0.5 * bw, 0.14 * bh, 0.34 * bl, (x, deck + 0.07 * bh, z), 'hull', hull, 0.04 * s, taper=(0.9, 0.9))
                 for dz in (-0.11, 0.11):   # battlements on the outer lip
                     M.box(0.08 * bw, 0.22 * bh, 0.08 * bl, (x + sx * 0.24 * bw, deck + 0.2 * bh, z + dz * bl), 'hull', hull2, 0.03 * s, taper=(0.85, 0.85))
-                if m >= 10:
-                    M.box(0.05 * s, 0.06 * s, 0.26 * bl, (x + sx * 0.25 * bw, deck + 0.04 * bh, z), 'glow', glow, 0)
         if m >= 12:   # gold-trimmed armour bands across the deck
             for z in (0.4 * bl, -0.72 * bl):
                 M.box(1.0 * bw, 0.06 * s, 0.16 * s, (0, deck + 0.04 * s, z), 'trim', trim, 0.01)
@@ -361,7 +382,7 @@ def build(m):
     hpn = frames.hp_count(F, m)
     if st == 0:
         central = [(0, deck + 0.05 * s, 0.36 * bl), (0, deck + 0.05 * s, -0.5 * bl)]
-        pairs = [(0.5 * bw, deck - 0.02 * s, -0.36 * bl)]
+        pairs = [(0.5 * bw, deck + 0.35 * bh, -0.36 * bl)]
     elif st == 1:
         central = [(0, deck + 0.05 * s, 0.38 * bl), (0, top_rear + 0.02 * s, -0.55 * bl)]
         pairs = [(0.52 * bw, deck - 0.02 * s, -0.02 * bl), (0.52 * bw, deck - 0.02 * s, 0.4 * bl)]

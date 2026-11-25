@@ -37,7 +37,7 @@ export function mountHardpoints(v, stats) {
   for (const b of stats.bays || []) {
     const hp = hpOf(b.key);
     if (!hp) continue;
-    const m = buildPodGLB(b.item.base, v.mats, hp.size);
+    const m = buildPodGLB(b.item.base, v.mats, hp.size * 0.72);   // a bay pod is boxier than a gun: keep it from crowding the hull
     if (!m) continue;
     hp.node.add(m.group);
     v.pods.push({ group: m.group, launch: m.launch, slot: b, hp });
