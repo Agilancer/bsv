@@ -1,4 +1,4 @@
-// The wider armoury (data/weapons.js): fifty more guns, each worth what its parent core gun is worth.
+// The wider armoury (data/weapons.js): sixty-four more guns, each worth what its parent core gun is worth.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BASES, makeItem, weaponStats, describe, rollItem, deliveryValue, reachTrade, UNIQUES, uniqueFits } from '../src/game/data/items.js';
@@ -9,15 +9,15 @@ import { RNG } from '../src/engine/rng.js';
 const variants = Object.keys(BASES).filter((k) => BASES[k].of);
 const plain = (k, ilvl = 20) => ({ ...makeItem(k, ilvl, 'rare', new RNG(7)), affixes: [], unique: [] });
 
-test('fifty new weapons: beams, torpedoes and missiles among them, in every gun slot', () => {
-  assert.equal(WEAPON_VARIANTS.length, 50);
-  assert.equal(variants.length, 50);
+test('sixty-four new weapons: beams, torpedoes and missiles among them, in every gun slot', () => {
+  assert.equal(WEAPON_VARIANTS.length, 64);
+  assert.equal(variants.length, 64);
   const by = (f) => variants.filter((k) => f(BASES[k])).length;
   assert.ok(by((b) => b.kind === 'beam') >= 12, 'energy beams');
   assert.ok(by((b) => b.kind === 'torpedo') >= 10, 'torpedo systems');
   assert.ok(by((b) => b.kind === 'missile') >= 7, 'missile systems');
   for (const slot of ['broadside', 'turret', 'prow']) assert.ok(by((b) => b.slot === slot) >= 10, slot);
-  assert.equal(new Set(variants.map((k) => BASES[k].name)).size, 50, 'distinct names');
+  assert.equal(new Set(variants.map((k) => BASES[k].name)).size, 64, 'distinct names');
 });
 
 test('each variant is worth its parent per slot (reach traded), so the balance contract holds', () => {
