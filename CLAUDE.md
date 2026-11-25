@@ -44,12 +44,17 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     auto-fire at the nearest hostile in its own arc (`otherTarget`; enemy guns only take the captain's side, so factions
     do not fight each other); otherwise it keeps training on the ship's target. Barrels lead by the shot's real flight
     time, and launchers loft (`LOFT`: the mount elevates, the warhead climbs out and homes down); launch() uses the same line.
-    Part kits (docs/ships: `design-brief.md`, `kit-spec.md`): hulls are being rebuilt as Blender-made part kits, one
-    per design language. `tools/blender/ship_<lang>.py` (+ `shiplib.py`; `python3` with `bpy`) writes
-    `assets/ships/kits/<lang>.glb` and a `.json` dump; `ship/kitPlan.js` (pure: class layouts, section chain, length
-    fit, hardpoints from markers, bake) and `ship/kitAssembler.js` (loader, meshes) build the hull, and `buildHull`
-    uses them when the language's kit is loaded and `planHull` succeeds, else the procedural builder. So far: the
-    Velscour frigate (`velscour_3`) only. `tests/kit.test.mjs` checks the contract from the JSON dump.
+    Part kits (docs/ships: `design-brief.md`, `kit-spec.md`): the hulls of the six player yards (all ten classes each,
+    60 hulls) are Blender-made part kits, one per design language. `tools/blender/shipkit.py` is one generator
+    for every yard (the class ladder: sections, mounts, sockets, markers); a yard is a `Style` in
+    `tools/blender/ship_<lang>.py` (cross-section, mount housing, plating, prow, command structure, nozzles, stern dress,
+    its own appendages), `shiplib.py` the modelling/export helpers. Rebuild a kit: `python3 tools/blender/ship_<lang>.py`
+    (`python3` with `bpy`) writes `assets/ships/kits/<lang>.glb` + `.json`, then `node tools/kitprofiles.mjs` (crew
+    cutaway profiles, `kitProfiles.js`) and `node --test tests/kit.test.mjs`. `ship/kitPlan.js` (pure: class layouts
+    `CLASS_LAYOUT`, per-yard differences `LANG_LAYOUT` / `layoutFor`, section chain, length fit, hardpoints from
+    markers, bake, `creaseNormals` for the smooth yards) and `ship/kitAssembler.js` (`loadKits()`, meshes) build the
+    hull; `buildHull` uses them when the language's kit is loaded and `planHull` succeeds, else the procedural
+    builder (still used for enemy yards and any chassis with a `livery` or role `kit`). Review: `tools/kitshots.cjs`.
     Viewer: `&guns`, `&hp`, `&vs` (kit beside procedural), `&nokit`.
   - `combat/` — projectiles/beams (instanced), damage model, hangar craft. `ai/ShipAI.js`.
   - Shields you can see: `fx/materials.js` `shieldMaterial` lights each of the four facings by its own charge (`facing`
@@ -111,6 +116,18 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     save data in `data.contracts` (old three-field contracts migrate on load), history in `data.questLog`.
     Stations: `galaxy.js` gives every system at least one (94 total, 8 kinds in `STATION_KINDS`);
     outposts are appended from their own seeded stream so older stations keep index, seed and place.
+  - `phenomena/` — natural features of each system (`game.phenomena`): `data.js` (pure: `KINDS` — black hole, six
+    nebulae (dark / reflection / ion storm / cryogenic / emission / supernova remnant), asteroid fields from gravel to
+    planetoids, comet, pulsar, magnetar, quasar jet, gravity well, gravity fountain, wormhole pair, chronal eddy, tidal
+    binary — `FX` effect constants, `systemPhenomena(sys, detail)` from its own seeded stream, placed clear of planets,
+    stations, zones, signals and the arrival point (`keepClear`); home gets only calm ones), `visuals.js` (TSL meshes,
+    added to `World.bodies`), `index.js` (wraps `enterSystem` first; effects per frame on ships, shots and loot, in
+    fractions of each ship's own speed / hull / shield). Hooks elsewhere: `Ship.envRegen` (shield regen multiplier, reset
+    each frame), `buffs.surge` (x1.35 speed), `Ship.veiled` (ShipAI won't pick it out past `FX.dust.sight`), and
+    `World.avoid` (Ship.steerTo / steerHeading bend the wanted heading round hazard circles and big rocks with
+    `planet/avoid.js` `steerOffset`; AI always, the captain only under autoplay). Autoplay won't chase loot into hazards
+    (`hazardAt`). First sighting of each kind pays a survey bounty (`data.phenomena`). Radar / system map draw them.
+    Duels and arenas sit far outside any system, so nothing here reaches them.
   - `flavor/` — space-side game feel: slow-mo on big kills, last words (sober final transmissions). (No kill-streak callouts, in space or on the
     surface: they were removed on request. Do not add chained-kill counters or announcements back.)
 - `src/ui/` — HUD, overlay canvas, windows; `css/ui.css` holds the holo theme.

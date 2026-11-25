@@ -7,10 +7,10 @@ import fs from 'node:fs';
 import { CHASSIS, CHASSIS_BY_ID } from '../src/game/data/chassis.js';
 import { hullPlan, sideProfile } from '../src/game/ship/hullPlan.js';
 import { KIT_PROFILES } from '../src/game/ship/kitProfiles.js';
-import { BANDS, CLASS_LAYOUT, PITCH_FLOOR, STRETCH, bandFor, indexKit, planHull, bakePlan, shieldLevel, waistFill, pickSpread, isCommand, kitSideProfile } from '../src/game/ship/kitPlan.js';
+import { BANDS, CLASS_LAYOUT, YARDS, layoutFor, PITCH_FLOOR, STRETCH, bandFor, indexKit, planHull, bakePlan, shieldLevel, waistFill, pickSpread, isCommand, kitSideProfile } from '../src/game/ship/kitPlan.js';
 
 const load = (lang) => indexKit(JSON.parse(fs.readFileSync(new URL(`../assets/ships/kits/${lang}.json`, import.meta.url))));
-const KITS = { velscour: load('velscour') };
+const KITS = Object.fromEntries(YARDS.map((y) => [y, load(y)]));      // the six player yards
 // every chassis a kit claims: its language has a kit, its class has a layout, and it wears no faction livery or
 // role add-on (those still hang on the procedural hull: kit-spec section 7)
 const covered = CHASSIS.filter((c) => KITS[c.yard] && CLASS_LAYOUT[c.tier] && !c.kit && !c.livery);
@@ -28,8 +28,9 @@ function extent(baked, keep = () => true) {
   return e;
 }
 
-test('all ten Velscour classes are covered, and every covered chassis assembles', () => {
-  for (let t = 1; t <= 10; t++) assert.ok(covered.includes(CHASSIS_BY_ID[`velscour_${t}`]), `velscour_${t} is built from the kit`);
+test('all ten classes of the six player yards are covered, and every covered chassis assembles', () => {
+  for (const y of YARDS) for (let t = 1; t <= 10; t++) assert.ok(covered.includes(CHASSIS_BY_ID[`${y}_${t}`]), `${y}_${t} is built from the kit`);
+  assert.equal(covered.length, 60);
   for (const { c, plan } of built) assert.ok(plan.ok, `${c.id}: ${plan.why}`);
 });
 
@@ -67,7 +68,7 @@ test('kit parts carry their identity and joints', () => {
 
 test('broadside gunhouses sit inside their casemates', () => {
   // WeaponModels.js: the gunhouse reaches 0.55 s outboard of the pivot (s = 0.72 W); the socket is 0.25 s inboard
-  for (const p of KITS.velscour.parts) {
+  for (const kit of Object.values(KITS)) for (const p of kit.parts) {
     const refW = BANDS.find((b) => b.id === p.band).refW, s = 0.72 * refW;
     const bs = p.markers.filter((m) => m.mk === 'hp.bs');
     if (!bs.length) continue;
@@ -117,7 +118,7 @@ test('hardpoint counts equal the slots, broadside pairs are mirrored, nozzles ma
     // slot keys are unique (Ship.slotKey)
     const keys = plan.hardpoints.map((h) => (h.type === 'broadside' ? `broadside:${h.side[0]}${h.index}` : `${h.type}:${h.index}`));
     assert.equal(new Set(keys).size, keys.length, `${c.id} slot keys`);
-    assert.equal(plan.engines.length, CLASS_LAYOUT[c.tier].nozzles, `${c.id} nozzles`);
+    assert.equal(plan.engines.length, layoutFor(c.yard, c.tier).nozzles, `${c.id} nozzles`);
     // nozzles at the stern (a side hull's or a nacelle's own engine may sit a little forward of the block's)
     for (const e of plan.engines) assert.ok(e.r > 0 && e.pos[2] < -c.len * 0.35, `${c.id} nozzle at z ${(e.pos[2] / c.len).toFixed(2)} L`);
     assert.ok(plan.engines.some((e) => e.pos[2] < -c.len * 0.45), `${c.id} engine block at the stern`);
@@ -153,7 +154,7 @@ test('dims L, W, Ht and Hb are the procedural builder\'s; the command structure 
 
 test('mount rules: battery rows, extent and pitch floor; turret wells apart', () => {
   for (const { c, plan } of built) {
-    const { L, W } = plan.dims, lay = CLASS_LAYOUT[c.tier];
+    const { L, W } = plan.dims, lay = layoutFor(c.yard, c.tier);
     const port = plan.hardpoints.filter((h) => h.type === 'broadside' && h.side === 'port');
     const rows = new Map();
     for (const h of port) { if (!rows.has(h.tier)) rows.set(h.tier, []); rows.get(h.tier).push(h.pos[2]); }
@@ -252,7 +253,7 @@ test('each class has its own gesture (design-brief section 2)', () => {
   // T3 deep belly: deeper below the centreline than above
   assert.ok(-tier(3).plan.bottom > tier(3).plan.hullTop * 1.2, 'frigate belly');
   // T4 long snout: the longest prow share of any class
-  for (const b of built) if (b.c.tier !== 4) assert.ok(bowShare(tier(4)) > bowShare(b), `destroyer snout ${bowShare(tier(4)).toFixed(2)} vs ${b.c.id} ${bowShare(b).toFixed(2)}`);
+  for (const b of built) if (b.c.tier !== 4 && b.c.yard === 'velscour') assert.ok(bowShare(tier(4)) > bowShare(b), `destroyer snout ${bowShare(tier(4)).toFixed(2)} vs ${b.c.id} ${bowShare(b).toFixed(2)}`);
   assert.ok(bowShare(tier(4)) >= 0.33);
   // T5 waisted hull: a narrow battery waist between a head mass and an engine mass
   assert.ok(halfBeam(tier(5), -0.08, 0.14) <= 0.75 && halfBeam(tier(5), 0.28, 0.4) >= 0.99 && halfBeam(tier(5), -0.45, -0.3) >= 0.99, 'light cruiser waist');
@@ -271,7 +272,7 @@ test('each class has its own gesture (design-brief section 2)', () => {
   // T9 gun spine and split prow: turrets ride a ridge above the crown; the prow opens between two blades
   for (const h of tier(9).plan.hardpoints) if (h.type === 'turret' && h.side === 'dorsal' && Math.abs(h.pos[2]) < tier(9).c.len * 0.3) assert.ok(h.pos[1] > tier(9).plan.dims.Ht * 1.2, 'battleship turrets in the ridge');
   assert.ok(KIT_PROFILES.velscour_9.notch, 'battleship split prow');
-  for (const b of built) if (b.c.tier !== 9) assert.equal(KIT_PROFILES[b.c.id].notch, null, `${b.c.id} has no split prow`);
+  for (const b of built) if (b.c.tier !== 9 && b.c.yard === 'velscour') assert.equal(KIT_PROFILES[b.c.id].notch, null, `${b.c.id} has no split prow`);
   // T10 tri-hull: side hulls with their own battery trench and engines
   assert.ok(halfBeam(tier(10), -0.2, 0.2) >= 1.8, 'dreadnought side hulls');
   const side = tier(10).plan.hardpoints.filter((h) => h.type === 'broadside' && Math.abs(h.pos[0]) > tier(10).plan.dims.W * 1.4);

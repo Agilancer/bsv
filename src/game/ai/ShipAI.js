@@ -16,6 +16,8 @@
 import * as THREE from 'three/webgpu';
 import { wrapAngle, clamp } from '../../engine/rng.js';
 import { SPECIALS } from './specials.js';
+import { FX as PHEN } from '../phenomena/data.js';
+const VEIL_SIGHT = PHEN.dust.sight;
 
 const _v = new THREE.Vector3();
 
@@ -74,6 +76,7 @@ export class ShipAI {
       if (!o.alive || !world.hostile(s, o) || o.cloaked) continue;
       const d = o.position.distanceTo(s.position);
       if (d > this.aggro && o !== s.lastAttacker) continue;
+      if (o.veiled && d > VEIL_SIGHT && o !== s.lastAttacker) continue;   // hidden in a dark nebula
       let score = d;
       if (o === s.lastAttacker) score *= 0.5;
       if (o.isPlayer) score *= 0.8;
