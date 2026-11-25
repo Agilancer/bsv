@@ -2,7 +2,8 @@
 // slope, animates wheels, legs, fans and drills, aims its turret at the cursor, kicks up dust
 // and thruster glow, and takes hits on a rippling shield before the hull.
 import * as THREE from 'three/webgpu';
-import { buildVehicle, mountGuns, FRAME_STYLE } from './vehicleModels.js';
+import { buildVehicle, mountGuns, buildGun, FRAME_STYLE } from './vehicleModels.js';
+import { vehicleReady, buildVehicleGLB, buildGunGLB, buildPodGLB, loadVehicle, loadParts, partsReady } from './vehicleGLB.js';
 import { explorerStats } from './explorerItems.js';
 import { shieldMaterial } from '../../fx/materials.js';
 import { damp, clamp, wrapAngle } from '../../engine/rng.js';
@@ -16,7 +17,32 @@ export const FRAME_PHYS = {
   gunship: { hover: true, accel: 2.4, turn: 4.0, face: 'aim', fly: true, bob: 0.35, bank: 0.35 },
   crawler: { hover: false, accel: 2.8, turn: 2.4, face: 'move' },
   lancer: { hover: true, accel: 2.6, turn: 2.8, face: 'aim', bob: 0.12, bank: 0.18 },
+  seraph: { hover: true, accel: 2.8, turn: 4.4, face: 'aim', fly: true, bob: 0.3, bank: 0.3 },
 };
+
+// Guns and drone bays on the model's hardpoints (Blender models); the procedural fallback keeps
+// every gun on its one turret. v.guns[i] lines up with stats.guns[i]; v.pods with stats.bays.
+export function mountHardpoints(v, stats) {
+  for (const g of v.guns || []) g.group.parent && g.group.parent.remove(g.group);
+  for (const p of v.pods || []) p.group.parent && p.group.parent.remove(p.group);
+  v.guns = []; v.pods = [];
+  if (!v.hardpoints || !v.hardpoints.length) { mountGuns(v, stats.guns); for (const g of v.guns) g.muzzle.sub(g.group.position); return; }
+  const hpOf = (key) => v.hardpoints[+String(key).split(':')[1]] || null;
+  stats.guns.forEach((g, i) => {
+    const hp = hpOf(g.key) || v.hardpoints[i % v.hardpoints.length];
+    const m = buildGunGLB(g.item.base, v.mats, hp.size) || buildGun(g.item, v.mats, hp.size);
+    hp.node.add(m.group);
+    v.guns.push({ group: m.group, muzzle: m.muzzle.clone(), slot: g, hp });
+  });
+  for (const b of stats.bays || []) {
+    const hp = hpOf(b.key);
+    if (!hp) continue;
+    const m = buildPodGLB(b.item.base, v.mats, hp.size);
+    if (!m) continue;
+    hp.node.add(m.group);
+    v.pods.push({ group: m.group, launch: m.launch, slot: b, hp });
+  }
+}
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _u = new THREE.Vector3(), _k = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
@@ -44,9 +70,14 @@ export class Vehicle {
     this.stats = explorerStats(ex);
     this.chassis = EXPLORER_BY_ID[ex.chassis];
     this.phys = FRAME_PHYS[this.chassis.frame];
-    const v = buildVehicle(ex, this.chassis, this.engine);
+    const glb = vehicleReady(this.chassis.id);
+    const v = glb ? buildVehicleGLB(glb, this.chassis, this.engine) : buildVehicle(ex, this.chassis, this.engine);
     this.v = v;
-    mountGuns(v, this.stats.guns);
+    mountHardpoints(v, this.stats);
+    // the Blender model (or the gun / drone parts) still loading: swap them in when they land
+    const id = this.chassis.id;
+    if (!glb) loadVehicle(id).then((g) => { if (g && this.v === v && this.chassis.id === id && !M.disposed && M.rebuildVehicle) M.rebuildVehicle(); });
+    else if (!partsReady()) loadParts().then(() => { if (this.v === v && !M.disposed) { mountHardpoints(v, this.stats); if (M.drones) M.drones.remesh(); } });
     M.scene.add(v.root);
     for (const m of v.legMeshes) M.scene.add(m);
     this.dims = v.dims;
@@ -166,9 +197,18 @@ export class Vehicle {
     }
     v.root.position.copy(this.position);
     v.root.rotation.set(this.pitch, this.heading, this.roll, 'YXZ');
-    // turret
+    // turret (procedural) / each hardpoint gun trains on the aim point from where it sits
     const tYaw = wrapAngle(this.aimYaw - this.heading);
     v.turret.rotation.y = tYaw;
+    if (v.hardpoints && v.hardpoints.length) {
+      v.root.updateMatrixWorld(true);
+      const ax = ctl.aim ? ctl.aim.x : this.position.x + Math.sin(this.aimYaw) * 50, az = ctl.aim ? ctl.aim.z : this.position.z + Math.cos(this.aimYaw) * 50;
+      for (const g of v.guns) {
+        g.hp.node.getWorldPosition(_v);
+        const want = wrapAngle(Math.atan2(ax - _v.x, az - _v.z) - this.heading);
+        g.group.rotation.y = damp(g.group.rotation.y, wrapAngle(want - g.group.rotation.y) + g.group.rotation.y, 14, dt);
+      }
+    }
     this.animate(dt, maxSp);
     // shield shell visuals
     const sl = this.shieldMat.userData.level;
@@ -185,7 +225,7 @@ export class Vehicle {
     const p = this.position, r = this.radius * 0.8;
     if (this.mode.dungeon) {
       const bx = p.x, bz = p.z;
-      this.mode.dungeon.collide(p, r);
+      this.mode.dungeon.collide(p, Math.min(r, 5.2));   // the biggest marks squeeze through 16-unit corridors
       // slide along walls: drop the velocity component we were pushed against
       const px = p.x - bx, pz = p.z - bz, pl = Math.hypot(px, pz);
       if (pl > 1e-4) { const nx = px / pl, nz = pz / pl, vn = this.velocity.x * nx + this.velocity.z * nz; if (vn < 0) { this.velocity.x -= nx * vn; this.velocity.z -= nz * vn; this.speed *= 0.95; } }
@@ -228,7 +268,8 @@ export class Vehicle {
       }
     }
     if (v.drill) v.drill.rotation.z += dt * (this.mode.mining ? 22 : 3);
-    for (const f of v.fans) f.rotation.y += dt * 30;
+    for (const f of v.fans) f.rotation.y += dt * (v.glb ? 18 + moving * 10 : 30);
+    if (v.flaps) for (const f of v.flaps) f.obj.rotation.z = f.base.z + Math.sin(t * 3 + f.phase) * 0.12 * (1 + moving);
     // hover pads: downwash dust + glow motes
     if (P.hover && v.pads.length && Math.random() < 0.5) {
       const pad = v.pads[(Math.random() * v.pads.length) | 0];
@@ -267,7 +308,8 @@ export class Vehicle {
       // home: out from the hip, slightly ahead in the direction of travel
       const ox = leg.out.x * Math.cos(this.heading) + leg.out.z * Math.sin(this.heading);
       const oz = -leg.out.x * Math.sin(this.heading) + leg.out.z * Math.cos(this.heading);
-      const hx = hip.x + ox * 1.9 * k + this.velocity.x * 0.18, hz = hip.z + oz * 1.9 * k + this.velocity.z * 0.18;
+      const reach = (leg.reach || 1.9) * k;
+      const hx = hip.x + ox * reach + this.velocity.x * 0.18, hz = hip.z + oz * reach + this.velocity.z * 0.18;
       if (!leg.init) { leg.foot.set(hx, S.ground(hx, hz), hz); leg.from.copy(leg.foot); leg.to.copy(leg.foot); leg.t = 1; leg.init = true; }
       if (leg.t >= 1) {
         const dx = leg.foot.x - hx, dz = leg.foot.z - hz;
@@ -316,7 +358,7 @@ export class Vehicle {
     const g = this.v.guns[i];
     if (!g) return out.copy(this.position);
     out.copy(g.muzzle);
-    return this.v.turret.localToWorld(out);
+    return g.group.localToWorld(out);
   }
   toolPoint(out) { out.copy(this.v.toolMount || _v.set(0, 1, 2)); return this.v.body.localToWorld(out); }
 

@@ -35,6 +35,17 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     management, the `PvP sortie` goal), `zones.js` (contested Voidglass fields in the open galaxy),
     `arena.js` (instanced modes), `bots.js` (PvP captains), `ui.js` + `css/guild.css`. Save:
     `data.guild`, `data.pvp`, `data.diplo`. Hostile PvP captains use teams 8+ (`s.pvp`, `noLoot`).
+  - Explorer vehicles (`planet/`): 7 frames x 12 marks (`data/chassis.js` `EXPLORER_FRAMES`, Mk m buildable at explorer
+    level `exMarkLevel(m)`: Mk XII at the cap of 50). Every mark is a Blender model (`tools/blender`, below) that grows
+    physically (more wheels / legs / ducts / hulls). Loadout keys are `hp:i` **hardpoints** (a gun or a drone bay; physical
+    mounts on the model), `tool:i`, `module:i`; old `gun:i` saves migrate in `ensureExplorer`. Drone bays (`EX_BASES`
+    slot `bay`: sparrow / scarab / mender / aegis / magpie) run as swarms in `planet/Drones.js` (rebuilt one at a time
+    from the pod; aegis drones catch hostile shots via `Shots.update`). The Seraph frame carries +1 drone per swarm.
+    Crafting: `economy.js` `BLUEPRINTS` / `craftCost` / `craftItem` (planet resources + **Salvaged Tech** `tech`, paid by
+    missions, space salvage and derelicts, war machines and crates on planets); the `outfit` quest asks for crafting.
+    A combat bay is sized to about one gun per hardpoint (`droneSheetDps`), so the ground contract (`expectedBuild`: every
+    hardpoint an uncommon gun) holds when mounts are swapped. Autopilot: `autoCraft.js` `pickBlueprint` / `fitExplorer`
+    (a gun always fitted, bays capped by `bayCap`).
   - `planet/` living layer: `lifeData.js` (pure data: fauna, curios, radio lines, weather,
     time of day, report rating), `Life.js` (wildlife herds, flyers, curios), `Weather.js` (fronts +
     telegraphed strikes), `Extras.js` (comm strip, discovery cards, expedition
@@ -99,11 +110,17 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   `engine/Input.js` (view gestures), `planet/Touch.js`; phone layouts are the last blocks of
   `css/ui.css` / `css/planet.css` (`--ml/--mr/--mt/--mb` = margins + safe-area insets). Anything
   added to `#menubar` shows in the phone sheet; new fixed HUD panels need a slot in both orientations.
+- Explorer models: `tools/blender/` (bpy 5.x headless; `pip install bpy` gives Blender as a Python module). `vlib.py` is
+  the kit (game coordinates: +x port, +y up, +z bow; bevelled parts, lofted hulls, AO baked into vertex colours, named
+  groups `body` / `wheel_i` / `rotor_i` / `flap_i` / `drill` and empties `hp_i` / `pad_i` / `eng_i` / `light_i` / `hip_i`),
+  `frames.py` (hardpoint counts + liveries, mirrored from `chassis.js`), `f_<frame>.py` per frame, `f_guns.py` /
+  `f_drones.py` for hardpoint parts. `python build.py <frame|guns|drones> [marks]` writes `assets/vehicles/<id>.glb`
+  (meshopt-packed with `gltfpack`, `GLTFPACK=` env) and `<frame>.json` facts that `tests/vehicles.test.mjs` checks
+  against the game data. The game reads them in `planet/vehicleGLB.js` (procedural `vehicleModels.js` is the fallback
+  while a file loads). `tools/vehicle_viewer.html?webgl&frames=gunship&marks=1,6,12` lays them out (`&bays` mounts drone pods).
 - `tools/viewer.html?yard=velscour` lays hulls out for visual review (`&enemy=<size>&faction=`,
   comma lists, `also=`). Faction liveries: `data/liveries.js`; hull numbers (node-safe):
   `ship/hullPlan.js` (`sideProfile` feeds the crew cutaway).
-- `tools/vehicle_viewer.html?webgl&frames=rover&marks=1,5,10` does the same for the planet explorer vehicles
-  (built and posed by the real `Vehicle` class; `&cols=5`, `&grid=frames`, `&title=`; `window.__bounds` crops shots).
 
 ## Balance
 - `data/balance.js` is the contract: `expectedPlayer(L)` builds the expected captain from the real

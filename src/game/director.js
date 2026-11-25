@@ -237,6 +237,7 @@ export class Director {
           const rng = new RNG(ps.p.seed);
           for (let i = 0; i < 2 + rng.int(0, 2); i++) W.loot.dropItem(rollItem(this.danger + 1, rng, { luck: 0.8 }), ps.pos);
           W.loot.dropCredits(80 * this.danger + 120, ps.pos);
+          for (let i = 0; i < 3; i++) W.loot.dropSalvage(3 + this.danger, ps.pos);   // Salvaged Tech for the explorer's guns and drones
           W.toast('Derelict salvaged', 'epic');
           if (rng.chance(0.4)) { W.toast('Ambush!', 'bad'); this.squad(this.foe(), ps.pos, 400); }
           if (ps.mesh) setTimeout(() => ps.mesh && (ps.mesh.visible = false), 6000);

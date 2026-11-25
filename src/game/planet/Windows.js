@@ -7,12 +7,16 @@ import { EXPLORER_BY_ID, EXPLORER_FRAMES, CHASSIS_BY_ID } from '../data/chassis.
 import { slotKeys } from '../Player.js';
 import {
   EX_BASES, EX_INV_SIZE, EX_SLOT_LABEL, exSlotKeys, exDescribe, exItemScore, explorerStats, ensureExplorer, equipExItem, unequipExItem,
-  equipBestEx, setExChassis, scrapYield, explorerXpForLevel,
+  equipBestEx, setExChassis, scrapYield, explorerXpForLevel, SLOT_OF, exDroneStats, droneSheetDps,
 } from './explorerItems.js';
 import {
   RESOURCES, RES_KEYS, SHIP_UPGRADES, upgradeCost, buyShipUpgrade, refineryShipStats, reforgeCost, empowerCost, overchargeCost, imbueCost,
   workshop, canImbue, chassisCost, buyChassis, fabricateCost, fabricate, addResources, affordable, PROBE_UPGRADES, buyProbeUpgrade, probeStats, EMPOWER_MAX, empowerCap, fmtShipStat, SHIP_STAT_LABELS,
+  BLUEPRINTS, craftCost, craftItem,
 } from './economy.js';
+import { EX_MARKS } from '../data/chassis.js';
+import { vehicleReady, loadVehicle } from './vehicleGLB.js';
+import { drawSchematic } from './schematic.js';
 import { ITEM_MAX_LVL, AFFIXES, BASES } from '../data/items.js';
 
 const BASE_ICON = (it) => (BASES[it.base] ? BASES[it.base].icon : 'reactor');
@@ -91,20 +95,22 @@ export class PlanetWindows {
     const canSwap = !M || M.atLander;
     const keys = exSlotKeys(ch);
     let slots = '';
-    for (const t of ['gun', 'tool', 'module']) {
-      slots += `<div class="label" style="margin:8px 0 4px">${EX_SLOT_LABEL[t]}s</div><div class="slots">`;
-      for (const k of keys.filter((x) => x.startsWith(t))) { const it = ex.loadout[k]; slots += `<div class="slot" data-slot="${k}">${it ? this.exItemEl(it) : ''}</div>`; }
+    for (const t of ['hp', 'tool', 'module']) {
+      const label = t === 'hp' ? `Hardpoints <span class="label">· a gun or a drone bay on each mount (${ch.slots.hp} on this mark)</span>` : `${EX_SLOT_LABEL[t]}s`;
+      slots += `<div class="label" style="margin:8px 0 4px">${label}</div><div class="slots${t === 'hp' ? ' hps' : ''}">`;
+      for (const k of keys.filter((x) => x.startsWith(t + ':'))) { const it = ex.loadout[k]; slots += `<div class="slot${t === 'hp' ? ' hp' : ''}${it && it.slot === 'bay' ? ' bay' : ''}" data-slot="${k}">${it ? this.exItemEl(it) : ''}${t === 'hp' ? `<span class="hpn">${+k.split(':')[1] + 1}</span>` : ''}</div>`; }
       slots += '</div>';
     }
     let inv = `<div class="label" style="margin:8px 0 4px">Gear bay · ${ex.inventory.length}/${EX_INV_SIZE}</div><div class="grid">`;
     for (let i = 0; i < EX_INV_SIZE; i++) {
       const it = ex.inventory[i];
       let up = '';
-      if (it) { const same = keys.filter((k) => k.startsWith(it.slot)); const worst = same.length ? Math.min(...same.map((k) => exItemScore(ex.loadout[k]))) : Infinity; if (exItemScore(it) > worst) up = '<span class="up">▲</span>'; }
+      if (it) { const same = keys.filter((k) => k.startsWith(SLOT_OF[it.slot] + ':')); const worst = same.length ? Math.min(...same.map((k) => exItemScore(ex.loadout[k]))) : Infinity; if (exItemScore(it) > worst) up = '<span class="up">▲</span>'; }
       inv += `<div class="cell" data-i="${i}">${it ? this.exItemEl(it, up) : ''}</div>`;
     }
     inv += '</div>';
-    const dps = st.guns.reduce((a, g) => a + g.ws.dmg * g.ws.pellets * g.ws.barrels * g.ws.rof * st.dmgMul, 0);
+    const dps = st.guns.reduce((a, g) => a + g.ws.dmg * g.ws.pellets * g.ws.barrels * g.ws.rof * st.dmgMul, 0) + st.bays.reduce((a, b) => a + droneSheetDps(b.ds) * st.dmgMul, 0);
+    const drones = st.bays.reduce((a, b) => a + b.ds.count, 0);
     const mine = st.tools.reduce((a, t) => a + t.ts.power, 0) * st.mineMul;
     const row = (k, v) => `<span>${k}</span><b>${v}</b>`;
     const xpN = explorerXpForLevel(ex.level);
@@ -112,7 +118,7 @@ export class PlanetWindows {
     let hangar = '<div class="hangar">';
     for (const [fk, f] of Object.entries(EXPLORER_FRAMES)) {
       hangar += `<div class="hrow"><div class="hname" title="${esc(f.blurb)}">${f.name}</div>`;
-      for (let m = 1; m <= 10; m++) {
+      for (let m = 1; m <= EX_MARKS; m++) {
         const c = EXPLORER_BY_ID[`ex_${fk}_${m}`];
         const owned = ex.owned.includes(c.id), active = ex.chassis === c.id;
         const next = !owned && (m === 1 || ex.owned.includes(`ex_${fk}_${m - 1}`));
@@ -121,13 +127,22 @@ export class PlanetWindows {
       hangar += '</div>';
     }
     hangar += '</div>';
-    const fab = ['gun', 'tool', 'module'].map((s) => `<button class="btn fab" data-fab="${s}">Fabricate ${EX_SLOT_LABEL[s]}<div class="costs">${this.costHtml(fabricateCost(s, ex.level))}</div></button>`).join('');
+    const fab = ['gun', 'bay', 'tool', 'module'].map((s) => `<button class="btn fab" data-fab="${s}">Random ${EX_SLOT_LABEL[s]}<div class="costs">${this.costHtml(fabricateCost(s, ex.level))}</div></button>`).join('');
+    // blueprints: pick the gun or drone bay you want
+    this.bp ||= 'sparrow';
+    const bpRow = (k) => `<div class="bp ${this.bp === k ? 'on' : ''} ${EX_BASES[k].slot}" data-bp="${k}" title="${esc(EX_BASES[k].blurb || EX_BASES[k].name)}">${icon(EX_BASES[k].icon)}<span>${esc(EX_BASES[k].name.replace(/ (Gun Drones|Crawlers|Swarm|Wing|Harvesters)$/, ''))}</span></div>`;
+    const bpKeys = Object.keys(BLUEPRINTS);
+    const sel = EX_BASES[this.bp], sample = exDescribe({ ...this.bpSample(this.bp, ex.level) });
+    const blueprints = `<div class="bps">${bpKeys.filter((k) => EX_BASES[k].slot === 'gun').map(bpRow).join('')}</div><div class="bps">${bpKeys.filter((k) => EX_BASES[k].slot === 'bay').map(bpRow).join('')}</div>
+      <div class="bpinfo"><div class="bptext"><b style="color:var(--white)">${esc(sel.name)}</b> <span class="label">· ${sel.slot === 'bay' ? 'drone bay' : 'gun'} · item level ${ex.level}</span><div class="bpdesc">${sample.lines.map(esc).join('<br>')}</div></div>
+      <div class="bpbtns"><button class="btn" data-craft="0">Craft<div class="costs">${this.costHtml(craftCost(this.bp, ex.level))}</div></button><button class="btn violet" data-craft="1">Masterwork <span class="label">rare+</span><div class="costs">${this.costHtml(craftCost(this.bp, ex.level, true))}</div></button></div></div>`;
     body.innerHTML = `${this.bankHtml()}
       <div class="pcols"><div>
         <div class="title" style="color:var(--cyan)">${esc(ch.fullName)}</div>
         <div class="label" style="margin:2px 0 6px">Explorer level ${ex.level} · ${EXPLORER_FRAMES[ch.frame].blurb}</div>
         <div class="bar xp" style="margin-bottom:8px"><i style="width:${(ex.xp / xpN * 100).toFixed(1)}%"></i></div>
-        <div class="statgrid">${row('Hull', fmt(st.maxHp))}${row('Shield', fmt(st.maxShield))}${row('Armour', st.armor.toFixed(0))}${row('Speed', st.speed.toFixed(0))}${row('Cargo', st.cargo)}${row('Weapon DPS', fmt(dps))}${row('Mining', mine.toFixed(1) + '/s')}${row('Pickup radius', st.pickup.toFixed(0))}${row('Runs · kills', `${ex.runs || 0} · ${ex.kills || 0}`)}</div>
+        <div class="statgrid">${row('Hull', fmt(st.maxHp))}${row('Shield', fmt(st.maxShield))}${row('Armour', st.armor.toFixed(0))}${row('Speed', st.speed.toFixed(0))}${row('Cargo', st.cargo)}${row('Weapon DPS', fmt(dps))}${row('Drones', drones ? `${drones} in ${st.bays.length} bay${st.bays.length > 1 ? 's' : ''}` : '—')}${row('Mining', mine.toFixed(1) + '/s')}${row('Pickup radius', st.pickup.toFixed(0))}${row('Runs · kills', `${ex.runs || 0} · ${ex.kills || 0}`)}</div>
+        <canvas class="schem" id="exSchem" width="340" height="220" title="Top view of the deployed vehicle: numbered mounts, amber = gun, green = drone bay"></canvas>
         ${slots}
       </div><div>
         ${inv}
@@ -137,8 +152,14 @@ export class PlanetWindows {
       <div class="title" style="margin-top:14px">Hangar <span class="label">${canSwap ? 'click an owned mark to deploy it · next mark to build it' : 'swap vehicles at the lander or in orbit'}</span></div>
       ${hangar}
       <div id="exChassisInfo" class="label" style="min-height:18px;margin-top:6px"></div>
-      <div class="title" style="margin-top:12px">Fabricator <span class="label">random gear at item level ${ex.level}</span></div>
+      <div class="title" style="margin-top:12px">Fabricator <span class="label">craft a blueprint from planet resources and salvaged tech (missions, derelicts, war machines)</span></div>
+      ${blueprints}
+      <div class="label" style="margin-top:8px">Or roll the dice: random gear at item level ${ex.level}</div>
       <div class="fabrow">${fab}</div>`;
+    const cv = body.querySelector('#exSchem'), gl = vehicleReady(ch.id);
+    const mounts = keys.filter((k) => k.startsWith('hp:')).map((k) => ({ kind: ex.loadout[k] ? ex.loadout[k].slot : null }));
+    if (gl) { try { drawSchematic(cv, ch.id, gl, mounts); } catch (e) { cv.style.display = 'none'; } }
+    else { cv.style.display = 'none'; loadVehicle(ch.id).then((g) => { if (g && this.isOpen('explorer')) this.refresh(); }); }
     const find = (uid) => ex.inventory.find((x) => x.uid === uid) || Object.values(ex.loadout).find((x) => x && x.uid === uid);
     body.querySelectorAll('.item').forEach((el) => {
       const it = find(el.dataset.uid);
@@ -154,9 +175,10 @@ export class PlanetWindows {
     body.querySelector('#exBest').onclick = () => { equipBestEx(ex); this.changed(); };
     body.querySelector('#exScrap').onclick = () => { for (const it of ex.inventory.slice()) if (it.rarity === 'common') this.scrap(it, true); this.refresh(); };
     const info = body.querySelector('#exChassisInfo');
+    body.querySelector('.hangar').addEventListener('mouseleave', () => { const g = vehicleReady(ch.id); if (g) { cv.style.display = ''; drawSchematic(cv, ch.id, g, mounts); } });
     body.querySelectorAll('.hmk').forEach((el) => {
       const c = EXPLORER_BY_ID[el.dataset.ch];
-      el.addEventListener('mouseenter', () => { info.innerHTML = `<b style="color:var(--white)">${c.fullName}</b> · hull ${c.hp} · speed ${c.speed} · cargo ${c.cargo} · slots ${c.slots.gun}G/${c.slots.tool}T/${c.slots.module}M · requires level ${c.level}${ex.owned.includes(c.id) ? '' : ' · ' + this.costHtml(chassisCost(c))}`; });
+      el.addEventListener('mouseenter', () => { this.previewMark(cv, c); info.innerHTML = `<b style="color:var(--white)">${c.fullName}</b> · hull ${c.hp} · speed ${c.speed} · cargo ${c.cargo} · ${c.slots.hp} hardpoints · ${c.slots.tool} tools · ${c.slots.module} modules · requires level ${c.level}${ex.owned.includes(c.id) ? '' : ' · ' + this.costHtml(chassisCost(c))}`; });
       el.addEventListener('click', () => {
         if (ex.owned.includes(c.id)) {
           if (!canSwap) { G.ui.toast('Swap vehicles at the lander', 'warn'); return; }
@@ -167,11 +189,24 @@ export class PlanetWindows {
         }
       });
     });
+    body.querySelectorAll('[data-bp]').forEach((b) => b.addEventListener('click', () => { this.bp = b.dataset.bp; this.refresh(); }));
+    body.querySelectorAll('[data-craft]').forEach((b) => b.addEventListener('click', () => {
+      const r = craftItem(D, this.bp, ex.level, b.dataset.craft === '1');
+      if (r.ok) { G.ui.toast(`Crafted ${r.item.name}`, RARITY[r.item.rarity].i >= 3 ? 'epic' : ''); G.quests && G.quests.emit && G.quests.emit('craft', { n: 1, kind: r.item.slot }); this.refresh(); } else G.ui.toast(r.why, 'warn');
+    }));
     body.querySelectorAll('[data-fab]').forEach((b) => b.addEventListener('click', () => {
       const r = fabricate(D, b.dataset.fab, ex.level);
       if (r.ok) { G.ui.toast(`Fabricated ${r.item.name}`, RARITY[r.item.rarity].i >= 3 ? 'epic' : ''); this.refresh(); } else G.ui.toast(r.why, 'warn');
     }));
   }
+  // hangar hover: the schematic of that mark at the same scale, so the growth reads
+  previewMark(cv, c) {
+    const draw = (g) => { if (!g) return; cv.style.display = ''; try { drawSchematic(cv, c.id, g, []); } catch (e) { /* model without triangles */ } };
+    const g = vehicleReady(c.id);
+    if (g) draw(g); else loadVehicle(c.id).then((x) => { if (this.isOpen('explorer')) draw(x); });
+  }
+  // a fixed-roll sample of a blueprint for its description line (common, no affixes)
+  bpSample(base, ilvl) { return { uid: 'bp', ex: true, base, slot: EX_BASES[base].slot, rarity: 'common', ilvl, affixes: [], unique: [], xp: 0, lvl: 1, name: EX_BASES[base].name }; }
   scrap(item, quiet) {
     const ex = this.game.data.explorer;
     const i = ex.inventory.indexOf(item); if (i < 0) return;

@@ -54,6 +54,7 @@ export const EVENTS = {
   sell: ['rarity'],
   earn: [],
   salvage: [],
+  craft: ['kind'],
   bridge: [],
   crew: [],
 };
@@ -227,6 +228,10 @@ export const TEMPLATES = [
     titles: ['Scrap drive', 'Waste not', 'Pre-owned hull plate'],
     lines: ['{n} units of salvage. It is only looting if they are still using it.', 'The yard builds new ships out of old enemies. It is very circular. Very green.', 'Wrecks are just hulls that have stopped arguing. Bring us {n} units.'],
     make: (c, r) => { const n = Math.round(r.int(8, 14) * (1 + c.danger / 12)); return { cond: {}, n, obj: `Recover ${n} units of salvage`, effort: 2 + n * 0.12 / (1 + c.danger / 12) }; } },
+  { id: 'outfit', cat: 'mining', ev: 'craft', w: 2.5, kinds: ['shipyard', 'research', 'trade', 'military', 'mining'],
+    titles: ['Field trials', 'Prototype run', 'Hardpoint certification'],
+    lines: ['Build {n} from our blueprints at your Explorer Bay and run them on a live world. The salvaged tech is on us.', 'Our engineers want field data, and field data wants somebody else\'s explorer. Craft {n}.', 'A drone wing in every hold, the brochure says. Help us make the brochure true: craft {n}.'],
+    make: (c, r) => { const bay = r.chance(0.6), n = r.int(1, 2) + (bay ? 0 : 1); return { cond: { kind: bay ? 'bay' : 'gun' }, n, obj: `Craft ${n} ${bay ? `drone bay${n > 1 ? 's' : ''}` : 'explorer guns'} at the Explorer Bay fabricator`, effort: 2.5 + n, res: { tech: 4 * n } }; } },
   // ---- hunt: things with teeth, on the ground ----
   { id: 'cull', cat: 'hunt', ev: 'gkill', w: 4,
     titles: ['Surface cull', 'Clear the dig site', 'Hostile fauna, emphasis on hostile'],
@@ -327,7 +332,7 @@ export function questReward(tplCat, lvl, effort, kind, extra = {}) {
   const b = tplCat === 'bounty' ? kindOf(kind).bounty : 1, mul = (extra.mul || 1) * b;
   const reward = { credits: round5(38 * lvl * effort * mul), xp: Math.round(20 * lvl * effort * mul) };
   if (extra.item) reward.item = extra.item;
-  if (extra.res) reward.res = extra.res;
+  reward.res = { ...(extra.res || {}), tech: Math.max(2, Math.round(effort * (1.5 + lvl * 0.12) * Math.min(2, mul))) };
   return reward;
 }
 

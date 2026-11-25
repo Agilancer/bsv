@@ -98,6 +98,8 @@ export class Shots {
             if (p.splash) { this.splash(p, _a, e); dead = true; hitPoint = _a; }
             else { fx.impact(_a, p.color.getHex(), 0.8); if (p.pierce > 0) { p.pierce--; p.hitSet.add(e); } else dead = true; }
           }
+        } else if (M.drones && M.drones.catchShot(p.prev, p.pos, p)) {
+          dead = true;
         } else if (M.vehicle.alive) {
           const V = M.vehicle;
           _b.copy(V.position); _b.y += 1;

@@ -258,6 +258,7 @@ PlanetPilot.prototype.dodge = function (ctl, dt) {
 export function autoSpend(game) {
   const D = game.data;
   const r = autoCraft(D);
+  if (game.quests && game.quests.emit) for (const it of r.crafted) game.quests.emit('craft', { n: 1, kind: it.slot });
   if (r.log.length) {
     const text = `Refinery: ${r.log.join('; ')}`;
     if (game.autoplay && game.autoplay.log) game.autoplay.log(text); else game.ui.toast(text, 'epic');

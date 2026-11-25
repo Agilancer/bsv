@@ -8,11 +8,11 @@ import { newPlayer, slotKeys, starterLoadout, itemScore } from '../src/game/Play
 import { galaxy, systemDetail } from '../src/game/galaxy.js';
 import { RNG } from '../src/engine/rng.js';
 
-test('sixty ship chassis and sixty explorer chassis, unique ids', () => {
+test('sixty ship chassis and eighty-four explorer chassis, unique ids', () => {
   assert.equal(CHASSIS.length, 60);
-  assert.equal(EXPLORERS.length, 60);
+  assert.equal(EXPLORERS.length, 84);
   assert.equal(new Set(CHASSIS.map((c) => c.id)).size, 60);
-  assert.equal(new Set(EXPLORERS.map((c) => c.id)).size, 60);
+  assert.equal(new Set(EXPLORERS.map((c) => c.id)).size, 84);
   assert.equal(Object.values(YARDS).filter((y) => !y.enemyOnly).length * CLASSES.length, 60);
 });
 

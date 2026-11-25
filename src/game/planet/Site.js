@@ -98,6 +98,7 @@ export class Interactables {
     const w = PLANET_RES[M.type];
     for (let i = 0; i < 2 + c.tier; i++) this.dropRes(rng.weighted(Object.entries(w)), rng.int(3, 8) * (1 + c.tier), _p.copy(c.pos).setY(c.pos.y + 1.2));
     if (c.tier >= 2 && rng.chance(0.5)) this.dropRes(rng.pick(['relic', 'datacore']), 1 + c.tier - 2, _p);
+    if (c.tier >= 1 || rng.chance(0.5)) this.dropRes('tech', rng.int(2, 5) * (1 + c.tier), _p);   // salvaged tech for the fabricator
     this.dropCredits(Math.round((30 + lvl * 12) * (1 + c.tier)), _p);
     M.onCrateOpened(c);
   }

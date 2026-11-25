@@ -16,6 +16,7 @@ html,body{margin:0;background:#0b1018;overflow:hidden;color:#9cf;font:12px monos
 // the game's own Vehicle class on flat ground (strider legs go through the real IK).
 //   ?frames=rover,skiff   ?marks=1,5,10   ?cols=5 (wrap after N per frame; default: one row per frame)
 //   ?grid=frames  lays the chosen vehicles out cols-wide regardless of frame (overview sheets)
+//   ?procedural  draws the old procedural models instead of the Blender GLBs
 //   ?fov=deg (default 16)  ?heading=rad  ?pitch=rad  ?title=text|subtitle  ?nolabels  ?clean (no fps readout)  ?dpr=2  ?exposure=
 //   window.__bounds = the CSS-pixel box holding every vehicle and label (for cropped screenshots)
 import * as THREE from 'three/webgpu';
@@ -25,6 +26,7 @@ import { initMaterials } from './src/fx/materials.js';
 import { EXPLORER_BY_ID, EXPLORER_FRAMES } from './src/game/data/chassis.js';
 import { makeExItem } from './src/game/planet/explorerItems.js';
 import { Vehicle } from './src/game/planet/Vehicle.js';
+import { loadVehicle, loadParts } from './src/game/planet/vehicleGLB.js';
 import { RNG } from './src/engine/rng.js';
 
 const q = new URLSearchParams(location.search);
@@ -51,36 +53,51 @@ sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096); sun.shadow.bias = -0.
 scene.add(sun, sun.target, hemi);
 
 // a field kit per frame, so each shows the guns its blurb promises (every gun slot filled)
-const KIT = { skiff: ['chaingun'], rover: ['chaingun', 'rockets'], strider: ['plasma', 'scatter'], gunship: ['rockets', 'chaingun'], crawler: ['mortar', 'chaingun'], lancer: ['rail', 'plasma'] };
+const KIT = { skiff: ['chaingun', 'arc'], rover: ['chaingun', 'rockets'], strider: ['plasma', 'scatter'], gunship: ['rockets', 'chaingun'], crawler: ['mortar', 'chaingun'], lancer: ['rail', 'plasma'], seraph: ['arc', 'plasma'] };
 const rng = new RNG(7);
 const mode = { engine: e, scene, S: { ground: () => 0 }, pfx: { dust() {}, thruster() {}, smoke() {}, trail() {}, glowBurst() {}, fx: { fire() {} } }, cam: { addShake() {} } };
 
 const SX = 15, SZ = 26;
 const items = [];
 for (const fk of frames) for (const m of marks) { const c = EXPLORER_BY_ID[`ex_${fk}_${m}`]; if (c) items.push(c); }
+if (!q.has('procedural')) await Promise.all([...items.map((c) => loadVehicle(c.id)), loadParts()]);
 const per = flow ? (cols || 3) : (cols || marks.length);
 const rowsOf = flow ? [items] : frames.map((fk) => items.filter((c) => c.frame === fk));
-let rz = 0, maxX = 0;
+let rz = 0, maxX = 0, lastGap = SZ;
 const placed = [];
+const kitFor = (c) => {
+  const kit = KIT[c.frame], loadout = {}, n = c.slots.hp ?? c.slots.gun;
+  const bays = q.has('bays') ? (q.get('bays') || 'sparrow,aegis,mender,scarab,magpie').split(',') : [];
+  for (let g = 0; g < n; g++) {
+    const bay = bays.length && g % 2 === 1 ? bays[(g >> 1) % bays.length] : null;
+    loadout[`hp:${g}`] = makeExItem(bay || kit[g % kit.length], 20, 'rare', rng);
+  }
+  return loadout;
+};
 for (const row of rowsOf) {
   for (let r0 = 0; r0 < row.length; r0 += per) {
-    row.slice(r0, r0 + per).forEach((c, i) => {
-      const kit = KIT[c.frame];
-      const loadout = {};
-      for (let g = 0; g < c.slots.gun; g++) loadout[`gun:${g}`] = makeExItem(kit[g % kit.length], 20, 'rare', rng);
-      mode.ex = { chassis: c.id, owned: [c.id], level: 30, xp: 0, loadout, inventory: [] };
+    // build the row first, then space it by each vehicle's real footprint
+    const built = row.slice(r0, r0 + per).map((c) => {
+      mode.ex = { chassis: c.id, owned: [c.id], level: 30, xp: 0, loadout: kitFor(c), inventory: [] };
       const V = new Vehicle(mode);
       V.v.body.remove(V.shieldMesh); // gameplay overlay: off the sheet and out of the bounds
-      V.place(i * SX, rz, heading);
+      return { c, V, w: Math.max(V.dims.W, V.dims.L * 0.8), d: Math.max(V.dims.L, V.dims.W * 0.8) };
+    });
+    const cell = Math.max(SX, ...built.map((b) => b.w + 5));
+    const depth = Math.max(SZ, ...built.map((b) => b.d + 12));
+    if (placed.length) rz += Math.max(depth, lastGap) * 0.5 + Math.min(depth, lastGap) * 0.5 - SZ + SZ;
+    built.forEach(({ c, V }, i) => {
+      V.place(i * cell, rz, heading);
       V.v.root.rotation.y = heading;
       V.v.root.updateMatrixWorld(true);
       if (V.v.legs.length) V.walk(0, 0);
-      placed.push({ c, V, x: i * SX, z: rz });
-      maxX = Math.max(maxX, i * SX);
+      placed.push({ c, V, x: i * cell, z: rz });
+      maxX = Math.max(maxX, i * cell);
     });
-    rz += SZ;
+    lastGap = depth;
   }
 }
+rz += SZ;
 const maxZ = rz - SZ;
 const cx = maxX / 2, cz = maxZ / 2;
 // ground + shadows
