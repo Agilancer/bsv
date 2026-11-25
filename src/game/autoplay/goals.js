@@ -68,7 +68,7 @@ export function resupplyGoal(ap) {
       if (phase === 'approach') {
         const n = g.nearestStation();
         if (!n) { phase = null; return true; }
-        if (n.dist > 2600 && !g.isWarping()) g.warpTo(n.station.position.clone().add(new THREE.Vector3(500, 0, 400)));
+        if (g.isWarping() || (n.dist > 2600 && g.autoWarp(n.station.position.clone().add(new THREE.Vector3(500, 0, 400))))) { /* under drive */ }
         else if (n.dist <= 900 && !g.docked) { g.modes.dock(); if (g.dockingTarget || g.docked) { phase = 'docking'; t = 0; } }
         else if (!g.isWarping()) s.steerTo(n.station.position, 80, 1);
         if (t > 120) { phase = null; return true; }

@@ -205,8 +205,8 @@ export function questGoal(ap) {
         if (g.docked) { g.undock(); return false; }
         const d = st.position.distanceTo(s.position);
         if (g.isWarping()) return false;
-        if (d > 2600) g.warpTo(st.position.clone().add(_off));
-        else if (d <= 900 && !g.dockingTarget) g.modes.dock();   // this close, the nearest station is ours
+        if (d > 2600 && g.autoWarp(st.position.clone().add(_off))) return false;
+        if (d <= 900 && !g.dockingTarget) g.modes.dock();   // this close, the nearest station is ours
         else if (!g.dockingTarget) s.steerTo(st.position, 80, 1);
         return false;
       }

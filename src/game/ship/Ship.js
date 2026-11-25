@@ -11,6 +11,7 @@ import { BASES, weaponStats, itemShipStats, DISRUPT } from '../data/items.js';
 import { YARDS } from '../data/chassis.js';
 import { clamp, wrapAngle, damp } from '../../engine/rng.js';
 
+const CRUISE = 1.9;   // engines to cruise: a ship on passage with nothing near (set per frame through cruiseUntil)
 const ARC = { broadside: 0.95, turret: 2.4, prow: 0.5, hangar: Math.PI };   // turret: half-angle from the bow (blind astern)
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
 // reused spawn spec for Wake of Thorns mines (Projectiles.spawn copies what it needs)
@@ -192,7 +193,7 @@ export class Ship {
   update(dt, t) {
     if (!this.alive) return;
     const W = this.world;
-    const boost = (this.buffs.evasive > t ? 1.6 : 1) * (this.buffs.slowed > t ? 0.55 : 1) * (this.yardTrait === 'tidewright' && t - (this.lastFire || 0) > 4 ? 1.25 : 1);
+    const boost = (this.buffs.evasive > t ? 1.6 : 1) * (this.buffs.slowed > t ? 0.55 : 1) * (this.yardTrait === 'tidewright' && t - (this.lastFire || 0) > 4 ? 1.25 : 1) * (this.cruiseUntil > t ? CRUISE : 1);
     if (this.cloaked && t > this.cloakUntil) this.setCloak(false);
     // physics
     // mass: a cutter reaches speed in ~2s, a dreadnought in ~10s; braking is a little quicker

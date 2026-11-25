@@ -451,8 +451,8 @@ test('ground contract: landed shares and exposure are applied per archetype', ()
   assert.ok(B.loadout['gun:0'] && B.loadout['tool:0'] && B.chassis.startsWith('ex_rover_'));
 });
 
-// ---- the living layer: fauna, curiosities, radio, streaks, report ----
-import { FAUNA, faunaFor, planHerds, CURIOS, planCurios, curioReward, RADIO, RADIO_CAST, radioLine, streakFor, streakBonus, STREAKS, timeOfDay, TIMES_OF_DAY, expeditionRating } from '../src/game/planet/lifeData.js';
+// ---- the living layer: fauna, curiosities, radio, report ----
+import { FAUNA, faunaFor, planHerds, CURIOS, planCurios, curioReward, RADIO, RADIO_CAST, radioLine, timeOfDay, TIMES_OF_DAY, expeditionRating } from '../src/game/planet/lifeData.js';
 import { BIOMES as LIFE_BIOMES } from '../src/game/planet/biomes.js';
 
 test('every biome has its own harmless fauna', () => {
@@ -479,15 +479,6 @@ test('radio lines resolve to a speaker; every biome has a deploy line', () => {
   for (const type of Object.keys(LIFE_BIOMES)) assert.ok(radioLine('deploy_' + type), type);
   assert.equal(radioLine('no-such-event'), null);
   assert.equal(radioLine('deploy', () => 0.999).text, RADIO.deploy.at(-1)[1]);
-});
-
-test('kill streak tiers climb and the XP bonus is capped', () => {
-  assert.equal(streakFor(1), null);
-  assert.equal(streakFor(2).title, 'DOUBLE KILL');
-  let last = 0; for (const [n] of STREAKS) { assert.ok(n > last); last = n; }
-  assert.equal(streakBonus(1), 0);
-  assert.ok(streakBonus(5) > streakBonus(2));
-  assert.ok(streakBonus(999) <= 0.5);
 });
 
 test('time of day is seeded and keeps the sun above the horizon', () => {

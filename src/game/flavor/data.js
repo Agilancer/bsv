@@ -1,4 +1,4 @@
-// Space-side banter: what a hull transmits as it comes apart, and the callouts for chained kills.
+// Space-side banter: what a hull transmits as it comes apart.
 // Pure data (node-importable).
 export const LAST_WORDS = {
   pirate: ['Tell me mum I was a LEGITIMATE trader!', 'This is a rental!', 'I KNEW we should\'ve gone for the freighter!', 'Abandon ship! Not you, Kevin, you owe me money!',
@@ -17,12 +17,3 @@ export function lastWords(faction, rnd = Math.random) {
   const pool = LAST_WORDS[faction];
   return pool ? pool[Math.floor(rnd() * pool.length) % pool.length] : null;
 }
-
-// chained kills in space: [count, title, subtitle]
-export const SPACE_STREAKS = [
-  [2, 'DOUBLE BROADSIDE', ''], [3, 'TRIPLE BROADSIDE', ''], [4, 'FLEET IN BEING', 'the being is debris'],
-  [6, 'SCOURGE OF THE LANES', 'insurers are weeping'], [9, 'ADMIRALTY\'S NIGHTMARE', 'they are writing a new rulebook'],
-  [13, 'ONE-SHIP ARMADA', 'history will assume there were more of you'],
-];
-export const SPACE_STREAK_WINDOW = 14;      // capital ships die slower than bugs
-export function spaceStreak(n) { for (let i = 0; i < SPACE_STREAKS.length; i++) if (SPACE_STREAKS[i][0] === n) return { n, title: SPACE_STREAKS[i][1], sub: SPACE_STREAKS[i][2], tier: i }; return null; }

@@ -41,9 +41,11 @@ export class Autoplay {
     this.manageT -= dt;
     if (this.manageT <= 0) { this.manageT = 4; this.manage(); }
     this.think -= dt;
-    if (this.think <= 0) { this.think = 0.25; this.decide(); }
+    if (this.think <= 0) { this.think = 0.25; this.decide(); this.cruiseBlock = this.hostiles(2200).length > 0; }
     if (g.mode === 'space' && this.dodgeWarnings()) { s.autoFire = true; return; }
     this.act(dt, t);
+    // on passage with nothing near and nothing landing on the hull: engines to cruise (Ship.update reads cruiseUntil)
+    if (g.mode === 'space' && (this.state === 'goal' || this.state === 'patrol') && s.throttle > 0.9 && t - s.lastHit > 6 && !this.cruiseBlock) s.cruiseUntil = t + 0.4;
   }
 
   // telegraphed strikes: standing in a warning beats everything else — sail out first.
@@ -93,17 +95,43 @@ export class Autoplay {
     return W.ships.filter((o) => o.alive && !o.cloaked && W.hostile(s, o) && o.position.distanceTo(s.position) < r);
   }
 
-  // threat-weighted target choice: finish the weak, prefer what is shooting us, kill bosses last unless alone
+  // Who is shooting at us and who is running. A runner is a ship that has been opening the range for a while and is
+  // not (or barely) firing at us; one that stays out of reach is let go for a time, so the captain turns to whatever is
+  // still fighting instead of trailing a fleeing hull across the system. Bosses and story ships are never let go.
+  mark(list, t) {
+    const s = this.game.player;
+    let reach = 0;
+    for (const w of s.weapons) if (w.ws && w.ws.range > reach) reach = w.ws.range;
+    reach = reach || 500;
+    for (const o of list) {
+      const dx = o.position.x - s.position.x, dz = o.position.z - s.position.z, d = Math.hypot(dx, dz) || 1;
+      const away = o.velocity ? (o.velocity.x * dx + o.velocity.z * dz) / d : 0;
+      o._runT = away > o.maxSpeed * 0.4 && d > 260 ? (o._runT || 0) + 0.25 : 0;
+      o._atk = o.target === s && t - (o.lastFire || -100) < 3.5 && d < 1500;
+      o._run = o._runT >= 1.5 && (!o._atk || o.hull / o.maxHull < 0.3);
+      if (o._run && d > reach * 1.15 && !o.elite && !o.storyTag && !o.pvp) {
+        o._outT = (o._outT || 0) + 0.25;
+        if (o._outT >= 3.5) { o._letGo = t + 25; o._outT = 0; if (s.target === o) s.target = null; }
+      } else o._outT = 0;
+      if (o._letGo > t && o._atk && !o._run) o._letGo = 0;   // it came back for more
+    }
+  }
+
+  // threat-weighted target choice: what is shooting us comes first, then the weak and the near; runners last;
+  // bosses last unless alone
   pickTarget(list) {
     const s = this.game.player;
+    const standing = list.some((o) => !o._run);
     let best = null, bs = Infinity;
     for (const o of list) {
       const d = o.position.distanceTo(s.position);
       const hp = (o.hull + o.shieldTotal()) / (o.maxHull + o.maxShield * 1.2);
       let score = d * 0.6 + hp * 500;
-      if (o.target === s) score -= 250;
+      if (o._atk) score -= 700;
+      else if (o.target === s) score -= 250;
+      if (o._run && standing) score += 1500;
       if (o.elite === 2 && list.length > 1) score += 400;
-      if (o === s.target) score -= 150; // stickiness
+      if (o === s.target && !o._run) score -= 150; // stickiness
       if (score < bs) { bs = score; best = o; }
     }
     return best;
@@ -112,7 +140,9 @@ export class Autoplay {
   decide() {
     const g = this.game, s = g.player, W = g.world;
     const hp = s.hull / s.maxHull;
-    const foes = this.hostiles();
+    const now = g.engine.time, all = this.hostiles();
+    this.mark(all, now);
+    const foes = all.filter((o) => !(o._letGo > now));
     const near = foes.filter((o) => o.position.distanceTo(s.position) < 1200);
     const threat = near.reduce((a, o) => a + o.maxHull * (1 + o.elite) * (o.hull / o.maxHull), 0);
     const might = s.maxHull * hp + s.shieldTotal();
@@ -175,7 +205,7 @@ export class Autoplay {
       s.steerTo(this.drop.pos, 10, 0.75);
       return;
     }
-    // patrol: head for the nearest zone with a garrison, warping across the system when it's far.
+    // patrol: head for the nearest zone with a garrison under sail; the drive is for real distances (game.autoWarp).
     // Nothing live? Check an unexplored signal, else wait just outside the zone that wakes first
     // (the lanes are where intercept patrols find you).
     const D = g.sector.director;
@@ -183,7 +213,7 @@ export class Autoplay {
     const go = (pos, standoff, hold) => {
       const d = pos.distanceTo(s.position);
       if (g.isWarping && g.isWarping()) { this.travel = true; return; }
-      if (d > standoff + 900 && g.warpTo && g.warpTo(pos.clone().add(_v.copy(s.position).sub(pos).setY(0).setLength(standoff)))) { this.travel = true; return; }
+      if (g.autoWarp && g.autoWarp(pos.clone().add(_v.copy(s.position).sub(pos).setY(0).setLength(standoff)))) { this.travel = true; return; }
       // steerTo eases off over 4x its arrive distance: steer at the point, stop at the standoff ourselves
       if (d > standoff * 1.05 + 40) { this.travel = true; s.steerTo(pos, 80, 1); }
       else if (hold) { this.travel = false; s.throttle = 0; }
