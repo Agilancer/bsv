@@ -82,9 +82,9 @@ export function blackHole(ph, engine) {
 
 // ---------------------------------------------------------------- nebulae: stacked sheets of lit gas
 const NEB = {
-  ion: { a: 0x2a8aff, b: 0x7af0ff, c: 0xe0f8ff, k: 1.5, flicker: true },
-  cryo: { a: 0x7ab8e0, b: 0xd8f4ff, c: 0xffffff, k: 1.0 },
-  veil: { a: 0x1a4aff, b: 0x5aa0ff, c: 0xb0d8ff, k: 1.25 },
+  ion: { a: 0x1a5adf, b: 0x3ac8ff, c: 0x9ae8ff, k: 0.8, flicker: true },
+  cryo: { a: 0x5a98c8, b: 0xa8d8f0, c: 0xe0f4ff, k: 0.65 },
+  veil: { a: 0x1a4aff, b: 0x4a90ff, c: 0x9ac8ff, k: 1.0 },
   ember: { a: 0xc0183a, b: 0xff5a3a, c: 0xffb070, k: 1.5 },
   remnant: { a: 0x8a1a8a, b: 0xff5ab0, c: 0x8af0ff, k: 1.8, shell: true },
   dust: { a: 0x0a0608, b: 0x2a1a22, c: 0x6a4a5a, k: 1, dark: true },
@@ -114,7 +114,7 @@ export function nebula(ph, engine) {
     if (P.flicker) {
       // lightning inside the cloud: cells flash up and fade
       const fl = mx_noise_float(vec3(q.mul(3), t.mul(1.7).add(i))).mul(0.5).add(0.5);
-      dens = dens.mul(fl.pow(6).mul(2.5).add(0.75));
+      dens = dens.mul(fl.pow(6).mul(1.6).add(0.6));
     }
     const fade = top ? 0.22 : 1 - i * 0.1;
     if (P.dark) {
@@ -122,8 +122,8 @@ export function nebula(ph, engine) {
       m.opacityNode = clamp(dens.mul(top ? 0.35 : 0.85), 0, 0.92);
     } else {
       const c = mix(mix(col(P.a), col(P.b), n2), col(P.c), smoothstep(0.65, 0.95, n).mul(0.6));
-      m.colorNode = c.mul(P.k).mul(top ? 0.8 : 1.2);
-      m.opacityNode = clamp(dens.mul(fade * 0.5), 0, 1);
+      m.colorNode = c.mul(P.k).mul(top ? 0.6 : 0.9);
+      m.opacityNode = clamp(dens.mul(fade * 0.32), 0, 1);
     }
     const sheet = mesh(geo, m, top ? 14 : 1);
     sheet.position.y = y;
@@ -357,8 +357,8 @@ function wormMouth(x, z, r, engine, hex2) {
   const n = mx_fractal_noise_float(vec3(cos(phi).mul(2), sin(phi).mul(2), lr.mul(3).sub(t.mul(1.4))), 4, 2, 0.5).mul(0.5).add(0.5);
   const rim = exp(rad.sub(throat).div(0.03).pow(2).negate());
   const body = smoothstep(1, throat, rad).pow(1.6).mul(n.mul(1.4).add(0.2));
-  m.colorNode = mix(col(0x6a3aff, 1.6), col(hex2, 3), n.mul(smoothstep(0.7, throat, rad))).add(col(0xffffff, 4).mul(rim));
-  m.opacityNode = clamp(body.mul(smoothstep(throat * 0.6, throat, rad)).add(rim), 0, 1);
+  m.colorNode = mix(col(0x6a3aff, 0.8), col(hex2, 1.5), n.mul(smoothstep(0.7, throat, rad))).add(col(0xffffff, 2).mul(rim));
+  m.opacityNode = clamp(body.mul(smoothstep(throat * 0.6, throat, rad)).mul(0.6).add(rim), 0, 1);
   g.add(mesh(flatDisc(r, 128), m, 2));
   // through the throat: the far side's stars
   const sm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
@@ -416,8 +416,8 @@ export function comet(ph, engine) {
   })());
   nucleus.scale.setScalar(C.nucleus);
   root.add(nucleus);
-  root.add(glowSprite(0xbfeaff, C.coma * 2.6, { k: 2.4, falloff: 2.5 }));
-  root.add(glowSprite(0xffffff, C.coma * 0.7, { k: 4, falloff: 3 }));
+  root.add(glowSprite(0xbfeaff, C.coma * 2.4, { k: 0.8, falloff: 4 }));
+  root.add(glowSprite(0xffffff, C.coma * 0.5, { k: 1.8, falloff: 4 }));
   const tail = new THREE.Group(); root.add(tail);
   const mk = (len, w0, w1, hex, k, streak) => {
     const m = addMat();
