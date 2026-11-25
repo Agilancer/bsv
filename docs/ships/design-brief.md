@@ -96,8 +96,8 @@ Where they seem to collide, the class decides *what and where*, the language dec
      recoil logic].
    - **Dividers:** thick armoured bulkheads that are part of the trench or sponson.
    - **Clear arcs:** no wing, pod or array sits in a mount's arc [ST, SW].
-9. **Turrets** sit in wells recessed into the armour, dorsal and ventral in near-equal numbers where the
-   class has both (the game splits them about 70/30), so the hull fights in three dimensions [BSG].
+9. **Turrets** sit in wells recessed into the armour, dorsal and ventral (the game puts about 70% of
+   them dorsal), so the hull fights in three dimensions [BSG].
 10. **Prow weapons** fire from the prow face or a chin battery: tubes in 1-2 rows, or one spinal muzzle
     [BFG].
 11. **Hangars** are cut into the flank or belly, clear of the batteries [SW]. Mouths line up with a bay
@@ -107,7 +107,8 @@ Where they seem to collide, the class decides *what and where*, the language dec
 12. **The command module** is sunk into the hull.
     - **Position:** amidships (40-65% of L from the bow), or inside the head.
     - **Shoulders:** hull mass rises beside it to at least half its height, so it never stands alone.
-    - **Height above the dorsal hull:** at most 1.0 Ht on bands S and M; from band L up it is a **fixed
+    - **Height above the dorsal hull:** at most 1.0 Ht on bands S and M (the size bands are defined in
+      `kit-spec.md` section 6); from band L up it is a **fixed
       absolute height** (that of the largest band-M module), so it shrinks against bigger hulls [SW: the
       largest ship's tower was the same size as the destroyer's].
     - **Bridge windows and sensor domes:** fixed absolute size on every class.
@@ -151,10 +152,10 @@ counts come from `chassis.slots`. Engine counts are part of the class. The brack
 | 2 | Corvette | 35 / 30 / 35 | **Broad shoulders:** two engine nacelles faired directly into the flanks (no pylons), making the stern the widest point [`outrig: 'pods'`] | 2 mounts on the beam facet, ahead of the nacelles | Low block between the nacelle roots | 2 nacelle + 1 centre |
 | 3 | Frigate | 25 / 50 / 25 | **Deep belly:** a built-in ventral hangar and magazine pod under half the hull, so the ship is deeper below than above | 2-3 mounts, one tier | Sunk amidships [`castle: 'mid'`] | 2 + 2 |
 | 4 | Destroyer | 45 / 30 / 25 | **Long snout:** nearly half the ship is a tapered prow ending in a flat tube face [`prow 1.45`, `torpBow`] | 3-4 mounts in one trench on the short body | Sunk at 60% | 3 |
-| 5 | Light cruiser | 25 / 40 / 35 | **Waisted hull:** a head mass and an engine mass joined by a narrower armoured battery waist, with a fin pair on the engine block, port and starboard [`fins 0.6`] | 2 tiers × 2 mounts on the waist facets | Split: bridge in the head, secondary control on the engine mass [`castle: 'twin'`] | 3-4 |
-| 6 | Cruiser | 30 / 40 / 30 | **Blade pair:** one tall dorsal sensor-command blade and a matching ventral blade at 35% of L, like a vertical fin through the hull [`foreSpire`] | 2 tiers × 2-3 mounts aft of the blades | The dorsal blade's base | 4-5 in two rows |
+| 5 | Light cruiser | 25 / 40 / 35 | **Waisted hull:** a head mass and an engine mass joined by a narrower armoured battery waist, with a fin pair on the engine block, port and starboard [`fins 0.6`] | 2 tiers × 2 mounts on the waist facets | Split: bridge in the head; secondary control buried in the engine mass, marked only by a window row and a dome, with no raised form [`castle: 'twin'`] | 3-4 |
+| 6 | Cruiser | 30 / 40 / 30 | **Split head:** the forward body divides into an upper and a lower armoured lobe round a recessed sensor trench at 20-40% of L [`foreSpire`] | 2 tiers × 2-3 mounts aft of the lobes | Sunk at 50% | 4-5 in two rows |
 | 7 | Heavy cruiser | 25 / 50 / 25 | **Wide body:** long armoured battery blocks swell from both flanks over half the hull, carrying the broadside on their outer faces [`galleries`, `belt`] | 2 tiers × 2-3 mounts on the blocks' upper and lower facets | Sunk between the blocks | 5 |
-| 8 | Battlecruiser | 35 / 35 / 30 | **Delta:** flat swept wings rooted in the aft body, with a ventral reactor bulge; long fast prow [`prow 1.3`, `fins 1.25`] | 2 tiers × 3 mounts ahead of the wing roots | Low, sunk at 55% | 5-6 in banks |
+| 8 | Battlecruiser | 35 / 35 / 30 | **Delta:** thick swept wings lofted from the language's section (root chord at least 20% of L), angled slightly down, with a ventral reactor bulge between them; long fast prow [`prow 1.3`, `fins 1.25`] | 2 tiers × 3 mounts ahead of the wing roots | Low, sunk at 55% | 5-6 in banks |
 | 9 | Battleship | 30 / 45 / 25 | **Gun spine:** an armoured ridge houses a spinal gun from amidships to a split prow, with turret wells in the ridge's shoulders, dorsal and ventral [`spine`] | 3 tiers × 2-3 mounts on three facets | Sunk into the ridge at 55% | 6-8 in banks |
 | 10 | Dreadnought | 25 / 50 / 25 | **Tri-hull:** two side hulls joined to the body by solid enclosed crossways, each with its own battery trench [`outrig: 'hulls'`] | 3 tiers on the body's facets + side-hull trenches | Main module amidships, flag bridge in the head [`castle: 'twin'`] | 8-10 in three banks |
 
@@ -190,7 +191,7 @@ palette, don't-list.
 - **Don't:** arched windows, buttresses, spires, statues, gold surfaces, anything cathedral.
 
 ### Aurelian Concord (player)
-- **Driver:** courtly and aerodynamic: one smooth swept form, white and gold.
+- **Driver:** courtly and streamlined in form only: one smooth swept shape, white and gold.
 - **Cross-section:** compressed oval with a soft chine. Every part shares it.
 - **Prow:** **needle**: a long blade tapering into the hull, a lance emitter set into its tip.
 - **Command module:** a smooth raked fairing lofted into the hull, the bridge a glazed blister at its
@@ -203,7 +204,8 @@ palette, don't-list.
 
 ### Tidewright Yards (player)
 - **Driver:** a long-range fast cruiser: slender, with big collector arrays.
-- **Cross-section:** slender lozenge, symmetric above and below. The longest L/W in the game.
+- **Cross-section:** slender lozenge, truncated at the beam to give a flat beam facet, symmetric above
+  and below. The longest L/W in the game.
 - **Prow:** a fine taper ending in an integrated sensor housing.
 - **Command module:** a low faired block sunk amidships.
 - **Arrays:** rigid framed collector panels on short folding trusses, **rooted in the flanks and belly,
@@ -219,7 +221,8 @@ palette, don't-list.
 - **Driver:** an orbital foundry's gun platform: armour bricks and industrial machinery.
 - **Cross-section:** chamfered rectangle, wide, with smelter bulges below.
 - **Prow:** **blunt** armoured face with a bolted visor and a row of heavy tubes.
-- **Command module:** a block citadel sunk between radiator towers (finned heat exchangers).
+- **Command module:** a block citadel sunk between two long, low radiator banks (finned blocks no taller
+  than the citadel, and longer than they are tall).
 - **Broadside:** boxy armoured casemates standing proud of the belt armour on each facet, the heaviest
   sponsons in the game.
 - **Engines:** a huge block with grilles.
@@ -243,7 +246,7 @@ palette, don't-list.
 - **Driver:** grown, not built: a chitinous creature-ship.
 - **Cross-section:** organic oval of overlapping carapace scales. Every edge is a curve.
 - **Prow:** **mandibles**: two curved mandibles over a maw that holds the prow weapons.
-- **Command module:** a thorn crown fused into the carapace amidships.
+- **Command module:** a thorn crown fused into the carapace amidships, at most 0.6 Ht high.
 - **Broadside:** weapon blisters between scales along the flank facets; the red glow lives inside the
   crevices.
 - **Engines:** vent organs at the tail, 3-7 by class.
@@ -262,7 +265,7 @@ palette, don't-list.
 
 ### The Silent Choir (enemy)
 - **Driver:** black-glass monoliths: stacked prisms and slabs.
-- **Cross-section:** sharp triangular prism.
+- **Cross-section:** sharp triangular prism, truncated at the beam to give a beam facet.
 - **Prow:** a knife edge; the prow weapons fire from a slot.
 - **Command module:** none visible. No windows (this language is exempt from the window rule).
 - **Broadside:** emitter slots cut into the flank facets, lit white from within.
