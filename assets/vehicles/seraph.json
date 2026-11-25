@@ -1,6 +1,6 @@
 {
  "ex_seraph_1": {
-  "bytes": 119216,
+  "bytes": 117720,
   "dims": {
    "H": 3.432,
    "L": 2.478,
@@ -40,7 +40,7 @@
   "mark": 1,
   "ride": 5.5,
   "scale": 1.0,
-  "tris": 14068,
+  "tris": 13716,
   "wings": 2
  },
  "ex_seraph_10": {
@@ -200,7 +200,7 @@
   "wings": 8
  },
  "ex_seraph_12": {
-  "bytes": 337900,
+  "bytes": 338580,
   "dims": {
    "H": 14.42,
    "L": 7.569,
@@ -283,7 +283,7 @@
   "mark": 12,
   "ride": 6.82,
   "scale": 1.825,
-  "tris": 40724,
+  "tris": 39696,
   "wings": 8
  },
  "ex_seraph_2": {
@@ -491,7 +491,7 @@
   "wings": 4
  },
  "ex_seraph_6": {
-  "bytes": 187148,
+  "bytes": 188860,
   "dims": {
    "H": 6.907,
    "L": 4.046,
@@ -545,7 +545,7 @@
   "mark": 6,
   "ride": 6.1,
   "scale": 1.375,
-  "tris": 22416,
+  "tris": 22532,
   "wings": 4
  },
  "ex_seraph_7": {
@@ -683,7 +683,7 @@
   "wings": 6
  },
  "ex_seraph_9": {
-  "bytes": 261108,
+  "bytes": 265268,
   "dims": {
    "H": 10.425,
    "L": 5.722,
@@ -752,7 +752,7 @@
   "mark": 9,
   "ride": 6.46,
   "scale": 1.6,
-  "tris": 31228,
+  "tris": 31464,
   "wings": 6
  }
 }

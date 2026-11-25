@@ -119,6 +119,8 @@ export function buildVehicleGLB(gltf, chassis, engine) {
     else if (n.startsWith('flap_')) (out.flaps ||= []).push({ obj: o, base: o.rotation.clone(), phase: num(n) * 0.7 });
   }
   out.hardpoints = out.hardpoints.filter(Boolean);
+  // leg templates are cloned per hip below; take them out of the model so they never count in its bounds
+  for (const t of Object.values(legT)) t.removeFromParent();
   // walker legs: one upper / lower / foot per hip, laid by Vehicle.walk (two-bone IK)
   for (const o of nodes) {
     if (!o.name.startsWith('hip_') || !legT.leg_upper) continue;

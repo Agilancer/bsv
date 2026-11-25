@@ -66,7 +66,7 @@ def mix(a, b, t):
 def leg_upper(M, L, ru, s, st, C):
     g = 'leg_upper'
     hull, panel, dark, glow = C['hull'], C['panel'], C['dark'], C['glow']
-    M.sphere(ru * 1.1, (0, 0, 0), (1, 1, 1), 'dark', dark, 12, group=g)                       # hip ball
+    M.sphere(ru * 1.1, (0, 0, 0), (1, 1, 1), 'dark', dark, 10, group=g)                       # hip ball
     M.cyl(ru * 0.52, L, (0, L * 0.5, 0), 'y', 'dark', dark, 8, group=g)                         # core strut
     # armour sleeve: octagonal, tapering toward the knee, with lilac collars
     M.cyl(ru, L * 0.5, (0, L * 0.42, 0), 'y', 'hull', C['hull2'], 8, r2=ru * 0.84, group=g, bevel=0.03 * s)
@@ -81,7 +81,7 @@ def leg_upper(M, L, ru, s, st, C):
         M.cyl(0.13 * s, L * 0.4, (0, L * 0.3, z), 'y', 'dark', dark, 10, group=g)
         M.cyl(0.075 * s, L * 0.36, (0, L * 0.66, z), 'y', 'chrome', 0xb8bcc8, 8, group=g, bevel=0.01)
         for t in (0.08, 0.86):
-            M.box(0.24 * s, 0.14 * s, ru * 0.55, (0, L * t, sz * ru * 0.92), 'dark', dark, 0.02, group=g)
+            M.box(0.24 * s, 0.14 * s, ru * 0.55, (0, L * t, sz * ru * 0.92), 'dark', dark, 0.02, group=g, segs=1)
     # knee: hinge drum across the leg plane, armoured caps, a glow ring
     M.cyl(ru * 1.05, ru * 2.55, (0, L, 0), 'z', 'dark', dark, 16, group=g)
     for sz in (1, -1):
@@ -96,7 +96,7 @@ def leg_upper(M, L, ru, s, st, C):
 def leg_lower(M, L, rl, s, st, C):
     g = 'leg_lower'
     hull, panel, dark, glow = C['hull'], C['panel'], C['dark'], C['glow']
-    M.sphere(rl * 1.05, (0, 0, 0), (1, 1, 1), 'dark', dark, 12, group=g)                       # knee ball
+    M.sphere(rl * 1.05, (0, 0, 0), (1, 1, 1), 'dark', dark, 8, group=g)                        # knee ball (inside the drum)
     # greave: octagonal armour, tapering down the shin, with a lilac band and four ribs
     M.cyl(rl * 1.08, L * 0.46, (0, L * 0.3, 0), 'y', 'hull', hull, 8, r2=rl * 0.74, group=g, bevel=0.03 * s)
     M.cyl(rl * 1.12, 0.09 * s, (0, L * 0.13, 0), 'y', 'trim', panel, 8, group=g, bevel=0.01)
@@ -104,11 +104,11 @@ def leg_lower(M, L, rl, s, st, C):
         a = k * 90 + 22.5
         ar = math.radians(a)
         M.box(0.08 * s, L * 0.36, rl * 0.5, (math.sin(ar) * rl * 0.98, L * 0.3, math.cos(ar) * rl * 0.98), 'dark', dark, 0.01,
-              rot=(0, a, 0), group=g, taper=(1, 0.6))
+              rot=(0, a, 0), group=g, taper=(1, 0.6), segs=1)
     # shock absorber: housing, spring coils, chrome rod down to the ankle
     M.cyl(rl * 0.6, L * 0.2, (0, L * 0.6, 0), 'y', 'dark', dark, 10, group=g)
-    for k in range(4):
-        M.cyl(rl * 0.58, 0.05 * s, (0, L * (0.71 + k * 0.035), 0), 'y', 'chrome', 0x9a9eaa, 10, group=g, bevel=0.005)
+    for k in range(3):
+        M.cyl(rl * 0.58, 0.06 * s, (0, L * (0.71 + k * 0.045), 0), 'y', 'chrome', 0x9a9eaa, 10, group=g, bevel=0)
     M.cyl(rl * 0.36, L * 0.3, (0, L * 0.8, 0), 'y', 'chrome', 0xb8bcc8, 10, group=g, bevel=0.01)
     M.cyl(rl * 0.5, L * 0.08, (0, L * 0.96, 0), 'y', 'dark', dark, 8, group=g)
 
@@ -127,7 +127,7 @@ def foot(M, s, st, C):
     else:            # six heavy claws and an armoured ankle spat
         M.cyl(rf * 0.82, 0.22 * s, (0, 0.11 * s, 0), 'y', 'dark', dark, 8, r2=rf * 0.6, group=g)
         toes = [0, 60, 120, 180, 240, 300]
-    M.sphere(rf * 0.5, (0, 0.34 * s, 0), (1, 0.8, 1), 'hull', hull, 14, group=g)               # ankle dome
+    M.sphere(rf * 0.5, (0, 0.34 * s, 0), (1, 0.8, 1), 'hull', hull, 12, group=g)               # ankle dome
     M.cyl(rf * 0.52, 0.06 * s, (0, 0.36 * s, 0), 'y', 'trim', panel, 12, group=g, bevel=0.01)
     for a in toes:
         ar = math.radians(a)
@@ -139,8 +139,8 @@ def foot(M, s, st, C):
             k = 1.0 if st == 1 else 1.15
             # claw: a knuckle on the pad, a sloped talon down to the ground, a chrome tip
             M.box(0.26 * s * k, 0.26 * s, rf * 0.55, (cx * rf * 0.55, 0.26 * s, cz * rf * 0.55), 'hull', hull, 0.03 * s, rot=(-18, a, 0), taper=(0.85, 0.8), group=g)
-            M.box(0.2 * s * k, 0.18 * s, rf * 0.55, (cx * rf * 0.98, 0.12 * s, cz * rf * 0.98), 'dark', dark, 0.02 * s, rot=(16, a, 0), taper=(0.7, 0.6), group=g)
-            M.box(0.12 * s * k, 0.1 * s, rf * 0.3, (cx * rf * 1.28, 0.05 * s, cz * rf * 1.28), 'chrome', 0xb8bcc8, 0.01, rot=(24, a, 0), taper=(0.4, 0.3), group=g)
+            M.box(0.2 * s * k, 0.18 * s, rf * 0.55, (cx * rf * 0.98, 0.12 * s, cz * rf * 0.98), 'dark', dark, 0.02 * s, rot=(16, a, 0), taper=(0.7, 0.6), group=g, segs=1)
+            M.box(0.12 * s * k, 0.1 * s, rf * 0.3, (cx * rf * 1.28, 0.05 * s, cz * rf * 1.28), 'chrome', 0xb8bcc8, 0.01, rot=(24, a, 0), taper=(0.4, 0.3), group=g, segs=1)
     if st >= 2:
         for k in range(3):
             a = k * 120 + 60

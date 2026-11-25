@@ -66,7 +66,9 @@ test('every chassis has a Blender model whose hardpoints match its data, and eac
   }
   const rotors = [1, 3, 6, 9, 12].map((m) => manifest[`ex_gunship_${m}`].rotors);
   assert.deepEqual(rotors, [2, 4, 6, 8, 8], 'the gunship goes from two rotors to eight');
-  assert.ok(manifest.ex_gunship_12.dims.W > manifest.ex_gunship_1.dims.W * 2, 'and gets much bigger doing it');
+  const foot = (id) => manifest[id].dims.L * manifest[id].dims.W;
+  assert.ok(foot('ex_gunship_12') > foot('ex_gunship_1') * 4, 'and gets much bigger doing it (footprint)');
+  for (const f of FRAMES) assert.ok(foot(`ex_${f}_12`) > foot(`ex_${f}_1`) * 2.5, `${f}: Mk XII covers far more ground than Mk I`);
 });
 
 test('guns and drone parts are modelled for every gun and bay', () => {

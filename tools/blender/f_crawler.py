@@ -400,7 +400,7 @@ def body_box(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
         M.box(0.12 * s, (top - Ht) * 0.55, L * 0.7, (sx * (uw - 0.02 * s), Ht + (top - Ht) * 0.35, zc - 0.3 * s), 'trim', panel, 0.03 * s, rot=(0, 0, sx * 5))
         for k in range(5):
             M.cyl(0.05 * s, 0.06 * s, (sx * (uw + 0.05 * s), Ht + (top - Ht) * 0.5, zc - 0.3 * s - L * 0.3 + k * L * 0.15), 'x', 'chrome', STEEL, 6, bevel=0)
-        M.box(0.05 * s, 0.07 * s, L * 0.6, (sx * (uw * 0.93 + 0.02 * s), top - 0.25 * s, zc - 0.3 * s), 'glow', glow, 0)
+        M.box(0.04 * s, 0.045 * s, L * 0.5, (sx * (uw * 0.93 + 0.02 * s), top - 0.25 * s, zc - 0.3 * s), 'glow', glow, 0)
     # engine deck: a raised black cover with grilles; rear bumper with hazard stripes
     ez = rz0 + 1.25 * s
     M.box(2 * rw_ - 0.5 * s, 0.24 * s, 2.0 * s, (0, ytop + 0.12 * s, ez), 'trim', panel, 0.06 * s, taper=(0.92, 0.92))
@@ -467,7 +467,7 @@ def body_pods(M, m, st, s, C, hw, Ht, zF, zB, hpc, hpp):
     # black side panels and glow line on the lower block
     for sx in (1, -1):
         M.box(0.1 * s, h1 * 0.5, (z1 - z0) * 0.8, (sx * (sw + 0.01 * s), yk + 0.18 * s + h1 * 0.45, (z0 + z1) / 2), 'trim', panel, 0.03 * s)
-        M.box(0.05 * s, 0.07 * s, (z1 - z0) * 0.7, (sx * (sw * 0.96 + 0.03 * s), y2 - 0.22 * s, (z0 + z1) / 2), 'glow', glow, 0)
+        M.box(0.04 * s, 0.045 * s, (z1 - z0) * 0.6, (sx * (sw * 0.96 + 0.03 * s), y2 - 0.22 * s, (z0 + z1) / 2), 'glow', glow, 0)
     # glacis from the deck front down to the yoke
     M.beam((0, Ht * 0.55, zF + 0.1 * s), (0, y2 - 0.2 * s, z1 - 0.6 * s), 2 * sw - 0.2 * s, 0.32 * s, 'hull', hull, 0.06 * s)
     M.box(2 * sw * 0.94 - 0.2 * s, 0.44 * s, 0.16 * s, (0, y2 - 0.12 * s, z1 + 0.02 * s), 'dark', dark, 0.03 * s)

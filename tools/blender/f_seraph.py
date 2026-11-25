@@ -61,7 +61,7 @@ def bar(M, a, b, w, d, hint=(1, 0, 0), mat='hull', tint=0xffffff, bevel=0.03, gr
     return M.box(w, L + extend, d, c, mat, tint, bevel, rot=basis_rot(X, Y, Z), group=group, taper=taper, shear=shear)
 
 
-def rod(M, a, b, r, mat='dark', tint=0x2a2e34, segs=12, r2=None, group='body', bevel=0.02):
+def rod(M, a, b, r, mat='dark', tint=0x2a2e34, segs=10, r2=None, group='body', bevel=0.012):
     """A cylinder from a to b (r at a, r2 at b)."""
     ax = add(b, mul(a, -1))
     L = math.sqrt(dot(ax, ax))
@@ -122,13 +122,13 @@ def blade(M, gname, root, sx, phi, beta, span, chord, k, st, C, nacelle, idx):
         cpt = add(P(u, 0.16 * k), mul(N, rn + 0.05 * k))
         a = add(cpt, mul(E, -ln * 0.5))
         b = add(cpt, mul(E, ln * 0.5))
-        rod(M, a, add(a, mul(E, ln * 0.46)), rn * 1.1, 'hull', hull, 16, r2=rn * 1.14, group=g, bevel=0.02 * k)
-        rod(M, add(a, mul(E, ln * 0.42)), b, rn, 'dark', dark, 16, r2=rn * 1.18, group=g)
-        rod(M, add(a, mul(E, ln * 0.2)), add(a, mul(E, ln * 0.27)), rn * 1.16, 'trim', panel, 16, group=g, bevel=0.005)   # teal band
+        rod(M, a, add(a, mul(E, ln * 0.46)), rn * 1.1, 'hull', hull, 12, r2=rn * 1.14, group=g, bevel=0.02 * k)
+        rod(M, add(a, mul(E, ln * 0.42)), b, rn, 'dark', dark, 12, r2=rn * 1.18, group=g)
+        rod(M, add(a, mul(E, ln * 0.2)), add(a, mul(E, ln * 0.27)), rn * 1.16, 'trim', panel, 12, group=g, bevel=0.005)   # teal band
         rod(M, add(a, mul(E, -0.05 * k)), add(a, mul(E, 0.02 * k)), rn * 0.66, 'chrome', 0x9aa0aa, 12, group=g, bevel=0.01)   # intake hub
-        rod(M, add(b, mul(E, -0.02 * k)), add(b, mul(E, 0.01 * k)), rn * 0.94, 'glow', glow, 16, group=g, bevel=0)
+        rod(M, add(b, mul(E, -0.02 * k)), add(b, mul(E, 0.01 * k)), rn * 0.94, 'glow', glow, 12, group=g, bevel=0)
         if st >= 2:   # gold lip
-            rod(M, add(b, mul(E, -0.08 * k)), add(b, mul(E, -0.035 * k)), rn * 1.22, 'trim', trim, 16, group=g, bevel=0.005)
+            rod(M, add(b, mul(E, -0.08 * k)), add(b, mul(E, -0.035 * k)), rn * 1.22, 'trim', trim, 12, group=g, bevel=0.005)
         # pylon from the spar to the nacelle
         bar(M, P(u, 0.02 * k), add(cpt, mul(N, -rn * 0.6)), 0.12 * k, ln * 0.5, hint=Y, mat='dark', tint=dark, bevel=0.02 * k, group=g)
         nz = (b, E)
@@ -158,6 +158,14 @@ def build(m):
     for t in (0.55, 0.7):
         M.cyl(0.32 * k, 0.04 * k, (0, t * k, 0), 'y', 'chrome', 0x9aa0aa, 16, bevel=0.005)
     M.box(0.58 * k, 0.2 * k, 0.42 * k, (0, 0.78 * k, 0.02 * k), 'hull', hull2, 0.05 * k, taper=(1.15, 1.1))   # abdomen
+    if m >= 2:   # teal waist band
+        M.box(0.46 * k, 0.06 * k, 0.05 * k, (0, 0.8 * k, 0.25 * k), 'trim', panel, 0.01)
+    if m >= 5:   # hip jets under the tassets
+        for sx in (1, -1):
+            M.cyl(0.09 * k, 0.22 * k, (sx * 0.5 * k, 0.04 * k, -0.12 * k), 'y', 'dark', dark, 10, r2=0.07 * k)
+    if m >= 9:   # rear skirt plate
+        M.box(0.6 * k, 0.5 * k, 0.08 * k, (0, 0.2 * k, -0.34 * k), 'hull', hull, 0.03 * k, rot=(-14, 0, 0), taper=(1.2, 1))
+        M.box(0.62 * k, 0.05 * k, 0.09 * k, (0, 0.42 * k, -0.37 * k), 'trim', trim, 0.01, rot=(-14, 0, 0))
 
     # ---- chest: a V-shaped torso lofted bottom-up (loft z -> game y, loft y -> game -z)
     M.loft([
@@ -171,7 +179,7 @@ def build(m):
     # teal breastplate, gold collar, glowing core
     M.box(0.98 * k, 0.5 * k, 0.12 * k, (0, 1.5 * k, 0.43 * k), 'trim', panel, 0.04 * k, rot=(-6, 0, 0), taper=(0.75, 1))
     M.box(1.02 * k, 0.07 * k, 0.1 * k, (0, 1.78 * k, 0.37 * k), 'trim', trim, 0.02 * k, rot=(-20, 0, 0))
-    M.torus(0.19 * k, 0.045 * k, (0, 1.36 * k, 0.48 * k), 'z', 'chrome', 0xb8bcc4, 24, 8)
+    M.torus(0.19 * k, 0.045 * k, (0, 1.36 * k, 0.48 * k), 'z', 'chrome', 0xb8bcc4, 20, 6)
     M.cyl(0.15 * k, 0.06 * k, (0, 1.36 * k, 0.48 * k), 'z', 'glow', glow, 20, bevel=0)
     if m >= 8:   # layered chest armour
         for sx in (1, -1):
@@ -180,33 +188,34 @@ def build(m):
     M.empty('tool', (0, 0.42 * k, 0.42 * k))
 
     # ---- head: helmet, visor, crest, V-fin from Mk IV, a crown of fins from Mk XI
-    hy0 = 2.32 * k
+    hy0 = 2.38 * k
+    hs = 1.15 * k                              # the head reads first: a size up on the body
     M.cyl(0.14 * k, 0.32 * k, (0, 2.02 * k, 0.02 * k), 'y', 'dark', dark, 12)
     M.cyl(0.17 * k, 0.05 * k, (0, 1.96 * k, 0.02 * k), 'y', 'chrome', 0x9aa0aa, 12, bevel=0.005)
-    M.box(0.5 * k, 0.46 * k, 0.54 * k, (0, hy0, 0.04 * k), 'hull', hull, 0.1 * k, taper=(0.84, 0.8))
-    M.box(0.44 * k, 0.2 * k, 0.16 * k, (0, hy0 - 0.13 * k, 0.24 * k), 'hull', hull2, 0.05 * k, taper=(0.72, 1))       # faceplate
-    M.box(0.44 * k, 0.13 * k, 0.06 * k, (0, hy0 + 0.03 * k, 0.29 * k), 'glass', 0x0a1420, 0.02 * k, rot=(-10, 0, 0))   # visor
-    M.box(0.34 * k, 0.035 * k, 0.03 * k, (0, hy0 + 0.03 * k, 0.325 * k), 'glow', glow, 0)
-    M.box(0.06 * k, 0.17 * k, 0.48 * k, (0, hy0 + 0.25 * k, -0.02 * k), 'trim', trim, 0.015 * k, taper=(1, 0.55), shear=(0, -0.1 * k))   # crest
+    M.box(0.5 * hs, 0.46 * hs, 0.54 * hs, (0, hy0, 0.04 * hs), 'hull', hull, 0.1 * hs, taper=(0.84, 0.8))
+    M.box(0.44 * hs, 0.2 * hs, 0.16 * hs, (0, hy0 - 0.13 * hs, 0.24 * hs), 'hull', hull2, 0.05 * hs, taper=(0.72, 1))       # faceplate
+    M.box(0.44 * hs, 0.13 * hs, 0.06 * hs, (0, hy0 + 0.03 * hs, 0.29 * hs), 'glass', 0x0a1420, 0.02 * hs, rot=(-10, 0, 0))   # visor
+    M.box(0.34 * hs, 0.035 * hs, 0.03 * hs, (0, hy0 + 0.03 * hs, 0.325 * hs), 'glow', glow, 0)
+    M.box(0.06 * hs, 0.17 * hs, 0.48 * hs, (0, hy0 + 0.25 * hs, -0.02 * hs), 'trim', trim, 0.015 * hs, taper=(1, 0.55), shear=(0, -0.1 * hs))   # crest
     for sx in (1, -1):   # ear sensors
-        M.cyl(0.08 * k, 0.12 * k, (sx * 0.27 * k, hy0, -0.02 * k), 'x', 'dark', dark, 12)
+        M.cyl(0.08 * hs, 0.12 * hs, (sx * 0.27 * hs, hy0, -0.02 * hs), 'x', 'dark', dark, 12)
         if m >= 2:
-            M.box(0.04 * k, 0.05 * k, 0.3 * k, (sx * 0.31 * k, hy0 + 0.08 * k, -0.16 * k), 'trim', trim, 0.01, rot=(28, 0, 0))
+            M.box(0.04 * hs, 0.05 * hs, 0.3 * hs, (sx * 0.31 * hs, hy0 + 0.08 * hs, -0.16 * hs), 'trim', trim, 0.01, rot=(28, 0, 0))
     if st >= 1:   # V-fin
         vf = 1.0 + 0.2 * (st - 1)
         for sx in (1, -1):
-            bar(M, (sx * 0.03 * k, hy0 + 0.16 * k, 0.3 * k), (sx * 0.38 * vf * k, hy0 + (0.16 + 0.3 * vf) * k, 0.22 * k), 0.09 * k, 0.035 * k,
+            bar(M, (sx * 0.03 * hs, hy0 + 0.16 * hs, 0.3 * hs), (sx * 0.38 * vf * hs, hy0 + (0.16 + 0.3 * vf) * hs, 0.22 * hs), 0.09 * hs, 0.035 * hs,
                 hint=(0, 0, 1), mat='trim', tint=trim, bevel=0.01, taper=(0.3, 1))
-        M.box(0.1 * k, 0.1 * k, 0.05 * k, (0, hy0 + 0.17 * k, 0.31 * k), 'glow', glow, 0)   # brow gem
+        M.box(0.1 * hs, 0.1 * hs, 0.05 * hs, (0, hy0 + 0.17 * hs, 0.31 * hs), 'glow', glow, 0)   # brow gem
     if m >= 11:   # crown fins
         for sx in (1, -1):
-            bar(M, (sx * 0.18 * k, hy0 + 0.18 * k, -0.06 * k), (sx * 0.34 * k, hy0 + 0.52 * k, -0.28 * k), 0.08 * k, 0.03 * k,
+            bar(M, (sx * 0.18 * hs, hy0 + 0.18 * hs, -0.06 * hs), (sx * 0.34 * hs, hy0 + 0.52 * hs, -0.28 * hs), 0.08 * hs, 0.03 * hs,
                 hint=(0, 0, 1), mat='trim', tint=trim, bevel=0.01, taper=(0.3, 1))
 
     # ---- shoulders: pauldrons (flat tops carry guns), joints, upper arms, elbows, gun forearms, fists
     for sx in (1, -1):
         sh = (sx * 1.08 * k, 1.74 * k, 0.0)
-        M.sphere(0.22 * k, (sx * 0.9 * k, 1.6 * k, 0.0), (1, 1, 1), 'dark', dark, 14)
+        M.sphere(0.22 * k, (sx * 0.9 * k, 1.6 * k, 0.0), (1, 1, 1), 'dark', dark, 12)
         M.box(0.66 * k, 0.4 * k, 0.74 * k, sh, 'hull', hull, 0.1 * k, taper=(0.86, 0.86))
         M.box(0.6 * k, 0.12 * k, 0.7 * k, (sh[0] + sx * 0.06 * k, 1.56 * k, 0.0), 'hull', hull2, 0.04 * k, rot=(0, 0, -sx * 22), taper=(0.9, 0.95))   # lower lame
         M.box(0.1 * k, 0.05 * k, 0.6 * k, (sh[0] + sx * 0.22 * k, 1.95 * k, 0.0), 'trim', panel, 0.01)     # teal stripe
@@ -215,7 +224,7 @@ def build(m):
         el = (sx * 1.12 * k, 0.98 * k, -0.06 * k)
         rod(M, (sx * 1.0 * k, 1.55 * k, 0.0), el, 0.13 * k, 'dark', dark, 12)
         bar(M, (sx * 1.05 * k, 1.42 * k, 0.02 * k), (sx * 1.11 * k, 1.12 * k, -0.02 * k), 0.3 * k, 0.3 * k, hint=(1, 0, 0), mat='hull', tint=hull2, bevel=0.05 * k, taper=(0.85, 0.85))
-        M.sphere(0.16 * k, el, (1, 1, 1), 'chrome', 0xb8bcc4, 14)
+        M.sphere(0.16 * k, el, (1, 1, 1), 'chrome', 0xb8bcc4, 12)
         # forearm: a gauntlet pointing ahead, flat on top
         fa = (sx * 1.12 * k, 1.0 * k, 0.4 * k)
         M.box(0.36 * k, 0.32 * k, 0.86 * k, fa, 'hull', hull, 0.06 * k, taper=(0.9, 0.95))
@@ -232,10 +241,10 @@ def build(m):
             npods = 2 if st >= 3 else 1
             for j in range(npods):
                 pc = (sx * 1.08 * k, (1.86 + 0.2 * j) * k, (-0.46 - 0.3 * j) * k)
-                M.cyl(0.19 * k, 0.56 * k, pc, 'z', 'hull', hull, 16, r2=0.21 * k, rot=(-35, 0, 0))
+                M.cyl(0.19 * k, 0.56 * k, pc, 'z', 'hull', hull, 14, r2=0.21 * k, rot=(-35, 0, 0))
                 mouth = (pc[0], pc[1] + 0.16 * k, pc[2] - 0.23 * k)
                 M.cyl(0.16 * k, 0.04 * k, mouth, 'z', 'glow', glow, 16, rot=(-35, 0, 0), bevel=0)
-                M.cyl(0.22 * k, 0.06 * k, (pc[0], pc[1] + 0.05 * k, pc[2] - 0.08 * k), 'z', 'trim', panel, 16, rot=(-35, 0, 0), bevel=0.01)
+                M.cyl(0.22 * k, 0.06 * k, (pc[0], pc[1] + 0.05 * k, pc[2] - 0.08 * k), 'z', 'trim', panel, 14, rot=(-35, 0, 0), bevel=0)
 
     # ---- lower body: a thruster skirt on the drone-bot, folded legs with jet boots from Mk IV
     pads = []
@@ -283,7 +292,7 @@ def build(m):
         # hinge block (wing roots), flat-topped
         M.box(0.36 * k, 0.4 * k, 0.42 * k, (sx * 0.56 * k, 1.88 * k, -0.66 * k), 'hull', hull, 0.06 * k, taper=(0.85, 0.85))
         M.box(0.38 * k, 0.06 * k, 0.1 * k, (sx * 0.56 * k, 1.98 * k, -0.44 * k), 'trim', trim, 0.01)
-        M.cyl(0.16 * k, 0.3 * k, (sx * 0.72 * k, 1.8 * k, -0.78 * k), 'x', 'dark', dark, 14)
+        M.cyl(0.16 * k, 0.3 * k, (sx * 0.72 * k, 1.8 * k, -0.78 * k), 'x', 'dark', dark, 12)
         # wing-root pylon: the blades fan out of it, a gun rides on its flat top
         M.box(0.26 * k, 0.5 * k, 0.34 * k, (sx * 0.78 * k, 2.12 * k, -0.8 * k), 'hull', hull2, 0.05 * k, taper=(0.85, 0.8))
         M.box(0.28 * k, 0.06 * k, 0.36 * k, (sx * 0.78 * k, 2.36 * k, -0.8 * k), 'dark', dark, 0.02 * k)
@@ -317,8 +326,8 @@ def build(m):
         hz = -0.35 * k
         R = (0.62 if st == 2 else 0.76) * k
         g = 'fan_0'
-        M.torus(R, 0.055 * k, (0, hy, hz), 'y', 'trim', trim, 48, 8, group=g)
-        M.torus(R - 0.09 * k, 0.025 * k, (0, hy, hz), 'y', 'hull', hull, 48, 6, group=g)
+        M.torus(R, 0.055 * k, (0, hy, hz), 'y', 'trim', trim, 40, 8, group=g)
+        M.torus(R - 0.09 * k, 0.025 * k, (0, hy, hz), 'y', 'hull', hull, 40, 5, group=g)
         for q in range(6):
             a = q / 6 * math.tau
             M.box(0.13 * k, 0.11 * k, 0.18 * k, (math.sin(a) * R, hy, hz + math.cos(a) * R), 'hull', hull, 0.02 * k,
@@ -328,8 +337,8 @@ def build(m):
                   rot=(0, math.degrees(a2) + 90, 0), group=g)
         M.pivot(g, (0, hy, hz))
         # it floats free: an emitter on the back of the helmet holds it
-        M.cyl(0.1 * k, 0.1 * k, (0, hy0 + 0.2 * k, -0.18 * k), 'y', 'dark', dark, 12, r2=0.07 * k)
-        M.sphere(0.06 * k, (0, hy0 + 0.27 * k, -0.18 * k), (1, 1, 1), 'glow', glow, 10)
+        M.cyl(0.09 * k, 0.1 * k, (0, hy0 + 0.24 * hs, -0.2 * hs), 'y', 'dark', dark, 12, r2=0.06 * k)
+        M.sphere(0.05 * k, (0, hy0 + 0.24 * hs + 0.07 * k, -0.2 * hs), (1, 1, 1), 'glow', glow, 10)
 
     # ---- drone racks on the back (Mk X+): two pylons with docked drones
     rack_tops = []
@@ -342,26 +351,26 @@ def build(m):
             rack_tops.append((b[0], b[1] + 0.06 * k, b[2]))
             for q in range(3):   # docked drones down the back of the pack
                 c = (sx * 0.3 * k, (1.68 - 0.3 * q) * k, -0.95 * k)
-                M.cyl(0.13 * k, 0.07 * k, c, 'z', 'hull', hull, 14)
-                M.cyl(0.05 * k, 0.02 * k, (c[0], c[1], c[2] - 0.045 * k), 'z', 'glow', glow, 10, bevel=0)
+                M.cyl(0.13 * k, 0.07 * k, c, 'z', 'hull', hull, 12, bevel=0.01)
+                M.cyl(0.06 * k, 0.02 * k, (c[0], c[1], c[2] - 0.045 * k), 'z', 'trim', panel, 10, bevel=0)
                 for r in range(4):
                     ar = r / 4 * math.tau + math.pi / 4
-                    M.cyl(0.045 * k, 0.04 * k, (c[0] + math.cos(ar) * 0.15 * k, c[1] + math.sin(ar) * 0.15 * k, c[2]), 'z', 'dark', dark, 8, bevel=0)
-                M.box(0.06 * k, 0.24 * k, 0.06 * k, (sx * 0.12 * k, (1.68 - 0.3 * q) * k, -0.9 * k), 'dark', dark, 0.01, rot=(0, 0, 90))
+                    M.cyl(0.045 * k, 0.04 * k, (c[0] + math.cos(ar) * 0.15 * k, c[1] + math.sin(ar) * 0.15 * k, c[2]), 'z', 'dark', dark, 6, bevel=0)
+                M.box(0.06 * k, 0.24 * k, 0.06 * k, (sx * 0.12 * k, (1.68 - 0.3 * q) * k, -0.9 * k), 'dark', dark, 0, rot=(0, 0, 90))
     if m >= 12:   # tail fins under the pack: a gold-edged train
         for sx in (1, -1):
             bar(M, (sx * 0.16 * k, 0.95 * k, -0.7 * k), (sx * 0.42 * k, -0.2 * k, -1.2 * k), 0.34 * k, 0.05 * k, hint=(sx, 0, 0), mat='hull', tint=hull, bevel=0.02 * k, taper=(0.3, 1))
             bar(M, (sx * 0.3 * k, 0.9 * k, -0.74 * k), (sx * 0.56 * k, -0.15 * k, -1.24 * k), 0.06 * k, 0.07 * k, hint=(sx, 0, 0), mat='trim', tint=trim, bevel=0.01, taper=(0.3, 1))
 
     # ---- hardpoints: shoulders, forearms, wing roots, back racks (all on top)
-    central = [(0, 2.42 * k, -0.82 * k)]      # a dorsal cannon post, carrying its gun over the head
+    central = [(0, 2.42 * k, -0.98 * k)]      # a dorsal cannon post, carrying its gun over the head
     pairs = [(1.08 * k, 1.94 * k, 0.0), (1.12 * k, 1.16 * k, 0.32 * k), (0.78 * k, 2.39 * k, -0.8 * k)]
     if rack_tops:
         pairs.append((abs(rack_tops[0][0]), rack_tops[0][1], rack_tops[0][2]))
     for p in frames.pick_hardpoints(central, pairs, frames.hp_count(F, m)):
         if p == central[0]:
-            bar(M, (0, 1.84 * k, -0.6 * k), (0, 2.38 * k, -0.82 * k), 0.2 * k, 0.24 * k, hint=(1, 0, 0), mat='dark', tint=dark, bevel=0.03 * k)
-            M.box(0.4 * k, 0.07 * k, 0.4 * k, (0, 2.385 * k, -0.82 * k), 'hull', hull, 0.03 * k)
+            bar(M, (0, 1.84 * k, -0.62 * k), (0, 2.38 * k, -0.98 * k), 0.2 * k, 0.24 * k, hint=(1, 0, 0), mat='dark', tint=dark, bevel=0.03 * k)
+            M.box(0.4 * k, 0.07 * k, 0.4 * k, (0, 2.385 * k, -0.98 * k), 'hull', hull, 0.03 * k)
         M.socket(p, 0.36 * s, dark, props={'size': round(0.85 * s, 3)})
 
     M.facts = {'frame': F, 'mark': m, 'ride': round(5.5 + 0.12 * (m - 1), 2), 'wings': 2 * nb, 'halo': st >= 2, 'scale': round(s, 3)}

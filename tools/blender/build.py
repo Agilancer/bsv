@@ -34,7 +34,8 @@ def main():
         vlib.reset()
         model = mod.build(m)
         objs = model.finish(ao='--noao' not in flags)
-        lo, hi = vlib.bbox_game(objs.values())
+        # leg templates are parked wherever the frame likes: they are not part of the vehicle's footprint
+        lo, hi = vlib.bbox_game([o for g, o in objs.items() if not (g.startswith('leg_') or g == 'foot')])
         key = model.name
         raw = os.path.join(tmp, key + '.glb')
         facts = dict(model.facts)
