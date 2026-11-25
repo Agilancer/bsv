@@ -26,7 +26,10 @@ Read this first when picking the work up (new session or another model). Then `C
     pylons, one long fairing on staggered batteries). Weak: turret wells are still square pits; battery sections are prisms.
   - Hollow: DONE (swollen brood flanks with hooked ribs, egg-sac pods with ribs and crevice glow, arched limbs to
     the brood hulls with a spine crest, rounded ridge). Weak: turret wells and weapon blisters are still square-cut.
-  - Corsair, Tidewright, Ironhold: not started (see "Next" 1).
+  - Corsair: DONE (T6/T8 flank flight decks at crown height over a raked hangar gallery, landing mouth aft, launch
+    slots forward; T10 side hulls carry a full-length deck and galleries; raked hexagon battery blocks). Weak: the
+    decks sit on the flanks (the crown keeps its turret wells and the tower), pods are still the ladder's.
+  - Tidewright, Ironhold: not started (see "Next" 1).
 
 ## Next, in order
 1. Give each yard its own body shapes in its `Style` (Aurelian and Hollow curved; Tidewright's collector
