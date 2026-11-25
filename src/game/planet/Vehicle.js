@@ -269,7 +269,8 @@ export class Vehicle {
       }
     }
     if (v.drill) v.drill.rotation.z += dt * (this.mode.mining ? 22 : 3);
-    for (const f of v.fans) f.rotation.y += dt * (f.userData.spin ?? (v.glb ? 18 + moving * 10 : 30));   // extras.spin: a slow dish or halo
+    // rotors whirl; a fan_ part (a scanner dish, a halo) turns slowly unless its extras give a spin rate
+    for (const f of v.fans) f.rotation.y += dt * (f.userData.spin ?? (!v.glb ? 30 : f.name.startsWith('fan_') ? 0.8 : 18 + moving * 10));
     if (v.flaps) for (const f of v.flaps) f.obj.rotation.z = f.base.z + Math.sin(t * 3 + f.phase) * 0.12 * (1 + moving);
     // hover pads: downwash dust + glow motes
     if (P.hover && v.pads.length && Math.random() < 0.5) {
@@ -310,14 +311,15 @@ export class Vehicle {
       const ox = leg.out.x * Math.cos(this.heading) + leg.out.z * Math.sin(this.heading);
       const oz = -leg.out.x * Math.sin(this.heading) + leg.out.z * Math.cos(this.heading);
       const reach = (leg.reach || 1.9) * k;
-      const hx = hip.x + ox * reach + this.velocity.x * 0.18, hz = hip.z + oz * reach + this.velocity.z * 0.18;
+      const hx = hip.x + ox * reach + this.velocity.x * 0.1, hz = hip.z + oz * reach + this.velocity.z * 0.1;
+      const stepLen = Math.max(1.5 * k, (leg.L1 + leg.L2) * k * 0.22);   // long legs take long strides
       if (!leg.init) { leg.foot.set(hx, S.ground(hx, hz), hz); leg.from.copy(leg.foot); leg.to.copy(leg.foot); leg.t = 1; leg.init = true; }
       if (leg.t >= 1) {
         const dx = leg.foot.x - hx, dz = leg.foot.z - hz;
         const partnerStepping = v.legs.some((o) => o !== leg && o.phase !== leg.phase && o.t < 1);
-        if (dx * dx + dz * dz > (1.5 * k) ** 2 && !partnerStepping) {
+        if (dx * dx + dz * dz > stepLen * stepLen && !partnerStepping) {
           leg.from.copy(leg.foot);
-          const lx = hx + this.velocity.x * 0.12, lz = hz + this.velocity.z * 0.12;
+          const lx = hx + this.velocity.x * 0.08, lz = hz + this.velocity.z * 0.08;
           leg.to.set(lx, S.ground(lx, lz), lz);
           leg.t = 0;
         }
