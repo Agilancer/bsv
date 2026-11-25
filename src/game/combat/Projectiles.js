@@ -39,6 +39,9 @@ export class Projectiles {
     p.life = o.life; p.age = 0; p.splash = o.splash || 0; p.homing = o.homing || 0; p.pierce = o.pierce || 0;
     p.color.set(o.color); p.size = o.size || 1; p.len = o.len || 6; p.trail = o.trail || 0; p.turn = o.turn || 2.5;
     p.speed = o.vel.length(); p.hit = null; p.pd = o.pd || 0; p.isBomblet = !!o.isBomblet;
+    // pooled objects carry the last shot's hit state: clear it, or a reused warhead that has hit
+    // before never detonates at end of flight (and clear() pools shots without resetting pierceHit)
+    p.hitAlready = false; p.pierceHit = null;
     this.list.push(p);
     return p;
   }
