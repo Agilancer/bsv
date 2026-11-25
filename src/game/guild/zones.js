@@ -93,6 +93,7 @@ export function installZones(game, G) {
     if (my) addSide(C, my, 1, n - 1, true);
     else { const others = foes.filter((b) => b !== first); if (others.length) addSide(C, rng.pick(others).id, PVP_TEAM + 1, n, false); }
     C.phase = 'battle'; C.tickT = D.CONTROL_TICK;
+    if (game.cue) game.cue('zoneContest');
     game.ui.toast(`Contested zone · ${first.name} is working the ${C.zone.name}`, 'legend');
     game.ui.chat('LOCAL', null, my ? `${first.name} captains are on the extractors. Take the points: every ${D.CONTROL_TICK}s they pay ${D.RESOURCE.name} to whoever holds them.` : 'Unaligned captains are fair game in contested space. Found a guild to claim extractors.', 'sys');
     const ally = C.sides.find((sd) => sd.ally && sd.ships.length);
@@ -120,6 +121,7 @@ export function installZones(game, G) {
     if (why === 'died' && my && foe) { const p = C.pts.find((x) => x.owner === my); if (p) setOwner(C, p, foe.side); }
     C.st.cool = pt() + COOL_LOST; C.phase = 'idle'; C.result = 'lost';
     release(C, why === 'died' ? 25 : 2);
+    if (game.cue) game.cue('zoneLost');
     if (why === 'died') { game.ui.chat('LOCAL', null, `The ${C.zone.name} is lost for now. (No insurance is charged for PvP losses.)`, 'sys'); G.react('loss', 0.6); }
   }
   function onCapture(C, p) {

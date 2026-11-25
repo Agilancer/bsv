@@ -64,6 +64,7 @@ export function installStations(game) {
     const s = game.player;
     docking = null;
     game.docked = st; game.atStation = st;
+    if (game.cue) game.cue('dock');
     s.invuln = true; s.throttle = 0; s.speed = 0; s.velocity.set(0, 0, 0);
     // free repairs to the shields, and contracts tick in
     for (let i = 0; i < 4; i++) s.shields[i] = s.maxShield * 0.3;
@@ -80,6 +81,7 @@ export function installStations(game) {
   function undock() {
     const s = game.player;
     game.docked = null; game.atStation = null;
+    if (game.cue) game.cue('undock');
     if (s) { s.invuln = false; s.throttle = 0.5; }
     game.ui.toggle('station', false);
     game.ui.toast('Undocked');
@@ -135,6 +137,7 @@ export function installStations(game) {
       const prompt = document.getElementById('dockPrompt');
       if (prompt) {
         const show = n && n.dist < 900 && !game.docked && !docking;
+        if (show && prompt.style.display !== 'block' && game.cue && !(game.autoplay && game.autoplay.active)) game.cue('prompt', { key: 'dock' });
         prompt.style.display = show ? 'block' : 'none';
         if (show) prompt.textContent = document.body.classList.contains('mobile') ? `Tap to dock at ${n.station.name}` : `[G] Dock at ${n.station.name}`;
       }
@@ -209,7 +212,7 @@ export function installStations(game) {
       const it = stock[+c.dataset.buy], price = buyPrice(P, it, game.docked && game.docked.kind);
       if (P.credits < price) return game.ui.toast('Not enough credits', 'warn');
       if (P.inventory.length >= INV_SIZE) return game.ui.toast('Cargo hold full', 'warn');
-      P.credits -= price; P.inventory.push(it); stock.splice(+c.dataset.buy, 1); game.ui.hideTip(); render();
+      P.credits -= price; P.inventory.push(it); stock.splice(+c.dataset.buy, 1); if (game.cue) game.cue('trade'); game.ui.hideTip(); render();
     });
     body.querySelectorAll('[data-sell]').forEach((c) => c.onclick = () => { sell(P.inventory[+c.dataset.sell]); game.ui.hideTip(); render(); });
     if ($('#sellJunk')) $('#sellJunk').onclick = () => { for (const it of P.inventory.slice()) if (it.slot !== 'blueprint' && RARITY[it.rarity].i < 2) sell(it, true); render(); };
@@ -219,27 +222,28 @@ export function installStations(game) {
       const bp = P.inventory.find((i) => i.slot === 'blueprint' && i.bp === id);
       const r = acquireShip(P, id, cost);
       game.ui.toast(r.msg, r.ok ? 'epic' : 'warn');
-      if (r.ok) { if (bp) P.inventory.splice(P.inventory.indexOf(bp), 1); game.swapPlayerShip(); }
+      if (r.ok) { if (game.cue) game.cue('trade'); if (bp) P.inventory.splice(P.inventory.indexOf(bp), 1); game.swapPlayerShip(); }
       render();
     });
     body.querySelectorAll('[data-fleet]').forEach((b) => b.onclick = () => { const r = switchShip(P, +b.dataset.fleet); if (r.msg) game.ui.toast(r.msg, r.ok ? 'epic' : 'warn'); if (r.ok) game.swapPlayerShip(); render(); });
-    body.querySelectorAll('[data-scrap]').forEach((b) => b.onclick = () => { const f = P.fleet[+b.dataset.scrap]; P.credits += Math.round(CHASSIS_BY_ID[f.chassis].price * 0.35); P.fleet.splice(+b.dataset.scrap, 1); render(); });
+    body.querySelectorAll('[data-scrap]').forEach((b) => b.onclick = () => { const f = P.fleet[+b.dataset.scrap]; P.credits += Math.round(CHASSIS_BY_ID[f.chassis].price * 0.35); P.fleet.splice(+b.dataset.scrap, 1); if (game.cue) game.cue('scrap'); render(); });
     if ($('#rename')) $('#rename').onclick = () => { game.renameShip($('#shipName').value); render(); };
     body.querySelectorAll('[data-frename]').forEach((b) => b.onclick = () => { game.renameShip(body.querySelector(`[data-fname="${b.dataset.frename}"]`).value, +b.dataset.frename); render(); });
     body.querySelectorAll('.name-in').forEach((inp) => { inp.onfocus = () => { game.input.blocked = true; }; inp.onblur = () => { game.input.blocked = false; }; inp.onkeydown = (e) => e.stopPropagation(); });
-    if ($('#repair')) $('#repair').onclick = () => { const s = game.player, c = repairCost(s, game.docked && game.docked.kind); if (P.credits >= c) { P.credits -= c; s.hull = s.maxHull; } render(); };
+    if ($('#repair')) $('#repair').onclick = () => { const s = game.player, c = repairCost(s, game.docked && game.docked.kind); if (P.credits >= c) { P.credits -= c; s.hull = s.maxHull; if (game.cue) game.cue('repair'); } render(); };
     if ($('#hire')) $('#hire').onclick = () => game.modes.crew && game.modes.crew();
     if ($('#refine')) $('#refine').onclick = () => game.modes.refinery && game.modes.refinery();
     if ($('#charts')) $('#charts').onclick = () => game.command('galaxy');
     const findGear = (uid) => Object.values(P.ship.loadout).find((x) => x && x.uid === uid) || P.inventory.find((x) => x && x.uid === uid);
-    body.querySelectorAll('[data-reforge]').forEach((b) => b.onclick = () => { const it = findGear(b.dataset.reforge); const r = reforge(P, it); game.ui.toast(r.ok ? `Reforged: ${it.name}` : r.msg, r.ok ? 'epic' : 'warn'); if (r.ok) { game.refitPlayer(); if (game.audio) game.audio.play('loot', null, 0.6); } render(); });
-    body.querySelectorAll('[data-overhaul]').forEach((b) => b.onclick = () => { const it = findGear(b.dataset.overhaul); const r = overhaul(P, it); game.ui.toast(r.ok ? `Overhauled: ${it.name} (item level ${it.ilvl})` : r.msg, r.ok ? 'epic' : 'warn'); if (r.ok) { game.refitPlayer(); if (game.audio) game.audio.play('loot', null, 0.6); } render(); });
+    body.querySelectorAll('[data-reforge]').forEach((b) => b.onclick = () => { const it = findGear(b.dataset.reforge); const r = reforge(P, it); game.ui.toast(r.ok ? `Reforged: ${it.name}` : r.msg, r.ok ? 'epic' : 'warn'); if (r.ok) { game.refitPlayer(); if (game.cue) game.cue('craft'); } render(); });
+    body.querySelectorAll('[data-overhaul]').forEach((b) => b.onclick = () => { const it = findGear(b.dataset.overhaul); const r = overhaul(P, it); game.ui.toast(r.ok ? `Overhauled: ${it.name} (item level ${it.ilvl})` : r.msg, r.ok ? 'epic' : 'warn'); if (r.ok) { game.refitPlayer(); if (game.cue) game.cue('craft'); } render(); });
     if (tab === 'quests' && game.quests) game.quests.bindBoard(body, render);
   }
 
   function sell(it, quiet) {
     const P = game.data, i = P.inventory.indexOf(it); if (i < 0) return;
     P.inventory.splice(i, 1); const v = sellPrice(P, it, game.docked && game.docked.kind); P.credits += v;
+    if (game.cue) game.cue('trade');
     if (game.quests) game.quests.onSell(it);
     if (!quiet) game.ui.chat('TRADE', null, `Sold ${it.name} for ${v} ¢`, 'loot', 'loot');
   }

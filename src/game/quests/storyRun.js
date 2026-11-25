@@ -99,6 +99,7 @@ export function installStory(game, Q, hooks) {
       if (!st || !st.choice || s.pending !== cur.step) { cur = null; return pump(); }
       Object.assign(cur, { head: 'DECISION', title: st.title, who: st.choice.who, prompt: st.choice.prompt, auto: st.choice.auto, options: choiceOptions(st, s.choices) });
     } else if (!cur.lines.length) { const end = cur.onEnd; cur = null; if (end) end(); return pump(); }
+    if (game.cue) game.cue('comm');   // a transmission comes through
     show();
   }
   function nextPage() {
@@ -108,6 +109,7 @@ export function installStory(game, Q, hooks) {
   }
   function skip() {
     // drop every queued briefing (they stay readable in the journal); choices still have to be made
+    if (game.cue && (cur || queue.length)) game.cue('decline');
     if (cur && cur.kind !== 'choice') { const end = cur.onEnd; cur = null; if (end) end(); }
     for (let i = queue.length - 1; i >= 0; i--) if (queue[i].kind !== 'choice') { const end = queue[i].onEnd; queue.splice(i, 1); if (end) end(); }
     show(); pump();
@@ -144,7 +146,7 @@ export function installStory(game, Q, hooks) {
     q.t0 = P().playtime || 0;
     s.cur = id; s.q = q; s.wait = null; s.t0 = P().playtime || 0;
     sp.id = id; sp.next = 0; sp.groups = 0; sp.sys = -1; sp.due = 0; sp.gap = 0; sp.first = true;
-    if (s.act !== st.act) { s.act = st.act; const A = ACTS[st.act]; titleCard(`ACT ${ROMAN[st.act]}`, A.title, A.sub); if (game.audio) game.audio.play('levelup', null, 0.5); }
+    if (s.act !== st.act) { s.act = st.act; const A = ACTS[st.act]; titleCard(`ACT ${ROMAN[st.act]}`, A.title, A.sub); if (game.cue) game.cue('act'); }
     say(st.brief, { head: st.epilogue ? 'EPILOGUE' : `ACT ${ROMAN[st.act]} · NEW ORDERS`, title: st.title, obj: '◆ ' + st.obj });
     game.ui.toast(`Story: ${st.title}`, 'epic');
     hooks.dirty();
@@ -156,9 +158,9 @@ export function installStory(game, Q, hooks) {
     s.q = null; s.cur = null; s.done.push(id);
     const extra = hooks.pay(q);
     const r = q.reward;
+    if (game.cue) game.cue('storyStep');
     game.ui.toast(`Story step complete: ${st.title} (+${fmt(r.credits || 0)} ¢)`, 'legend');
     game.ui.chat('STORY', null, `${st.title} complete: ${fmt(r.credits || 0)} ¢ and ${fmt(r.xp || 0)} XP${extra}.`, 'loot', 'loot');
-    if (game.audio) game.audio.play('levelup', null, 0.6);
     say(st.done, { head: `ACT ${ROMAN[st.act]} · COMPLETE`, title: st.title, obj: `Reward: ${fmt(r.credits || 0)} ¢ · ${fmt(r.xp || 0)} XP${extra}` });
     const raw = STEP_BY_ID[id];
     if (raw.choice) { s.pending = id; queue.push({ kind: 'choice', step: id }); pump(); }
@@ -172,7 +174,7 @@ export function installStory(game, Q, hooks) {
     if (nx) { s.wait = nx; return; }
     s.complete = true; s.wait = null;
     const E = ENDINGS[s.ending];
-    if (E) { titleCard('THE END', E.name, E.text, '#ffd66a'); game.ui.chat('STORY', null, `${STORY_TITLE}: ${E.name}. ${E.text}`, 'sys'); }
+    if (E) { titleCard('THE END', E.name, E.text, '#ffd66a'); if (game.cue) game.cue('act'); game.ui.chat('STORY', null, `${STORY_TITLE}: ${E.name}. ${E.text}`, 'sys'); }
   }
   function choose(k) {
     const s = S(), raw = STEP_BY_ID[s.pending];
@@ -180,6 +182,7 @@ export function installStory(game, Q, hooks) {
     const o = choiceOptions(raw, s.choices).find((x) => x.k === k);
     if (!o) return false;
     s.choices[raw.choice.key] = k; s.pending = null;
+    if (game.cue) game.cue('accept');
     for (const [key, v] of Object.entries(o.standing || {})) s.standing[key] = (s.standing[key] || 0) + v;
     if (o.bonus) { const c = questReward('story', raw.lvl, o.bonus, null, {}).credits; P().credits += c; Q.resync(); game.ui.toast(`+${fmt(c)} ¢`, 'epic'); }
     if (raw.choice.key === 'ending') { s.ending = k; P().title = ENDINGS[k].title; }

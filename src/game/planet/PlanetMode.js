@@ -233,19 +233,20 @@ export class PlanetMode {
       this.runStats.gathered[res] = (this.runStats.gathered[res] || 0) + k;
       this.hud.cargoPop(res, k);
     }
-    if (k < n && this.engine.time > this.toastT) { this.toastT = this.engine.time + 4; this.toast('Cargo hold full — return to the lander to bank it', 'warn'); if (this.extras) this.extras.radio('cargoFull', false, true); }
+    if (k < n && this.engine.time > this.toastT) { if (this.game.cue) this.game.cue('full'); this.toastT = this.engine.time + 4; this.toast('Cargo hold full — return to the lander to bank it', 'warn'); if (this.extras) this.extras.radio('cargoFull', false, true); }
     return k;
   }
   pickupItem(item) {
     const ex = this.ex, r = RARITY[item.rarity];
     if (ex.inventory.length >= EX_INV_SIZE) {
       const y = scrapYield(item); addResources(this.data, y);
+      if (this.game.cue) this.game.cue('full');
       this.toast(`Explorer bay full — ${item.name} scrapped`, 'warn');
       return;
     }
     ex.inventory.push(item);
     this.runStats.items++;
-    this.sfx('loot', null, 0.4 + r.i * 0.15);
+    if (this.game.cue) this.game.cue(r.i >= 4 ? 'legend' : 'pickup', { tier: r.i >= 4 ? r.i - 4 : r.i });
     this.game.ui.chat('LOOT', null, `Explorer recovered ${item.name}`, 'loot', 'loot');
     if (r.i >= 3) this.toast(`${r.name}: ${item.name}`, r.i >= 4 ? 'legend' : 'epic');
     this.hud.refreshWindows();
@@ -353,6 +354,7 @@ export class PlanetMode {
   blueprintFound(how) {
     const k = learnBlueprint(this.data);
     if (!k) return null;
+    if (this.game.cue) this.game.cue('blueprint');
     this.toast(`Blueprint recovered: ${EX_BASES[k].name}`, 'epic');
     this.game.ui.chat('LOOT', null, `Blueprint ${how}: ${EX_BASES[k].name} (Explorer Bay → Fabricator)`, 'loot', 'loot');
     this.hud.refreshWindows && this.hud.refreshWindows();
@@ -364,7 +366,7 @@ export class PlanetMode {
     const ups = grantExplorerXp(ex, xp);
     if (ups) {
       const ab = PLANET_ABILITIES.find((a) => a.unlock === ex.level);
-      this.sfx('levelup', null, 1);
+      if (this.game.cue) this.game.cue('rankUp', { tier: Math.min(3, Math.floor(ex.level / 13)) });
       this.game.ui.levelUp(ex.level, 'EXPLORER LEVEL', ab ? `NEW ABILITY · ${ab.name.toUpperCase()}` : 'VEHICLE SYSTEMS UPGRADED');
       this.pfx.pillar(this.vehicle.position, 0x9a6bff, 30, 3, 40); this.pfx.ring(this.vehicle.position, 18, 0x9a6bff, 64);
       this.refreshStats();
@@ -411,6 +413,7 @@ export class PlanetMode {
     const lost = loseCargo(this.cargo, 0.5);
     const n = Object.values(lost).reduce((a, b) => a + b, 0);
     this.ex.deaths = (this.ex.deaths || 0) + 1;
+    if (this.game.cue) this.game.cue('death', { vol: 0.7 });
     this.runStats.deaths = (this.runStats.deaths || 0) + 1;
     this.later(1.2, () => this.extras.radio('death', true));
     this.toast(`Explorer destroyed${n ? ` — ${n} cargo units lost` : ''}`, 'bad');
@@ -422,6 +425,7 @@ export class PlanetMode {
   respawn() {
     const V = this.vehicle;
     this.hud.death(false);
+    if (this.game.cue) this.game.cue('respawn');
     V.alive = true; V.setVisible(true);
     V.hp = V.stats.maxHp; V.shield = V.stats.maxShield; V.invuln = 2;
     const h = this.landerCtl.outHeading, off = this.landerCtl.s * 11.5 + V.radius + 3;
@@ -433,6 +437,7 @@ export class PlanetMode {
   }
   onBossAggro(e) {
     this.hud.boss = e;
+    if (this.game.cue) this.game.cue('bossWarn');
     this.toast(`${e.def.sizeClass === 'gargantuan' ? 'GARGANTUAN' : 'APEX'}: ${e.name}`, 'legend');
     this.game.ui.chat('SYS', null, `${e.name} — ${e.def.role}`, 'sys');
     if (e.def.size >= 5) this.cam.extra = 45;
@@ -487,6 +492,7 @@ export class PlanetMode {
   enterDungeon(d) {
     if (this.dungeon || this.transition) return;
     this.transition = true;
+    if (this.game.cue) this.game.cue('depths');
     this.hud.flashOverlay(`Entering ${d.name}`, () => {
       this.probes.recallAll(true);
       this.shots.clear();
@@ -579,6 +585,7 @@ export class PlanetMode {
     else this.landing.startDescent();
     this.ex.runs = (this.ex.runs || 0) + 1;
     this.sfx('jump', null, 0.8);
+    if (G.cue) G.cue('land');
     G.ui.chat('SYS', null, `Explorer deploying to ${this.survey.name} · ${this.siteInfo.name} · hazard ${this.survey.hazardName}`, 'sys');
     G.ui.chat('SYS', null, 'WASD drive · Mouse aim · LMB fire · RMB/F mine · Shift boost · 1-4 abilities · X probe · R interact · H lure pulse · L explorer bay · U refinery', 'sys');
   }
@@ -614,6 +621,7 @@ export class PlanetMode {
   }
   // lift-off: the explorer drives up the ramp and the dropship climbs back to orbit (Landing.js)
   ascend() {
+    if (this.game.cue) this.game.cue('launch');
     this.bank();
     this.state = 'ascent'; this.stateT = 0;
     this.lander.visible = true;

@@ -525,7 +525,7 @@ export class Curios {
     fx.pillar(c.pos, c.def.hex, 40, 3, 40); fx.ring(c.pos, 16, c.def.hex, 60);
     fx.glowBurst(_p.set(c.x, c.y + c.top * 0.5, c.z), c.def.hex, 9, 0.4, 2);
     M.ground.pulse(c.x, c.z, c.def.hex, 0.8);
-    M.sfx('loot', c.pos, 0.9);
+    if (M.game.cue) M.game.cue('relic');
     M.toast(`${first ? 'New curiosity' : 'Curiosity'}: ${c.def.name} · +${rw.xp} XP · +${rw.data} ${RESOURCES.datacore.short}`, 'epic');
     M.game.ui.chat('SCAN', null, `${c.def.name} — ${c.def.lore[c.lore]}`, 'loot', 'loot');
     if (M.extras) M.extras.card(c.def.name, c.def.lore[c.lore], '#' + c.def.hex.toString(16).padStart(6, '0'), `Curiosity ${this.done}/${this.total}`);

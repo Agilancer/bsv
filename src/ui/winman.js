@@ -89,6 +89,7 @@ export function installWindows(ui) {
       document.body.style.setProperty('--wm-cur', CURSOR[mode]);
       document.body.classList.add('wm-drag');
       ui.hideTip();
+      if (ui.game && ui.game.cue) ui.game.cue('drag');
     };
     if (mode !== 'move') { e.preventDefault(); begin(); }
     const move = (ev) => {
@@ -148,6 +149,7 @@ export function installWindows(ui) {
     reset(id) {
       for (const el of managed) if (id == null || el.id === id) { delete L[el.id]; apply(el); }
       savePrefs();
+      if (ui.game && ui.game.cue) ui.game.cue('layout');
     },
     get customised() { return Object.keys(L).length > 0; },
     manage,

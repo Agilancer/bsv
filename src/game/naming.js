@@ -14,6 +14,7 @@ export function installNaming(game) {
     const name = cleanName(v, CAPTAIN_MAX);
     if (!name) return false;
     game.data.name = name;
+    if (game.cue) game.cue('custom');
     game.ui.toast(`Captain ${name}`);
     game.ui.refresh(); save(game.data);
     return true;
@@ -26,6 +27,7 @@ export function installNaming(game) {
     if (!ship) return false;
     ship.name = name; ship.named = 1;
     if (fleetIndex == null && game.player) game.player.name = name;
+    if (game.cue) game.cue('custom');
     game.ui.toast(`Registered: ${name}`);
     game.ui.refresh(); save(P);
     return true;

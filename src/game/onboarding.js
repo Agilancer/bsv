@@ -106,7 +106,7 @@ export function installOnboarding(game) {
         const credits = 100 + i * 60;
         P.credits += credits; game.gainXp(40 + i * 25);
         game.ui.toast(`Objective complete: ${STEPS[i].title} (+${credits} ¢)`, 'epic');
-        if (game.audio) game.audio.play('loot', null, 0.6);
+        if (game.cue) game.cue('objective');
         if (P.tutorial >= STEPS.length) game.ui.toast('Tutorial complete — your orders are in the quest log (J)', 'epic');
       }
       const dk = !!game.docked; if (dk !== wasDocked) { wasDocked = dk; el.classList.toggle('docked', dk); }
