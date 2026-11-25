@@ -24,7 +24,9 @@ Read this first when picking the work up (new session or another model). Then `C
   Order: Aurelian, Hollow, Corsair, Tidewright, Ironhold. Velscour stays as approved (do not regenerate its kit).
   - Aurelian: DONE (oval flank fairings with swept ends, smooth belly pods, domed gun spine, blade wings, oval side-hull
     pylons, one long fairing on staggered batteries). Weak: turret wells are still square pits; battery sections are prisms.
-  - Hollow, Corsair, Tidewright, Ironhold: not started (see "Next" 1).
+  - Hollow: DONE (swollen brood flanks with hooked ribs, egg-sac pods with ribs and crevice glow, arched limbs to
+    the brood hulls with a spine crest, rounded ridge). Weak: turret wells and weapon blisters are still square-cut.
+  - Corsair, Tidewright, Ironhold: not started (see "Next" 1).
 
 ## Next, in order
 1. Give each yard its own body shapes in its `Style` (Aurelian and Hollow curved; Tidewright's collector
