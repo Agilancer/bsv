@@ -113,7 +113,7 @@ function weaponScore(item, b, rs) {
   if (b.speed && ws.speed > b.speed) v *= 1 + 0.1 * (ws.speed / b.speed - 1);       // faster shells land more
   if (ws.disrupt) v *= 1.35;   // ion: the target's guns slow and its shields stay down
   let u = 0;
-  for (const k of item.unique || []) if (UNIQUES[k] && !UNIQUES[k].slot) u += UNIQUES[k].value || 0;
+  for (const k of ws.unique) if (UNIQUES[k] && !UNIQUES[k].slot) u += UNIQUES[k].value || 0;   // built-in powers too
   return v * (1 + u);
 }
 // a hangar's craft: strike damage, or for repair drones the hull they mend over a fight

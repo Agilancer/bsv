@@ -27,6 +27,7 @@ const ALONG_Z = [Math.PI / 2, 0, 0];
 // s = scale from the hull's half-beam
 export function buildWeapon(item, hp, s) {
   const b = BASES[item.base];
+  const mk = b.model || item.base;   // silhouette: variants (data/weapons.js) borrow or add one
   const G = gunMaterials();
   const hot = hotMaterial(b.color, 5);
   const rar = RARITY[item.rarity];
@@ -54,7 +55,20 @@ export function buildWeapon(item, hp, s) {
     add(mesh(box(s * 0.5, s * 0.7, s * 0.9), G.metal, 0, 0, 0), root);
     add(mesh(box(s * 0.08, s * 0.06, s * 0.9), trim, s * 0.06, s * 0.37, 0), root);
     pitch.position.set(s * 0.45, 0, 0);   // trunnions
-    switch (item.base) {
+    switch (mk) {
+      case 'cells': {   // vertical launch cells: an armoured box of hatches that fire outboard
+        const rows = Math.min(n, 4);
+        add(mesh(box(s * 0.7, s * 0.6, s * (0.6 + rows * 0.36)), G.metal, s * 0.2, 0, 0), head);
+        add(mesh(box(s * 0.74, s * 0.08, s * (0.64 + rows * 0.36)), G.brass, s * 0.2, s * 0.32, 0), head);
+        for (let i = 0; i < rows; i++) {
+          const z = (i - (rows - 1) / 2) * s * 0.36;
+          barrel('x', 0, 0, z, (g) => {
+            add(mesh(box(s * 0.1, s * 0.4, s * 0.26), G.metal, s * 0.58, 0, 0), g);
+            add(mesh(box(s * 0.04, s * 0.3, s * 0.18), hot, s * 0.64, 0, 0), g);
+          }, s * 0.7);
+        }
+        break;
+      }
       case 'carronade': {
         add(mesh(box(s * 0.6, s * 0.55, s * 1.45), G.metal, s * 0.25, 0, 0), head);
         for (let i = 0; i < 5; i++) {
@@ -120,7 +134,39 @@ export function buildWeapon(item, hp, s) {
     add(mesh(torus(s * 0.6, s * 0.04), trim, 0, s * 0.16, 0, Math.PI / 2, 0, 0), root);
     head.position.y = s * 0.35;
     pitch.position.set(0, 0, s * 0.25);
-    switch (item.base) {
+    switch (mk) {
+      case 'beamturret': {   // focusing dish and an emitter rod per barrel
+        add(mesh(box(s * 0.62, s * 0.42, s * 0.7), G.metal), head);
+        const nb = Math.min(b.barrels || 1, 2);
+        for (let i = 0; i < nb; i++) {
+          barrel('z', (i - (nb - 1) / 2) * s * 0.32, 0, 0, (g) => {
+            add(mesh(cyl(s * 0.26, s * 0.1, s * 0.12, 12), G.brass, 0, 0, s * 0.3, ...ALONG_Z), g);
+            add(mesh(cyl(s * 0.05, s * 0.07, s * 1.1), G.metal, 0, 0, s * 0.8, ...ALONG_Z), g);
+            add(mesh(sph(s * 0.09), hot, 0, 0, s * 1.35), g);
+          }, s * 1.4);
+        }
+        break;
+      }
+      case 'gatling': {   // a rotary cluster of thin barrels
+        add(mesh(box(s * 0.7, s * 0.45, s * 0.7), G.metal), head);
+        add(mesh(cyl(s * 0.24, s * 0.24, s * 0.2, 10), G.brass, 0, 0, s * 0.35, ...ALONG_Z), head);
+        const nb = Math.min(b.barrels || 4, 6);
+        for (let i = 0; i < nb; i++) {
+          const a = (i / nb) * Math.PI * 2;
+          barrel('z', Math.cos(a) * s * 0.14, Math.sin(a) * s * 0.14, 0, (g) => add(mesh(cyl(s * 0.035, s * 0.035, s * 1.0, 6), G.metal, 0, 0, s * 0.85, ...ALONG_Z), g), s * 1.35);
+        }
+        add(mesh(torus(s * 0.18, s * 0.03), hot, 0, 0, s * 1.2, 0, 0, 0), head);
+        break;
+      }
+      case 'pod': {   // a squat drum of small cells
+        add(mesh(cyl(s * 0.45, s * 0.45, s * 0.7, 10), G.metal, 0, 0, 0, ...ALONG_Z), head);
+        const nb = Math.min(b.barrels || 1, 7);
+        for (let i = 0; i < nb; i++) {
+          const a = (i / Math.max(1, nb - 1)) * Math.PI * 2, r = nb > 1 && i ? s * 0.26 : 0;
+          barrel('z', Math.cos(a) * r, Math.sin(a) * r, 0, (g) => add(mesh(cyl(s * 0.07, s * 0.07, s * 0.06, 8), hot, 0, 0, s * 0.36, ...ALONG_Z), g), s * 0.4);
+        }
+        break;
+      }
       case 'missile': {
         add(mesh(box(s * 1.0, s * 0.62, s * 0.9), G.metal), head);
         for (let i = 0; i < 6; i++) {
@@ -169,7 +215,7 @@ export function buildWeapon(item, hp, s) {
   }
 
   // prow guns: a narrow traverse, real elevation
-  if (item.base === 'nova') {
+  if (mk === 'nova') {
     add(mesh(cyl(s * 0.62, s * 0.7, s * 0.5, 12), G.brass, 0, 0, s * 0.2, ...ALONG_Z), root);
     barrel('z', 0, 0, 0, (g) => {
       add(mesh(cyl(s * 0.45, s * 0.6, s * 3.0, 12), G.metal, 0, 0, s * 1.5, ...ALONG_Z), g);

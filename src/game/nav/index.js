@@ -55,7 +55,22 @@ export function installNav(game) {
   // N opens the system map
   game.engine.add({ update() { if (game.input.hit('systemMap') && game.ui) game.ui.toggle('system'); } });
 
-  const inCombat = () => game.world.ships.some((o) => o.alive && game.world.hostile(game.player, o) && o.position.distanceTo(game.player.position) < 900);
+  // The drive will not spool with hostiles about: none within WARP_CLEAR when it is asked for, and the
+  // spool is broken off if one closes inside it before the ship is away.
+  const WARP_CLEAR = 1800;
+  const ALIGN_TOL = 0.26, ALIGN_MAX = 10;   // rad off the line when the spool may start (it finishes the turn); s max
+  const ALIGN_RATE = 0.4;                   // rad/s: the turn the drive asks for (helped along on sluggish hulls), easing out
+  const SPOOL = 4;                          // seconds of spool once aligned (3.5 with Slipstream)
+  const nearestHostile = () => {
+    const me = game.player; let best = Infinity;
+    for (const o of game.world.ships) if (o.alive && o !== me && game.world.hostile(me, o)) best = Math.min(best, o.position.distanceTo(me.position));
+    return best;
+  };
+  const inCombat = () => nearestHostile() < WARP_CLEAR;
+  let refusedAt = -1e9;
+  const refuse = (msg) => { const now = game.engine.time; if (now - refusedAt > 4) game.ui.toast(msg, 'bad'); refusedAt = now; };
+  // a heading from a galaxy-map bearing (the jump drive points the bow at the destination system)
+  const jumpHeading = (id) => { const S = galaxy().systems, a = S[game.data.system], b = S[id]; return Math.atan2(b.x - a.x, b.y - a.y); };
 
   game.jumpTo = (id) => {
     const P = game.data;
@@ -65,24 +80,22 @@ export function installNav(game) {
     if (!path) { game.ui.toast('No charted route (rank too low for the systems between)', 'warn'); return false; }
     const cost = jumpCost(path, P);
     if (P.credits < cost) { game.ui.toast(`Jump fuel costs ${cost} ¢`, 'warn'); return false; }
-    if (inCombat()) { game.ui.toast('Cannot spool the jump drive in combat', 'bad'); return false; }
+    if (inCombat()) { refuse('Hostiles nearby: the jump drive will not spool'); return false; }
     if (game.docked) game.undock();
     P.credits -= cost;
-    warp = { kind: 'jump', phase: 'spool', t: 0, target: id, hops: path.length - 1 };
-    if (game.audio) game.audio.play('jump', null);
+    warp = { kind: 'jump', phase: 'align', t: 0, total: 0, target: id, hops: path.length - 1, heading: jumpHeading(id), cost };
     game.ui.toggle('galaxy', false);
-    game.ui.toast(`Jump drive spooling · ${galaxy().systems[id].name}`, 'epic');
+    game.ui.toast(`Jump plotted · ${galaxy().systems[id].name} · coming about`, 'epic');
     return true;
   };
   game.warpTo = (pos) => {
     if (warp || !game.player) return false;
-    if (inCombat()) { game.ui.toast('Cannot warp in combat', 'bad'); return false; }
-    if (game.docked) game.undock();
     const s = game.player;
     const d = _v.copy(pos).sub(s.position).setY(0);
-    if (d.length() < 600) { game.moveTarget = pos.clone(); return true; }
-    warp = { kind: 'local', phase: 'spool', t: 0, to: pos.clone().setY(0), from: s.position.clone() };
-    if (game.audio) game.audio.play('jump', null, 0.6);
+    if (d.length() < 600) { if (game.docked) game.undock(); game.moveTarget = pos.clone(); return true; }
+    if (inCombat()) { refuse('Hostiles nearby: the warp drive will not spool'); return false; }
+    if (game.docked) game.undock();
+    warp = { kind: 'local', phase: 'align', t: 0, total: 0, to: pos.clone().setY(0), from: s.position.clone(), heading: Math.atan2(pos.x - s.position.x, pos.z - s.position.z) };
     game.ui.toggle('system', false);
     return true;
   };
@@ -104,48 +117,113 @@ export function installNav(game) {
   };
   game.isWarping = () => !!warp;
   game.warpState = () => warp;   // debug/tools
-  game.cancelWarp = () => { if (!warp) return; warp = null; fade.style.opacity = '0'; game.engine.camera.fov = 32; game.engine.camera.updateProjectionMatrix(); };
+  const resetView = () => { fade.style.opacity = '0'; game.engine.camera.fov = 32; game.engine.camera.updateProjectionMatrix(); if (game.player) game.player.body.scale.set(1, 1, 1); };
+  game.cancelWarp = () => { if (!warp) return; warp = null; resetView(); };
+  // break off a spool that has not gone yet (the jump fuel is refunded)
+  const abort = (why) => {
+    if (!warp || warp.phase === 'go') return;
+    if (warp.kind === 'jump' && warp.cost) game.data.credits += warp.cost;
+    warp = null; resetView();
+    if (game.player) { game.world.fx.ring(game.player.position, game.player.dims.L * 0.8, 0x7ad8ff, 30); game.player.throttle = 0.4; }
+    game.ui.toast(why, 'bad');
+  };
 
-  // drive state machine
+  // drive state machine: align (the helm brings the bow round at the ship's own turn rate) -> spool (the drive
+  // charges for ~4 s: engines flare, energy gathers at the bow, rings and a rising whine) -> go (a hard, fast
+  // transit along the bow) -> arrive. Hostiles closing, or the captain taking the helm, break off the spool.
+  // turn toward the line at the hull's own rate, topped up to an unhurried ALIGN_RATE that eases off near it
+  const comeAbout = (s, off, dt, simK = 1) => {
+    const sign = Math.sign(off), want = Math.min(ALIGN_RATE, Math.abs(off) * 1.1);
+    s.rudder = Math.max(-1, Math.min(1, off * 2));
+    const own = Math.max(0, (s.yawRate || 0) * sign) * simK;   // what the hull is actually turning (little at low way)
+    if (want > own) s.heading += sign * Math.min(Math.abs(off), (want - own) * dt);
+  };
+  const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
   game.engine.add({
     update(dt, t, realDt) {
       if (!warp || !game.player || game.mode !== 'space') return;
-      const s = game.player, W = game.world, fx = W.fx;
-      const slip = game.data.talents && game.data.talents.slipstream ? 2 : 1;
-      warp.t += realDt * slip;
+      const s = game.player, W = game.world, fx = W.fx, inp = game.input;
+      if (!s.alive) { game.cancelWarp(); return; }
+      const slip = game.data.talents && game.data.talents.slipstream;
+      warp.t += realDt; warp.total += realDt;
       const fwd = _fwd.set(Math.sin(s.heading), 0, Math.cos(s.heading));
-      if (warp.phase === 'spool') {
-        // turn toward the destination, charge the drive
-        if (warp.kind === 'local') { s.steerHeading(Math.atan2(warp.to.x - s.position.x, warp.to.z - s.position.z), 0.2); game.moveTarget = null; }
-        else s.throttle = 0.25;
+      if (warp.phase !== 'go') {
+        if (nearestHostile() < WARP_CLEAR) return abort('Hostiles closing: drive spool broken off');
+        if (inp && (inp.held('turnLeft') || inp.held('turnRight') || inp.hit('throttleUp') || inp.hit('throttleDown') || inp.hit('fullStop'))) return abort('Drive spool cancelled: helm taken');
+        game.moveTarget = null;
+        if (warp.kind === 'local') warp.heading = Math.atan2(warp.to.x - s.position.x, warp.to.z - s.position.z);
+      }
+      const off = Math.atan2(Math.sin(warp.heading - s.heading), Math.cos(warp.heading - s.heading));
+      if (warp.phase === 'align') {
+        // a slow, deliberate turn: gentle rudder, way coming off
+        s.throttle = 0.2;
+        comeAbout(s, off, realDt, realDt > 0 ? dt / realDt : 1);
+        if (Math.random() < realDt * 4) for (const e of s.engines) { const p = e.pos.clone().applyAxisAngle(THREE.Object3D.DEFAULT_UP, s.heading).add(s.position); fx.trailPuff(p, 0x9fd8ff, e.r * 1.5, 0.4); }
+        if ((Math.abs(off) < ALIGN_TOL && warp.t > 0.8) || warp.t > ALIGN_MAX) {
+          warp.phase = 'spool'; warp.t = 0;
+          if (game.audio) game.audio.play('spool', null, warp.kind === 'jump' ? 1 : 0.7);
+          if (warp.kind === 'jump') game.ui.toast('Jump drive spooling', 'epic');
+        }
+      } else if (warp.phase === 'spool') {
+        const dur = slip ? SPOOL - 0.5 : SPOOL, k = Math.min(1, warp.t / dur);
+        // hold the bow on the line, bleed off speed
+        s.throttle = 0.08;
+        comeAbout(s, off, realDt, realDt > 0 ? dt / realDt : 1);
+        // engines flare brighter and brighter
         for (const e of s.engines) {
           const p = e.pos.clone().applyAxisAngle(THREE.Object3D.DEFAULT_UP, s.heading).add(s.position);
-          fx.trailPuff(p, 0x9fd8ff, e.r * 3 * Math.min(1, warp.t), 0.3);
+          fx.trailPuff(p, 0x9fd8ff, e.r * (1.5 + 4 * k), 0.25 + 0.2 * k);
         }
-        if (Math.random() < realDt * 12) fx.ring(s.position, s.dims.L * (0.4 + warp.t * 0.3), 0x7ad8ff, 24);
-        if (warp.t > 2) { warp.phase = 'go'; warp.t = 0; game.engine.flash(0.25, 0xbfe8ff); game.cam.addShake(4); }
+        // energy gathers at the bow: sparks drawn in from a wide shell
+        const bow = _side.copy(s.position).addScaledVector(fwd, s.dims.L * 0.6);
+        const n = Math.round(2 + 10 * k);
+        for (let i = 0; i < n; i++) {
+          const a = Math.random() * Math.PI * 2, r = s.dims.L * (0.6 + Math.random() * 0.9);
+          const ox = Math.cos(a) * r, oy = Math.sin(a) * r * 0.5, oz = (Math.random() - 0.5) * r;
+          const life = 0.45;
+          fx.spark.emit(bow.x + ox, bow.y + oy, bow.z + oz, -ox / life, -oy / life, -oz / life, life, 0.6, 0.85 + 0.15 * k, 1.6 + k, 0.8 + 0.4 * k, 1.5 + 2 * k, 0.4, 0, 0);
+        }
+        if (Math.random() < realDt * (2 + 8 * k)) fx.ring(s.position, s.dims.L * (0.5 + k * 0.9), 0x7ad8ff, 24 + Math.round(24 * k));
+        if (Math.random() < realDt * 6 * k) fx.ring(bow, s.dims.L * 0.25 * (1 + k), 0xd8f0ff, 16);
+        // the hull shudders as the drive winds up, and the camera pulls back a touch
+        if (k > 0.5 && Math.random() < realDt * 6) game.cam.addShake(0.3 + k * 0.8);
+        game.engine.camera.fov = 32 - 3 * ease(k); game.engine.camera.updateProjectionMatrix();
+        if (k >= 1) {
+          warp.phase = 'go'; warp.t = 0;
+          warp.from = s.position.clone(); warp.goHeading = s.heading;
+          if (warp.kind === 'local') warp.dur = Math.min(2.2, 1 + warp.from.distanceTo(warp.to) / 24000);
+          game.engine.flash(0.35, 0xbfe8ff); game.cam.addShake(5);
+          fx.ring(s.position, s.dims.L * 2.2, 0xbfe8ff, 80);
+          if (game.audio) game.audio.play('warp', null, warp.kind === 'jump' ? 1 : 0.8);
+        }
       } else if (warp.phase === 'go') {
         // streaks race past
-        for (let i = 0; i < 14; i++) {
+        for (let i = 0; i < 16; i++) {
           const a = Math.random() * Math.PI * 2, r = 60 + Math.random() * 400;
           const side = _side.set(Math.cos(a) * r, Math.sin(a) * r * 0.4, 0).applyAxisAngle(THREE.Object3D.DEFAULT_UP, s.heading);
           const p = s.position.clone().add(side).addScaledVector(fwd, 500);
           fx.spark.emit(p.x, p.y, p.z, -fwd.x * 2600, 0, -fwd.z * 2600, 0.35, 1.2, 1.6, 2.6, 1, 3, 1, 0, 0);
         }
-        game.engine.camera.fov = 32 + Math.min(1, warp.t * 2) * 26;
+        // the hull stretches into the drive field
+        const kick = Math.min(1, warp.t * 5);
+        game.engine.camera.fov = 29 + kick * 29;
         game.engine.camera.updateProjectionMatrix();
         if (warp.kind === 'local') {
-          const k = Math.min(1, warp.t / 1.6);
-          const e = k * k * (3 - 2 * k);
+          const k = Math.min(1, warp.t / warp.dur), e = ease(k);
           s.position.lerpVectors(warp.from, warp.to, e);
-          s.heading = Math.atan2(warp.to.x - warp.from.x, warp.to.z - warp.from.z);
+          // any heading left over from the turn is taken up smoothly, never snapped
+          const want = Math.atan2(warp.to.x - warp.from.x, warp.to.z - warp.from.z);
+          s.heading += Math.atan2(Math.sin(want - s.heading), Math.cos(want - s.heading)) * Math.min(1, realDt * 6);
           s.velocity.copy(fwd).multiplyScalar(s.maxSpeed);
+          s.body.scale.set(1, 1, 1 + 0.8 * Math.sin(Math.PI * k));
           if (k >= 1) arrive();
         } else {
-          s.position.addScaledVector(fwd, 3000 * realDt);
+          s.position.addScaledVector(fwd, (1500 + 6000 * warp.t) * realDt);
+          s.body.scale.set(1, 1, 1 + Math.min(1.2, warp.t * 2));
           if (warp.t > 0.8) fade.style.opacity = '1';
           if (warp.t > 1.3) {
             const id = warp.target;
+            s.body.scale.set(1, 1, 1);
             game.enterSystem(id);
             if (!game.data.visited.includes(id)) game.data.visited.push(id);
             save(game.data);
@@ -157,8 +235,8 @@ export function installNav(game) {
   });
   function arrive() {
     const s = game.player;
-    fade.style.opacity = '0';
-    game.engine.camera.fov = 32; game.engine.camera.updateProjectionMatrix();
+    resetView();
+    if (game.player) game.player.body.scale.set(1, 1, 1);
     game.engine.flash(0.3, 0x9fd8ff);
     if (s) { game.world.fx.column(s.position, 0x9fd8ff, 220, 80); game.world.fx.ring(s.position, s.dims.L * 1.5, 0x9fd8ff, 80); s.throttle = 0.25; s.speed = s.maxSpeed * 0.4; }
     warp = null;

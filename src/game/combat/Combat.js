@@ -251,7 +251,7 @@ export class Combat {
     const r = target.hitRadius();
     const dir = _c2.copy(to).sub(from); const len = dir.length(); dir.normalize();
     const end = _l.copy(from).addScaledVector(dir, Math.max(0, len - r * 0.8));
-    W.beams.add(from, end, color, width, ws.kind === 'beam' && ws.dmg > 150 ? 0.6 : 0.3);
+    W.beams.add(from, end, color, width, ws.beamT || (ws.kind === 'beam' && ws.dmg > 150 ? 0.6 : 0.3));
     this.damage(target, ws.dmg, ws.dmgType, end, owner, ws);
     W.fx.impact(end, color, 1.3, target.shieldsUp());
     if (ws.unique && ws.unique.includes('chainLance')) {

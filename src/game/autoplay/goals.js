@@ -56,7 +56,7 @@ export function resupplyGoal(ap) {
       if (!g.stations || !g.stations.length) {
         // head for the nearest system that has one
         if (jumping != null && P.system === jumping) { jumping = null; return false; }
-        if (jumping == null) {
+        if (jumping == null || !g.isWarping()) {   // again if a spool was broken off
           const to = nearestStationSystem(P);
           if (!to || !g.jumpTo(to.id)) { jumping = null; phase = null; return true; }
           jumping = to.id; ap.log(`No station here — jumping to ${to.name} to resupply`);
@@ -142,7 +142,7 @@ export function advanceGoal(ap) {
       const P = g.data;
       if (target == null) { target = pick(); fired = false; if (target == null) return true; ap.log(`Charting a course to ${galaxy().systems[target].name}`); }
       if (P.system === target) { target = null; return true; }
-      if (!fired && !g.isWarping()) { fired = g.jumpTo(target); if (!fired) { target = null; return true; } }
+      if (!g.isWarping()) { fired = g.jumpTo(target); if (!fired) { target = null; return true; } }   // again if a spool was broken off
       return false;
     },
   };
