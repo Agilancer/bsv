@@ -120,6 +120,21 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     A combat bay is sized to about one gun per hardpoint (`droneSheetDps`), so the ground contract (`expectedBuild`: every
     hardpoint an uncommon gun) holds when mounts are swapped. Autopilot: `autoCraft.js` `pickBlueprint` / `fitExplorer`
     (a gun always fitted, bays capped by `bayCap`).
+  - The dropship (`planet/Lander.js` + `planet/Landing.js`): a Blender model (`tools/blender/f_lander.py`, built with
+    `python3 tools/blender/build.py lander` -> `assets/vehicles/lander.glb` + `lander.json`; `vlib.py` has a `heat` slot
+    for the ablative shield) with folding legs `gear_i`, a stern `ramp`, body `flap_i`, intake `fan_i` and two dorsal
+    rail turrets (`turret_i` traverses, `gun_i` elevates, `muzzle_i`). `LANDER` in Lander.js mirrors the model's facts
+    (`tests/lander.test.mjs`). The lander is scaled to the explorer it carries (`landerScale`, hold of a Mk I = 1).
+    `mode.lander` is its root (feet at y 0, yaw), `mode.landerCtl` the object (poses, flames, plasma, `updateTurrets`).
+    `Landing.js` flies the planetfall (~14 s: entry in a plasma sheath with the shield glowing, through the cloud
+    deck and a boom past the camera, retro burn, legs, dust, touchdown, ramp, the explorer drives out down the ramp
+    on `rampSampler`) and the lift-off (~10 s from the hold sealing: board up the ramp, lift on the retros, gear up,
+    pitch over, mains, boom, through the clouds); its own sky dome, cloud deck, letterbox + telemetry
+    (`body.planet-cine` hides the HUD), camera shots that blend into the play camera. Airless (`barren`) worlds get
+    a braking burn instead of entry heat and no clouds. The turrets fire (`Lander.fire`, player shots) only on
+    the drop, the call-down (`updateExtract` -> `Landing.extract`) and the pickup; a hot LZ (hazard >= 1, 60%)
+    puts a small pack near the pad for them. Space / click / tap skips (not under autoplay). `debugDeploy` starts
+    on the ground (`mode.quick`) unless `{cinematic: true}`, so the tools never fly it.
   - Surface steering: `planet/avoid.js` `steerOffset` (pure) turns a wanted heading around the big props (the
     `Terrain.forObstacles` circles the explorer collides with), looking ahead by speed and turn rate and holding to one
     side. The explorer autopilot (`PlanetPilot.avoid`, after the unstick wiggle) and the resource probes use it.

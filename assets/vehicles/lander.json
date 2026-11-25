@@ -1,0 +1,52 @@
+{
+ "lander": {
+  "bytes": 334908,
+  "dims": {
+   "H": 10.71,
+   "L": 19.75,
+   "W": 13.32,
+   "maxY": 10.72,
+   "minY": 0.01
+  },
+  "empties": {
+   "beacon": 1,
+   "heat": 1,
+   "hold": 1,
+   "light": 4,
+   "main": 2,
+   "rcs": 4,
+   "retro": 4
+  },
+  "file": "lander.glb",
+  "gearFold": 88,
+  "groups": [
+   "body",
+   "fan_0",
+   "fan_1",
+   "flap_0",
+   "flap_1",
+   "gear_0",
+   "gear_1",
+   "gear_2",
+   "gear_3",
+   "gun_0",
+   "gun_1",
+   "ramp",
+   "turret_0",
+   "turret_1"
+  ],
+  "hardpoints": [],
+  "holdFloor": 2.6,
+  "holdH": 3.9,
+  "holdL": 10.1,
+  "holdW": 5.4,
+  "kind": "lander",
+  "rampHinge": [
+   2.5,
+   -7.95
+  ],
+  "rampLen": 4.35,
+  "rampOpen": 125.08,
+  "tris": 43664
+ }
+}
