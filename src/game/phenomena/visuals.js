@@ -48,14 +48,14 @@ export function blackHole(ph, engine) {
   const f1 = fract(t.mul(0.035)), f2 = fract(t.mul(0.035).add(0.5));
   const n = mix(flow(f1), flow(f2), abs(f1.sub(0.5)).mul(2));
   const arms = sin(ang.mul(2).add(log(rad.add(0.02)).mul(spin).mul(5)).sub(t.mul(spin).mul(0.4))).mul(0.5).add(0.5);
-  const inner = smoothstep(1, 0.08, rad).pow(2.4);
+  const inner = smoothstep(1, 0.08, rad).pow(3.2);
   const hot = exp(rad.sub(FX.hole.core * 1.25).div(0.035).pow(2).negate());
   const beam = sin(ang).mul(spin).mul(0.45).add(1);
-  const bright = inner.mul(n.mul(1.3).add(0.15)).mul(arms.mul(0.5).add(0.6)).mul(beam).add(hot.mul(3.5)).mul(smoothstep(FX.hole.core * 0.95, FX.hole.core * 1.15, rad));
+  const bright = inner.mul(n.mul(1.3).add(0.15)).mul(arms.mul(0.5).add(0.6)).mul(beam).add(hot.mul(2.4)).mul(smoothstep(FX.hole.core * 0.95, FX.hole.core * 1.15, rad));
   const ramp = mix(mix(col(0x5a1a6a), col(0xff4a1a), smoothstep(0.85, 0.45, rad)), mix(col(0xffa040), col(0xfff0d0), smoothstep(0.35, 0.12, rad)), smoothstep(0.6, 0.25, rad));
   const dm = addMat();
-  dm.colorNode = ramp.mul(bright).mul(2.2);
-  dm.opacityNode = clamp(bright, 0, 1);
+  dm.colorNode = ramp.mul(bright).mul(0.9);
+  dm.opacityNode = clamp(bright.mul(0.8), 0, 1);
   const disc = mesh(flatRing(core * 0.9, r, 160, 8), dm, 2);
   disc.rotation.set(ph.tilt * 0.3, 0, ph.tilt * 0.2);
   root.add(disc);
@@ -65,7 +65,7 @@ export function blackHole(ph, engine) {
   const horizon = new THREE.Mesh(new THREE.SphereGeometry(core * 0.92, 48, 24), hm); horizon.renderOrder = 4;
   root.add(horizon);
   // photon ring and lensing glow
-  const ring = glowSprite(0xffe0b0, core * 4.2, { k: 3, ringAt: 0.46, ringK: 1.6, falloff: 6 });
+  const ring = glowSprite(0xffe0b0, core * 4.2, { k: 1.8, ringAt: 0.46, ringK: 1.4, falloff: 8 });
   root.add(ring);
   // twin jets along the spin axis
   const jm = addMat();
