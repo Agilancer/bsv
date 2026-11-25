@@ -315,7 +315,8 @@ export class PlanetMode {
     }
     // fitted guns and drone bays earn mastery with every kill
     const ups = [];
-    for (const [k, it] of Object.entries(this.ex.loadout)) if (it && k.startsWith('hp:') && grantExItemXp(it, def.xp * (1 + 0.12 * (e.level - 1)) * 0.6)) ups.push(`${it.name} ${it.lvl}`);
+    // (measured duels field the contract's fresh build: no mastery creeps in between them)
+    if (!this.pilot.duel) for (const [k, it] of Object.entries(this.ex.loadout)) if (it && k.startsWith('hp:') && grantExItemXp(it, def.xp * (1 + 0.12 * (e.level - 1)) * 0.6)) ups.push(`${it.name} ${it.lvl}`);
     if (ups.length) { this.toast(`Mastery up (+4% each): ${ups.join(', ')}`, ''); this.refreshStats(); }
     for (const [res, ev] of Object.entries(def.drops)) {
       const n = ev * sizeMul * (0.5 + Math.random());

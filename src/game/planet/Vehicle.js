@@ -8,7 +8,7 @@ import { explorerStats } from './explorerItems.js';
 import { shieldMaterial } from '../../fx/materials.js';
 import { damp, clamp, wrapAngle } from '../../engine/rng.js';
 import { EXPLORER_BY_ID } from '../data/chassis.js';
-import { capGroundHit, armorMul } from './groundBalance.js';
+import { capGroundHit, armorMul, TELEGRAPH_HIT } from './groundBalance.js';
 
 export const FRAME_PHYS = {
   skiff: { hover: true, accel: 3.0, turn: 6.0, face: 'move', bob: 0.22, bank: 0.25 },
@@ -82,6 +82,9 @@ export class Vehicle {
     for (const m of v.legMeshes) M.scene.add(m);
     this.dims = v.dims;
     this.radius = Math.max(v.dims.W, v.dims.L * 0.6) * 0.5;
+    // what hostile shots test against: the hull's core. Overhangs (rotors, booms, cranes, lances) take no hits,
+    // so a Mk XII is a bigger target than a Mk I but not by its whole footprint (melee and bodies use radius)
+    this.hitRadius = this.radius <= 2.2 ? this.radius : 2.2 + (this.radius - 2.2) * 0.35;
     // shield shell
     const sm = shieldMaterial(FRAME_STYLE[this.chassis.frame].glow);
     const sh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 3), sm);
@@ -378,6 +381,13 @@ export class Vehicle {
     let win = null;
     if (src && src.def && !(o && o.telegraph)) { const root = src.capRoot && src.capRoot.alive ? src.capRoot : src; win = root._dmgWin || (root._dmgWin = { t, sum: 0 }); }
     let a = capGroundHit(amount, ehp, o, win, t);
+    // a ring volley lands as one telegraphed strike, however many of its shards a big hull catches
+    if (o && o.volley) {
+      const vw = this._volley || (this._volley = { id: 0, sum: 0 });
+      if (vw.id !== o.volley) { vw.id = o.volley; vw.sum = 0; }
+      a = Math.min(a, Math.max(0, ehp * TELEGRAPH_HIT - vw.sum));
+      vw.sum += a;
+    }
     if (a <= 0) return 0;
     if (this.shield > 0) {
       const s = Math.min(this.shield, a);

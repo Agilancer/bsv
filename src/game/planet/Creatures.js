@@ -26,6 +26,7 @@ function segD2(a, b, c, out) {
   return { d2: (x - c.x) ** 2 + (y - c.y) ** 2 + (z - c.z) ** 2, t };
 }
 
+let volleySeq = 0;   // ring attacks: shards of one volley share a hit budget on the explorer (Vehicle.damage)
 export class Creatures {
   constructor(mode) {
     this.mode = mode;
@@ -596,11 +597,12 @@ export class Creatures {
         const sy = e.pos.y + Math.max(1, e.height * 0.4);
         let vy = 0;
         if (tgt) { const tp = tgt.position || tgt.pos, dd = Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z); vy = clamp((tp.y + 1 - sy) / Math.max(0.25, dd / NOVA_V), -30, 10); }
-        // the ring...
+        // the ring... (one volley: however big the explorer, its shards share one telegraphed hit's budget)
+        const volley = ++volleySeq;
         for (let i = 0; i < n; i++) {
           const a = (i + 0.5) / n * Math.PI * 2 + a0;
           _d.set(Math.cos(a) * NOVA_V, vy, Math.sin(a) * NOVA_V);
-          M.shots.spawn({ pos: _p.copy(e.pos).setY(sy), vel: _d, team, dmg: e.dmg * 0.7, kind: 'bolt', color: def.vis.glow, size: 0.45 * ss, len: 3, life: (R + 14) / NOVA_V, src: e, tele: true });
+          M.shots.spawn({ pos: _p.copy(e.pos).setY(sy), vel: _d, team, dmg: e.dmg * 0.7, kind: 'bolt', color: def.vis.glow, size: 0.45 * ss, len: 3, life: (R + 14) / NOVA_V, src: e, tele: true, volley });
         }
         // ...and its heart: three fast shards led onto the target (side-step them, or be out of reach)
         if (tgt) for (let i = -1; i <= 1; i++) {
@@ -674,7 +676,7 @@ export class Creatures {
           if (!e.alive) return;
           fx.ring(e.pos, R, M.dustHex, 64); fx.rocks(e.pos, 12, 0x4a3a30, 20); M.cam.addShake(1.4);
           const vd = Math.hypot(M.vehicle.position.x - e.pos.x, M.vehicle.position.z - e.pos.z);
-          if (vd < R + M.vehicle.radius) M.vehicle.damage(e.dmg, M.vehicle.position, e, TELE);
+          if (vd < R + (M.vehicle.hitRadius || M.vehicle.radius)) M.vehicle.damage(e.dmg, M.vehicle.position, e, TELE);
         });
       }
     } else if (sp === 'nova') {
@@ -693,7 +695,7 @@ export class Creatures {
         const end = s.clone().add(_d.set(Math.sin(a) * Rb, -s.y + M.S.ground(e.pos.x + Math.sin(a) * Rb, e.pos.z + Math.cos(a) * Rb), Math.cos(a) * Rb));
         fx.timedBeam(s, end, 0.6, def.vis.glow, 2.6, 0.12);
         const V = M.vehicle; _c.copy(V.position).setY(V.position.y + 1);
-        if (segD2(s, end, _c, null).d2 < (V.radius + 1.5) ** 2 && i - last > 3) { last = i; V.damage(e.dmg * 0.6, _c, e, TELE); }
+        if (segD2(s, end, _c, null).d2 < ((V.hitRadius || V.radius) + 1.5) ** 2 && i - last > 3) { last = i; V.damage(e.dmg * 0.6, _c, e, TELE); }
       });
     } else { // barrage: telegraphed strikes around the explorer
       for (let i = 0; i < 5 + e.phase * 2; i++) {
@@ -705,7 +707,7 @@ export class Creatures {
           if (def.family === 'hive' || def.family === 'fungal') { fx.ichor(pos, def.ichor, 18); fx.glowBurst(pos, def.ichor, 8, 0.3, 1.5); }
           else fx.explode(pos, 0.7, 0xff7030);
           const vd = Math.hypot(M.vehicle.position.x - pos.x, M.vehicle.position.z - pos.z);
-          if (vd < 5 + M.vehicle.radius) M.vehicle.damage(e.dmg * 1.1, pos, e, TELE);
+          if (vd < 5 + (M.vehicle.hitRadius || M.vehicle.radius)) M.vehicle.damage(e.dmg * 1.1, pos, e, TELE);
           M.cam.addShake(0.5);
         });
       }
