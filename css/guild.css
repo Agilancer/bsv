@@ -94,3 +94,28 @@ body.hud-hidden #pvpMarks, body.win-open #pvpBoard, body[data-mode]:not([data-mo
   .res-t { font-size: 26px; }
 }
 @media (max-width: 420px) { .g-mem { grid-template-columns: 1fr; } .g-head { flex-wrap: wrap; } .g-emblem { width: 34px; height: 34px; } #pvpResult .res-b, #pvpBoard { grid-template-columns: 1fr; } }
+
+/* the PvP title (P, v, P locking in) and the WINNER / LOSER stamp: src/game/guild/pvpfx.js drives every frame */
+#pvpFx { position: fixed; inset: 0; z-index: 70; pointer-events: none; overflow: hidden; }
+#pvpFx canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+#pvpFx .fx-dim { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at 50% 50%, rgba(20, 30, 70, 0.55), rgba(2, 4, 12, 0.92) 75%); }
+#pvpFx .fx-black { position: absolute; inset: 0; opacity: 0; background: #010208; }
+/* one baseline-aligned line, centred in the screen (align-content centres the wrapped line) */
+#pvpFx .fx-row { position: absolute; inset: 0; display: flex; flex-wrap: wrap; align-items: baseline; align-content: center; justify-content: center; --sheen: -60%;
+  font-family: var(--head); font-weight: 900; font-size: min(26vw, 36vh, 260px); line-height: 1; }
+/* brushed steel with a bevel line across the middle, a moving sheen, a lit rim in the side's colour */
+#pvpFx .fx-l, #pvpFx .fx-stamp {
+  color: transparent; -webkit-text-stroke: 0.012em rgba(225, 238, 255, 0.55);
+  background-image:
+    linear-gradient(105deg, transparent calc(var(--sheen, -60%) - 8%), rgba(255, 255, 255, 0.85) var(--sheen, -60%), transparent calc(var(--sheen, -60%) + 8%)),
+    linear-gradient(180deg, #f6f9ff 0%, #b8c6d8 30%, #5d6c82 49%, #2e3848 51%, #8494aa 66%, #d4deea 86%, #7a889c 100%);
+  -webkit-background-clip: text; background-clip: text;
+  filter: brightness(var(--heat, 1)) drop-shadow(0 0 0.06em var(--g)) drop-shadow(0 0.03em 0.02em rgba(0, 0, 0, 0.8));
+  will-change: transform, opacity, filter; }
+#pvpFx .fx-l { display: inline-block; opacity: 0; }
+#pvpFx .fx-l:nth-child(2) { font-size: 0.82em; margin: 0 0.01em; }
+#pvpFx .fx-stamp { position: absolute; left: 50%; top: 50%; display: none; white-space: nowrap; letter-spacing: 0.14em; padding-left: 0.14em;
+  font-family: var(--head); font-weight: 900; font-size: min(14vw, 24vh, 170px); line-height: 1.1; --sheen: 160%; }
+#pvpFx .fx-stamp.win { --g: #58c8ff; } #pvpFx .fx-stamp.loss { --g: #ff5a8a; } #pvpFx .fx-stamp.draw { --g: #9a6bff; }
+/* the result card waits for the stamp to land and rise */
+#pvpResult.open { animation: winIn 0.3s ease-out 1.9s both; }

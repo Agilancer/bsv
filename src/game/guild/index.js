@@ -12,6 +12,7 @@ import * as D from './data.js';
 import { installZones } from './zones.js';
 import { installArena } from './arena.js';
 import { installGuildUI } from './ui.js';
+import { installPvpFx } from './pvpfx.js';
 
 const LINES = {
   welcome: ['welcome aboard!', 'o7 new blood', 'glad to have you', 'welcome! guild runs are fridays'],
@@ -348,6 +349,7 @@ export function installGuild(game) {
   installZones(game, G);
   installArena(game, G);
   installGuildUI(game, G);
+  installPvpFx(game, G);
 
   // ---- the autoplay goal: PvP in moderation. A sortie is one arena match or one visit to a contested
   // field, bounded in time, then a long cooldown (PvE stays the main course).

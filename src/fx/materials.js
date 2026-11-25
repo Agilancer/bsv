@@ -8,6 +8,7 @@ import {
 import { tex } from '../engine/Assets.js';
 import { YARDS } from '../game/data/chassis.js';
 import { LIVERIES } from '../game/data/liveries.js';
+import { paintKey, paintPalette } from '../game/data/paint.js';
 
 const cache = new Map();
 let engineRef = null;
@@ -28,15 +29,24 @@ export function windowsNode(winHex, density = 0.45, scale = 1) {
   return hdr(winHex, 2.2).mul(win).mul(on.add(flick).min(1)).mul(side);
 }
 
+export function hullMaterialsKey(yardKey, glowOverride = null, liveryKey = null, paint = null) {
+  const pk = paint ? paintKey(paint) : '';
+  return `${yardKey}:${glowOverride ?? ''}:${liveryKey ?? ''}` + (pk ? ':' + pk : '');
+}
+
 // One material set per yard (+ glow override, + faction livery). A livery (data/liveries.js)
 // repaints the yard's plating and colours the three marking materials: paint (lit livery colour),
 // mark (HDR stripes and seams) and glyph (HDR insignia).
-export function hullMaterials(yardKey, glowOverride = null, liveryKey = null) {
-  const key = `${yardKey}:${glowOverride ?? ''}:${liveryKey ?? ''}`;
+// `paint` ({ scheme, accent }, data/paint.js) is the captain's own colours: a painted set is built and
+// cached under its own key, so the sets every other ship shares are never touched.
+export function hullMaterials(yardKey, glowOverride = null, liveryKey = null, paint = null) {
+  const pk = paint ? paintKey(paint) : '';
+  const key = hullMaterialsKey(yardKey, glowOverride, liveryKey, paint);
   if (cache.has(key)) return cache.get(key);
   const lv = liveryKey ? LIVERIES[liveryKey] : null;
   let y = lv ? { ...YARDS[yardKey], ...lv.palette } : YARDS[yardKey];
   if (glowOverride != null) y = { ...y, glow: glowOverride, window: lv?.palette.window ?? glowOverride, engine: glowOverride };
+  if (pk) y = paintPalette(y, paint);
   const scale = float(1 / 16);
   const plate = (name, tint, rough, metal, windows = false, plain = false) => {
     const m = new THREE.MeshStandardNodeMaterial();
@@ -104,12 +114,20 @@ export function hotMaterial(hex, mul = 4) {
   return g.hot.get(k);
 }
 
-// Per-ship shield bubble: faint fresnel rim, flares where it is struck.
+
+// Per-ship shield bubble. Four facings (fore +z, aft -z, port +x, starboard -x in the mesh's frame), each
+// lit by its own charge (`facing`, 0..1 of a facing's cap): with `idle` > 0 the bubble stands as a faint
+// hex-cell shell with seams where the facings meet, a weak facing thins and flickers, an empty one is
+// gone. A struck bubble ripples from the impact in the colour of what it absorbed (`hitCol`), as hard as
+// the blow (`hitAmp`); without `idle` it only shows for a few seconds after a hit, as before.
 export function shieldMaterial(hex) {
   const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.FrontSide });
   const hitPos = uniform(new THREE.Vector3(0, 0, 0));
   const hitTime = uniform(-100);
+  const hitAmp = uniform(1);
+  const hitCol = uniform(new THREE.Color(hex));
   const level = uniform(1);       // 0..1 shield strength
+  const idle = uniform(0);        // 0..1 how much of the standing shell shows
   const facing = uniform(new THREE.Vector4(1, 1, 1, 1)); // fore, aft, port, starboard
   const t = engineRef.uTime;
   const age = t.sub(hitTime);
@@ -120,14 +138,26 @@ export function shieldMaterial(hex) {
   const core = smoothstep(0.55, 0, d).mul(exp(age.mul(-6)));
   const q = p.mul(9);
   const hex6 = fract(q.x.add(q.z.mul(0.577))).mul(fract(q.z.mul(1.155))).mul(fract(q.y.add(q.x.mul(0.5))));
-  const pattern = smoothstep(0.03, 0.0, hex6).mul(0.6).add(0.4);
+  const cells = smoothstep(0.03, 0.0, hex6);
+  const pattern = cells.mul(0.6).add(0.4);
+  // which facing this part of the bubble belongs to, blended across the seams (poles take the average)
+  const wf = max(p.z, 0).pow(2).add(0.02), wa = max(p.z.negate(), 0).pow(2).add(0.02);
+  const wp = max(p.x, 0).pow(2).add(0.02), wsb = max(p.x.negate(), 0).pow(2).add(0.02);
+  const str = wf.mul(facing.x).add(wa.mul(facing.y)).add(wp.mul(facing.z)).add(wsb.mul(facing.w)).div(wf.add(wa).add(wp).add(wsb));
+  const seam = smoothstep(0.07, 0.0, abs(abs(p.z).sub(abs(p.x)))).mul(smoothstep(0.85, 0.2, abs(p.y)));
+  const weak = smoothstep(0.35, 0.0, str);
+  const flick = sin(t.mul(23).add(p.x.mul(7)).add(p.z.mul(5)).add(p.y.mul(11))).mul(0.5).add(0.5);
+  const shell = fres.pow(1.25).mul(0.1).add(cells.mul(fres.add(0.15)).mul(0.035)).add(seam.mul(0.045))
+    .mul(str.mul(0.8).add(0.2)).mul(float(1).sub(weak.mul(flick).mul(0.75))).mul(smoothstep(0.0, 0.05, str)).mul(idle);
   const c = new THREE.Color(hex);
-  // the bubble is only visible for a few seconds after it's struck
+  const warn = new THREE.Color(0xff5a7a);
+  const shellCol = mix(vec3(c.r, c.g, c.b), vec3(warn.r, warn.g, warn.b), weak.mul(0.55));
+  // the afterglow of a hit over the whole bubble, then the ripple from the impact
   const base = fres.pow(1.5).mul(0.08).mul(level).mul(exp(age.mul(-0.7)));
-  const hit = ring.mul(1.6).add(core.mul(2.5)).mul(pattern);
-  m.colorNode = vec3(c.r, c.g, c.b).mul(base.add(hit).mul(1.6));
+  const hit = ring.mul(1.6).add(core.mul(2.5)).mul(pattern).mul(hitAmp);
+  m.colorNode = shellCol.mul(shell.add(base)).add(vec3(hitCol).mul(hit)).mul(1.6);
   m.opacityNode = float(1);
-  m.userData = { hitPos, hitTime, level, facing };
+  m.userData = { hitPos, hitTime, hitAmp, hitCol, level, idle, facing };
   return m;
 }
 

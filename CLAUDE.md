@@ -13,6 +13,13 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     back into the game (sessionStorage `velscour.gpuResume`), on WebGL2 for the rest of the session after WebGPU fails.
 - `src/fx/` — GPU particles (`Particles.js`: analytic motion, write-once ring buffer), sky,
   celestial bodies, ship/station materials, debris, title scene, lighting rig.
+  - Ship materials (`materials.js` `hullMaterials(yard, glow, livery, paint)`): one cached set per key; nothing may
+    mutate a cached set. The captain's paint (`data/paint.js`: 10 schemes + "Yard colours", and a separate
+    running-lights accent) is a 4th key part with its own set, worn by the PLAYER's hull only: `Ship.setPaint` swaps
+    it onto the player's hull clone by material slot (procedural and kit hulls alike; no HullBuilder change) and sets
+    `ship.yard` so trails and effects follow. `game.setPaint({scheme, accent})` repaints in place and saves
+    `data.ship.paint` (per hull; `data.paint` = last choice, which a new hull takes). UI: `ui/paint.js`, folded in the
+    Ship window. Enemies, PvP captains, derelicts and the title line keep their own colours.
 - `src/game/` — `Game` (orchestrator, helm, rewards, equipment), `World` (sim hub), `Sector`
   (a star system + encounter director), `Player` (save data), `Autoplay`, `Loot`.
   - `data/` — chassis (60 ships + 60 explorers), items (bases/rarities/affixes/uniques),
@@ -26,7 +33,27 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     auto-fire at the nearest hostile in its own arc (`otherTarget`; enemy guns only take the captain's side, so factions
     do not fight each other); otherwise it keeps training on the ship's target. Barrels lead by the shot's real flight
     time, and launchers loft (`LOFT`: the mount elevates, the warhead climbs out and homes down); launch() uses the same line.
+    Part kits (docs/ships: `design-brief.md`, `kit-spec.md`): hulls are being rebuilt as Blender-made part kits, one
+    per design language. `tools/blender/ship_<lang>.py` (+ `shiplib.py`; `python3` with `bpy`) writes
+    `assets/ships/kits/<lang>.glb` and a `.json` dump; `ship/kitPlan.js` (pure: class layouts, section chain, length
+    fit, hardpoints from markers, bake) and `ship/kitAssembler.js` (loader, meshes) build the hull, and `buildHull`
+    uses them when the language's kit is loaded and `planHull` succeeds, else the procedural builder. So far: the
+    Velscour frigate (`velscour_3`) only. `tests/kit.test.mjs` checks the contract from the JSON dump.
+    Viewer: `&guns`, `&hp`, `&vs` (kit beside procedural), `&nokit`.
   - `combat/` — projectiles/beams (instanced), damage model, hangar craft. `ai/ShipAI.js`.
+  - Shields you can see: `fx/materials.js` `shieldMaterial` lights each of the four facings by its own charge (`facing`
+    uniform; `idle` = the standing shell, always on the captain's ship, fainter on their target), and ripples a hit in
+    the colour of what it absorbed (`items.js` `SHIELD_HIT` by damage type, `Ship.onShieldHit`). The overlay
+    (`UI.drawShieldArcs`) draws the facings as arcs round the nav ring under the captain's ship. `Combat.damage` leaves
+    `lastShield` / `lastHull` (what the bubble took, what got through) for riders that need a breach.
+  - Mines (`data/mines.js` pure + `combat/Mines.js`, `world.mines`): ten kinds, every one worth the same `VALUE`
+    (`sec x (1 + edge)`, test-enforced): contact, frag, ion, plasma, tether, seeker, cluster, graviton, phantom, lance.
+    A mine senses the shield bubble (`shipCapsule`), so the facing toward it takes the blast; `absorb` says what the
+    bubble stops (a plasma burn needs a breach, a tether passes it). The captain: ability 9 sows `LAY.count` of the kind in
+    the Mine Rack (`data.mineType`; skills window tab, key 0 / right-click cycles; autoplay `pickMine`). Enemies: the
+    `mines` special lays its faction's two-kind kit (`enemyMineKit`) at the old budget (`ENEMY_SEC`, through the damage
+    window); PvP and MMO captains (`npcPlayer`, rank 4+) sometimes sow their own kind (`World.npcAbility`). Wake of
+    Thorns lays contact mines through the same system.
   - Feature modules install through `src/game/modules.js`: `station/`, `nav/`, `mmo/`,
     `autoplay/goals.js` (+ crew/bridge and planet modules).
   - The autoplay captain's decisions are pure, node-tested modules called from one line each:
@@ -43,7 +70,10 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     level/perks/upgrades, invite and alliance acceptance, NPC guilds and blocs, zone capture and
     control ticks, rating/tiers/matchmaking, rewards, vendor), `index.js` (runtime, autoplay
     management, the `PvP sortie` goal), `zones.js` (contested Voidglass fields in the open galaxy),
-    `arena.js` (instanced modes), `bots.js` (PvP captains), `ui.js` + `css/guild.css`. Save:
+    `arena.js` (instanced modes), `bots.js` (PvP captains), `ui.js` + `css/guild.css`. `pvpfx.js`: the match title (steel
+    P / v / P lock in with a clank and sparks, fade to black, the captain takes station under it: arena phase `intro`,
+    `INTRO_BLACK`) and the WINNER / LOSER / DRAW stamp, which stays until the screen fades out (`LEAVE_FADE`) and home;
+    all of it keyed to `engine.realTime`, skipped for `fast` matches (the tools). Save:
     `data.guild`, `data.pvp`, `data.diplo`. Hostile PvP captains use teams 8+ (`s.pvp`, `noLoot`).
   - Explorer vehicles (`planet/`): 7 frames x 12 marks (`data/chassis.js` `EXPLORER_FRAMES`, Mk m buildable at explorer
     level `exMarkLevel(m)`: Mk XII at the cap of 50). Every mark is a Blender model (`tools/blender`, below) that grows
