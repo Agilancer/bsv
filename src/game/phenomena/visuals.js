@@ -340,11 +340,11 @@ export function eddy(ph, engine) {
     const ticks = step(0.82, fract(a.mul(12 * i).add(t.mul((i % 2 ? 1 : -1) * 0.08 / i)))).mul(exp(rad.sub(at + 0.025).div(0.012).pow(2).negate()));
     rings = rings.add(line.mul(0.8)).add(ticks.mul(0.9));
   }
-  const haze = smoothstep(1, 0, rad).pow(1.5).mul(0.16);
-  m.colorNode = col(0xffd68a, 2.2);
-  m.opacityNode = clamp(rings.mul(smoothstep(1, 0.85, rad)).add(haze), 0, 1);
+  const haze = smoothstep(1, 0, rad).pow(1.5).mul(0.06);
+  m.colorNode = col(0xffd68a, 1.0);
+  m.opacityNode = clamp(rings.mul(0.55).mul(smoothstep(1, 0.85, rad)).add(haze), 0, 1);
   root.add(mesh(flatDisc(ph.r, 160), m, 2));
-  root.add(glowSprite(0xffe0a0, ph.r * 0.5, { k: 1.4, falloff: 3 }));
+  root.add(glowSprite(0xffe0a0, ph.r * 0.4, { k: 0.6, falloff: 4 }));
   return { root, anim() {} };
 }
 function wormMouth(x, z, r, engine, hex2) {
