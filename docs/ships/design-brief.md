@@ -149,7 +149,7 @@ counts come from `chassis.slots`. Engine counts are part of the class. The brack
 | Tier | Class | Proportions | Gesture (unique) | Batteries per side | Command module | Nozzles |
 |---|---|---|---|---|---|---|
 | 1 | Cutter | 30 / 20 / 50 | **Engine with a nose:** half the ship is engine block, with a short armoured wedge on its front | 1 blister on the beam | Bridge blister in the wedge | 1 large + 2 small |
-| 2 | Corvette | 35 / 30 / 35 | **Broad shoulders:** two engine nacelles faired directly into the flanks (no pylons), making the stern the widest point [`outrig: 'pods'`] | 2 mounts on the beam facet, ahead of the nacelles | Low block between the nacelle roots | 2 nacelle + 1 centre |
+| 2 | Corvette | 35 / 30 / 35 | **Broad shoulders:** two engine nacelles faired directly into the flanks (no pylons), making the stern the widest point [`outrig: 'pods'`] | 2 mounts on the beam facet, ahead of the nacelles | Low block between the nacelle roots, at 55-65% of L | 2 nacelle + 1 centre |
 | 3 | Frigate | 25 / 50 / 25 | **Deep belly:** a built-in ventral hangar and magazine pod under half the hull, so the ship is deeper below than above | 2-3 mounts, one tier | Sunk amidships [`castle: 'mid'`] | 2 + 2 |
 | 4 | Destroyer | 45 / 30 / 25 | **Long snout:** nearly half the ship is a tapered prow ending in a flat tube face [`prow 1.45`, `torpBow`] | 3-4 mounts in one trench on the short body | Sunk at 60% | 3 |
 | 5 | Light cruiser | 25 / 40 / 35 | **Waisted hull:** a head mass and an engine mass joined by a narrower armoured battery waist, with a fin pair on the engine block, port and starboard [`fins 0.6`] | 2 tiers × 2 mounts on the waist facets | Split: bridge in the head; secondary control buried in the engine mass, marked only by a window row and a dome, with no raised form [`castle: 'twin'`] | 3-4 |
@@ -167,7 +167,7 @@ T9-10, gargantuan T10).
 - **Role kits** attach at their `role.*` markers.
 
 **Carriers** (Corsair T6/8/10 and the `carrier` role kit) run an enclosed flight bay through the body,
-landing mouth aft and launch mouths forward. The command module sits offset beside it and the batteries
+landing mouth aft and launch mouths forward. The command module sits offset beside it, sunk and shouldered as rule 12 says, and the batteries
 stay on the flanks below.
 
 ---
@@ -183,7 +183,7 @@ palette, don't-list.
 - **Prow:** **bastion prow**: a blunt, faceted glacis wedge of plain stacked plates, with the torpedo
   tubes in a recessed face under an armoured brow. (`prow: 'ram'` in the data.)
 - **Command module:** a faceted keep sunk between two raised shoulder bastions, with narrow slit window
-  rows and one stout sensor array.
+  rows and one stout sensor array, at most 0.6 Ht high.
 - **Broadside:** armoured casemates on the upper and lower flank facets and a battery trench on the
   beam, with a gold collar round each mouth. The heaviest broadsides in the game.
 - **Engines:** a full-height faceted block, nozzles in two banks, short angular fins above and below.
@@ -234,7 +234,7 @@ palette, don't-list.
 - **Cross-section:** angular raked hexagon.
 - **Prow:** **fork**: two armoured blades with solid armour between them and boarding tubes between the
   tines.
-- **Command module:** an armoured block offset to one side, rooted on a weld collar.
+- **Command module:** an armoured block offset to one side, sunk and shouldered, rooted on a weld collar.
 - **Broadside:** mixed sponsons and cut-in casemates, plus clusters of point-defence blisters.
   Asymmetric *modules* are allowed; the gun mounts themselves stay mirrored (kit contract).
 - **Engines:** mismatched nozzle sizes in one block.
@@ -277,7 +277,8 @@ palette, don't-list.
 - **Driver:** void fauna with readable creature anatomy (manta, whale, ray).
 - **Cross-section:** continuous curved body, flattened.
 - **Prow:** a head with a maw; eyes as lights.
-- **Command module:** none; a dorsal hump.
+- **Command module:** none; a dorsal hump balanced by a ventral belly (the depth test applies to
+  creature hulls too).
 - **Broadside:** bioluminescent spot *rows* mark the weapon organs along the flanks.
 - **Engines:** tail vents; membrane fins and trailing tendrils rooted in the body.
 - **Palette:** dark hide lit by the star, teal bioluminescence.
