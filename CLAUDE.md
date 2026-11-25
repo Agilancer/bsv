@@ -17,6 +17,10 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     disruption, built-in powers `innate`, reach traded), and a family drops as often as its core gun alone did.
     Enemies and `starterMix` (the balance contract) still use only core guns. New silhouettes: `model` in WeaponModels.
   - `ship/` — `HullBuilder` (lofted procedural hulls + hardpoints), `WeaponModels`, `Ship`.
+    Gun laying (`Ship.updateWeapons` / `aim` / `aimPoint`): each mount fires at the ship's target when it bears, else on
+    auto-fire at the nearest hostile in its own arc (`otherTarget`; enemy guns only take the captain's side, so factions
+    do not fight each other); otherwise it keeps training on the ship's target. Barrels lead by the shot's real flight
+    time, and launchers loft (`LOFT`: the mount elevates, the warhead climbs out and homes down); launch() uses the same line.
   - `combat/` — projectiles/beams (instanced), damage model, hangar craft. `ai/ShipAI.js`.
   - Feature modules install through `src/game/modules.js`: `station/`, `nav/`, `mmo/`,
     `autoplay/goals.js` (+ crew/bridge and planet modules).
