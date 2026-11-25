@@ -41,6 +41,8 @@ class Style:
     blocks = podpart = None     # replace the battery blocks / a belly pod: fn(B) / fn(B, variant, hangar, ln, deep) -> Part
     block_fore = block_aft = ((0.12, 0.9), (0.75, 0.3))     # a battery block's ends: (scale, distance x W) stations
     side = {}                   # side hull: bow / stern = [(scale, dz, dx) x W], w, ht, hb
+    fair = None                 # fn(half profile) -> the rounded body section (shiplib.smooth), for a yard without facets
+    swell = 0.0                 # each battery and waist section swells by this share amidships (joints keep the section)
     def spinep(self, u, top, sh, base): return None         # the gun spine's half profile, crown down to its base
     def crossways(self, p, B, zs, cx, w): return False      # the side hull's crossways, when not the faceted ones
 
@@ -312,7 +314,12 @@ def waist(B, length, variant, top=False):
     p = Part('waist', variant, B.id, length)
     p.joints()
     h = B.std()
-    p.hloft([(pscale(h, 0.985), 0), (h, 0.03 * u), (h, length - 0.03 * u), (pscale(h, 0.985), length)])
+    if shiplib.ZSEG:
+        p.hloft([(pscale(h, 0.985), 0), (h, 0.03 * u)])
+        p.body(h, 0.03 * u, length - 0.03 * u)
+        p.hloft([(h, length - 0.03 * u), (pscale(h, 0.985), length)])
+    else:
+        p.hloft([(pscale(h, 0.985), 0), (h, 0.03 * u), (h, length - 0.03 * u), (pscale(h, 0.985), length)])
     belts(p, B, h, 0.05 * u, length - 0.05 * u, (1, 3))
     q = edge(h, 2, 0.05 * u, length - 0.05 * u)
     p.slab(q, 0.03 * u, inset=0.05 * u, bevel=0.03 * u, mirror=True)
@@ -1179,6 +1186,11 @@ def yard_parts():
            engine(C, 'banks6', 55.0, [(0, 0.2, 0.22), (0.5, 0.2, 0.2), (0, -0.34, 0.15), (0.4, -0.34, 0.15)], with_well=0.5, hangars=(0.62, 0.8), fins=((1, 0.36), (3, 0.3))),
            Y.command(C, 'tower'), Y.command(C, 'citadel'), Y.command(C, 'flag'),
            (Y.sidehull or sidehull)(C), ypod(C, 'keel', hangar=False, ln=0.9)]
+    if Y.swell:         # the yard's long profile: every hull section swells amidships and draws in to its joints
+        for p in ps:
+            if p.role in ('battery', 'waist') and p.band != 'S':     # (band S has no triangles to spare for it)
+                a = Y.swell * min(1.0, p.len / (1.4 * REF_W[p.band]))
+                p.warp(lambda x, y, z, a=a, ln=p.len: (x * (1 + a * math.sin(math.pi * z / ln) ** 2), y * (1 + a * math.sin(math.pi * z / ln) ** 2), z))
     return ps + Y.extra_parts() + [mouth()] + Y.details()
 
 
@@ -1186,6 +1198,7 @@ def main(style=None):
     global Y
     if style is not None:
         Y = style
+    shiplib.FAIR, shiplib.ZSEG = Y.fair, (0.9 if Y.swell else 0.0)
     shiplib.reset()
     ps = parts() if Y.prow_n is None else yard_parts()
     roots = shiplib.build(ps)

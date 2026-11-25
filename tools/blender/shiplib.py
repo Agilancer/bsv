@@ -50,6 +50,39 @@ def prof(pts, tag='hull'):
     return [(float(x), float(y), tag) for x, y in pts]
 
 
+class Skin(str):
+    """The tag of a yard's own body section (Style.section): a profile whose edges all carry it is the bare
+    section, and fair() may round it."""
+
+
+SKIN = Skin('hull')
+FAIR = None         # fn(half profile, band) -> the faired profile (a smooth yard's Style.fair), applied to bare sections
+ZSEG = 0.0          # > 0: long runs along z are cut into stations (x the profile's half-width), so a part can be warped
+
+
+def fair(h, band='M'):
+    if FAIR and len(h) == 6 and all(isinstance(t, Skin) for _, _, t in h):
+        return FAIR(h, band)
+    return h
+
+
+def smooth(h, n=2):
+    """A closed smooth curve through a half profile's points (Catmull-Rom over the mirrored ring): n more points
+    per edge, level at the crown and the keel. The profile's own points stay on it."""
+    P = [(x, y) for x, y, _ in h]
+    Q = [(-P[1][0], P[1][1])] + P + [(-P[-2][0], P[-2][1])]
+    out = []
+    for i in range(len(P) - 1):
+        p0, p1, p2, p3 = Q[i:i + 4]
+        for j in range(n + 1):
+            t = j / (n + 1)
+            c = [0.5 * (2 * p1[k] + (p2[k] - p0[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t * t + (3 * p1[k] - p0[k] - 3 * p2[k] + p3[k]) * t ** 3) for k in (0, 1)]
+            y = min(c[1], out[-1][1]) if out else c[1]
+            out.append((max(c[0], 0.0), max(y, P[-1][1]), 'hull'))
+    out.append((P[-1][0], P[-1][1], 'hull'))
+    return out
+
+
 def pscale(h, kx=1.0, ky=None, yo=0.0):
     ky = kx if ky is None else ky
     return [(x * kx, y * ky + yo, t) for x, y, t in h]
@@ -221,7 +254,7 @@ class Part:
         start from; over = {span: material} repaints a whole span."""
         rings, tags = [], []
         for h, z in stations:
-            r, t = pring(h, z, sym)
+            r, t = pring(fair(h, self.band) if sym else h, z, sym)
             rings.append(r)
             tags.append(t)
         over = over or {}
@@ -230,17 +263,20 @@ class Part:
     def body(self, h, z0, z1, feats=()):
         """A run of prisms of profile h from z0 to z1; feats = [(za, zb, fn)] apply fn(profile) over [za, zb]."""
         zs = sorted({round(z0, 4), round(z1, 4), *[round(min(max(z, z0), z1), 4) for f in feats for z in f[:2]]})
+        h = fair(h, self.band)
         for a, b in zip(zs, zs[1:]):
             hh = h
             for fa, fb, fn in feats:
                 if fa <= a + 1e-3 and fb >= b - 1e-3:
                     hh = fn(hh)
-            self.hloft([(hh, a), (hh, b)])
+            n = max(1, math.ceil((b - a) / (ZSEG * (1.8 if self.band == 'M' else 1.0) * max(x for x, _, _ in hh)))) if ZSEG and self.band != 'S' else 1
+            self.hloft([(hh, a + (b - a) * i / n) for i in range(n + 1)])
 
     def box(self, mat, w, h, d, at, mirror=False, shut=None):
         x, y, z = at
         ring = lambda zz: [(x - w / 2, y - h / 2, zz), (x + w / 2, y - h / 2, zz), (x + w / 2, y + h / 2, zz), (x - w / 2, y + h / 2, zz)]
-        return self.loft([ring(z - d / 2), ring(z + d / 2)], mat, mirror=mirror, shut=shut)
+        n = 2 if ZSEG and self.band in 'LC' and d > 4 * max(w, h) else 1          # a long rail follows a warped section
+        return self.loft([ring(z - d / 2 + d * i / n) for i in range(n + 1)], mat, mirror=mirror, shut=shut)
 
     def slab(self, quad, t, mat='hull', inset=0.0, embed=0.15, bevel=0.0, mirror=False, shut=None, out=None):
         """A plate lying on a quad (a, b, c, d): shrunk by `inset` (absolute) toward its centre, raised `t` along
@@ -298,6 +334,13 @@ class Part:
         for s, _ in self.solids:
             s.verts[:] = [(x + dx, y + dy, z + dz) for x, y, z in s.verts]
         self.markers[:] = [(mk, n, (a[0] + dx, a[1] + dy, a[2] + dz), pr) for mk, n, a, pr in self.markers]
+        return self
+
+    def warp(self, fn):
+        """Move every point and marker by fn(x, y, z) -> (x, y, z) (a section's swell along its length)."""
+        for s, _ in self.solids:
+            s.verts[:] = [fn(*v) for v in s.verts]
+        self.markers[:] = [(mk, n, tuple(fn(*a)), pr) for mk, n, a, pr in self.markers]
         return self
 
     # ---- numbers

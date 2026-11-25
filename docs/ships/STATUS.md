@@ -35,6 +35,15 @@ Read this first when picking the work up (new session or another model). Then `C
     on T9/T10 they are still small for the hull.
   - Ironhold: DONE (armour-brick battery blocks, brick gun ridge, blunt brick side hulls, smelter-block pods with
     grilles, radiator banks on blocks, side hulls and engine decks).
+  - Second pass (session 3; renders in the scratchpad `yards3/`), in this order, one commit each:
+    1. Main hull sections: DONE for the curved yards. `Style.section` tags its six points `shiplib.SKIN`; `Style.fair`
+       (`shiplib.smooth`: a Catmull-Rom curve through the six points, which stay on the surface, so `h[i]` indexing
+       holds) rounds every bare section in `Part.body` / `hloft`; `Style.swell` warps each battery / waist section so
+       it swells amidships and returns to the section at its joints (`Part.warp`, `shiplib.ZSEG` cuts long runs).
+       Aurelian: smooth oval, swell 4%. Hollow: carapace with scale lips, swell 8.5%. Band S is left faceted and band M
+       is coarse (triangle budgets: hollow_3 and hollow_7 sit at the cap). Tidewright (lozenge), Ironhold (chamfered
+       rectangle) and Corsair (raked hexagon) keep their six-point sections: not changed. The swell is per section,
+       not one curve over the whole ship (that needs a warp in `kitPlan.js` bake + hardpoints: not done).
   All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
   session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 

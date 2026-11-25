@@ -17,7 +17,11 @@ class Aurelian(K.Style):
     wells = {'block': 0.5, 'mass': (0.3, 0.62), 'lance': True}
 
     def section(self, W, HT, HB, yo):
-        return prof([(0, HT + yo), (0.5 * W, 0.88 * HT + yo), (W, 0.14 * HT + yo), (0.97 * W, -0.22 * HB + yo), (0.5 * W, -0.9 * HB + yo), (0, -HB + yo)])
+        return prof([(0, HT + yo), (0.5 * W, 0.88 * HT + yo), (W, 0.14 * HT + yo), (0.97 * W, -0.22 * HB + yo), (0.5 * W, -0.9 * HB + yo), (0, -HB + yo)], K.shiplib.SKIN)
+
+    # the body: a smooth compressed oval through the section's six points, each section swelling a little amidships
+    fair = staticmethod(lambda h, band: K.shiplib.smooth(h, {'S': 0, 'C': 2}.get(band, 1)))
+    swell = 0.04
 
     def mouth(self, tier, kind):
         return dict(proud=0.0, lip=0.05, sh=0.15, long=True, trim='trim', tk=0.6)
