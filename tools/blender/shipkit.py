@@ -43,6 +43,7 @@ class Style:
     side = {}                   # side hull: bow / stern = [(scale, dz, dx) x W], w, ht, hb
     fair = None                 # fn(half profile) -> the rounded body section (shiplib.smooth), for a yard without facets
     swell = 0.0                 # each battery and waist section swells by this share amidships (joints keep the section)
+    wellrim = None              # a round rim over a turret well: [(height, radius) x W] from the crown, outside in
     def spinep(self, u, top, sh, base): return None         # the gun spine's half profile, crown down to its base
     def crossways(self, p, B, zs, cx, w): return False      # the side hull's crossways, when not the faceted ones
 
@@ -137,6 +138,14 @@ def barbette(p, B, y, z, up=1):
     p.tube([(-0.014 * u * up, 0.46 * u), (0.045 * u * up, 0.46 * u)], (0, y, z), 'y', 8, 'dark')
 
 
+def rim(p, B, y, z, up=1):
+    """The curved yards' turret blister: a round rim standing in the crown over the square well, down to its floor."""
+    u = B.W
+    wr = Y.wellrim if B.id == 'C' or len(Y.wellrim) < 5 else Y.wellrim[:2] + Y.wellrim[-2:]
+    st = [(o * u * up, r * u) for o, r in wr] + [(-(WELL + 0.004) * u * up, 0.56 * u)]
+    p.tube(st, (0, y, z), 'y', 10 if B.id == 'C' else 8, 'hull', cap_mat=('hull', 'dark'))
+
+
 def well(p, B, h, z, feats, sock='top'):
     """A dorsal turret well cut into the crown at z: returns nothing, appends the cut to feats."""
     u = B.W
@@ -145,6 +154,8 @@ def well(p, B, h, z, feats, sock='top'):
     feats.append((wa, wb, (lambda hh: cut_top(hh, floor)) if Y.hood else (lambda hh: cut_well(hh, floor, 0.57 * u))))
     barbette(p, B, floor, z)
     n = p.marker('hp.tu', (0, floor + 0.15 * B.S, z), sock=sock)
+    if Y.wellrim and B.id != 'S':      # (band S has no triangles to spare)
+        rim(p, B, h[0][1], z)
     if not Y.hood:
         p.box('hull', 1.12 * u, WELL * u - 0.01 * u, wb - wa, (0, floor + WELL * u / 2, z), shut=f'hp.tu:{n}')
         return wa, wb
@@ -223,6 +234,16 @@ def housing(p, B, h, kind, y1, y0, za, zb, xw, xb, tier, feats, cheek, span=None
     if tr:
         for y in (y1 + 0.02 * u, y0 - 0.02 * u):       # a lip above and below the mouth
             p.box(tr, 0.04 * u * tk, 0.028 * u * tk, (bb - ba) * 0.96 if st['long'] else ln + 0.06 * u, (xo + 0.004 * u, y, (ba + bb) / 2 if st['long'] else zc), mirror=True)
+    ym = (y1 + y0) / 2
+    if st.get('ends') and B.id in 'LC':          # a blister: the housing is drawn out to a rounded point at both ends
+        xi, e = 0.55 * xw, st['ends'] * u
+        ring = lambda z, k: [(xi + (x - xi) * k, ym + (y - ym) * k, z) for x, y in ((xi, ya), (xo, top), (xo, bot), (xi, yb))]
+        for z0, sg in ((ba, -1), (bb, 1)):
+            p.loft([ring(z0, 1)] + ([ring(z0 + sg * 0.45 * e, 0.8)] if B.id == 'C' else []) + [ring(z0 + sg * e, 0.3)], 'hull', mirror=True)
+    if st.get('round') and B.id in 'LC':         # a groove: round bosses close the ends of the mouth
+        r = (y1 - y0) / 2 + 0.035 * u
+        for z in (za, zb):
+            p.tube([(-0.25 * u, r), (0.035 * u, r * 0.85)], (xo, ym, z), 'x', 6 if B.id == 'L' else 8, 'hull', cap_mat=('hull', st['round']), mirror=True)
     if st.get('posts') and B.id != 'S':
         for z in (za - 0.02 * u, zb + 0.02 * u):
             p.box(st['posts'], 0.05 * u, y1 - y0 + 0.08 * u, 0.04 * u, (xo + 0.006 * u, (y1 + y0) / 2, z), mirror=True)

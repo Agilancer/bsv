@@ -44,6 +44,10 @@ Read this first when picking the work up (new session or another model). Then `C
        is coarse (triangle budgets: hollow_3 and hollow_7 sit at the cap). Tidewright (lozenge), Ironhold (chamfered
        rectangle) and Corsair (raked hexagon) keep their six-point sections: not changed. The swell is per section,
        not one curve over the whole ship (that needs a warp in `kitPlan.js` bake + hardpoints: not done).
+    2. Turret wells and housings on the curved yards: DONE. `Style.wellrim` puts a round rim (`rim()`) over each
+       dorsal well (Aurelian a domed blister, Hollow two scale lips; not on band S, not on ventral wells, not on the
+       T9 gun-spine wells); `mouth()` keys `round` (Aurelian: round bosses close a groove's ends, bands L/C) and
+       `ends` (Hollow: blisters drawn out to a point, bands L/C). Limited by the triangle budgets, not by the code.
   All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
   session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 

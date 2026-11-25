@@ -269,7 +269,7 @@ class Part:
             for fa, fb, fn in feats:
                 if fa <= a + 1e-3 and fb >= b - 1e-3:
                     hh = fn(hh)
-            n = max(1, math.ceil((b - a) / (ZSEG * (1.8 if self.band == 'M' else 1.0) * max(x for x, _, _ in hh)))) if ZSEG and self.band != 'S' else 1
+            n = max(1, math.ceil((b - a) / (ZSEG * {'M': 1.8, 'L': 1.5}.get(self.band, 1.0) * max(x for x, _, _ in hh)))) if ZSEG and self.band != 'S' else 1
             self.hloft([(hh, a + (b - a) * i / n) for i in range(n + 1)])
 
     def box(self, mat, w, h, d, at, mirror=False, shut=None):

@@ -18,6 +18,7 @@ class Hollow(K.Style):
     # the body: a bulging carapace. The section is a smooth curve whose plates overlap downward like scales (a lip
     # at every other point of the flanks), and every section swells amidships: a segmented shell
     swell = 0.085
+    wellrim = ((-0.5, 1.0), (-0.04, 0.9), (0.01, 0.86), (-0.01, 0.76), (0.075, 0.71), (0.075, 0.61))   # two overlapping scale lips
 
     @staticmethod
     def fair(h, band):
@@ -25,14 +26,14 @@ class Hollow(K.Style):
         X = max(x for x, _, _ in s)
         out = []
         for i, (x, y, t) in enumerate(s):
-            if band in 'LC' and i in (3, 5, 7):
+            if band in 'LC' and i in ((3, 7) if band == 'L' else (3, 5, 7)):
                 out += [(x + 0.045 * X, y, t), (x, y - 0.012 * X, t)] if y > 0 else [(x, y, t), (x + 0.045 * X, y - 0.012 * X, t)]
             else:
                 out.append((x, y, t))
         return out
 
     def mouth(self, tier, kind):            # a weapon blister between the scales
-        return dict(proud=0.05, lip=0.08, sh=0.2, long=False, trim=None)
+        return dict(proud=0.05, lip=0.08, sh=0.2, long=False, trim=None, ends=0.42)
 
     def belts(self, p, B, h, z0, z1, edges, t, inset, cut):
         u = B.W
@@ -40,7 +41,7 @@ class Hollow(K.Style):
             q = edge(h, i, z0, z1)
             if cut:
                 q = subquad(q, cut[0], cut[1], 0, 1)
-            n = max(1, round((z1 - z0) / (1.0 * u))) if B.id != 'S' else 1
+            n = max(1, round((z1 - z0) / ({'M': 1.8, 'L': 1.4}.get(B.id, 1.0) * u))) if B.id != 'S' else 1
             for j in range(n):
                 for r, (a, b) in enumerate(((0.0, 0.56), (0.44, 1.0)) if B.id in 'LC' else ((0.0, 1.0),)):
                     o = 0.5 / n * r
