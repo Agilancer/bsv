@@ -94,7 +94,9 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   contract in `planet/groundBalance.js`; `--dungeon` for dungeons)
 - The duel harnesses load with `&dynres=0`: the frame-rate governor thins particles on a slow machine, and
   particle counts draw from the same seeded stream as the fight. They also clear loot between duels (the
-  pilot drives to gear drops). A kiting boss cell still reads up to ~2x apart with what ran before it.
+  pilot drives to gear drops). A kiting boss cell still reads up to ~2x apart with what ran before it. In
+  `groundduel.cjs` the static explorer's kill run fires through the kin a boss summons (`capRoot`): they still
+  fight, but adds parked in its line of fire read a 4x kill time. The kiting pilot's shots hit whatever they meet.
 - A new game starts docked with the tutorial running: `?play&new` still skips the title, and the duel
   harnesses undock first. Timers (planetfall, overlays) only fire between `page.evaluate` calls, so drive
   long autoplay runs in chunks like `tools/soak.cjs` does, not in one synchronous loop.
