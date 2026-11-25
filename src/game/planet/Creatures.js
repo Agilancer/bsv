@@ -688,6 +688,7 @@ export class Creatures {
       M.telegraph(e.pos, Rb, def.vis.glow, 1.0 + 2.5, e);
       M.warnLine(e.pos, new THREE.Vector3(Math.sin(start), 0, Math.cos(start)), Rb, 2, 1.0, def.vis.glow);
       let last = -1;
+      const sweep = { telegraph: true, volley: ++volleySeq };   // one sweep lands as one telegraphed strike
       for (let i = 0; i < 25; i++) M.later(1.0 + i * 0.1, () => {
         if (!e.alive) return;
         const a = start + i * 0.1;
@@ -695,7 +696,7 @@ export class Creatures {
         const end = s.clone().add(_d.set(Math.sin(a) * Rb, -s.y + M.S.ground(e.pos.x + Math.sin(a) * Rb, e.pos.z + Math.cos(a) * Rb), Math.cos(a) * Rb));
         fx.timedBeam(s, end, 0.6, def.vis.glow, 2.6, 0.12);
         const V = M.vehicle; _c.copy(V.position).setY(V.position.y + 1);
-        if (segD2(s, end, _c, null).d2 < ((V.hitRadius || V.radius) + 1.5) ** 2 && i - last > 3) { last = i; V.damage(e.dmg * 0.6, _c, e, TELE); }
+        if (segD2(s, end, _c, null).d2 < ((V.hitRadius || V.radius) + 1.5) ** 2 && i - last > 3) { last = i; V.damage(e.dmg * 0.6, _c, e, sweep); }
       });
     } else { // barrage: telegraphed strikes around the explorer
       for (let i = 0; i < 5 + e.phase * 2; i++) {
