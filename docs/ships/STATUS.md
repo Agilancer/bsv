@@ -48,6 +48,10 @@ Read this first when picking the work up (new session or another model). Then `C
        dorsal well (Aurelian a domed blister, Hollow two scale lips; not on band S, not on ventral wells, not on the
        T9 gun-spine wells); `mouth()` keys `round` (Aurelian: round bosses close a groove's ends, bands L/C) and
        `ends` (Hollow: blisters drawn out to a point, bands L/C). Limited by the triangle budgets, not by the code.
+    3. Corsair carriers: DONE for T6 and T8 (`pontoon()`): twin armoured decks raised above the crown, running most of
+       the hull beside the turret line, the command block at the port deck's inboard edge; hangar gallery under them
+       on the flank. A deck on the centreline is not possible: every dorsal well on T6/T8/T10 carries a turret.
+       T10 unchanged (decks over the side hulls' crowns). corsair_6 sits at the band M triangle cap (no girder/struts).
   All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
   session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 
