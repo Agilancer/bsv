@@ -174,11 +174,11 @@ def build(m):
     C = dict(frames.LIVERY[F])
     C['hull2'] = 0xc8ccd2                     # pearl in shadow: secondary plates
     C['inner'] = 0x2e4a50                     # inner blades: dark teal slate
-    C['wing'] = 0xd6dade if st < 3 else 0xc4c8cc   # leading wing panels: pearl stepped down (more on the titan's big plates) so they hold detail in sun
     hull, panel, dark, trim, glow = C['hull'], C['panel'], C['dark'], C['trim'], C['glow']
     hull2 = C['hull2']
     s = frames.scale(m)
     st = 0 if m <= 3 else 1 if m <= 6 else 2 if m <= 9 else 3
+    C['wing'] = 0xd6dade if st < 3 else 0xc4c8cc   # leading wing panels: pearl stepped down (more on the titan's big plates) so they hold detail in sun
     k = s * (1 + 0.08 * st)                   # stage growth on top of the mark scale
     nb = (1, 2, 3, 4)[st]                     # wing blades per side
     M = Model(f'ex_{F}_{m}')
