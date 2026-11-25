@@ -280,7 +280,7 @@ export class Flyers {
 }
 
 // ---------------------------------------------------------------- curiosities
-function curioGeometry(kind) {
+export function curioGeometry(kind) {
   const b = new GeoBuilder();
   const hex = CURIOS[kind].hex, glow = { color: hex, emit: 2.6 };
   switch (kind) {
@@ -304,16 +304,33 @@ function curioGeometry(kind) {
       for (let i = 0; i < 7; i++) b.cone(0.26, 0.95, -1.5 + i * 0.5, 0.75, 4.1 - Math.abs(i - 3) * 0.28, { color: 0xc8c0a0 }, 5, Math.PI);
       for (const sx of [-1, 1]) b.cone(0.5, 3.4, sx * 2.5, 3.6, -0.6, { color: 0x8c8268 }, 6, -0.5, 0, -sx * 0.7);
       break;
-    case 'gnome':
-      b.cyl(0.9, 1.25, 2.1, 0, 1.05, 0, { color: 0x3a6ac8 }, 'y', 10);
-      b.sphere(0.85, 0, 2.6, 0, { color: 0xf0c0a0 }, 1, 1, 1, 1);
-      b.cone(0.95, 2.3, 0, 3.0, 0, { color: 0xe02a30 }, 10);
-      b.sphere(0.7, 0, 2.05, 0.5, { color: 0xf8f8f8 }, 1, 1.2, 0.7, 1);
-      b.sphere(0.2, 0, 2.6, 0.85, { color: 0xf09a80 }, 1, 1, 1, 0);
-      for (const sx of [-1, 1]) { b.sphere(0.11, sx * 0.32, 2.85, 0.74, PUPIL, 1, 1, 1, 0); b.sphere(0.45, sx * 0.5, 0.2, 0.55, { color: 0x3a2a20 }, 1, 0.6, 1.5, 0); b.sphere(0.2, sx * 0.62, 2.45, 0.6, { color: 0xf8a0a0 }, 1, 0.7, 0.5, 0); }
-      b.box(1.6, 0.25, 0.3, 0, 1.2, 1.1, { color: 0x302018 });
-      b.box(0.3, 0.3, 0.12, 0, 1.2, 1.25, { color: 0xffd040, emit: 0.8 });
+    case 'gnome': { // a squat survey automaton that happens to wear a gnome's silhouette (see the story)
+      const steel = { color: 0x8a94a6 }, dark = { color: 0x2a2e38 }, enamel = { color: 0x8c3a38 };
+      for (const sx of [-1, 1]) {
+        b.box(0.7, 0.4, 1.3, sx * 0.5, 0.2, 0.15, dark, 0, 0, 0.04);           // feet
+        b.cyl(0.22, 0.26, 0.6, sx * 0.5, 0.65, 0, steel, 'y', 8);               // shins
+        b.limb(sx * 0.95, 2.05, 0, sx * 1.35, 1.25, 0.45, 0.17, 0.13, steel);   // arms
+        b.sphere(0.24, sx * 0.95, 2.05, 0, dark, 1, 1, 1, 0);                   // shoulder joints
+        b.box(0.34, 0.3, 0.3, sx * 1.38, 1.1, 0.5, dark, 0.4);                  // grippers
+        b.sphere(0.16, sx * 0.32, 2.82, 0.6, glow, 1, 0.7, 0.6, 0);            // eyes
+      }
+      b.cyl(0.82, 0.95, 1.3, 0, 1.6, 0, { color: 0x4a5a80 }, 'y', 8);           // torso
+      b.cyl(1.0, 1.0, 0.2, 0, 1.05, 0, dark, 'y', 8);                          // waist ring
+      b.box(0.3, 0.26, 0.12, 0, 1.05, 1.0, { color: 0xffd040, emit: 0.8 });    // status lamp (was the buckle)
+      b.box(0.9, 0.6, 0.12, 0, 1.75, 0.86, dark);                              // chest panel
+      for (let i = 0; i < 3; i++) b.box(0.14, 0.14, 0.06, -0.25 + i * 0.25, 1.8, 0.93, { color: [0x5affb0, 0xffd040, hex][i], emit: 1.4 });
+      b.cyl(0.3, 0.4, 0.25, 0, 2.3, 0, dark, 'y', 8);                          // neck
+      b.box(1.35, 0.95, 1.15, 0, 2.85, 0, steel, 0, 0, 0.03);                  // head
+      b.box(1.15, 0.36, 0.1, 0, 2.82, 0.56, { color: 0x101218 });              // visor
+      for (let i = 0; i < 5; i++) b.box(0.08, 0.26, 0.08, -0.32 + i * 0.16, 2.53, 0.6, { color: 0xc8ccd4 }); // mouth grille (the "beard")
+      b.cyl(0.78, 0.78, 0.12, 0, 3.36, 0, dark, 'y', 8);                       // cap collar
+      b.cone(0.72, 1.35, 0, 3.4, 0, enamel, 8);                                 // sensor cap, chipped enamel
+      b.cyl(0.5, 0.52, 0.08, 0, 3.78, 0, dark, 'y', 8);                        // cap bands
+      b.cyl(0.29, 0.31, 0.07, 0, 4.18, 0, dark, 'y', 8);
+      b.limb(0, 4.7, 0, 0.08, 5.25, 0, 0.04, 0.03, steel);                      // antenna
+      b.sphere(0.11, 0.08, 5.3, 0, glow, 1, 1, 1, 0);
       break;
+    }
     case 'vendor':
       b.box(3.0, 6.0, 2.4, 0, 3.0, 0, { color: 0x2a5a9a }, 0, 0, 0.06);
       b.box(2.0, 3.2, 0.1, -0.3, 3.9, 1.2, { color: 0x9fe8ff, emit: 1.6 }, 0, 0, 0.06);
