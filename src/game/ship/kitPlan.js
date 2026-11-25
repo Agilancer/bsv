@@ -57,6 +57,23 @@ export const CLASS_LAYOUT = {
       { part: 'command', variant: 'flag', sock: 'sock.top', u: 0.86 }, { part: 'appendage', variant: 'sidehull', sock: 'sock.side', u: 0.55, mirror: true },
       HANGAR(0.15), HANGAR(0.2)] },
 };
+// The other yards are built on the same ladder (tools/blender/shipkit.py: one generator, a Style per yard), so a
+// class has as many battery sections as the Velscour hull of its class whatever its own slots are (spare mounts
+// are shuttered). LANG_LAYOUT holds what a language does differently: `sections`, and `add` (more keyed parts).
+export const YARDS = ['velscour', 'aurelian', 'tidewright', 'ironhold', 'corsair', 'hollow'];
+const SECTIONS = { 3: 3, 4: 4, 5: 2, 6: 3, 8: 3, 9: 3, 10: 3 };
+export const LANG_LAYOUT = {
+  // the turret yard: one more section where the class carries more turrets than the ladder has wells
+  aurelian: { 7: { sections: 4 }, 9: { sections: 4 } },
+  // carriers: flight-deck pontoons on the cruiser, a second pair of hangar mouths on the heavy cruiser
+  corsair: { 6: { add: [{ part: 'appendage', variant: 'deck', sock: 'sock.side', u: 0.13, mirror: true }] }, 7: { add: [HANGAR(0.15)] } },
+};
+export function layoutFor(lang, tier) {
+  const base = CLASS_LAYOUT[tier];
+  if (!base || lang === 'velscour') return base;
+  const o = (LANG_LAYOUT[lang] || {})[tier] || {};
+  return { ...base, sections: o.sections || base.sections || SECTIONS[tier], keyed: o.add ? [...base.keyed, ...o.add] : base.keyed };
+}
 export const STRETCH = [0.92, 1.08];
 export const PITCH_FLOOR = 1.2;      // x W: closest two pivots may stand in one battery row
 export const SHIELD = { x: 2.3, z: 0.62, yK: 0.9, yPad: 4, yC: 0.25 };   // Ship.js: the shield ellipsoid
@@ -122,7 +139,7 @@ const at = (pl, p) => [pl.sx * pl.s * p[0] + pl.t[0], pl.s * p[1] + pl.t[1], pl.
 export function planHull(chassis, kit) {
   const fail = (why) => ({ ok: false, why });
   const dims = hullDims(chassis), { L, W } = dims;
-  const band = bandFor(W), lay = CLASS_LAYOUT[chassis.tier];
+  const band = bandFor(W), lay = layoutFor(kit.lang, chassis.tier);
   if (!lay) return fail(`no class layout for tier ${chassis.tier}`);
   const slots = chassis.slots || {};
   const nb = slots.broadside || 0, nt = slots.turret || 0, np = slots.prow || 0, nh = slots.hangar || 0;
@@ -239,6 +256,8 @@ export function planHull(chassis, kit) {
   // ---- fixed-size detail (step 7): instanced along each `det` run at the detail's own pitch and at absolute
   // size, so it reads as the same thing on a cutter and on a dreadnought; capped by the band's triangle budget
   let tris = placements.reduce((a, pl) => a + pl.part.tris, 0);
+  // shutters over spare mounts count too (a part's own count leaves them out)
+  for (const ms of shown) for (const m of ms) if (m.shut) for (const g of Object.values(m.geo)) tris += (g.idx ? g.idx.length : g.pos.length / 3) / 3;
   const structure = placements.length;
   for (let i = 0; i < structure; i++) {
     const pl = placements[i];
@@ -319,6 +338,35 @@ export function bakePlan(plan, only = null) {
     }
   });
   return { mats: out, tris, area };
+}
+
+// Smooth yards (a swept white hull, a grown carapace): vertex normals averaged over the faces that meet at a
+// point within `deg` of each other; harder edges stay creased. Works in place on bakePlan's output.
+export function creaseNormals(baked, deg) {
+  const cos = Math.cos((deg * Math.PI) / 180);
+  for (const g of Object.values(baked.mats)) {
+    const P = g.position, N = g.normal, n = P.length / 3, at = new Map(), fn = new Float32Array(N), w = new Float32Array(n / 3);
+    for (let t = 0; t < n / 3; t++) {
+      const o = t * 9, ux = P[o + 3] - P[o], uy = P[o + 4] - P[o + 1], uz = P[o + 5] - P[o + 2], vx = P[o + 6] - P[o], vy = P[o + 7] - P[o + 1], vz = P[o + 8] - P[o + 2];
+      w[t] = Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
+    }
+    for (let i = 0; i < n; i++) {
+      const k = `${Math.round(P[i * 3] * 100)},${Math.round(P[i * 3 + 1] * 100)},${Math.round(P[i * 3 + 2] * 100)}`;
+      const a = at.get(k);
+      if (a) a.push(i); else at.set(k, [i]);
+    }
+    for (const list of at.values()) {
+      if (list.length < 2) continue;
+      for (const i of list) {
+        const ax = fn[i * 3], ay = fn[i * 3 + 1], az = fn[i * 3 + 2];
+        let x = 0, y = 0, z = 0;
+        for (const j of list) if (ax * fn[j * 3] + ay * fn[j * 3 + 1] + az * fn[j * 3 + 2] >= cos) { const k = w[(j / 3) | 0]; x += fn[j * 3] * k; y += fn[j * 3 + 1] * k; z += fn[j * 3 + 2] * k; }
+        const l = Math.hypot(x, y, z) || 1;
+        N[i * 3] = x / l; N[i * 3 + 1] = y / l; N[i * 3 + 2] = z / l;
+      }
+    }
+  }
+  return baked;
 }
 
 // Is a point inside the ship's shield ellipsoid? (Ship.js: the bubble every part must stay inside)

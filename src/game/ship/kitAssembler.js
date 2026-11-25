@@ -4,7 +4,7 @@
 // node-tested); this file loads kits and turns a baked plan into what buildHull returns.
 import * as THREE from 'three/webgpu';
 import { hullMaterials, hotMaterial } from '../../fx/materials.js';
-import { indexKit, planHull, bakePlan } from './kitPlan.js';
+import { indexKit, planHull, bakePlan, creaseNormals, YARDS } from './kitPlan.js';
 
 const kits = new Map();        // lang -> indexed kit
 const loading = new Map();     // lang -> promise
@@ -13,6 +13,11 @@ export const kitUrl = (lang) => `assets/ships/kits/${lang}.glb`;
 export const kitReady = (lang) => kits.get(lang) || null;
 // fn(lang) runs when a kit finishes loading (HullBuilder clears that language's cached hulls)
 export function onKitLoaded(fn) { listeners.push(fn); }
+
+// Every player yard has a kit; a missing or broken file leaves that yard on the procedural builder.
+export const loadKits = (langs = YARDS) => Promise.all(langs.map((l) => loadKit(l)));
+// Yards whose plate is one smooth surface: crease angle in degrees (the others are faceted: face normals).
+const SMOOTH = { aurelian: 50, hollow: 55 };
 
 // Load a language's kit. Resolves to the kit, or null when the file is missing or broken: the procedural
 // builder simply stays in use.
@@ -95,6 +100,7 @@ const RUNNING = { port: [0xff2414, 3.2], stbd: [0x28ff48, 2.6] };
 export function assembleHull(chassis, kit, plan = planHull(chassis, kit)) {
   if (!plan.ok) throw new Error(`kit ${kit.lang} cannot build ${chassis.id}: ${plan.why}`);
   const baked = bakePlan(plan);
+  if (SMOOTH[kit.lang]) creaseNormals(baked, SMOOTH[kit.lang]);
   const mats = hullMaterials(chassis.yard, chassis.glow ?? null, chassis.livery ?? null);
   const group = new THREE.Group();
   for (const [name, g] of Object.entries(baked.mats)) {

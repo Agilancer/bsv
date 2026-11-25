@@ -108,13 +108,21 @@ prow mounts on any hull; today's builder overlaps them too), so the binding rule
 ```
 assets/ships/kits/<lang>.glb   velscour aurelian tidewright ironhold corsair hollow rustborn silent brood
 assets/ships/kits/roles.glb    enemy role add-ons
-assets/ships/kits/common.glb   fixed-size detail: point-defence blisters, vents, domes, hatches, lights
+                               (each kit file carries its own fixed-size `detail` parts: point-defence blisters,
+                               vents, domes, hatches, running lights; there is no common.glb)
 assets/ships/kits/<lang>.json  the same kit as plain data, for the node test (section 9)
-tools/blender/ship_<lang>.py   the bpy script that builds that kit and writes both files (kept, so kits can be rebuilt)
+tools/blender/ship_<lang>.py   the bpy script that builds that kit and writes both files (kept, so kits can be rebuilt):
+                               the yard's Style (section, mount housing, plating, prow, command, nozzles, appendages)
+tools/blender/shipkit.py       the generator all player yards share: the class ladder (sections, mounts, sockets,
+                               markers) with the Velscour forms as the default Style; `yard_parts()` builds a yard
 tools/blender/shiplib.py       shared modelling helpers, the Blender scene builder and the export settings as code
 ```
 
-Run a kit script with any Python that has `bpy` (`python3 tools/blender/ship_velscour.py`), or inside Blender.
+Run a kit script with any Python that has `bpy` (`python3 tools/blender/ship_<lang>.py`), or inside Blender; then
+`node tools/kitprofiles.mjs` (side profiles for the crew cutaway) and `node --test tests/kit.test.mjs`.
+The six player yards (velscour, aurelian, tidewright, ironhold, corsair, hollow) are built; variant names are the
+same in every kit (a Corsair `delta` is a flight-deck pontoon, a Hollow `keep` a thorn crown), so one class layout
+serves all of them.
 
 **Identity is in custom properties, not names.** Blender makes object names unique per file (`.001`),
 and the three.js loader strips dots from names, so names are only labels. Every part root and every
@@ -170,6 +178,7 @@ Assign materials **by name**. The game swaps in its own node materials (`fx/mate
 | `engine` | Nozzle throats only | |
 | `sail` | Collector-array membranes (needs 0..1 UVs per panel) | |
 | `kit` | Role-kit accent glow | |
+| `port`, `stbd` | Running lights (the `light` detail): red to port, green to starboard. Model `port`; a mirrored copy swaps the two. Not a yard colour: the assembler gives them their own lit materials | |
 
 Plate textures and the window grid are projected in the merged mesh's own space at a fixed real size
 (one tile per 16 units), so they keep constant size on every class. For a language with no windows
@@ -177,10 +186,13 @@ Plate textures and the window grid are projected in the merged mesh's own space 
 
 ## 5. Geometry rules
 
-- Sections are closed, watertight-looking solids with outward normals. Smooth shading with sharp edges
-  marked, or flat shading throughout for a faceted language (Velscour); no n-gons with holes.
+- Sections are closed, watertight-looking solids with outward normals. Kits are exported without normals: the
+  assembler gives every triangle its face normal (a faceted language), and for the smooth yards (Aurelian,
+  Hollow: `SMOOTH` in `kitAssembler.js`) averages them across edges shallower than a crease angle
+  (`kitPlan.js creaseNormals`). No n-gons with holes.
 - Don't model fixed-size detail into sections (no small vents, blisters, domes, hatches, lights). Place
-  `det` markers; the assembler instances that detail from `common.glb` at absolute size (section 7).
+  `det` markers; the assembler instances that detail (the kit's own `detail` parts, `fixed`, with a `pitch`) at
+  absolute size (section 7).
 - Model the two crew-scale things that must not scale, the bridge and the hangar mouth, as their own
   parts (`command` bridge block, `hangar` mouth frame) with property `fixed = true`: the assembler places
   them at absolute size.
@@ -212,7 +224,7 @@ only the Velscour kit exists it is simply loaded at boot, by `main.js`, `tools/v
 
 The maths is in `kitPlan.js`, which imports nothing and runs in node: `planHull(chassis, kit)` (steps 1-4,
 6 and 8: placements, hardpoints, engines, dims) and `bakePlan(plan)` (step 5: flat position and normal
-arrays per material). `kitAssembler.js` loads kits (`loadKit(lang)`), reads a .glb into the same plain
+arrays per material). `kitAssembler.js` loads kits (`loadKit(lang)`, `loadKits()` for all six player yards), reads a .glb into the same plain
 data the JSON dump holds (`kitFromGLTF`), and wraps a baked plan in meshes with the yard's materials
 (`assembleHull(chassis, kit)`). A placement is a uniform scale, the z stretch, a translation and an
 optional mirror; parts are never rotated.
@@ -221,7 +233,10 @@ optional mirror; parts are never rotated.
    `chassis.kit`. Band from W (section 6). Class layout from `design-brief.md` section 2 by tier
    (`CLASS_LAYOUT` in `kitPlan.js`): the bow, battery and stern variants, the battery rows, the keyed parts
    (role, variant, socket type, station `u` from 0 at the stern to 1 at the bow, mirrored or not) and the
-   nozzle count.
+   nozzle count. `layoutFor(lang, tier)` applies a language's differences (`LANG_LAYOUT`): the other yards keep
+   the Velscour ladder's number of battery sections whatever their own slots (spare mounts are shuttered),
+   Aurelian has a fourth section on T7 and T9 for its turrets, Corsair keys flight-deck pontoons (T6) and a second
+   pair of hangar mouths (T7).
 2. **Chain the sections** stern to bow by their `sock.aft` / `sock.fore` markers, scaled by `W / refW`:
    - battery sections until their `hp.bs` markers cover `slots.broadside` per side
    - hangar sections for `slots.hangar`
@@ -250,7 +265,7 @@ optional mirror; parts are never rotated.
      the scale. The nozzle count must equal the class layout's
    - too few markers of a type is a kit bug: fail the test
 7. **Instance fixed detail** along each `det` run at the detail's own pitch, merged into the same
-   per-material meshes, capped by the triangle budget.
+   per-material meshes, capped by the triangle budget (shutters shown over spare mounts count against it).
 8. **Set `dims`** (`top` measured from the placed parts' bounds, shutters excluded) and `userData`.
 
 **Availability and caching.** `hullFor` is synchronous and caches per chassis id. `buildHull` uses the
