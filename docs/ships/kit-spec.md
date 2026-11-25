@@ -39,12 +39,12 @@ Any slot count can be 0 on enemy designs. Maximum counts by half-beam band (sect
 
 | Band | broadside per side | turret | prow | hangar |
 |---|---|---|---|---|
-| S | 2 | 1 | 1 | 0 |
-| M | 4 | 4 | 2 | 2 |
-| L | 6 | 5 | 3 | 3 |
-| C | 8 | 8 | 4 | 5 |
+| S | 2 | 2 | 1 | 0 |
+| M | 5 | 4 | 2 | 3 |
+| L | 6 | 8 | 3 | 5 |
+| C | 8 | 8 | 4 | 6 |
 | X | 7 | 8 | 3 | 6 |
-| G | 9 | 12 | 4 | 6 |
+| G | 9 | 12 | 4 | 0 |
 
 **Gun clearances** (from `ship/WeaponModels.js`; `s = 0.72 W`, prow guns `1.2 s`). Re-derive them if a
 weapon model changes.
@@ -55,8 +55,18 @@ weapon model changes.
 | Turret | Base 1.0 s across | Barrels about 1.0 s, full 360 degrees | Well ≥ 1.1 s ≈ 0.8 W across; nothing taller than the well rim within 1.2 s |
 | Prow | Housing up to 2.3 s wide (4 tubes at 1.2 s scale ≈ 2.8 s) × 0.85 s tall | Barrel up to 3.3 × 1.2 s long, yaw ±0.5 rad | A prow face at least that wide per mount, or mounts stacked; nothing ahead |
 
-The broadside pitch means a hull's battery length is at least `2.1 W × mounts per tier`. That is why
-big classes spread mounts over 2-3 facets (design brief rule 8).
+These are the clearances to aim for. Some chassis cannot meet them (eight mounts on a dreadnought, four
+prow mounts on any hull; today's builder overlaps them too), so the binding rules are:
+
+- **Battery length** is 0.5 L, centred on the body.
+- **Rows needed** = `ceil(2.1 W × mounts per side / battery length)`, capped per band: S 1, M 2, L 3, C 3,
+  X 3, G 3. Rows are the hull's facet tiers. Classes with side hulls or battery blocks (T7, T10, fortress
+  worlds) add one more row on those.
+- **When the cap is reached,** mounts close up within their rows. The pitch may shrink to a floor of
+  1.2 W, where the longest gunhouses overlap their neighbours at rest. Below that floor the kit is wrong.
+- **Prow mounts** share one prow face and may interpenetrate: pitch at least 0.3 W, on a face at least
+  1.2 W wide for three or four mounts.
+- The node test checks these rules (rows, pitch floor, prow pitch), not the ideal clearances.
 
 **Shield and hit volume.**
 - The shield is an ellipsoid centred at `y = 0.25 top`, with semi-axes 2.3 W (x),
@@ -168,14 +178,14 @@ reference W and scaled uniformly by `W / refW`.
 
 | Band | W range | Reference W | Covers | Triangles per assembled hull | Glow share of visible area |
 |---|---|---|---|---|---|
-| S | under 5.4 | 3.6 | T1-T2; enemy small | ≤ 3k | ≤ 4% |
-| M | 5.4 - 10 | 7.2 | T3-T5; enemy mid | ≤ 6k | ≤ 3% |
-| L | 10 - 16.5 | 13 | T6-T8; enemy large | ≤ 10k | ≤ 2.5% |
-| C | 16.5 - 26 | 20 | T9-T10; enemy epic | ≤ 16k | ≤ 2% |
+| S | under 5.4 | 3.6 | T1-T2; enemy small and mid | ≤ 3k | ≤ 4% |
+| M | 5.4 - 10 | 7.2 | T3-T6; enemy mid and large | ≤ 6k | ≤ 3% |
+| L | 10 - 16.5 | 13 | T6-T8; enemy large and epic | ≤ 10k | ≤ 2.5% |
+| C | 16.5 - 26 | 20 | T9-T10; enemy epic and legendary | ≤ 16k | ≤ 2% |
 | X | 26 - 45 | 32 | Enemy legendary | ≤ 20k | ≤ 2% |
 | G | 45 and up | 70 | Enemy gargantuan (to 117) | ≤ 24k | ≤ 1.5% |
 
-Uniform scale stays within 0.5-1.7 of reference. Because fixed-size detail is instanced after scaling,
+Uniform scale stays within 0.45-1.7 of reference. Because fixed-size detail is instanced after scaling,
 scaling the big forms doesn't break the scale cues. Enemy-only languages need only the bands their
 designs use.
 
@@ -192,8 +202,8 @@ the player's yard and the current system's enemy languages, before ships of that
    - hangar sections for `slots.hangar`
    - a prow and a stern of the class's variants
 3. **Fit the length** to exactly L:
-   - add or remove `waist` sections (each kit provides waists of length 0.08 L and 0.16 L at reference
-     proportions) until the chain is within 8% of L
+   - add or remove `waist` sections (each kit provides waists 0.5 W and 1.0 W long at reference size)
+     until the chain is within 8% of L
    - then stretch along z by the remaining factor, kept within 0.92-1.08
    - if that can't be reached, the class layout is wrong for that kit: fail the test
 4. **Key in** the command module, ventral masses, arrays and appendages at their sockets. `fixed` parts go
@@ -228,11 +238,11 @@ already in the scene keep their mesh until they respawn.
 
 ## 9. Checks before a kit is done
 
-- **Node test** (`tests/kit.test.mjs`, against a JSON dump of the kit's markers and bounds written by
-  `export.py`, so it needs no GPU). For every chassis of the language, player and enemy:
+- **Node test** (`tests/kit.test.mjs`, against a JSON dump written by `export.py` holding each part's
+  markers, vertex positions, indices and per-material areas, so it needs no GPU). For every chassis of the language, player and enemy:
   - hardpoint counts equal the slots; broadside pairs mirrored; engine count matches the class
   - `dims.L`, `W`, `Ht`, `Hb` unchanged
-  - broadside mount pitch and turret well clearances from section 1 hold
+  - the section 1 mount rules hold (rows, pitch floor, prow pitch, turret well size)
   - every vertex inside the shield ellipsoid; appendage half-span ≤ 2.1 W
   - at least 40% of hull depth below the centreline (design brief section 0)
   - triangle and glow budgets met
