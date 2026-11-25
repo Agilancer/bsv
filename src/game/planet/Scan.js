@@ -74,12 +74,28 @@ export class Scanner {
     const near = space ? this.nearby() : null;
     if (this.state === 'scanning') this.animate(dt);
     else if (this.state === 'drop') this.animateDrop(dt);
-    if (near && this.state === 'idle' && !G.hudHidden) {
+    // the [V] prompt: on by default, Options → "Planet scan prompt" turns it off
+    const want = !G.settings().hideScanPrompt;
+    if (near && this.state === 'idle' && !G.hudHidden && want) {
       const info = near.userData.info, key = planetKey(G.data.system, info);
-      const known = ensureExplorer(G.data).scanned[key];
-      const txt = `◈ ${info.name} · ${(info.moon ? 'moon · ' : '') + biomeFor(info.type).name} — <b>[V]</b> ${known ? 'survey report' : 'scan'}`;
+      const ex = ensureExplorer(G.data), known = ex.scanned[key];
+      const touch = document.body.classList.contains('mobile');
+      const act = known ? 'Survey &amp; land' : 'Scan &amp; land';
+      const txt = `<span class="key">${touch ? 'TAP' : 'V'}</span><span class="pt"><b>${act}</b><i>${info.name} · ${(info.moon ? 'moon · ' : '') + biomeFor(info.type).name} · landable</i></span>`;
       if (this.prompt._t !== txt) { this.prompt.innerHTML = txt; this.prompt._t = txt; }
-      this.prompt.style.display = '';
+      this.prompt.style.display = 'flex';   // the stylesheet hides it by default: '' would leave it hidden
+      // a story briefing takes the same strip of screen: ride just above it while it is up
+      const brief = document.getElementById('storyBrief');
+      const lift = brief && brief.classList.contains('show') ? innerHeight - brief.getBoundingClientRect().top + 10 : 0;
+      const bottom = lift > 0 ? lift + 'px' : '';
+      if (this.prompt.style.bottom !== bottom) this.prompt.style.bottom = bottom;
+      // the first landable world a captain flies over: say once, plainly, what the prompt is for
+      if (!ex.scanHint && !(G.autoplay && G.autoplay.active)) {
+        ex.scanHint = 1;
+        const how = touch ? 'Tap SCAN & LAND' : 'Press V';
+        G.ui.toast(`Landable world below — ${how} to scan it and send your explorer down`, 'epic');
+        G.ui.chat('SYS', null, `${info.name} is landable. ${how} to scan it, pick a landing site, then Deploy explorer to drive the surface. (Options → Planet scan prompt hides this.)`, 'sys');
+      }
     } else this.prompt.style.display = 'none';
     if (this.state === 'panel' && (!space || !this.target || this.nearby() !== this.target)) this.close();
   }

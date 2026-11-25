@@ -19,7 +19,7 @@ const STEPS = [
   { k: 'equip', title: 'Fit an upgrade', hint: 'I opens Cargo · items marked ▲ beat what you have', mhint: 'Menu → Cargo · tap an item marked ▲', done: (g) => g._tut.equipped },
   { k: 'dock', title: 'Dock and sell your spare gear', hint: 'G near the station · Market tab · click an item in your hold to sell it', mhint: 'Tap “Tap to dock”, then sell in the Market tab', done: (g) => g._tut.sold },
   { k: 'quest', title: 'Take a quest', hint: 'Quests tab on the station board · J opens your quest log', mhint: 'Quests tab on the station board · Menu → Quests is your log', done: (g) => (g.data.contracts || []).length > 0 || ((g.data.questLog || {}).done || 0) > 0 },
-  { k: 'next', title: 'Where next? (optional)', hint: 'M galaxy map: jump to new systems · K crew · B walk your bridge · N system map: scan a planet and land', mhint: 'Menu → Galaxy to jump · Crew · Bridge · System: scan a planet and land', done: (g) => g._tut.next },
+  { k: 'next', title: 'Where next? (optional)', hint: 'M galaxy map: jump to new systems · K crew · B walk your bridge · fly over a planet and press V to scan it and land your explorer', mhint: 'Menu → Galaxy to jump · Crew · Bridge · fly over a planet and tap SCAN & LAND', done: (g) => g._tut.next },
 ];
 const UNDOCK = STEPS.findIndex((s) => s.k === 'undock'), VOLLEY = STEPS.findIndex((s) => s.k === 'volley');
 export const TUTORIAL_STEPS = STEPS.length;

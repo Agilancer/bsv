@@ -95,8 +95,20 @@ body.planet-hud-hidden .toast:not(.legend) { display: none; }
 @keyframes streaks { from { background-position: 0 0; } to { background-position: -96px 260px; } }
 
 /* scan prompt + survey panel (space) */
-#pScanPrompt { position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%); padding: 7px 18px; font-family: var(--head); font-size: 12px; letter-spacing: 0.12em; color: var(--white); cursor: pointer; display: none; white-space: nowrap; }
-#pScanPrompt b { color: var(--cyan); }
+#pScanPrompt { position: fixed; left: 50%; bottom: 132px; transform: translateX(-50%); z-index: 5; display: none; align-items: center; gap: 12px; padding: 8px 18px 8px 10px; cursor: pointer; white-space: nowrap; max-width: 90vw; border: 1px solid rgba(88, 200, 255, 0.6); animation: scanPulse 1.8s ease-in-out infinite; }
+#pScanPrompt:hover { border-color: var(--cyan); }
+#pScanPrompt .key { flex: none; min-width: 34px; height: 34px; padding: 0 6px; box-sizing: border-box; display: grid; place-items: center; font-family: var(--head); font-size: 17px; color: var(--white); border: 1px solid var(--cyan); background: rgba(88, 200, 255, 0.18); box-shadow: 0 0 12px rgba(88, 200, 255, 0.7), inset 0 0 8px rgba(88, 200, 255, 0.4); }
+#pScanPrompt .pt { display: flex; flex-direction: column; min-width: 0; }
+#pScanPrompt .pt b { font-family: var(--head); font-size: 15px; letter-spacing: 0.18em; color: var(--cyan); text-transform: uppercase; text-shadow: 0 0 10px rgba(88, 200, 255, 0.8); }
+#pScanPrompt .pt i { font-style: normal; font-size: 12px; letter-spacing: 0.06em; color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+@keyframes scanPulse { 0%, 100% { box-shadow: 0 0 10px rgba(88, 200, 255, 0.35); } 50% { box-shadow: 0 0 26px rgba(88, 200, 255, 0.85), 0 0 50px rgba(154, 107, 255, 0.4); } }
+body.hud-hidden #pScanPrompt { display: none !important; }
+body.mobile #pScanPrompt { padding: 6px 12px 6px 6px; gap: 8px; }
+body.mobile #pScanPrompt .key { font-size: 12px; height: 30px; }
+body.mobile #pScanPrompt .pt b { font-size: 13px; }
+body.mobile #pScanPrompt .pt i { font-size: 10px; }
+@media (max-aspect-ratio: 1/1) { body.mobile #pScanPrompt { bottom: calc(var(--mb) + 280px); } }
+@media (min-aspect-ratio: 1/1) { body.mobile #pScanPrompt { bottom: calc(var(--mb) + 104px); } }
 #pScanPanel { left: 50%; top: 70px; transform: translateX(-50%); width: 560px; }
 #pScanPanel .hz { font-family: var(--head); font-size: 12px; letter-spacing: 0.14em; }
 #pScanPanel .hz b { letter-spacing: 0.04em; font-size: 15px; }
