@@ -62,6 +62,50 @@ class Hollow(K.Style):
         p.sweep([P(0.72, -0.12, 0.3), P(0.98, -0.16, 0.55), P(0.86, -0.2, 0.8), P(0.4, -0.22, 1.0)], [0.2 * u, 0.24 * u, 0.16 * u, 0.03 * u], 6, 'hull', squash=1.3, mirror=True)    # mandibles
         p.sweep([P(0, 0.6, 0.3), P(0, 0.56, 0.6), P(0, 0.3, 0.86)], [0.3 * u, 0.24 * u, 0.04 * u], 6, 'hull', squash=0.7)       # the rostrum over the maw
 
+    # ---- the body: bulging carapace lofts, ribs and limbs (no boxes, no straight edges)
+    block_fore = ((0.06, 1.35), (0.4, 1.0), (0.75, 0.6), (0.95, 0.25))
+    block_aft = ((0.1, 1.1), (0.5, 0.75), (0.85, 0.4), (0.98, 0.14))
+    side = dict(w=0.42, bow=((1.07, 0.4, 0.0), (1.0, 0.9, -0.03), (0.8, 1.35, -0.1), (0.5, 1.7, -0.2), (0.18, 1.95, -0.32)),
+                stern=((1.06, -0.5, -0.02), (0.95, -1.2, -0.12), (0.78, -2.0, -0.3), (0.62, -3.1, -0.5)))
+
+    def blockp(self, u, xi, xo):            # a swollen brood flank
+        return K.oval(xo - xi, 0.72 * u, -0.66 * u, 13, 0.9, xi)
+
+    def app(self, p, B, variant):
+        u = B.W
+        if variant == 'blocks':             # ribs hook over the flank between the weapon blisters
+            for z in (-30.0, -10.0, 10.0, 30.0):
+                p.sweep([(-0.2 * u, 0.6 * u, z + 0.1 * u), (0.22 * u, 0.74 * u, z), (0.56 * u, 0.5 * u, z - 0.05 * u), (0.7 * u, 0.12 * u, z - 0.2 * u)], [0.16 * u, 0.15 * u, 0.11 * u, 0.02 * u], 6, 'hull')
+                p.sweep([(-0.2 * u, -0.56 * u, z + 0.1 * u), (0.22 * u, -0.7 * u, z), (0.56 * u, -0.46 * u, z - 0.05 * u), (0.68 * u, -0.1 * u, z - 0.2 * u)], [0.15 * u, 0.14 * u, 0.1 * u, 0.02 * u], 6, 'hull')
+        elif variant == 'sidehull':         # a dorsal crest of spines along the brood hull
+            cx = 0.5 * u
+            for z in (-1.1, -0.3, 0.5, 1.3):
+                p.sweep([(cx, 0.36 * u, (z + 0.3) * u), (cx + 0.02 * u, 0.62 * u, z * u), (cx + 0.05 * u, 0.8 * u, (z - 0.5) * u)], [0.16 * u, 0.1 * u, 0.02 * u], 5, 'hull')
+
+    def spinep(self, u, top, sh, base):     # a rounded dorsal ridge
+        return prof([(0, top), (0.28 * u, top - 0.02 * u), (0.5 * u, top - 0.08 * u), (0.64 * u, top - 0.2 * u), (0.7 * u, (sh + base) / 2), (0.66 * u, base), (0, base)])
+
+    def crossways(self, p, B, zs, cx, w):   # limbs: arched over to the brood hull, and a root under each
+        u = B.W
+        for z in zs:
+            p.sweep([(-0.25 * u, 0.08 * u, z + 0.25 * u), (0.1 * u, 0.36 * u, z + 0.12 * u), (cx - 0.5 * w, 0.44 * u, z), (cx, 0.2 * u, z - 0.12 * u)], [0.36 * u, 0.32 * u, 0.27 * u, 0.2 * u], 8, 'hull', squash=0.8)
+            p.sweep([(-0.25 * u, -0.16 * u, z - 0.1 * u), (0.12 * u, -0.34 * u, z), (cx - 0.3 * w, -0.3 * u, z + 0.1 * u), (cx, -0.1 * u, z + 0.15 * u)], [0.3 * u, 0.26 * u, 0.22 * u, 0.16 * u], 8, 'hull', squash=0.8)
+        return True
+
+    def podpart(self, B, variant, hangar, ln, deep):    # an egg sac
+        return K.spod(B, variant, hangar, ln, deep, e=0.85, n=11, fore=lambda t: math.sqrt(1 - 0.95 * t ** 2.4), aft=lambda t: math.sqrt(1 - 0.93 * t * t),
+                      full=None if hangar else (-3.0 * ln, 2.0 * ln))
+
+    def pod(self, p, B, k, X, hangar):      # ribs round the sac
+        d = 0.85 if p.variant == 'reactor' else 1.0
+        ln = 0.6 if p.variant == 'reactor' else 0.9 if B.id == 'C' else 1.0
+        hh = [(x * 1.02 * k, (y - 0.06) * k) for x, y, _ in K.oval(X, 1.3, -4.6 * d, 11, 0.85)[3:]]
+        for z in ((-9.5, -3.0) if hangar else (-2.8 * ln, -0.4 * ln, 1.8 * ln)):
+            p.sweep([(x, y, z * k) for x, y in hh], [0.26 * k] * (len(hh) - 1) + [0.3 * k], 6, 'hull', mirror=True)
+        if not hangar:                      # the glow lives in the crevices between them
+            for z in (-1.6 * ln, 0.7 * ln):
+                p.tube([(-0.8 * k * ln, 0.04 * k), (-0.4 * k * ln, 0.5 * k), (0.4 * k * ln, 0.5 * k), (0.8 * k * ln, 0.04 * k)], (X * k * 0.96, -1.9 * k * d, z * k), 'z', 8, 'glow', squash=1.6, mirror=True)
+
     def command(self, B, variant):
         p, u, hx, hz, hy = K.command(B, variant, round_=True)
         dome = min(hy, 0.5 * u)
