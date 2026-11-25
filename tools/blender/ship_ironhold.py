@@ -26,6 +26,20 @@ class Ironhold(K.Style):
         q, n = edge(h, 0, z0, z1), max(1, round((z1 - z0) / (0.8 * u))) if B.id != 'S' else 0
         for j in range(n):
             p.slab(subquad(q, 0.74, 0.98, j / n, (j + 1) / n), 0.045 * u, inset=0.035 * u, bevel=0.015 * u, out=(0, 1, 0), mirror=True)
+        if B.id in 'LC' and not cut:        # a second, lower course inboard of it, laid half a brick along: stepped
+            for j in range(n - 1):
+                p.slab(subquad(q, 0.5, 0.73, (j + 0.5) / n, (j + 1.5) / n), 0.022 * u, inset=0.03 * u, bevel=0.012 * u, out=(0, 1, 0), mirror=True)
+
+    def plate(self, p, B, h, q, length):    # the flank: two courses of armour brick in running bond, the lower one proud
+        u = B.W
+        if B.id == 'S':
+            return False
+        n = max(1, round(length / (0.5 * u)))
+        for j in range(n):
+            p.slab(subquad(q, 0.0, 0.5, j / n, (j + 1) / n), 0.03 * u, inset=0.03 * u, bevel=0.02 * u, mirror=True)
+        for j in range(n + 1):
+            p.slab(subquad(q, 0.5, 1.0, max(0.0, (j - 0.5) / n), min(1.0, (j + 0.5) / n)), 0.06 * u, inset=0.03 * u, bevel=0.02 * u, mirror=True)
+        return True
 
     def strake(self, p, B, z0, z1, hw, t, y, mat):
         K._strake(p, B, z0, z1, hw * 1.5, t * 1.2, y, mat)

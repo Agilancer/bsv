@@ -36,13 +36,15 @@ class Style:
     def extra_parts(self): return []
     def blockp(self, u, xi, xo): return None    # a battery block's section, when not the faceted one
     def app(self, p, B, variant): pass          # dress an appendage the yard takes from the ladder
+    def plate(self, p, B, h, q, length): return False       # a waist's flank plating (quad q), when not one plate
     # a yard's own body shapes (the defaults are the ladder's faceted forms)
     long_stag = False           # a staggered battery's housings run the whole section (one fairing)
     blocks = podpart = None     # replace the battery blocks / a belly pod: fn(B) / fn(B, variant, hangar, ln, deep) -> Part
     block_fore = block_aft = ((0.12, 0.9), (0.75, 0.3))     # a battery block's ends: (scale, distance x W) stations
     side = {}                   # side hull: bow / stern = [(scale, dz, dx) x W], w, ht, hb
     fair = None                 # fn(half profile) -> the rounded body section (shiplib.smooth), for a yard without facets
-    swell = 0.0                 # each battery and waist section swells by this share amidships (joints keep the section)
+    swell = 0.0                 # each battery and waist section swells by this share amidships (joints keep the section);
+                                # the ship's long profile is kitPlan.js PROFILE, so this is only a yard's segmenting
     wellrim = None              # a round rim over a turret well: [(height, radius) x W] from the crown, outside in
     def spinep(self, u, top, sh, base): return None         # the gun spine's half profile, crown down to its base
     def crossways(self, p, B, zs, cx, w): return False      # the side hull's crossways, when not the faceted ones
@@ -343,7 +345,8 @@ def waist(B, length, variant, top=False):
         p.hloft([(pscale(h, 0.985), 0), (h, 0.03 * u), (h, length - 0.03 * u), (pscale(h, 0.985), length)])
     belts(p, B, h, 0.05 * u, length - 0.05 * u, (1, 3))
     q = edge(h, 2, 0.05 * u, length - 0.05 * u)
-    p.slab(q, 0.03 * u, inset=0.05 * u, bevel=0.03 * u, mirror=True)
+    if not Y.plate(p, B, h, q, length):
+        p.slab(q, 0.03 * u, inset=0.05 * u, bevel=0.03 * u, mirror=True)
     strake(p, B, 0.06 * u, length - 0.06 * u)
     det(p, 'hatch', (0, B.HT + 0.07 * u, 0.2 * u), length - 0.4 * u, side='mid')
     det(p, 'pd', (h[1][0] * 0.98, h[1][1] - 0.01 * u, 0.2 * u), length - 0.4 * u)
@@ -1233,7 +1236,7 @@ def main(style=None):
     global Y
     if style is not None:
         Y = style
-    shiplib.FAIR, shiplib.ZSEG = Y.fair, (0.9 if Y.swell else 0.0)
+    shiplib.FAIR, shiplib.ZSEG = Y.fair, (0.9 if (Y.swell or Y.fair) else 0.0)     # stations: the hull follows the whole-ship profile (kitPlan.js PROFILE)
     shiplib.reset()
     ps = parts() if Y.prow_n is None else yard_parts()
     roots = shiplib.build(ps)

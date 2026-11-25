@@ -34,7 +34,7 @@ class Tidewright(K.Style):
     prow_n = {1: 1, 2: 1, 3: 2, 4: 2, 5: 2, 6: 3, 7: 3, 8: 3, 9: 3, 10: 4}
 
     def section(self, W, HT, HB, yo):
-        return prof([(0, HT + yo), (0.42 * W, 0.9 * HT + yo), (W, 0.22 * HT + yo), (W, -0.24 * HB + yo), (0.42 * W, -0.9 * HB + yo), (0, -HB + yo)])
+        return prof([(0, HT + yo), (0.36 * W, 0.92 * HT + yo), (W, 0.17 * HT + yo), (W, -0.19 * HB + yo), (0.36 * W, -0.92 * HB + yo), (0, -HB + yo)])
 
     def mouth(self, tier, kind):            # one long railgun trench per facet
         return dict(proud=0.0, lip=0.035, sh=0.1, long=True, trim='trim')
