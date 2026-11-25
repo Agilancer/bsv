@@ -34,10 +34,10 @@ dimensions.
 
 | Water-ship cue (banned) | Spacecraft replacement |
 |---|---|
-| Open top deck: a flat walkable surface, planking, bulwarks, railings | A crowned, armour-plated **dorsal hull**: convex or faceted in section, carrying turret wells, sensor blisters, radiators and hatches. No flat horizontal dorsal run longer than 15% of L. |
+| Open top deck: a flat walkable surface, planking, bulwarks, railings | A crowned, armour-plated **dorsal hull**: convex or faceted in section, carrying turret wells, sensor blisters, radiators and hatches. No flat horizontal dorsal run longer than 15% of L, except a carrier's flight deck (section 2). |
 | Boat hull: everything built upward from a deck, with only a keel below | A **3D pressure hull**: at least 40% of the hull's depth lies below the centreline, with real ventral masses (reactor bulge, ventral turrets, hangar or magazine pod). |
 | Stern castle, forecastle, bridge tower: a building standing on the hull at one end | A **command module sunk into the hull** amidships (40-65% of L from the bow) or inside the head, with hull mass rising beside it to at least half its height (rule 12). |
-| Gun decks: parallel rows of guns up one tall flat side | Battery tiers on **different hull facets** (rule 8): upper flank, beam, lower flank. Never two parallel rows on one vertical wall. |
+| A wooden gun deck: ports in a plank wall under an open deck | **Armoured gun decks are allowed** (the captain's ruling): rows of guns along a battery deck are fine, provided the deck is plainly part of a spacecraft: recessed into armour, with turreted mounts, on a hull that passes the tests below (rule 8). |
 | Gun ports, one hole per gun | **Turreted mounts** in armoured casemates, blisters, sponsons or a recessed battery trench. |
 | Masts, spires, rigging, pennants | Low **sensor arrays**: domes, dish clusters, antenna farms, at most 0.6 Ht above the hull. |
 | Sails, sail-shaped vanes in a fore-aft row on top | Rigid **collector or radiator arrays** rooted in the flanks or belly, never standing in a row along the dorsal centreline. |
@@ -89,9 +89,11 @@ Where they seem to collide, the class decides *what and where*, the language dec
 8. **Flank batteries on facets.**
    - **Housing:** each mount sits in its own armoured casemate, blister or sponson, or in a recessed
      battery trench, as the language says.
-   - **Tiers on facets:** a hull with 2-3 battery tiers puts each tier on a different facet of the
-     cross-section: upper flank (angled up 20-40 degrees), beam, lower flank (angled down). Mounts on the
-     upper and lower facets still fire to the beam. Port and starboard mirror exactly.
+   - **Tiers:** a hull with 2-3 battery tiers may stack them as gun decks (rows of mounts one above the
+     other along the flank) or put each tier on a different facet of the cross-section (upper flank,
+     beam, lower flank), as suits the language. Either way each row sits in its own recessed armoured
+     deck or trench, so it reads as spacecraft weaponry, never as ports in a wooden wall. Port and
+     starboard mirror exactly.
    - **Extent:** batteries span 40-60% of L, centred near the centre of mass, never at the tips [SW
      recoil logic].
    - **Dividers:** thick armoured bulkheads that are part of the trench or sponson.
@@ -166,9 +168,18 @@ T9-10, gargantuan T10).
 - **Spheres** stay on their own procedural builder (`buildSphere`) for now.
 - **Role kits** attach at their `role.*` markers.
 
-**Carriers** (Corsair T6/8/10 and the `carrier` role kit) run an enclosed flight bay through the body,
-landing mouth aft and launch mouths forward. The command module sits offset beside it, sunk and shouldered as rule 12 says, and the batteries
-stay on the flanks below.
+**Carriers** (Corsair T6/8/10 and the `carrier` role kit) are the bulkiest ships of their class, built
+round launching and recovering craft:
+- **Flight deck:** a long armoured flight deck along the dorsal hull is allowed and encouraged, with lit
+  approach markings, a landing mouth aft and launch tubes or catapult slots forward. It is the one
+  exception to the flat-run limit.
+- **Bulk:** the deck overhangs the body (up to the 2.1 W appendage limit) over hangar galleries, so a
+  carrier reads wider and deeper than a gun ship of the same class. Hangar mouths open on the flanks
+  under the overhang.
+- **Still a spacecraft:** engines, ventral mass and armour as on every hull; the paint-off, inversion
+  and depth tests still apply (a ventral hangar or second deck helps the inversion test).
+- **Command module:** offset beside the deck, sunk and shouldered as rule 12 says.
+- **Guns:** battery decks stay on the flanks below the flight deck.
 
 ---
 
@@ -291,7 +302,8 @@ palette, don't-list.
 1. **Section 0 tests:** paint-off, inversion and depth all pass; no banned cue.
 2. **Thumbnails:** each class distinct from its neighbours, each language distinct from the others.
 3. **Structure:** nothing floats, no boards or sticks, no posts, every appendage rooted.
-4. **Broadside:** battery tiers on separate facets, arcs clear, prow weapons in the prow face.
+4. **Broadside:** battery rows recessed in armour (stacked gun decks or facets), arcs clear, prow
+   weapons in the prow face.
 5. **Command module:** sunk, shouldered, inside the height limit.
 6. **Detail:** 40-60% rest areas; detail in bands.
 7. **Light:** within the glow budget; no glow outlines.
