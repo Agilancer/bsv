@@ -152,8 +152,8 @@ export class Shots {
     } else {
       const V = M.vehicle;
       const d = Math.hypot(V.position.x - at.x, V.position.z - at.z);
-      const hr = V.hitRadius || V.radius;
-      if (d < r + hr && Math.abs(V.position.y - at.y) < r + 4) V.damage(p.dmg * (1 - 0.4 * d / (r + hr)), at, p.src, p.tele);
+      // a blast catches the whole hull, overhangs included (direct shots test the core: hitRadius)
+      if (d < r + V.radius && Math.abs(V.position.y - at.y) < r + 4) V.damage(p.dmg * (1 - 0.4 * d / (r + V.radius)), at, p.src, p.tele);
     }
   }
 
