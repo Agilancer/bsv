@@ -13,6 +13,7 @@ import { YARDS } from '../data/chassis.js';
 import { clamp, wrapAngle, damp } from '../../engine/rng.js';
 
 const CRUISE = 1.9;   // engines to cruise: a ship on passage with nothing near (set per frame through cruiseUntil)
+const SURGE = 1.35;   // a speed surge (buffs.surge): a gravity-well slingshot, the hot plasma of an emission nebula
 // Launchers loft their warheads: a missile climbs out at up to ~17 degrees (a torpedo ~5) over a long shot and homes back
 // down, so the mount elevates for what it is shooting at. Rises with range, nothing at point-blank.
 const LOFT = { missile: 0.3, torpedo: 0.09 };
@@ -222,7 +223,8 @@ export class Ship {
   steerTo(point, arriveDist = 60, speedCap = 1) {
     const dx = point.x - this.position.x, dz = point.z - this.position.z;
     const dist = Math.hypot(dx, dz);
-    const want = Math.atan2(dx, dz);
+    let want = Math.atan2(dx, dz);
+    if (this.world.avoid) want += this.world.avoid(this, want, dist);   // round space hazards (phenomena)
     const diff = wrapAngle(want - this.heading);
     this.rudder = clamp(diff * 2.2, -1, 1);
     let thr = clamp(dist / (arriveDist * 4), 0, 1) * speedCap;
@@ -231,6 +233,7 @@ export class Ship {
     return dist;
   }
   steerHeading(want, thr) {
+    if (this.world.avoid) want += this.world.avoid(this, want);
     const diff = wrapAngle(want - this.heading);
     this.rudder = clamp(diff * 2.2, -1, 1);
     this.throttle = thr;
@@ -239,7 +242,7 @@ export class Ship {
   update(dt, t) {
     if (!this.alive) return;
     const W = this.world;
-    const boost = (this.buffs.evasive > t ? 1.6 : 1) * (this.buffs.slowed > t ? 0.55 : 1) * (this.yardTrait === 'tidewright' && t - (this.lastFire || 0) > 4 ? 1.25 : 1) * (this.cruiseUntil > t ? CRUISE : 1);
+    const boost = (this.buffs.evasive > t ? 1.6 : 1) * (this.buffs.slowed > t ? 0.55 : 1) * (this.yardTrait === 'tidewright' && t - (this.lastFire || 0) > 4 ? 1.25 : 1) * (this.cruiseUntil > t ? CRUISE : 1) * (this.buffs.surge > t ? SURGE : 1);
     if (this.cloaked && t > this.cloakUntil) this.setCloak(false);
     // physics
     // mass: a cutter reaches speed in ~2s, a dreadnought in ~10s; braking is a little quicker
@@ -269,7 +272,8 @@ export class Ship {
     const since = t - this.lastHit;
     const regenMul = this.buffs.disrupted > t ? 0 : since > 3 ? 1 : this.stats.u_aegis === 2 ? 1 : this.stats.u_aegis ? 0.5 : this.stats.u_aegisLite ? 0.4 : 0;   // ion disruption locks regen
     const cap = this.maxShield * 0.3;
-    if (regenMul > 0) for (let i = 0; i < 4; i++) this.shields[i] = Math.min(cap, this.shields[i] + this.shieldRegen * regenMul * dt);
+    const env = this.envRegen ?? 1;   // phenomena: nebulae feed or starve the emitters (reset each frame)
+    if (regenMul > 0) for (let i = 0; i < 4; i++) this.shields[i] = Math.min(cap, this.shields[i] + this.shieldRegen * regenMul * env * dt);
     if (this.hullRegen) this.repair(this.maxHull * this.hullRegen * dt);
     // Triage: emergency surgery below 35% hull, 30% back over 6 s, once every 40 s (the captain's
     // side only: on a boss's random legendary rack it would stretch the fight past its contract)
