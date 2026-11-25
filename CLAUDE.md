@@ -176,7 +176,10 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   contract in `planet/groundBalance.js`; `--dungeon` for dungeons)
 - The duel harnesses load with `&dynres=0`: the frame-rate governor thins particles on a slow machine, and
   particle counts draw from the same seeded stream as the fight. They also clear loot between duels (the
-  pilot drives to gear drops). A kiting boss cell still reads up to ~2x apart with what ran before it. In
+  pilot drives to gear drops). Every `groundduel.cjs` duel reads the same alone as after the whole sweep, and
+  the same whatever the boot drew: no commander / explorer xp, a fresh terrain, clock (`E.time = 1000`), telegraph
+  count (`warnSeq`: the pilot's missed warnings), hold, bay, drones and gun mounts per duel, and render batches built
+  on first use draw from a side stream. Keep it so: anything new that persists across duels gets reset there. In
   `groundduel.cjs` the static explorer's kill run fires through the kin a boss summons (`capRoot`): they still
   fight, but adds parked in its line of fire read a 4x kill time. The kiting pilot's shots hit whatever they meet.
 - A new game starts docked with the tutorial running: `?play&new` still skips the title, and the duel
