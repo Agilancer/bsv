@@ -28,11 +28,11 @@ export const EX_BASES = {
   arc: { slot: 'gun', name: 'Arc Projector', kind: 'arc', dmg: 15, rof: 3.2, range: 50, chain: 3, color: 0x90a8ff, icon: 'ion' },
   // ---- drone bays (a swarm kept topped up from a pod on a hardpoint) ----
   // count drones, power per hit / per second, rof hits per second each, rebuild s per lost drone
-  sparrow: { slot: 'bay', name: 'Sparrow Gun Drones', kind: 'drone', drone: 'sparrow', count: 3, power: 4.6, rof: 4.2, range: 62, rebuild: 5, color: 0xffc040, icon: 'sparrow', blurb: 'Quad-drones orbit the vehicle and strafe the nearest creature.' },
-  scarab: { slot: 'bay', name: 'Scarab Crawlers', kind: 'drone', drone: 'scarab', count: 4, power: 62, rof: 0, range: 70, splash: 6, rebuild: 1.25, color: 0xff5030, icon: 'scarab', blurb: 'Six-legged bomb-bots skitter to a creature and detonate. The bay builds more.' },
-  mender: { slot: 'bay', name: 'Mender Swarm', kind: 'drone', drone: 'mender', count: 3, power: 0.0028, rof: 0, range: 0, rebuild: 8, color: 0x60ff90, icon: 'mender', blurb: 'Repair drones knit the hull while it is damaged.' },
-  aegis: { slot: 'bay', name: 'Aegis Wing', kind: 'drone', drone: 'aegis', count: 3, power: 3, rof: 0, range: 0, rebuild: 7, color: 0x60c8ff, icon: 'aegis', blurb: 'Shield drones fly close escort and catch hostile shots.' },
-  magpie: { slot: 'bay', name: 'Magpie Harvesters', kind: 'drone', drone: 'magpie', count: 2, power: 3.2, rof: 0, range: 46, rebuild: 9, color: 0xffd060, icon: 'magpie', blurb: 'Harvester drones mine resource nodes in reach and bring in what lies on the ground.' },
+  sparrow: { slot: 'bay', name: 'Sparrow Gun Drones', kind: 'drone', drone: 'sparrow', count: 3, power: 4.6, rof: 4.2, range: 62, rebuild: 5, color: 0x5aa0ff, icon: 'sparrow', blurb: 'Quad-drones orbit the vehicle and strafe the nearest creature.' },
+  scarab: { slot: 'bay', name: 'Scarab Crawlers', kind: 'drone', drone: 'scarab', count: 4, power: 62, rof: 0, range: 70, splash: 6, rebuild: 1.25, color: 0xff4030, icon: 'scarab', blurb: 'Six-legged bomb-bots skitter to a creature and detonate. The bay builds more.' },
+  mender: { slot: 'bay', name: 'Mender Swarm', kind: 'drone', drone: 'mender', count: 3, power: 0.0028, rof: 0, range: 0, rebuild: 8, color: 0x50ff50, icon: 'mender', blurb: 'Repair drones knit the hull while it is damaged.' },
+  aegis: { slot: 'bay', name: 'Aegis Wing', kind: 'drone', drone: 'aegis', count: 3, power: 3, rof: 0, range: 0, rebuild: 7, color: 0xe8f4ff, icon: 'aegis', blurb: 'Shield drones fly close escort and catch hostile shots.' },
+  magpie: { slot: 'bay', name: 'Magpie Harvesters', kind: 'drone', drone: 'magpie', count: 2, power: 3.2, rof: 0, range: 46, rebuild: 9, color: 0xff50e0, icon: 'magpie', blurb: 'Harvester drones mine resource nodes in reach and bring in what lies on the ground.' },
   // ---- tools (mining) ----
   drill: { slot: 'tool', name: 'Plasma Drill', kind: 'tool', power: 9, range: 20, bonus: { ore: 1.5, isotope: 1.2 }, color: 0xffa040, icon: 'repair' },
   cutter: { slot: 'tool', name: 'Laser Cutter', kind: 'tool', power: 7, range: 34, bonus: { crystal: 1.6 }, color: 0xff4a7a, icon: 'laser' },
@@ -406,7 +406,8 @@ export function hpWhy(ex, ch, it, replacing) {
     let m = ch.tier;
     while (m < 12 && !bayCap(EXPLORER_BY_ID[`ex_${ch.frame}_${m}`])) m++;
     const at = EXPLORER_BY_ID[`ex_${ch.frame}_${m}`];
-    return `${ch.cls} Mk ${ch.tier} carries only a gun: drone bays fit from ${at.fullName} (explorer level ${at.level})`;
+    const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][ch.tier - 1];
+    return `${ch.cls} Mk ${roman} carries only a gun: drone bays fit from ${at.fullName} (explorer level ${at.level}), or from Mk I on the Strider, Gunship, Lancer and Seraph`;
   }
   if (!guns.length && (fitted.length >= ch.slots.hp - 1 || (replacing && replacing.slot === 'gun'))) return 'One mount must keep a gun';
   if (bays.length >= cap) return `This mark carries at most ${cap} drone bay${cap > 1 ? 's' : ''}`;
@@ -455,7 +456,30 @@ export function setExChassis(ex, id) {
   const keys = new Set(exSlotKeys(EXPLORER_BY_ID[id]));
   for (const k of Object.keys(ex.loadout)) if (!keys.has(k)) { ex.inventory.push(ex.loadout[k]); delete ex.loadout[k]; }
   equipBestEx(ex);
+  enforceHardpoints(ex);
   return true;
+}
+// the hardpoint rules on whatever is fitted (after a frame swap): extra or doubled bays go to the bay,
+// and when bays fly without a gun, the best gun aboard takes a mount
+export function enforceHardpoints(ex) {
+  const ch = EXPLORER_BY_ID[ex.chassis], L = ex.loadout;
+  const mounts = exSlotKeys(ch).filter((k) => k.startsWith('hp:'));
+  const bayKeys = () => mounts.filter((k) => L[k] && L[k].slot === 'bay').sort((a, b) => exItemScore(L[a]) - exItemScore(L[b]));
+  const seen = new Set();
+  for (const k of bayKeys().reverse()) {   // best first: a doubled support swarm keeps its best copy
+    const it = L[k], d = EX_BASES[it.base].drone;
+    if (['mender', 'aegis', 'magpie'].includes(d) && seen.has(d)) { ex.inventory.push(it); delete L[k]; } else seen.add(d);
+  }
+  let b = bayKeys();
+  while (b.length > bayCap(ch)) { const k = b.shift(); ex.inventory.push(L[k]); delete L[k]; b = bayKeys(); }
+  if (b.length && !mounts.some((k) => L[k] && L[k].slot === 'gun')) {
+    const gun = ex.inventory.filter((x) => x.slot === 'gun').sort((x, y) => exItemScore(y) - exItemScore(x))[0];
+    if (gun) {
+      const k = mounts.find((m) => !L[m]) || b[0];
+      if (L[k]) ex.inventory.push(L[k]);
+      ex.inventory.splice(ex.inventory.indexOf(gun), 1); L[k] = gun;
+    } else { for (const k of b) { ex.inventory.push(L[k]); delete L[k]; } }   // no gun aboard: the bays wait rather than fly unescorted
+  }
 }
 
 // what scrapping an explorer item gives back (resources)

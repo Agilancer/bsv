@@ -7,7 +7,7 @@ import { EXPLORER_BY_ID, EXPLORER_FRAMES, CHASSIS_BY_ID } from '../data/chassis.
 import { slotKeys } from '../Player.js';
 import {
   EX_BASES, EX_INV_SIZE, EX_SLOT_LABEL, exSlotKeys, exDescribe, exItemScore, explorerStats, ensureExplorer, equipExItem, unequipExItem,
-  equipBestEx, setExChassis, scrapYield, explorerXpForLevel, SLOT_OF, exDroneStats, droneSheetDps, exAffixPool, EX_AFFIXES, hpWhy,
+  equipBestEx, setExChassis, scrapYield, explorerXpForLevel, SLOT_OF, exDroneStats, droneSheetDps, exAffixPool, EX_AFFIXES, hpWhy, exWeaponStats,
 } from './explorerItems.js';
 import {
   RESOURCES, RES_KEYS, SHIP_UPGRADES, upgradeCost, buyShipUpgrade, refineryShipStats, reforgeCost, empowerCost, overchargeCost, imbueCost,
@@ -83,6 +83,10 @@ export class PlanetWindows {
     const d = exDescribe(item, item.slot === 'bay' && ch ? ch.droneBonus || 0 : 0);
     let s = `<div class="tn" style="color:${d.rarity.color}">${esc(d.title)}</div><div class="tb">${d.rarity.name} ${d.base} · item level ${item.ilvl}</div>`;
     s += d.lines.map((l) => `<div class="tl">${l}</div>`).join('');
+    // the number on the mount tile: base dps times this explorer's damage (level, modules, refinery)
+    const exd = this.game.data.explorer, mul = exd ? explorerStats(exd).dmgMul : 1;
+    if (item.slot === 'gun') { const w = exWeaponStats(item); s += `<div class="tl" style="color:var(--good)">On this explorer: ${fmt(w.dmg * w.pellets * w.barrels * w.rof * mul)} dps</div>`; }
+    else if (item.slot === 'bay') { const ds = exDroneStats(item, ch ? ch.droneBonus || 0 : 0), v = droneSheetDps(ds); if (v) s += `<div class="tl" style="color:var(--good)">On this explorer: ${fmt(v * mul)} dps</div>`; }
     s += d.affixes.map((a) => `<div class="ta">${a}</div>`).join('');
     s += d.uniques.map((u) => `<div class="tu"><b>${u.name}:</b> ${u.desc}</div>`).join('');
     const y = scrapYield(item);
@@ -125,7 +129,8 @@ export class PlanetWindows {
     const mounts = keys.filter((k) => k.startsWith('hp:')).map((k) => ({ kind: ex.loadout[k] ? ex.loadout[k].slot : null }));
     if (cv) {
       const gl = vehicleReady(ch.id);
-      if (gl) { try { drawSchematic(cv, ch.id, gl, mounts); } catch (e) { cv.style.display = 'none'; } }
+      const ppm = this.exTab === 'hangar' ? 9 : Infinity;   // hangar: one scale so the marks compare; loadout: fill the panel
+      if (gl) { try { drawSchematic(cv, ch.id, gl, mounts, ppm); } catch (e) { cv.style.display = 'none'; } }
       else { cv.style.display = 'none'; loadVehicle(ch.id).then((g) => { if (g && this.isOpen('explorer')) this.refresh(); }); }
     }
     if (this.exTab === 'loadout') {
@@ -135,8 +140,10 @@ export class PlanetWindows {
           if (!it) return;
           if (SLOT_OF[it.slot] === 'hp') {
             const mountKeys = keys.filter((k) => k.startsWith('hp:'));
+            const same = mountKeys.filter((k) => ex.loadout[k] && ex.loadout[k].slot === it.slot);
+            const weakest = (list) => list.reduce((a, b) => (exAutoScore(ex.loadout[a]) <= exAutoScore(ex.loadout[b]) ? a : b));
             const target = this.selMount && mountKeys.includes(this.selMount) ? this.selMount
-              : mountKeys.find((k) => !ex.loadout[k]) || mountKeys.reduce((a, b) => (exAutoScore(ex.loadout[a]) <= exAutoScore(ex.loadout[b]) ? a : b));
+              : mountKeys.find((k) => !ex.loadout[k]) || (same.length ? weakest(same) : weakest(mountKeys));
             const why = hpWhy(ex, ch, it, ex.loadout[target]);
             if (why) { G.ui.toast(why, 'warn'); return; }
             if (equipExItem(ex, it, target)) { this.selMount = null; G.ui.hideTip(); this.changed(); }
@@ -147,6 +154,8 @@ export class PlanetWindows {
       body.querySelectorAll('.slot').forEach((s) => s.addEventListener('click', () => {
         const k = s.dataset.slot;
         if (k.startsWith('hp:') && this.selMount !== k) { this.selMount = k; this.refresh(); return; }
+        const it = ex.loadout[k], mounts = keys.filter((x) => x.startsWith('hp:'));
+        if (it && it.slot === 'gun' && mounts.some((x) => ex.loadout[x] && ex.loadout[x].slot === 'bay') && !mounts.some((x) => x !== k && ex.loadout[x] && ex.loadout[x].slot === 'gun')) { G.ui.toast('One mount must keep a gun while drone bays fly', 'warn'); return; }
         if (unequipExItem(ex, k)) { this.selMount = null; G.ui.hideTip(); this.changed(); }
       }));
       body.querySelector('#exBest').onclick = () => { fitExplorer(ex); this.changed(); };   // by what the gear does, a gun always fitted

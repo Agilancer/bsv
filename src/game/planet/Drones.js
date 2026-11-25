@@ -9,7 +9,7 @@
 // Measured duels (pilot.duel) keep drones, so the ground contract sees what a fitted bay does.
 import * as THREE from 'three/webgpu';
 import { droneTemplate, glbMats } from './vehicleGLB.js';
-import { attribute, float, vec3, dot, normalView, positionView, positionLocal, smoothstep } from 'three/tsl';
+import { attribute, float, vec3, dot, normalView, positionView, mix } from 'three/tsl';
 import { cargoTotal, RESOURCES } from './economy.js';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _a = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _e = new THREE.Euler();
@@ -17,7 +17,25 @@ const TYPES = ['sparrow', 'scarab', 'mender', 'aegis', 'magpie'];
 const CAP = 48;
 const FLY = { sparrow: 30, mender: 26, aegis: 34, magpie: 22, scarab: 0 };
 const SIZE = { sparrow: 1.0, scarab: 1.0, mender: 0.9, aegis: 1.0, magpie: 1.05 };
-const TYPE_HEX = { sparrow: 0xffc040, scarab: 0xff5030, mender: 0x60ff90, aegis: 0x60c8ff, magpie: 0xffd060 };
+// the swarm colours (EX_BASES[...].color): hues no pickup uses, so a drone never reads as loot
+const TYPE_HEX = { sparrow: 0x5aa0ff, scarab: 0xff4030, mender: 0x50ff50, aegis: 0xe8f4ff, magpie: 0xff50e0 };
+
+// A part of a meshopt / quantized GLB (positions in Int16 / Uint16 under a node scale) baked into the drone's
+// own space: copy to Float32 first, or applyMatrix4 writes metres back into a 16-bit array and the part
+// collapses to a point.
+function bakeGeometry(o) {
+  const src = o.geometry, g = new THREE.BufferGeometry();
+  for (const [name, a] of Object.entries(src.attributes)) {
+    if (name === 'position' || name === 'normal') {
+      const f = new Float32Array(a.count * 3);
+      for (let i = 0; i < a.count; i++) { f[i * 3] = a.getX(i); f[i * 3 + 1] = a.getY(i); f[i * 3 + 2] = a.getZ(i); }
+      g.setAttribute(name, new THREE.BufferAttribute(f, 3));
+    } else g.setAttribute(name, a.clone());
+  }
+  if (src.index) g.setIndex(src.index.clone());
+  g.applyMatrix4(o.matrixWorld);
+  return g;
+}
 
 function segD2(a, b, c) {
   const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
@@ -82,11 +100,14 @@ export class Drones {
     const body = new THREE.MeshStandardNodeMaterial({ roughness: 0.45, metalness: 0.35 });
     const rim = float(1).sub(dot(normalView, positionView.normalize().negate()).clamp(0, 1)).pow(2);
     // gunmetal pushed 45% toward the swarm's colour: the type reads in the body's value as well as its core
-    body.colorNode = attribute('color', 'vec3').mul(0.3).add(0.04).mix(vec3(col.r, col.g, col.b).mul(0.75), 0.45);
-    body.emissiveNode = vec3(col.r, col.g, col.b).mul(rim.mul(1.4).add(0.12));
+    body.colorNode = mix(attribute('color', 'vec3').mul(0.3).add(0.04), vec3(col.r, col.g, col.b).mul(0.75), 0.4);
+    body.emissiveNode = vec3(col.r, col.g, col.b).mul(rim.mul(0.8).add(0.05));
+    // the model's own lights take the swarm colour too (nav lights, rotor tips, the scarab's back)
+    const lights = new THREE.MeshBasicNodeMaterial();
+    lights.colorNode = vec3(col.r * 1.8, col.g * 1.8, col.b * 1.8);
     if (tpl) {
       tpl.updateMatrixWorld(true);
-      tpl.traverse((o) => { if (o.isMesh) parts.push({ geo: o.geometry.clone().applyMatrix4(o.matrixWorld), mat: o.material === mats.glow || o.material === mats.lamp ? o.material : body }); });
+      tpl.traverse((o) => { if (o.isMesh) parts.push({ geo: bakeGeometry(o), mat: o.material === mats.glow || o.material === mats.lamp ? lights : body }); });
     } else {
       const g = new THREE.BoxGeometry(0.9, 0.35, 0.9);
       const col = new Float32Array(g.attributes.position.count * 3).fill(0.6);
@@ -100,8 +121,8 @@ export class Drones {
     }
     // a bright core in the swarm's colour (HDR: it blooms) and a soft dot on the ground under each drone
     const core = new THREE.MeshBasicNodeMaterial();
-    core.colorNode = vec3(col.r * 2.1, col.g * 2.1, col.b * 2.1);   // blooms a little, keeps its hue, leaves the drone's shape readable
-    const cg = new THREE.SphereGeometry(0.16, 10, 8); cg.translate(0, 0.16, 0);
+    core.colorNode = vec3(col.r * 1.5, col.g * 1.5, col.b * 1.5);   // a small nav light: no bloom ball over the drone's shape
+    const cg = new THREE.SphereGeometry(0.1, 8, 6); cg.translate(0, 0.2, 0);
     parts.push({ geo: cg, mat: core });
     for (const p of parts) {
       const im = new THREE.InstancedMesh(p.geo, p.mat, CAP);
@@ -110,12 +131,11 @@ export class Drones {
       list.push(im);
     }
     this.meshes[type] = list;
-    // ground dots (one flat additive disc per drone, drawn at the terrain under it)
-    const dm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-    const dd = positionLocal.xz.length();
-    dm.colorNode = vec3(col.r, col.g, col.b).mul(1.4);
-    dm.opacityNode = smoothstep(1.0, 0.25, dd).mul(0.7);
-    const dg = new THREE.CircleGeometry(1, 20); dg.rotateX(-Math.PI / 2);
+    // ground rings (one flat ring per drone on the terrain under it): a marker, not a glow, so it shows on bright sand
+    const dm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
+    dm.colorNode = vec3(col.r, col.g, col.b).mul(0.9);
+    dm.opacity = 0.55;
+    const dg = new THREE.RingGeometry(0.62, 1.0, 20); dg.rotateX(-Math.PI / 2);
     const dots = new THREE.InstancedMesh(dg, dm, CAP);
     dots.count = 0; dots.frustumCulled = false; dots.renderOrder = 3;
     M.scene.add(dots);
@@ -152,7 +172,7 @@ export class Drones {
         if (dots) {
           const g = this.mode.S.ground(d.pos.x, d.pos.z), h = Math.max(0, d.pos.y - g);
           _v.set(d.pos.x, g + 0.15, d.pos.z); _q.identity();
-          const r = sz * (1.1 + Math.min(1.2, h * 0.06));
+          const r = sz * 0.42;   // a small steady marker under the drone (not a halo: a swarm of halos is clutter)
           _m.compose(_v, _q, _s.set(r, 1, r));
           dots.setMatrixAt(i, _m);
         }
@@ -260,8 +280,9 @@ export class Drones {
     else {
       const back = d.i - (s.drones.length - 1) / 2;
       const h = V.heading;
-      tx = vp.x - Math.sin(h) * (V.radius + 3) + Math.cos(h) * back * 2.2;
-      tz = vp.z - Math.cos(h) * (V.radius + 3) - Math.sin(h) * back * 2.2;
+      const gap = this.sizeK() * 1.25;   // spaced at 1.25x their size: a file of beetles, not a centipede
+      tx = vp.x - Math.sin(h) * (V.radius + 3) + Math.cos(h) * back * gap;
+      tz = vp.z - Math.cos(h) * (V.radius + 3) - Math.sin(h) * back * gap;
       speed = Math.max(18, V.velocity.length() * 1.2);
     }
     _a.set(tx - d.pos.x, 0, tz - d.pos.z);
@@ -343,8 +364,8 @@ export class Drones {
     if (!e || !e.alive) { M.toast('No target for the swarm', 'warn'); return false; }
     this.focus = e; this.focusT = 6;
     for (const s of this.swarms) if (s.type === 'sparrow' || s.type === 'scarab') for (const d of s.drones) if (d.alive) d.target = e;
-    M.telegraph(e.pos, e.radius + 3, 0xffc040, 0.6, e);
-    M.pfx.ring(M.vehicle.position, 12, 0xffc040, 40);
+    M.telegraph(e.pos, e.radius + 3, 0x5aa0ff, 6, e);   // the mark stays on the target for the whole strike
+    M.pfx.ring(M.vehicle.position, 12, 0x5aa0ff, 40);
     M.sfx('ui', null, 0.8);
     return true;
   }

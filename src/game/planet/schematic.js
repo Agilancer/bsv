@@ -84,18 +84,27 @@ export function drawSchematic(canvas, id, gltf, mounts, ppm = 9) {
   c.fillStyle = 'rgba(160, 210, 255, 0.55)'; c.font = '600 10px sans-serif'; c.textAlign = 'center';
   c.fillText('BOW ▲', W / 2, 11);
   c.textAlign = 'right'; c.fillText(`${s.dims.L.toFixed(1)} × ${s.dims.W.toFixed(1)} m`, W - 6, H - 6);
-  // hardpoints
+  // hardpoints: a dot on the mount, the numbered badge pushed clear of the others on a leader line
+  const placed = [];
   s.hps.forEach((p, i) => {
     const m = mounts[i] || {};
     const col = m.kind === 'gun' ? '#ffc070' : m.kind === 'bay' ? '#6affd0' : 'rgba(150, 180, 220, 0.6)';
+    let bx = p.x, by = p.y;
+    for (let k = 0; k < 24 && placed.some((q) => Math.hypot(q.x - bx, q.y - by) < 19); k++) {
+      const a = (p.x < W / 2 ? Math.PI : 0) + (k % 2 ? 1 : -1) * (0.35 + 0.25 * (k >> 1)), r = 20 + 6 * (k >> 2);
+      bx = p.x + Math.cos(a) * r; by = p.y + Math.sin(a) * r;
+    }
+    placed.push({ x: bx, y: by });
     c.save();
-    c.shadowColor = col; c.shadowBlur = m.kind ? 10 : 0;
-    c.strokeStyle = col; c.lineWidth = 2;
-    c.beginPath(); c.arc(p.x, p.y, 8, 0, Math.PI * 2); c.stroke();
+    c.strokeStyle = col; c.fillStyle = col;
+    if (bx !== p.x || by !== p.y) { c.globalAlpha = 0.7; c.lineWidth = 1; c.beginPath(); c.moveTo(p.x, p.y); c.lineTo(bx, by); c.stroke(); c.globalAlpha = 1; }
+    c.beginPath(); c.arc(p.x, p.y, 2.5, 0, Math.PI * 2); c.fill();
+    c.shadowColor = col; c.shadowBlur = m.kind ? 10 : 0; c.lineWidth = 2;
+    c.beginPath(); c.arc(bx, by, 8, 0, Math.PI * 2); c.fillStyle = 'rgba(4, 10, 26, 0.85)'; c.fill(); c.stroke();
     if (m.kind) { c.fillStyle = col; c.globalAlpha = 0.35; c.fill(); c.globalAlpha = 1; }
     c.restore();
     c.fillStyle = '#fff'; c.font = '700 10px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText(String(i + 1), p.x, p.y + 0.5);
+    c.fillText(String(i + 1), bx, by + 0.5);
     c.textBaseline = 'alphabetic';
   });
   return s.hps.length;
