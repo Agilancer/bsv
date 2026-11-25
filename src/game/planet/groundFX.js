@@ -32,7 +32,7 @@ export class GroundFX {
     const d = length(p.xz.sub(vec2(this.uPulse.x, this.uPulse.y)));
     const band = smoothstep(9, 0, abs(d.sub(rad))).mul(exp(age.mul(-0.9))).mul(this.uPulse.w);
     const grid = smoothstep(0.92, 1.0, max(abs(fract(p.x.mul(0.125)).sub(0.5)), abs(fract(p.z.mul(0.125)).sub(0.5))).mul(2));
-    return out.add(this.uPulseCol.mul(band.mul(grid.mul(2.5).add(0.6))));
+    return out.add(this.uPulseCol.mul(band.mul(grid.mul(1.3).add(0.35))));   // a sonar sweep, kept under bloom so it never bands a fight white
   }
   set(i, x, z, r, intensity, hex, fill = 0) {
     const d = this.slots[i];

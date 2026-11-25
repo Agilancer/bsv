@@ -6,6 +6,7 @@ import { GeoBuilder } from './geo.js';
 import { texturedMat } from './siteModels.js';
 import { probeStats } from './economy.js';
 import { RESOURCES, cargoTotal } from './economy.js';
+import { steerOffset } from './avoid.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _e = new THREE.Euler(), _w = new THREE.Vector3();
 
@@ -36,7 +37,7 @@ export class Probes {
     if (this.active() >= st.count) { M.toast(`All ${st.count} probe${st.count > 1 ? 's' : ''} deployed`, 'warn'); return false; }
     const p = {
       pos: V.position.clone().setY(V.position.y + 3), vel: new THREE.Vector3(0, 8, 0), state: 'seek', node: null, haul: {}, n: 0,
-      hp: st.hp, maxHp: st.hp, alive: true, radius: 1.2, spin: Math.random() * 6, acc: 0, id: Math.random(), idle: 0,
+      hp: st.hp, maxHp: st.hp, alive: true, radius: 1.2, spin: Math.random() * 6, acc: 0, id: Math.random(), idle: 0, av: { side: 0, hold: 0 },
       damage: (d) => this.damageProbe(p, d),
     };
     this.list.push(p);
@@ -111,9 +112,14 @@ export class Probes {
         tx = V.position.x; tz = V.position.z; hover = 6;
         if (Math.hypot(tx - p.pos.x, tz - p.pos.z) < 5) { this.deliver(p, false); p.state = 'seek'; p.idle = 0; if (!site.nearestNode(V.position, 220, (n) => !n.claimed)) { p.alive = false; fx.ring(p.pos, 2, 0x58e0ff, 16); } }
       }
-      // fly
+      // fly (around boulders, trees and spires on the surface: they stand taller than the hover height)
       if (M.dungeon) { const w = M.dungeon.steer(p.pos, tx, tz, _w); tx = w.x; tz = w.z; }
-      const dx = tx - p.pos.x, dz = tz - p.pos.z, d = Math.hypot(dx, dz);
+      let dx = tx - p.pos.x, dz = tz - p.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (!M.dungeon && d > 2 && p.state !== 'mine') {
+        const off = steerOffset(M.terrain, p.pos.x, p.pos.z, dx, dz, 2.2, Math.max(10, st.speed * 0.9), d, p.av, dt);
+        if (off) { const c = Math.cos(off), s = Math.sin(off), ax = dx * c + dz * s; dz = dz * c - dx * s; dx = ax; }
+      }
       const sp = st.speed * (d < 8 ? d / 8 : 1);
       const k = 1 - Math.exp(-3 * dt);
       p.vel.x += ((d > 0.1 ? dx / d * sp : 0) - p.vel.x) * k;

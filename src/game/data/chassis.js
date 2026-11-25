@@ -1,4 +1,4 @@
-// The 60 main-ship chassis and the 60 planet-explorer chassis.
+// The 60 main-ship chassis and the 84 planet-explorer chassis (7 frames x 12 marks).
 // Six shipyards x ten hull classes. A yard sets the design language (hull plating, prow,
 // superstructure, spires, sails, glow colour); a class sets size, crew, slots and handling.
 // Ship local frame: +Z is the bow, +Y up, +X is port, -X starboard.
@@ -145,33 +145,60 @@ for (const [yk, yard] of Object.entries(YARDS)) {
 }
 export const CHASSIS_BY_ID = Object.fromEntries(CHASSIS.map((c) => [c.id, c]));
 
-// --- Planet exploration vehicles: 6 frames x 10 marks ---
+// --- Planet exploration vehicles: 7 frames x 12 marks ---
+// hp: [hardpoints at Mk I, at Mk XII]; a hardpoint takes a gun or a drone bay. Models are built in
+// Blender (tools/blender, same numbers in tools/blender/frames.py) and grow with every mark.
+export const EX_MARKS = 12;
 export const EXPLORER_FRAMES = {
-  skiff: { name: 'Skiff', blurb: 'Light hover skiff. Fast, fragile, great scanner.', hover: true, speed: 1.35, armor: 0.7, cargo: 0.8, hard: { gun: 1, tool: 2, module: 2 } },
-  rover: { name: 'Rover', blurb: 'Six-wheeled survey rover. Big cargo hold, drills.', hover: false, speed: 1.0, armor: 1.0, cargo: 1.5, hard: { gun: 1, tool: 3, module: 2 } },
-  strider: { name: 'Strider', blurb: 'Four-legged walker. Climbs anything, mounts heavy guns.', hover: false, legs: 4, speed: 0.85, armor: 1.3, cargo: 1.0, hard: { gun: 2, tool: 2, module: 3 } },
-  gunship: { name: 'Gunship', blurb: 'Low-altitude VTOL gunship. Rockets and chainguns.', hover: true, speed: 1.2, armor: 0.9, cargo: 0.7, hard: { gun: 3, tool: 1, module: 2 } },
-  crawler: { name: 'Crawler', blurb: 'Tracked mining crawler. Slow, nearly indestructible.', hover: false, speed: 0.7, armor: 1.7, cargo: 2.0, hard: { gun: 1, tool: 3, module: 3 } },
-  lancer: { name: 'Lancer', blurb: 'Assault hovertank with a spinal rail lance.', hover: true, speed: 1.05, armor: 1.2, cargo: 0.9, hard: { gun: 2, tool: 1, module: 3 } },
+  skiff: { name: 'Skiff', blurb: 'Light hover skiff. Fast, fragile, great scanner.', hover: true, speed: 1.35, armor: 0.7, cargo: 0.8, hp: [1, 5], tool: 2, module: 2 },
+  rover: { name: 'Rover', blurb: 'Six-wheeled survey rover. Big cargo hold, drills.', hover: false, speed: 1.0, armor: 1.0, cargo: 1.5, hp: [1, 6], tool: 3, module: 2 },
+  strider: { name: 'Strider', blurb: 'Walker that grows from four legs to eight. Climbs anything, mounts heavy guns.', hover: false, legs: 4, speed: 0.85, armor: 1.3, cargo: 1.0, hp: [2, 7], tool: 2, module: 3 },
+  gunship: { name: 'Gunship', blurb: 'VTOL gunship: two tilt-rotors at Mk I, eight ducted lifters by Mk XII.', hover: true, speed: 1.2, armor: 0.9, cargo: 0.7, hp: [2, 8], tool: 1, module: 2 },
+  crawler: { name: 'Crawler', blurb: 'Tracked mining crawler. Slow, nearly indestructible.', hover: false, speed: 0.7, armor: 1.7, cargo: 2.0, hp: [1, 6], tool: 3, module: 3 },
+  lancer: { name: 'Lancer', blurb: 'Assault hovertank with a spinal rail lance.', hover: true, speed: 1.05, armor: 1.2, cargo: 0.9, hp: [2, 7], tool: 1, module: 3 },
+  seraph: { name: 'Seraph', blurb: 'Flying combat robot on thruster wings. Drone carrier: every swarm launches one more.', hover: true, speed: 1.15, armor: 0.85, cargo: 0.6, hp: [2, 8], tool: 1, module: 2, droneBonus: 1 },
 };
-const MARK = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+const MARK = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 const EXPLORER_NAMES = {
-  skiff: ['Dart', 'Wisp', 'Swallow', 'Kestrel', 'Glint', 'Mirage', 'Zephyr', 'Phantom', 'Arrowlight', 'Skyreaver'],
-  rover: ['Mule', 'Prospector', 'Burro', 'Pathfinder', 'Trailhound', 'Sojourner', 'Wayfarer', 'Frontier', 'Conquistador', 'Odyssey'],
-  strider: ['Mantis', 'Stalker', 'Heron', 'Arachne', 'Colossus', 'Talon', 'Ravager', 'Goliath', 'Titanwalk', 'Worldstrider'],
-  gunship: ['Hornet', 'Wasp', 'Raptor', 'Harpy', 'Valkyrie', 'Banshee', 'Wyvern', 'Thunderhead', 'Stormcrow', 'Skyhammer'],
-  crawler: ['Mole', 'Grub', 'Tortoise', 'Delver', 'Ironback', 'Bore', 'Deepcrusher', 'Monolith', 'Earthshaker', 'Worldeater'],
-  lancer: ['Pike', 'Glaive', 'Halberd', 'Partisan', 'Spear', 'Longinus', 'Javelin', 'Trident', 'Gungnir', 'Dawnspear'],
+  skiff: ['Dart', 'Wisp', 'Swallow', 'Kestrel', 'Glint', 'Mirage', 'Zephyr', 'Phantom', 'Arrowlight', 'Skyreaver', 'Tempest', 'Halcyon'],
+  rover: ['Mule', 'Prospector', 'Burro', 'Pathfinder', 'Trailhound', 'Sojourner', 'Wayfarer', 'Frontier', 'Conquistador', 'Odyssey', 'Caravan', 'Atlas'],
+  strider: ['Mantis', 'Stalker', 'Heron', 'Arachne', 'Colossus', 'Talon', 'Ravager', 'Goliath', 'Titanwalk', 'Worldstrider', 'Behemoth', 'Ironspire'],
+  gunship: ['Hornet', 'Wasp', 'Raptor', 'Harpy', 'Valkyrie', 'Banshee', 'Wyvern', 'Thunderhead', 'Stormcrow', 'Skyhammer', 'Maelstrom', 'Skyfortress'],
+  crawler: ['Mole', 'Grub', 'Tortoise', 'Delver', 'Ironback', 'Bore', 'Deepcrusher', 'Monolith', 'Earthshaker', 'Worldeater', 'Mountainbreaker', 'Leviathan'],
+  lancer: ['Pike', 'Glaive', 'Halberd', 'Partisan', 'Spear', 'Longinus', 'Javelin', 'Trident', 'Gungnir', 'Dawnspear', 'Sunlance', 'Starpiercer'],
+  seraph: ['Sprite', 'Herald', 'Vigil', 'Warden', 'Paladin', 'Archon', 'Cherubim', 'Dominion', 'Throne', 'Virtue', 'Ophanim', 'Empyrean'],
 };
+// what each mark adds that you can see (the Blender models build exactly these; the hangar names them)
+export const EX_MARK_ADDS = {
+  skiff: ['Twin pontoons and a cockpit pod', 'Stern stabiliser wing with tip fins', 'Bow canards and a sensor blister', 'Outrigger floats and a dorsal engine pair', 'Bow sensor bar', 'Outrigger wings, float engines and fins',
+    'Trimaran centre hull and a sensor mast', 'Radome and slung sensor pods', 'Ring array and a V-tail', 'Four pontoons, a deck, cabin and scanner dish', 'Radome posts and deck-edge skirts', 'Bowsprit sensor boom and a cabin crest'],
+  rover: ['6x6 cab and an open deck', 'Dropsides, roof beacon and a sample locker', 'Bull bar, winch, light bar and a core-sample rack', 'Armoured cab, roof rack and tarp load', 'Survey mast, spare wheel and snorkel', 'Roll cage with gun mounts',
+    '8x8 chassis, crane and survey containers', 'Fuel tank and outriggers', 'Bed armour skirts and a crane extension', '10x10 road train with a cargo module', 'Radar dish, ladders and floodlights', 'Flank armour and a crest'],
+  strider: ['Four legs and an armoured carapace', 'Sensor horns and a dorsal sensor pod', 'Armoured abdomen with exhausts', 'Raised gun platforms', 'Six legs, a longer body and grapple claws', 'Radiator fins and a mast',
+    'Lilac stripes and chevrons', 'Exhaust stacks and doubled hip armour', 'Eight legs and a command tower', 'Second tier and bridge wings', 'Sensor dish', 'Command spire and crest'],
+  gunship: ['Two tilt-rotor ducts', 'Nose sensor ball', 'Four ducts and shoulder gun sponsons', 'Belly ECM pods', 'Dorsal spine fin', 'Six ducts and sponson chevrons',
+    'Flank stripes', 'Rear avionics module', 'Eight ducts in two sizes, twin tail booms', 'Glowing duct rims', 'Sensor dome and antennas', 'Command crest and sponson banners'],
+  crawler: ['Twin tracks, front drill and exhaust stacks', 'Rear fenders with lockers', 'Front fenders with hazard noses', 'Exhaust shrouds and ripper teeth', 'Four track pods and a taller superstructure', 'Sensor mast',
+    'Pod guards and ladders', 'Floodlight bar and armour skirts', 'Wide pods, an ore hopper and a crane', 'Ore conveyor chute', 'Four exhaust stacks', 'Crest'],
+  lancer: ['Wedge hull, spinal lance and breech turret', 'Armour skirts and a fourth coil ring', 'Stern fins and a vented engine deck', 'Bow ram, muzzle brake and shoulder turrets', 'Sponsons with hover pods', 'Sponson engines and a cupola',
+    'Capacitor banks', 'Sponson rams and a sensor mast', 'Twin-hull catamaran, bridge and a long lance', 'Tower masts and tail fins', 'Outer sponsons', 'Crest, second lance yoke and hull rams'],
+  seraph: ['Robot core on two jet wings', 'Under-feathers, shoulder fins and backpack jets', 'Crest, tail fins and a dorsal gun post', 'Legs, four blades and a V-fin', 'Gauntlet blades and shoulder pods', 'Spine fins and gold pauldrons',
+    'Six blades and the halo', 'Tail train and gold knees', 'Crown and layered chest armour', 'Eight blades and a drone rack', 'Wing-tip drone launchers', 'Outer halo ring and back-rack mounts'],
+};
+// explorer level needed to build Mk m: 1, 5, 10, 14, 19, 23, 28, 32, 37, 41, 46, 50 (Mk XII at the cap)
+export const exMarkLevel = (m) => 1 + Math.round((m - 1) * 49 / 11);
+export const exHardpoints = (f, m) => f.hp[0] + Math.floor((m - 1) * (f.hp[1] - f.hp[0]) / 11);
 export const EXPLORERS = [];
 for (const [fk, f] of Object.entries(EXPLORER_FRAMES)) {
-  for (let m = 1; m <= 10; m++) {
+  for (let m = 1; m <= EX_MARKS; m++) {
+    const eq = 1 + (m - 1) * 0.82;   // stat curve: Mk XII sits a little above the old Mk X
     EXPLORERS.push({
       id: `ex_${fk}_${m}`, kind: 'explorer', frame: fk, tier: m, cls: f.name,
       name: EXPLORER_NAMES[fk][m - 1], fullName: `${EXPLORER_NAMES[fk][m - 1]} ${f.name} Mk ${MARK[m - 1]}`,
-      hp: Math.round(300 * Math.pow(m, 1.35) * f.armor), speed: +(22 * f.speed * (1 + m * 0.03)).toFixed(1),
-      cargo: Math.round(40 * m * f.cargo), slots: { ...f.hard, gun: f.hard.gun + (m >= 6 ? 1 : 0), module: f.hard.module + (m >= 4 ? 1 : 0) },
-      level: Math.max(1, (m - 1) * 6), price: Math.round(600 * Math.pow(m, 2.4)), hover: f.hover, legs: f.legs || 0,
+      hp: Math.round(300 * Math.pow(eq, 1.35) * f.armor), speed: +(22 * f.speed * (1 + m * 0.025)).toFixed(1),
+      cargo: Math.round(40 * eq * f.cargo),
+      slots: { hp: exHardpoints(f, m), tool: f.tool + (m >= 7 ? 1 : 0), module: f.module + (m >= 4 ? 1 : 0) + (m >= 10 ? 1 : 0) },
+      level: exMarkLevel(m), price: Math.round(600 * Math.pow(eq, 2.4)), hover: f.hover, legs: f.legs || 0, droneBonus: f.droneBonus || 0, adds: EX_MARK_ADDS[fk][m - 1],
     });
   }
 }

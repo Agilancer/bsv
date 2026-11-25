@@ -113,7 +113,7 @@ export class PlanetHUD {
     if (this.numbers.length > 80) this.numbers.shift();
     this.numbers.push({ pos: pos.clone(), v: Math.max(1, Math.round(amount)), crit, kind, t: 0, dx: (Math.random() - 0.5) * 30 });
   }
-  // free text that floats up from a world position (punt distances and the like)
+  // free text that floats up from a world position (damage numbers, pickups and the like)
   floatText(pos, text, color = '#ffffff') {
     if (this.numbers.length > 80) this.numbers.shift();
     this.numbers.push({ pos: pos.clone(), text, color, t: 0, dx: 0, kind: 'text' });
@@ -296,6 +296,7 @@ export class PlanetHUD {
       el.pCargoRes.innerHTML = RES_KEYS.filter((k) => M.cargo[k]).map((k) => `<span style="color:${RESOURCES[k].color}">${RESOURCES[k].short} ${M.cargo[k]}</span>`).join('') || '<span class="label">empty</span>';
       el.pBank.innerHTML = RES_KEYS.map((k) => `<span style="color:${RESOURCES[k].color}" title="${RESOURCES[k].name}">${RESOURCES[k].short} ${fmt(M.data.resources[k] || 0)}</span>`).join('');
       el.pGuns.innerHTML = st.guns.map((g) => `<div class="grow"><span style="color:${RARITY[g.item.rarity].color}">${g.item.name}</span><span class="label">${EX_BASES[g.item.base].name}</span></div>`).join('')
+        + (M.drones ? M.drones.summary() : []).map((d) => `<div class="grow drone"><span style="color:#${d.color.toString(16).padStart(6, '0')}">${d.name}</span><span class="dpips">${'<i class="on"></i>'.repeat(d.alive)}${'<i></i>'.repeat(Math.max(0, d.count - d.alive))}${d.rebuild > 0 ? `<em>${d.rebuild.toFixed(0)}s</em>` : ''}</span></div>`).join('')
         + st.tools.map((t) => `<div class="grow tool"><span style="color:${RARITY[t.item.rarity].color}">${t.item.name}</span><span class="label">${t.ts.power.toFixed(1)}/s</span></div>`).join('');
       el.pProbes.innerHTML = `<div class="label" style="margin-top:6px">Probes ${M.probes.active()}/${ps.count} · cap ${ps.cap}${ps.uplink ? ' · uplink' : ''}</div>` + M.probes.list.map((p) => `<div class="probe-row"><span>${p.state.toUpperCase()}</span><div class="bar"><i style="width:${(p.n / ps.cap * 100).toFixed(0)}%"></i></div><div class="bar hull mini"><i style="width:${(p.hp / p.maxHp * 100).toFixed(0)}%"></i></div></div>`).join('');
       el.pObj.innerHTML = this.objectives();

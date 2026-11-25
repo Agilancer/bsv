@@ -3,9 +3,9 @@
 // reforging / empowering / overcharging / imbuing gear) and into the explorer (chassis, fabrication).
 // Pure data + logic: importable in node (tests) without a DOM.
 import { RNG, hashStr } from '../../engine/rng.js';
-import { AFFIXES, BASES, RARITY, grantItemXp, ITEM_MAX_LVL } from '../data/items.js';
+import { AFFIXES, BASES, RARITY, grantItemXp, ITEM_MAX_LVL, rollRarity } from '../data/items.js';
 import { EXPLORERS, EXPLORER_BY_ID } from '../data/chassis.js';
-import { rollExItem, EX_INV_SIZE } from './explorerItems.js';
+import { rollExItem, makeExItem, EX_INV_SIZE, EX_AFFIXES, exAffixPool } from './explorerItems.js';
 import { SIZES } from '../data/enemies.js';
 
 export const RESOURCES = {
@@ -15,6 +15,7 @@ export const RESOURCES = {
   biomass: { name: 'Xeno-Biomass', short: 'BIO', color: '#5affb0', hex: 0x5affb0, blurb: 'Living alien tissue. Self-repairing compounds.' },
   relic: { name: 'Alien Relics', short: 'REL', color: '#c88aff', hex: 0xc88aff, blurb: 'Artefacts of the vanished Precursors.' },
   datacore: { name: 'Ancient Data Cores', short: 'DAT', color: '#ffd66a', hex: 0xffd66a, blurb: 'Precursor memory. Targeting and command algorithms.' },
+  tech: { name: 'Salvaged Tech', short: 'TEC', color: '#ff7ad0', hex: 0xff7ad0, blurb: 'Servos, circuitry and drive cells stripped from wrecks and machines. Paid by missions; found on derelicts, outposts and war machines. Guns and drones are built from it.' },
 };
 export const RES_KEYS = Object.keys(RESOURCES);
 
@@ -239,12 +240,13 @@ export function workshop(data, item, kind, arg, rng) {
 
 // ---------------- explorer chassis + fabrication ----------------
 export function chassisCost(ch) {
-  const m = ch.tier;
+  const m = 1 + (ch.tier - 1) * 0.82;   // 12 marks on the old 10-mark price curve
   const cost = { credits: ch.price, ore: Math.round(40 * Math.pow(m, 1.6)), crystal: Math.round(15 * Math.pow(m, 1.6)) };
-  if (m >= 3) cost.isotope = Math.round(8 * Math.pow(m - 1, 1.5));
-  if (m >= 5) cost.datacore = m - 3;
-  if (m >= 7) cost.relic = m - 5;
-  if (ch.frame === 'rover' && m === 1) return { credits: 0 };
+  if (ch.tier >= 3) cost.isotope = Math.round(8 * Math.pow(m - 1, 1.5));
+  if (ch.tier >= 3) cost.tech = Math.round(6 * Math.pow(m - 1, 1.4));
+  if (ch.tier >= 5) cost.datacore = Math.round(m - 3);
+  if (ch.tier >= 7) cost.relic = Math.round(m - 5);
+  if (ch.frame === 'rover' && ch.tier === 1) return { credits: 0 };
   return cost;
 }
 export function buyChassis(data, id) {
@@ -260,7 +262,7 @@ export function buyChassis(data, id) {
   return { ok: true };
 }
 export function fabricateCost(slot, ilvl) {
-  const base = slot === 'gun' ? { ore: 30, isotope: 8 } : slot === 'tool' ? { ore: 25, crystal: 12 } : { ore: 20, crystal: 8, biomass: 10 };
+  const base = slot === 'gun' || slot === 'hp' ? { ore: 30, isotope: 8, tech: 3 } : slot === 'bay' ? { ore: 24, crystal: 10, tech: 8 } : slot === 'tool' ? { ore: 25, crystal: 12 } : { ore: 20, crystal: 8, biomass: 10 };
   const m = 1 + ilvl * 0.18;
   const out = { credits: Math.round(60 + ilvl * 20) };
   for (const [k, v] of Object.entries(base)) out[k] = Math.round(v * m);
@@ -273,6 +275,99 @@ export function fabricate(data, slot, ilvl, rng = new RNG(Math.random() * 1e9)) 
   const item = rollExItem(ilvl, rng, { slot, luck: 0.4 });
   ex.inventory.push(item);
   return { ok: true, item };
+}
+
+// ---------------- blueprints: craft the gun or drone bay you want ----------------
+// Every gun and drone bay has a recipe of planet resources plus Salvaged Tech (missions, salvage,
+// machines). Standard rolls a rarity (as the fabricator does); Masterwork costs more, with relics and
+// data cores on top, and guarantees rare or better.
+export const BLUEPRINTS = {
+  chaingun: { ore: 30, isotope: 6, tech: 4 },
+  scatter: { ore: 34, crystal: 8, tech: 4 },
+  rockets: { ore: 26, isotope: 12, tech: 6 },
+  plasma: { crystal: 18, isotope: 14, tech: 6 },
+  flamer: { ore: 22, biomass: 14, isotope: 8, tech: 4 },
+  rail: { crystal: 26, isotope: 16, tech: 8, datacore: 1 },
+  mortar: { ore: 40, isotope: 12, tech: 6 },
+  arc: { crystal: 22, isotope: 6, tech: 8, datacore: 1 },
+  sparrow: { ore: 24, crystal: 10, tech: 12 },
+  scarab: { ore: 30, isotope: 10, tech: 10 },
+  mender: { biomass: 26, crystal: 10, tech: 10 },
+  aegis: { crystal: 30, isotope: 6, tech: 12 },
+  magpie: { ore: 20, crystal: 8, tech: 10, datacore: 1 },
+};
+// Blueprints are earned: a captain starts with five (tier 0); the rest are recovered from war machines
+// and crates on planets, derelicts in space, missions and explorer level-ups. Tier 1 can turn up from
+// explorer level 5, tier 2 from level 12 (earlier only from a mission that names it).
+export const BLUEPRINT_TIER = { chaingun: 0, scatter: 0, rockets: 0, sparrow: 0, mender: 0, plasma: 1, flamer: 1, scarab: 1, aegis: 1, mortar: 2, arc: 2, rail: 2, magpie: 2 };
+export const STARTER_BLUEPRINTS = Object.keys(BLUEPRINT_TIER).filter((k) => BLUEPRINT_TIER[k] === 0);
+export const knowsBlueprint = (ex, base) => !!ex && (ex.blueprints || STARTER_BLUEPRINTS).includes(base);
+// learn one: a named blueprint, or a random unknown one the explorer's level allows. Returns its key or null.
+export function learnBlueprint(data, base = null, rng = new RNG(Math.random() * 1e9)) {
+  const ex = data && data.explorer;
+  if (!ex) return null;
+  ex.blueprints ||= STARTER_BLUEPRINTS.slice();
+  if (!base) {
+    const tier = (ex.level || 1) >= 12 ? 2 : (ex.level || 1) >= 5 ? 1 : 0;
+    const pool = Object.keys(BLUEPRINT_TIER).filter((k) => !ex.blueprints.includes(k) && BLUEPRINT_TIER[k] <= tier);
+    if (!pool.length) return null;
+    base = rng.pick(pool);
+  }
+  if (!BLUEPRINTS[base] || ex.blueprints.includes(base)) return null;
+  ex.blueprints.push(base);
+  return base;
+}
+export function craftCost(base, ilvl, master = false, affix = null) {
+  const bp = BLUEPRINTS[base];
+  if (!bp) return null;
+  const m = (1 + ilvl * 0.16) * (master ? 1.6 : 1);
+  const out = { credits: Math.round((80 + ilvl * 24) * (master ? 2 : 1)) };
+  for (const [k, v] of Object.entries(bp)) out[k] = Math.max(1, Math.round(v * (k === 'datacore' ? 1 + ilvl / 25 : m)));
+  if (master) { out.relic = 1 + Math.floor(ilvl / 15); out.datacore = (out.datacore || 0) + 1 + Math.floor(ilvl / 20); }
+  if (master && affix) out.tech = Math.round(out.tech * 1.5);   // a chosen affix costs half as much tech again
+  return out;
+}
+export function craftItem(data, base, ilvl, master = false, rng = new RNG(Math.random() * 1e9), affix = null) {
+  const ex = data.explorer;
+  const cost = craftCost(base, ilvl, master, master ? affix : null);
+  if (!cost) return { ok: false, why: 'Unknown blueprint' };
+  if (!knowsBlueprint(ex, base)) return { ok: false, why: 'Blueprint not recovered yet' };
+  if (ex.inventory.length >= EX_INV_SIZE) return { ok: false, why: 'Explorer bay full' };
+  if (!pay(data, cost)) return { ok: false, why: 'Not enough resources' };
+  let rar = rollRarity(rng, master ? 1.2 : 0.4);
+  if (master && RARITY[rar].i < 2) rar = 'rare';
+  const item = makeExItem(base, ilvl, rar, rng);
+  // masterwork with a chosen affix: it is guaranteed (it takes the first slot if not rolled)
+  if (master && affix && EX_AFFIXES[affix] && exAffixPool(base).includes(affix) && !item.affixes.some((a) => a.k === affix)) {
+    const v = EX_AFFIXES[affix].v(ilvl, rng), a = { k: affix, v: Math.abs(v) >= 1 ? Math.round(v) : Math.round(v * 1000) / 1000 };
+    if (item.affixes.length) item.affixes[0] = a; else item.affixes.push(a);
+  }
+  ex.inventory.push(item);
+  ex.crafted = (ex.crafted || 0) + 1;
+  return { ok: true, item, cost };
+}
+
+// ---------------- explorer workshop: empower (item level up to the explorer's + 3) and reforge (one affix) ----
+export const exEmpowerCap = (ex) => Math.min(EMPOWER_MAX, ((ex && ex.level) || 1) + 3);
+export function exWorkshopCost(item, kind) {
+  const r = RARITY[item.rarity].i;
+  if (kind === 'empower') return { ore: Math.round(16 + item.ilvl * 3), tech: Math.round(2 + item.ilvl * 0.25), credits: Math.round(25 + item.ilvl * 8) };
+  return { crystal: Math.round(12 + item.ilvl * 1.6 + r * 10), tech: Math.round(3 + item.ilvl * 0.2 + r * 2), credits: Math.round(30 + item.ilvl * 10 * (1 + r)) };
+}
+export function exWorkshop(data, item, kind, idx = 0, rng = new RNG(Math.random() * 1e9)) {
+  const ex = data.explorer;
+  if (kind === 'empower' && item.ilvl >= exEmpowerCap(ex)) return { ok: false, why: `Item level is capped at explorer level + 3 (${exEmpowerCap(ex)})` };
+  if (kind === 'reforge' && !item.affixes[idx]) return { ok: false, why: 'Nothing to reforge' };
+  const cost = exWorkshopCost(item, kind);
+  if (!pay(data, cost)) return { ok: false, why: 'Not enough resources' };
+  if (kind === 'empower') item.ilvl += 1;
+  else {
+    const have = new Set(item.affixes.map((a) => a.k)); have.delete(item.affixes[idx].k);
+    const pool = exAffixPool(item.base).filter((k) => !have.has(k));
+    const k = rng.pick(pool), v = EX_AFFIXES[k].v(item.ilvl, rng);
+    item.affixes[idx] = { k, v: Math.abs(v) >= 1 ? Math.round(v) : Math.round(v * 1000) / 1000 };
+  }
+  return { ok: true, cost };
 }
 
 // ---------------- resource probes ----------------

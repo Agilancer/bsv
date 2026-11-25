@@ -121,8 +121,7 @@ export class Audio {
   }
   warp(t, g) { this.osc('sine', 1400, 50, t, 0.9, 0.3 * g); this.burst(t, 1.4, 0.35 * g, 200, 2, 'bandpass', 6000).connect(this.verb); return 1; }
   levelup(t, g) { [523, 659, 784, 1046].forEach((f, i) => this.osc('triangle', f, f * 1.001, t + i * 0.09, 0.9, 0.12 * g).connect(this.verb)); return 1; }
-  honk(t, g) { for (const f of [233, 294]) { this.osc('sawtooth', f, f * 0.98, t, 0.42, 0.16 * g); this.osc('square', f * 2, f * 1.96, t, 0.4, 0.04 * g); } return 0.4; }
-  squeak(t, g) { const f = 900 + Math.random() * 500; this.osc('sine', f, f * 2.1, t, 0.09, 0.16 * g); this.osc('triangle', f * 1.8, f * 0.9, t + 0.08, 0.14, 0.12 * g); return 0.15; }
+  lure(t, g) { this.osc('sine', 70, 38, t, 0.7, 0.32 * g); this.osc('triangle', 140, 76, t, 0.55, 0.1 * g); this.burst(t, 0.35, 0.12 * g, 120, 1, 'lowpass', 900); return 0.7; }
   loot(t, g) { [1046, 1318, 1568, 2093].forEach((f, i) => this.osc('sine', f, f, t + i * 0.06, 0.6, 0.08 * g).connect(this.verb)); return 0.5; }
 
   // --- generative music ---

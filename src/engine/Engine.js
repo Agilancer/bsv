@@ -21,6 +21,11 @@ export class Engine {
     this.uTime = uniform(0);          // game time for shaders
     this.uRealTime = uniform(0);
     this.quality = Engine.detectQuality();
+    // The graphics device can be taken away (GPU reset, driver update, the browser reclaiming a
+    // background tab's high-performance GPU). three stops drawing for good when that happens, so
+    // the engine rebuilds the renderer on the same canvas and holds the sim until it is back.
+    this.gpu = { lost: false, losses: 0 };
+    this.onGpu = [];        // fns(state, info) for 'lost' | 'restored' | 'failed' (could not rebuild)
   }
 
   // 'low' on phones and tablets (by user agent, a touch-first device, or ?mobile), else 'high'; ?q= overrides
@@ -36,9 +41,9 @@ export class Engine {
     return navigator.maxTouchPoints > 1 && typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   }
 
-  async init() {
-    const forceWebGL = !navigator.gpu || new URLSearchParams(location.search).has('webgl');
-    const renderer = new THREE.WebGPURenderer({ antialias: false, forceWebGL, powerPreference: 'high-performance' });
+  // opts.webgl: use WebGL2 even where WebGPU is offered (after WebGPU could not be kept running)
+  async init(opts = {}) {
+    const forceWebGL = !navigator.gpu || !!opts.webgl || new URLSearchParams(location.search).has('webgl');
     // Resolution. Desktop: the display's ratio up to 1.75. Low tier (phones): start a little above
     // 1 so text-sized detail survives on dense screens, then let the governor in tick() trade
     // pixels for frame rate (?dynres=0 pins it, ?dynres=1 turns the governor on for the high tier).
@@ -47,12 +52,7 @@ export class Engine {
     const max = Math.min(dpr, low ? 1.5 : 1.75), start = low ? Math.min(max, 1.25) : max;
     this.res = { on: dyn !== null ? dyn !== '0' : low, scale: start, min: Math.min(start, low ? 0.7 : 1), max, t: 0, n: 0, slow: 0, fast: 0, hold: 0, lean: false, fps: 60 };
     this.onLean = [];       // fns() called once when resolution is at its floor and frames are still slow
-    renderer.setPixelRatio(start);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    await renderer.init();
+    const renderer = await this.createRenderer(undefined, forceWebGL);
     this.renderer = renderer;
     this.backend = renderer.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL2';
     this.container.appendChild(renderer.domElement);
@@ -68,6 +68,86 @@ export class Engine {
     document.addEventListener('visibilitychange', () => { this._last = undefined; });
     this.resize();
     return this;
+  }
+
+  // canvas undefined: three makes one (boot); a canvas: rebuild on it after a device loss, so the
+  // listeners on it (Input, the bridge) stay where they are
+  async createRenderer(canvas, forceWebGL) {
+    const r = new THREE.WebGPURenderer({ canvas, antialias: false, forceWebGL, powerPreference: 'high-performance' });
+    // a canvas that holds a WebGPU context cannot fall back to WebGL2: fail plainly (main.js reloads onto it)
+    if (canvas && !forceWebGL) r._getFallback = null;
+    r.onDeviceLost = (info) => this.gpuLost(r, info);
+    r.setPixelRatio(this.res.scale);
+    r.setSize(window.innerWidth, window.innerHeight);
+    r.toneMapping = THREE.ACESFilmicToneMapping;
+    r.toneMappingExposure = 1.05;
+    r.outputColorSpace = THREE.SRGBColorSpace;
+    await r.init();
+    return r;
+  }
+
+  // three's own handler only logs and stops drawing for good: hold the sim and rebuild instead
+  gpuLost(r, info) {
+    r._isDeviceLost = true;                       // render() on the dead renderer returns early
+    if (r !== this.renderer || this.gpu.failed) return;   // one we already replaced, or we gave up
+    const G = this.gpu, now = performance.now();
+    G.lost = true; G.losses++;
+    console.warn(`Graphics device lost (${info.api}: ${info.message}${info.reason ? ', ' + info.reason : ''})`);
+    // a device that dies again straight after each rebuild is not coming back: stop rebuilding
+    // (one loss can cost two rebuilds: Chrome may drop the next device too while it resets)
+    G.recent = (G.recent || []).filter((t) => now - t < 60000); G.recent.push(now);
+    if (G.recent.length > 4) { G.failed = true; console.error('Graphics device keeps failing: giving up on rebuilding'); for (const f of this.onGpu) f('failed', info); return; }
+    for (const f of this.onGpu) f('lost', info);
+    this.recover();
+  }
+
+  async recover() {
+    if (this.gpu.recovering) return;
+    this.gpu.recovering = true;
+    const old = this.renderer, canvas = old.domElement, webgl = this.backend === 'WebGL2';
+    let err = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      // a hidden tab gets no frames and may not be handed a GPU: wait until it is looked at
+      await whenVisible();
+      // a WebGL canvas keeps its context object: it is usable again once the browser restores it
+      // (three's loss handler calls preventDefault, which asks for that)
+      if (webgl && !(await glRestored(old.backend.gl, canvas, 10000))) { err = new Error('WebGL context was not restored'); break; }
+      let r = null;
+      try {
+        r = await this.createRenderer(canvas, webgl);
+        if (r._isDeviceLost) throw new Error('lost again while rebuilding');
+        r.toneMappingExposure = old.toneMappingExposure;
+        r.shadowMap.enabled = old.shadowMap.enabled; r.shadowMap.type = old.shadowMap.type;
+        // retire the dead renderer: its frame loop and its context-loss listener
+        old.setAnimationLoop(null); if (old._animation) old._animation.stop();
+        if (old.backend._onContextLost) canvas.removeEventListener('webglcontextlost', old.backend._onContextLost);
+        this.renderer = r;
+        this.rebuildPost();
+        if (this.running) r.setAnimationLoop((ms) => this.tick(ms));
+        this._last = undefined;
+        this.gpu.lost = false; this.gpu.recovering = false;
+        console.warn(`Graphics device restored (${this.backend})`);
+        for (const f of this.onGpu) f('restored');
+        return;
+      } catch (e) {
+        if (r && r !== this.renderer && r._animation) r._animation.stop();   // init started its frame loop
+        err = e;                                  // the GPU may still be coming back (driver reset): try again shortly
+        await new Promise((res) => setTimeout(res, 1000 * (attempt + 1)));
+      }
+    }
+    this.gpu.recovering = false; this.gpu.failed = true;
+    console.error('Graphics device could not be restored', err);
+    for (const f of this.onGpu) f('failed', err);
+  }
+
+  // the post chain belongs to a renderer: build a new one, keeping what modes and options set on it
+  rebuildPost() {
+    const bt = this.bloomNode.threshold;
+    const keep = { bloom: this.bloomStrength.value, thr: bt ? bt.value : null, vig: this.uVignette.value, flash: this.uFlash.value, col: this.uFlashColor.value.clone() };
+    this.buildPost();
+    this.bloomStrength.value = keep.bloom;
+    if (keep.thr !== null && this.bloomNode.threshold) this.bloomNode.threshold.value = keep.thr;
+    this.uVignette.value = keep.vig; this.uFlash.value = keep.flash; this.uFlashColor.value.copy(keep.col);
   }
 
   // Bloom drives the whole look: anything with HDR emissive (> 1) blooms.
@@ -146,6 +226,7 @@ export class Engine {
   }
 
   start() {
+    this.running = true;
     this.renderer.setAnimationLoop((ms) => this.tick(ms));
   }
 
@@ -160,7 +241,8 @@ export class Engine {
     this._fpsAcc += realDt; this._fpsN++;
     if (this._fpsAcc > 0.5) { this.fps = this._fpsN / this._fpsAcc; this._fpsAcc = 0; this._fpsN = 0; }
 
-    const dt = this.paused ? 0 : Math.min(realDt, 1 / 20) * this.timeScale;
+    // nothing can be drawn while the graphics device is being rebuilt: hold the sim like a hidden tab
+    const dt = this.paused || this.gpu.lost ? 0 : Math.min(realDt, 1 / 20) * this.timeScale;
     this.time += dt;
     this.uTime.value = this.time;
     this.uRealTime.value = this.realTime;
@@ -191,4 +273,23 @@ export class Engine {
     this.uFlash.value = Math.max(this.uFlash.value, strength);
     this.uFlashColor.value.set(color);
   }
+}
+
+function whenVisible() {
+  if (!document.hidden) return Promise.resolve();
+  return new Promise((res) => {
+    const f = () => { if (!document.hidden) { document.removeEventListener('visibilitychange', f); res(); } };
+    document.addEventListener('visibilitychange', f);
+  });
+}
+
+// true once the lost WebGL context is back (it may already be), false after `ms` without it
+function glRestored(gl, canvas, ms) {
+  if (gl && !gl.isContextLost()) return Promise.resolve(true);
+  return new Promise((res) => {
+    const done = (ok) => { clearTimeout(t); canvas.removeEventListener('webglcontextrestored', on); res(ok); };
+    const on = () => done(true);
+    const t = setTimeout(() => done(false), ms);
+    canvas.addEventListener('webglcontextrestored', on);
+  });
 }

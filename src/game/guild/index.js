@@ -7,6 +7,7 @@
 import { RNG, hashStr, rng as R } from '../../engine/rng.js';
 import { GALAXY_SEED } from '../galaxy.js';
 import { CHASSIS_BY_ID } from '../data/chassis.js';
+import { RENAMED_HANDLES } from '../data/names.js';
 import * as D from './data.js';
 import { installZones } from './zones.js';
 import { installArena } from './arena.js';
@@ -15,11 +16,11 @@ import { installGuildUI } from './ui.js';
 const LINES = {
   welcome: ['welcome aboard!', 'o7 new blood', 'glad to have you', 'welcome! guild runs are fridays'],
   joined: ['happy to be here o7', 'thanks for the invite captain', 'finally a proper guild', 'reporting in'],
-  boss: ['gz on the kill', 'nice one captain', 'big kill! screenshot or it didnt happen', 'thats our guildmaster'],
+  boss: ['gz on the kill', 'nice one captain', 'big kill. logging it for the guild record', 'thats our guildmaster'],
   loot: ['grats on the drop', 'link it!', 'jealous', 'gz'],
   death: ['rip captain', 'need backup? say the word', 'we avenge you later o7', 'unlucky'],
   idle: ['anyone running arenas tonight?', 'the glass fields are hot right now', 'bank is looking healthy', 'who needs an escort?', 'saw rival colours two systems over', 'need one more for relay capture', 'o7 all'],
-  win: ['GG! we take those', 'that was clean', 'rating go up', 'gg wp'],
+  win: ['GG! we take those', 'that was clean', 'that lifts our standing', 'gg wp'],
   loss: ['gg, next one', 'unlucky, they had the better comp', 'we go again', 'close one'],
   capture: ['extractor is ours', 'glass is flowing', 'hold that point!', 'nice cap'],
   ally: ['new friends, new enemies', 'about time we picked a side', 'allies on the board o7'],
@@ -39,6 +40,23 @@ export function installGuild(game) {
     if (!P.pvp) P.pvp = fresh; else for (const k of Object.keys(fresh)) if (P.pvp[k] === undefined) P.pvp[k] = fresh[k];
     if (!P.diplo || !Array.isArray(P.diplo.blocs)) P.diplo = D.newDiplomacy(GALAXY_SEED, guilds);
     for (const g of guilds) if (P.diplo.standing[g.tag] === undefined) P.diplo.standing[g.tag] = 0;
+    // captains recorded under a retired handle (guild rosters, PvP books) take its replacement
+    for (const k of ['guild', 'pvp', 'diplo']) if (P[k]) renameHandles(P[k], 0);
+  }
+  function renameHandles(o, depth) {
+    if (depth > 6 || !o || typeof o !== 'object') return;
+    for (const k of Object.keys(o)) {
+      const v = o[k];
+      if (typeof v === 'string') {
+        // a handle may carry the number genCaptain appends on a clash
+        for (const cut of [0, 1, 2]) {
+          const base = cut ? v.slice(0, -cut) : v, tail = cut ? v.slice(-cut) : '';
+          if (cut && !/^\d+$/.test(tail)) break;
+          if (Object.hasOwn(RENAMED_HANDLES, base)) { o[k] = RENAMED_HANDLES[base] + tail; break; }
+        }
+      }
+      else if (v && typeof v === 'object') renameHandles(v, depth + 1);
+    }
   }
   Object.defineProperties(G, {
     g: { get: () => (game.data ? game.data.guild : null) },

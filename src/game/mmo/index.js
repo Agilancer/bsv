@@ -78,7 +78,7 @@ export function installMMO(game) {
     const W = game.world;
     W.beams.add(st.position, s.position, 0x58c8ff, 2, 0.4);
     W.fx.ring(s.position, s.dims.L * 0.8, 0x58ffd8, 40);
-    if (Math.random() < 0.35) say('LOCAL', s.name, R.pick([`docking at ${st.name}, anyone selling repair drones?`, 'putting in for repairs', `${st.name} has the cheapest refits in the sector fyi`, 'cargo full brb', 'o7 station crew']), '');
+    if (Math.random() < 0.35) say('LOCAL', s.name, R.pick([`docking at ${st.name}, anyone selling repair drones?`, 'putting in for repairs', `${st.name} has the cheapest refits in the sector fyi`, 'hold is full, offloading before the next run', 'o7 station crew']), '');
     pop.docked.push({ name: s.name, guild: s.guild, level: s.level, chassis: s.chassis.id, st, t: 25 + Math.random() * 60 });
     pop.ships.splice(pop.ships.indexOf(s), 1); W.removeShip(s);
   }
@@ -137,16 +137,16 @@ export function installMMO(game) {
     ev.on('legendaryDrop', (d) => { if (Math.random() < 0.9) game.world.schedule(1 + Math.random() * 2, () => say('GLOBAL', handle(), R.pick(CHAT.loot))); });
     ev.on('kill', ({ ship, killer }) => {
       if (ship === game.player) {
-        game.world.schedule(1.5, () => say('LOCAL', handle(), R.pick(['rip', 'F', 'o7 captain', 'that boss is no joke', 'unlucky'])));
+        game.world.schedule(1.5, () => say('LOCAL', handle(), R.pick(['saw that, captain. hard luck', 'they got the captain. anyone near enough to cover?', 'o7 captain', 'that one hits hard, keep your distance', 'unlucky'])));
         return;
       }
       if (ship.npcPlayer) {
         const i = pop.ships.indexOf(ship); if (i >= 0) pop.ships.splice(i, 1);
         const j = pop.party.indexOf(ship); if (j >= 0) pop.party.splice(j, 1);
-        game.world.schedule(1, () => say('LOCAL', ship.name, R.pick(['ugh died', 'brb repairing', 'they focused me', 'rip my legendary', 'lag killed me'])));
+        game.world.schedule(1, () => say('LOCAL', ship.name, R.pick(['ugh died', 'brb repairing', 'they focused me', 'lost the hull, crew got to the pods', 'drive tripped, couldnt break away'])));
       }
       if (ship.elite === 2 && ship.playerTagged) game.world.schedule(2, () => say('WORLD', null, `${game.data.name} and allies defeated ${ship.name} in ${game.sector.sys.name}!`, 'sys'));
-      if (killer && killer.partyMember && Math.random() < 0.25) say('PARTY', killer.name, R.pick(['got him', 'nice', 'next!', 'ez', 'loot is yours']), 'guild');
+      if (killer && killer.partyMember && Math.random() < 0.25) say('PARTY', killer.name, R.pick(['got him', 'nice', 'next!', 'splash one', 'loot is yours']), 'guild');
     });
     // a jump leaves the party behind... they follow you through the gate
     const enter = game.enterSystem;
@@ -169,7 +169,7 @@ export function installMMO(game) {
     reply(text) {
       const t = text.toLowerCase();
       let line = null;
-      if (/\b(hi|hello|hey|yo|sup)\b/.test(t)) line = R.pick(['hey!', 'o7', 'hi captain', 'sup', 'hello there']);
+      if (/\b(hi|hello|hey|yo|sup)\b/.test(t)) line = R.pick(['hey!', 'o7', 'hi captain', 'sup', 'good hunting']);
       else if (t.includes('?')) line = R.pick(CHAT.help);
       else if (/lfg|group|party/.test(t)) { line = 'sure, sending invite'; const s = pop.ships.find((x) => x.alive && !x.partyMember); if (s) game.world.schedule(2, () => offerInvite(s)); }
       else if (/wts|sell|selling/.test(t)) line = R.pick(['how much?', 'pst', 'not interested', 'what level?']);

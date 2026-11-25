@@ -7,6 +7,7 @@ import { cargoTotal, surveyPlanet } from './economy.js';
 import { ensureExplorer } from './explorerItems.js';
 import { autoCraft, fitExplorer, landingWeights, pickSite, orbitalProbeAuto, needWeights, worldAppeal } from './autoCraft.js';
 import { PLANET_ABILITIES } from './abilities.js';
+import { steerOffset } from './avoid.js';
 
 const _v = new THREE.Vector3(), _w = { x: 0, z: 0 };
 // creatures that bite up close: when one is on top of us it takes the guns before the apex
@@ -20,7 +21,7 @@ export function scansOwed(P) {
   return false;
 }
 // ...or anything else that only happens on the ground (the landing goal goes sooner for these)
-const GROUND_EVS = new Set(['scan', 'bank', 'gkill', 'dungeon', 'land', 'punt']);
+const GROUND_EVS = new Set(['scan', 'bank', 'gkill', 'dungeon', 'land']);
 export function storyNeedsGround(P) { const sq = P.story && P.story.q; return !!(sq && GROUND_EVS.has(sq.ev) && (sq.progress || 0) < sq.n); }
 
 export class PlanetPilot {
@@ -70,6 +71,7 @@ export class PlanetPilot {
       const pack = M.creatures.list.filter((e) => e.alive && !e.under && e.pos.distanceToSquared(fight.pos) < 400).length;
       if ((pack >= 3 || fight.boss) && ready(2)) ctl.abil[2] = true;
       if ((pack >= 4 || fight.boss || fight.def.size >= 3) && ready(3)) ctl.abil[3] = true;
+      if ((pack >= 3 || fight.boss || fight.def.size >= 3) && ready(4) && M.drones && M.drones.combat()) ctl.abil[4] = true;
     }
     if (!this.duel && M.probes.active() < M.probes.stats.count && M.level.nearestNode(pos, 200, (n) => !n.claimed)) ctl.probe = true;
     // where to go: a full hold or a long run heads home through any fight (guns still track it)
@@ -142,12 +144,14 @@ export class PlanetPilot {
     }
     // telegraphed strikes: standing in a warning beats everything else — get out first
     const dodging = this.dodge(ctl, dt);
+    let dist = Infinity;
     // drive
     if (target && !dodging) {
       let tx = target.x, tz = target.z;
       if (M.dungeon) { M.dungeon.steer(pos, tx, tz, _w); tx = _w.x; tz = _w.z; }
       const dx = tx - pos.x, dz = tz - pos.z, d = Math.hypot(dx, dz);
       if (d > stopAt) { ctl.mx = dx / d; ctl.mz = dz / d; }
+      dist = d;
       if (d > 120 && !kiteFrom) ctl.boost = true;
       // unstick
       // stuck = under ~1.5 u/s of progress while trying to move (per second, not per frame)
@@ -157,15 +161,34 @@ export class PlanetPilot {
         if (moved < this.sample * 1.5 && d > stopAt && !wantMine) this.stuck += this.sample; else this.stuck = 0;
         this.last.copy(pos); this.sample = 0;
       }
-      if (this.stuck > 1.2) { this.wiggle = 1.2; this.stuck = 0; this.wsign = Math.random() < 0.5 ? 1 : -1; }
+      if (this.stuck > 1.2) { this.wiggle = 1.2; this.stuck = 0; this.wsign = this.avSide || (Math.random() < 0.5 ? 1 : -1); }
       if (this.wiggle > 0) { this.wiggle -= dt; const a = Math.atan2(ctl.mx, ctl.mz) + this.wsign * 1.6; ctl.mx = Math.sin(a); ctl.mz = Math.cos(a); }
     }
+    // ...around boulders, trees and spires rather than into them
+    this.avoid(ctl, dist, dt);
     if (fight) {
       M.aimPoint.copy(fight.pos); M.aimEnemy = fight; ctl.fire = true;
     } else if (wantMine) { ctl.mine = true; M.aimEnemy = null; }
     else { M.aimEnemy = null; if (target) M.aimPoint.set(target.x, pos.y, target.z); }
   }
 }
+
+// steer the stick around big surface props (planet/avoid.js); the side it picked feeds the unstick wiggle
+PlanetPilot.prototype.avoid = function (ctl, dist, dt) {
+  const M = this.mode, V = M.vehicle, p = V.position;
+  const ml = Math.hypot(ctl.mx, ctl.mz);
+  this.av ||= { side: 0, hold: 0 };
+  if (M.dungeon || ml < 0.1) { this.av.side = 0; return; }
+  const sp = Math.max(Math.hypot(V.velocity.x, V.velocity.z), V.stats.speed * 0.5);
+  const r = V.radius * 0.8 + 1.2;   // what Vehicle.collide uses, plus room to pass
+  // far enough ahead to turn away at this speed (slow-turning crawlers look further)
+  const look = Math.min(Math.max(12, r + sp * (0.6 + 1.2 / V.phys.turn)), 50);
+  const off = steerOffset(M.terrain, p.x, p.z, ctl.mx, ctl.mz, r, look, dist, this.av, dt);
+  this.avSide = this.av.side;
+  if (!off) return;
+  const a = Math.atan2(ctl.mx, ctl.mz) + off;
+  ctl.mx = Math.sin(a) * ml; ctl.mz = Math.cos(a) * ml;
+};
 
 // say a decision once (to the autopilot's log) when it changes; measured duels stay silent
 PlanetPilot.prototype.note = function (key, msg) {
@@ -258,6 +281,7 @@ PlanetPilot.prototype.dodge = function (ctl, dt) {
 export function autoSpend(game) {
   const D = game.data;
   const r = autoCraft(D);
+  if (game.quests && game.quests.emit) for (const it of r.crafted) game.quests.emit('craft', { n: 1, kind: it.slot });
   if (r.log.length) {
     const text = `Refinery: ${r.log.join('; ')}`;
     if (game.autoplay && game.autoplay.log) game.autoplay.log(text); else game.ui.toast(text, 'epic');

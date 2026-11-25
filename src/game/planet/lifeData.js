@@ -4,26 +4,44 @@
 import { RNG } from '../../engine/rng.js';
 
 // ---------------------------------------------------------------- harmless fauna
-// body/belly/glow colours; hop = jump height; shape picks the model variant.
+// body/belly/glow colours (glow = bioluminescent markings); shape picks the model (Life.js);
+// gait 'walk' animates the legs, 'hop' bounds; hop = bound height (or the walking bob).
 export const FAUNA = {
-  terran: { id: 'blorp', name: 'Meadow Blorp', plural: 'Blorps', shape: 'blob', body: 0xff8fb8, belly: 0xffe0ea, glow: 0x80ffb0, hop: 1.5, size: 1,
-    note: 'Round, harmless, quietly judgemental. Tastes of regret (the ship\'s cook checked).' },
-  desert: { id: 'skitter', name: 'Dune Skitter', plural: 'Skitters', shape: 'bug', body: 0xd8a45a, belly: 0xf6e2b0, glow: 0xffd070, hop: 0.6, size: 0.9,
-    note: 'Runs everywhere, arrives nowhere. Believed to be late for something.' },
-  arid: { id: 'plodder', name: 'Canyon Plodder', plural: 'Plodders', shape: 'blob', body: 0xb86a48, belly: 0xe8b890, glow: 0xff9060, hop: 0.7, size: 1.25,
-    note: 'Has been walking to the same rock for nine years. Do not tell it the rock moved.' },
-  ice: { id: 'puff', name: 'Frost Puff', plural: 'Puffs', shape: 'puff', body: 0xe8f4ff, belly: 0xffffff, glow: 0x80d8ff, hop: 1.2, size: 1,
-    note: 'Ninety percent fluff by volume. The remaining ten percent is also fluff.' },
-  lava: { id: 'tick', name: 'Cinder Tick', plural: 'Ticks', shape: 'bug', body: 0x3a2a26, belly: 0xff7a30, glow: 0xff6020, hop: 0.9, size: 0.85,
-    note: 'Lives in lava by choice. Science has asked why. The tick declined to comment.' },
-  barren: { id: 'bunny', name: 'Regolith Dust Bunny', plural: 'Dust Bunnies', shape: 'puff', body: 0x9a9aa8, belly: 0xc8c8d8, glow: 0x9ab8ff, hop: 2.2, size: 0.9,
-    note: 'Breathes nothing, eats nothing, somehow multiplies. Low gravity enthusiast.' },
-  toxic: { id: 'wobbler', name: 'Spore Wobbler', plural: 'Wobblers', shape: 'shroom', body: 0x8ac040, belly: 0xe8ffb0, glow: 0xa0ff40, hop: 0.8, size: 1.05,
-    note: 'Technically a mushroom with opinions. Do not lick. This warning exists for a reason.' },
-  crystal: { id: 'hopper', name: 'Prism Hopper', plural: 'Hoppers', shape: 'gem', body: 0xc890ff, belly: 0xf0d8ff, glow: 0xd080ff, hop: 1.8, size: 0.95,
-    note: 'Refracts sunlight into rainbows and anxiety. Chimes faintly when startled.' },
+  terran: { id: 'strider', name: 'Meadow Strider', plural: 'Striders', shape: 'grazer', gait: 'walk', body: 0x6f7a52, belly: 0xc8c49a, glow: 0x7fe0b0, hop: 0.06, size: 1,
+    note: 'Six-limbed grazer that crops ground cover in loose herds. Hears the rover long before it sees it, and scatters from weapons fire.' },
+  desert: { id: 'skitter', name: 'Dune Skitter', plural: 'Skitters', shape: 'bug', gait: 'walk', body: 0xb08a52, belly: 0xe2cc98, glow: 0xffc860, hop: 0.03, size: 0.9,
+    note: 'Burrowing arthropod. Feeds on wind-blown organics after dark and rides out the heat of the day under the sand.' },
+  arid: { id: 'shellback', name: 'Canyon Shellback', plural: 'Shellbacks', shape: 'shell', gait: 'walk', body: 0x8a5a40, belly: 0xc89878, glow: 0xff9060, hop: 0.03, size: 1.25,
+    note: 'Slow, heavily plated browser. Scrapes mineral crust from canyon walls; the growth rings on its shell put the oldest at two centuries.' },
+  ice: { id: 'drifter', name: 'Rime Drifter', plural: 'Drifters', shape: 'woolly', gait: 'walk', body: 0xd8dee6, belly: 0x9aa6b4, glow: 0x80d8ff, hop: 0.05, size: 1.05,
+    note: 'Dense-coated herd animal that digs for lichen beneath the snow crust. Its fur insulates so well it reads cold on thermal.' },
+  lava: { id: 'tick', name: 'Cinder Tick', plural: 'Ticks', shape: 'bug', gait: 'walk', body: 0x2e2624, belly: 0xc85a28, glow: 0xff6020, hop: 0.03, size: 0.85,
+    note: 'Silicate-shelled arthropod that grazes mineral films at the edges of lava flows. Body temperature near four hundred degrees.' },
+  barren: { id: 'crawler', name: 'Regolith Crawler', plural: 'Crawlers', shape: 'shell', gait: 'walk', body: 0x6c6c74, belly: 0x9a9aa4, glow: 0x9ab8ff, hop: 0.02, size: 0.9,
+    note: 'Lithotroph with a stone-hard shell. Draws energy from sulphur compounds in the regolith and needs no atmosphere at all.' },
+  toxic: { id: 'sporewalker', name: 'Spore Walker', plural: 'Spore Walkers', shape: 'fungal', gait: 'walk', body: 0x6a8a34, belly: 0xc8e090, glow: 0xa0ff40, hop: 0.04, size: 1.05,
+    note: 'Motile fungal colony on root-like legs. Releases a spore cloud when disturbed; keep the cabin sealed near a herd.' },
+  crystal: { id: 'hopper', name: 'Prism Hopper', plural: 'Hoppers', shape: 'crystal', gait: 'hop', body: 0x9a70d8, belly: 0xd8c0f0, glow: 0xd080ff, hop: 1.2, size: 0.95,
+    note: 'Grows a mineral carapace from the crystal it eats and moves in long bounds. The shell rings at a single pitch when struck.' },
 };
 export function faunaFor(type) { return FAUNA[type] || FAUNA.barren; }
+// ids and curio kinds that were renamed; old saves are moved over on load (migrateLife)
+export const FAUNA_RENAMES = { blorp: 'strider', plodder: 'shellback', puff: 'drifter', bunny: 'crawler', wobbler: 'sporewalker' };
+export const CURIO_RENAMES = { gnome: 'custodian', vendor: 'wreck', duck: 'vault' };
+export function migrateLife(D) {
+  for (const [key, map] of [['faunaCodex', FAUNA_RENAMES], ['curios', CURIO_RENAMES]]) {
+    const rec = D && D[key];
+    if (!rec) continue;
+    for (const [from, to] of Object.entries(map)) {
+      if (!(from in rec)) continue;
+      const v = rec[from]; delete rec[from];
+      if (key === 'curios') rec[to] = (rec[to] || 0) + (v || 0);
+      else rec[to] ||= { seen: 1 };
+    }
+    if (key === 'faunaCodex') for (const v of Object.values(rec)) if (v && typeof v === 'object') { delete v.punts; delete v.best; }
+  }
+  return D;
+}
 
 // herds: deterministic from the site seed; kept off the landing pad and inside the site
 export function planHerds(seed, count = 16) {
@@ -36,41 +54,42 @@ export function planHerds(seed, count = 16) {
 }
 
 // ---------------------------------------------------------------- curiosities
-// Things with no business being on an alien world. Scanning one pays explorer XP, a few data
-// cores and a line for the log. `where` limits a curio to some biomes (omitted = anywhere).
+// Anomalies the survey crews logged before us: Precursor works, wrecks, remains. Scanning one pays
+// explorer XP, a few data cores and a line for the log. Keys are save data (data.curios); the
+// order is the site RNG's, so a replacement takes the slot of what it replaces.
 export const CURIOS = {
   monolith: { name: 'Featureless Monolith', hex: 0xb080ff, lore: [
-    'Perfectly black, perfectly smooth, humming in B-flat. Science is "cautiously thrilled".',
-    'It is exactly 1 by 4 by 9. The XO asks that nobody touch it. Somebody has already touched it.',
-    'Absorbs all scans and returns one word: "LATER".' ] },
+    'Black, seamless and warm to the touch. It emits a steady tone at 233 hertz. There is no tool mark anywhere on it.',
+    'Exactly one by four by nine. Every monolith logged in the Reach matches these proportions to the micron.',
+    'Our scan is absorbed without a return. A moment later, one word arrives on the comm band: "LATER".' ] },
   probe: { name: 'Antique Survey Probe', hex: 0x58c8ff, lore: [
-    'A probe from an earlier age, still transmitting. The message decodes as "is anyone coming to get me".',
-    'Its mission clock reads 4,112 years. Its warranty expired after two.',
-    'Still dutifully photographing the same rock. 900,000 pictures. They are all quite good.' ] },
-  skull: { name: 'Titanic Skull', hex: 0xffd66a, lore: [
-    'Whatever this was, it had three eyes and died annoyed.',
-    'Bite radius: one explorer. Recommended response: gratitude that it is extinct.',
-    'Science notes tooth marks on the skull. From something bigger. Science has stopped taking notes.' ] },
-  gnome: { name: 'Garden Gnome', hex: 0xff5a6a, lore: [
-    'A ceramic garden gnome, 600 light-years from the nearest garden. It is smiling. Nobody put it here.',
-    'The gnome has been catalogued on eleven worlds. It is always the same gnome.',
-    'Scan complete. The gnome was facing the other way a moment ago.' ] },
-  vendor: { name: 'Vending Machine', hex: 0x5affb0, lore: [
-    'Fully stocked and powered. Prices are in a currency that predates your species. Exact change only.',
-    'Dispensed one (1) lukewarm beverage and a receipt reading "THANK YOU, PRECURSOR".',
-    'Row C is all the same snack. The label translates to "regret (original flavour)".' ] },
+    'One of the first survey probes ever launched from human space, still transmitting on a band nobody has monitored in millennia.',
+    'Mission clock: 4,112 years. Its power cell should have failed thirty-nine centuries ago. Something has been keeping it charged.',
+    'Its camera has held on the same outcrop since landing. Nine hundred thousand frames, all intact, all identical.' ] },
+  skull: { name: 'Fossil Skull', hex: 0xffd66a, lore: [
+    'Three orbits and a jaw built for crushing. Isotope dating puts it at eleven million years. Nothing like it lives here now.',
+    'The bite span is wider than the explorer. The skull was picked clean long before the sediment covered it.',
+    'Tooth marks score the crown. They belong to something considerably larger.' ] },
+  custodian: { name: 'Custodian Automaton', hex: 0xff6a5a, lore: [
+    'A squat survey automaton, scoured by four thousand years of weather. It stands facing the nearest anomaly and does not respond to hails.',
+    'Same serial scoring, same dented cowl, same cracked visor as the unit logged on eleven other worlds. It is not a copy. It is the same machine.',
+    'Its sensor head tracked the explorer for the whole scan. When we finished it turned back to face the monolith.' ] },
+  wreck: { name: 'Downed Dropship', hex: 0x5affb0, lore: [
+    'A colony dropship, broken across the spine. The hull registry predates the Dominion. No remains aboard; the hatches were opened from the inside.',
+    'The flight recorder is intact. The last eleven minutes are a stable descent, then the recording stops a hundred metres up.',
+    'Cargo bay stripped to the frame. Whoever salvaged it took the cryo cradles and left the fuel.' ] },
   camp: { name: 'Abandoned Survey Camp', hex: 0xffb040, lore: [
-    'A previous expedition\'s camp. The log\'s last entry: "The blobs are friendly. Too friendly."',
-    'One tent, one flag, one half-finished crossword. 7 down is "extraction".',
-    'Rations untouched, coffee gone. They left in a hurry but not without priorities.' ] },
-  duck: { name: 'Unexplained Duck', hex: 0xffe040, lore: [
-    'A rubber duck the size of a shuttle. Carbon dating says: older than the planet.',
-    'It squeaks when scanned. The squeak contains a compressed star chart. And a second, smaller squeak.',
-    'The Precursors built wonders beyond comprehension. Also this.' ] },
+    'A previous expedition\'s camp. The last log entry is a grid reference and two words: "going closer".',
+    'One shelter, one beacon, one bedroll still laid out. The beacon\'s battery was removed, not drained.',
+    'Rations untouched. Rover tracks lead away towards the nearest anomaly and stop in open ground.' ] },
+  vault: { name: 'Sealed Seed Vault', hex: 0xffe040, lore: [
+    'A ribbed Precursor dome, sealed and cold inside. Deep scan finds stored genetic material from forty species. Several match the local wildlife.',
+    'The seals are keyed to a signal we cannot produce. The interior has held at four degrees for longer than the planet has had an ocean.',
+    'A record of what this world was meant to become, written before anything lived on it.' ] },
   statue: { name: 'Weathered Idol', hex: 0xc0a0ff, lore: [
-    'A stone idol of a round creature with eye-stalks. Somebody worshipped the local wildlife. Understandable.',
-    'The inscription reads: "It hopped. We followed. No further questions."',
-    'An offering bowl at its feet holds a single, very old biscuit.' ] },
+    'A stone figure of a six-limbed grazer, worn almost smooth. Nothing native to this world could have carved it.',
+    'The inscription is in Precursor script. Science can read one word of it, repeated down the plinth: "tended".',
+    'An offering bowl at its base holds fresh seed husks. There are no settlements within a thousand kilometres.' ] },
 };
 export const CURIO_KINDS = Object.keys(CURIOS);
 export const CURIOS_PER_SITE = 5;
@@ -96,40 +115,39 @@ export const RADIO_CAST = {
   sci: { name: 'Science', hex: '#b48cff' }, qm: { name: 'Quartermaster', hex: '#5affb0' }, xo: { name: 'XO', hex: '#ff8a9a' },
 };
 export const RADIO = {
-  deploy: [['ops', 'Explorer away. Try to bring this one back with all its wheels.'], ['eng', 'She\'s freshly waxed, Captain. Please notice before you scratch her.'],
-    ['xo', 'Surface team is go. Standing orders: mine, map, don\'t feed anything.'], ['qm', 'Hold\'s empty and I\'m optimistic. Don\'t ruin either.']],
-  deploy_lava: [['eng', 'Reminder: the tyres are rated for "warm". That down there is not "warm".'], ['sci', 'The ground is mostly ground. The glowing parts are not ground.']],
-  deploy_ice: [['eng', 'Heater\'s on full. If you smell burning, that\'s the heater. Probably.'], ['sci', 'Minus ninety outside. The locals think it\'s a heatwave.']],
-  deploy_toxic: [['sci', 'Atmosphere is 4% oxygen and 96% bad decisions. Keep the windows up.'], ['xo', 'Nobody lick anything. I mean it this time.']],
-  deploy_terran: [['sci', 'Breathable air, liquid water, trees. Suspiciously nice. Stay alert.'], ['qm', 'If it\'s green and it grows, I can sell it. Fill the hold.']],
-  deploy_desert: [['ops', 'Sand in every direction, Captain. Sensors confirm: more sand.'], ['eng', 'I\'ll be cleaning grit out of that drivetrain for a month. Enjoy yourself.']],
-  deploy_crystal: [['sci', 'The whole landscape is singing at 40 kilohertz. Please don\'t sing back.'], ['qm', 'Everything down there sparkles. Grab the sparkly ones.']],
-  deploy_barren: [['ops', 'No air, no water, no life signs. Lovely spot. Very quiet.'], ['sci', 'Technically nothing lives here. Technically.']],
-  deploy_arid: [['ops', 'Canyon country. Mind the edges, they are famously further down than they look.'], ['sci', 'Stratigraphy is gorgeous. Please drive slowly past the good layers.']],
-  firstKill: [['xo', 'First contact protocol: completed, loudly.'], ['ops', 'Hostile down. It started it. Logging that it started it.'], ['sci', 'I was going to study that.']],
-  lowHull: [['eng', 'Hull\'s at a third! That is my LEAST favourite fraction!'], ['eng', 'She\'s coming apart, Captain — the lander can patch her, if there\'s a "her" left.'], ['xo', 'Recommend a tactical withdrawal. Screaming optional.']],
-  cargoFull: [['qm', 'Hold\'s full to the gunwales. Bring it home before something eats it.'], ['qm', 'That\'s a full load. I can hear the invoice writing itself.']],
-  banked: [['qm', 'Cargo received. Counting it twice, for joy.'], ['qm', 'Banked and logged. You may now go and risk your life again.']],
-  boss: [['sci', 'That reading is either one enormous creature or my instruments have given up.'], ['xo', 'Apex contact. Captain, I\'d like it noted that I suggested staying in orbit.'], ['ops', 'Big one on the scope. Really leaning into the "apex" part.']],
-  bossDown: [['sci', 'Magnificent specimen. Was. Was a magnificent specimen.'], ['xo', 'Apex down. Drinks are on the Captain.'], ['ops', 'Confirmed kill. The seismographs can stop crying now.']],
-  death: [['eng', 'And THAT is why we buy them in bulk. Replacement inbound.'], ['qm', 'That one\'s coming out of someone\'s wages. Not mine.'], ['xo', 'Explorer lost. Pilot recovered, pride not recovered.']],
-  punt: [['sci', 'Please stop launching the wildlife. I am trying to count it.'], ['ops', 'Tracking one airborne blob. It appears to be fine. It appears to be delighted.'], ['xo', 'That was not in the survey plan, Captain.'], ['eng', 'Bumper\'s rated for rocks. Not for... whatever that squeak was.']],
-  curio: [['sci', 'Fascinating. Completely useless, but fascinating.'], ['sci', 'Log it, scan it, do not bring it aboard.'], ['ops', 'Adding that to the map under "unexplained". The folder is getting thick.']],
-  curioAll: [['sci', 'That\'s every anomaly on site catalogued. The Institute will name a corridor after you.'], ['xo', 'Full survey. A commendation is being drafted. Briefly.']],
-  dungeon: [['ops', 'We lose telemetry underground. If you need us, yell upward.'], ['xo', 'Going into the dark hole voluntarily. Noted in the log, with punctuation.'], ['sci', 'Mind the architecture — some of it is load-bearing, some of it is teeth.']],
-  wave: [['ops', 'Movement all around you. A lot of it. Mostly teeth.'], ['ops', 'Company\'s coming, and it didn\'t bring a dish.']],
-  idle: [['ops', 'Captain? Still with us? The explorer hasn\'t moved and the crew is taking bets.'], ['eng', 'If you\'re just going to park, at least turn the engine off.'], ['sci', 'While you\'re stationary — the small round locals are staring at you. All of them.']],
-  extract: [['ops', 'Dropship is burning hard for your position. Do not die in the next eight seconds.'], ['xo', 'Hold that ground. Preferably the part you\'re standing on.']],
-  weather: [['ops', 'Weather front on top of you. We can see it from orbit. It\'s quite pretty from here.'], ['eng', 'She\'s weatherproof. Weather-resistant. Weather-aware.']],
-  weather_storm: [['sci', 'Lightning seeks the tallest metal object for kilometres. Captain, that\'s you.'], ['ops', 'Storm cell overhead. If your hair stands up, move.']],
-  weather_acid: [['eng', 'Acid rain. That\'s the paint gone, then.'], ['sci', 'pH of 1.4 and falling. Do not catch it on your tongue.']],
-  weather_sand: [['eng', 'Close the vents! ...there are a lot of vents. Close most of the vents!'], ['ops', 'We\'ve lost visual on you. We assume you\'re the beige thing.']],
-  weather_blizzard: [['ops', 'Whiteout. Lander beacon is your friend.'], ['eng', 'Wipers are for rain, Captain. This is weather with ambitions.']],
-  weather_ash: [['sci', 'The volcano is clearing its throat. Rocks first, apologies never.'], ['xo', 'Things are falling from the sky that used to be the ground. Adjust accordingly.']],
-  weather_meteors: [['sci', 'Meteor shower! Make a wish. Wish for a harder roof.'], ['qm', 'Free ore, delivered at orbital velocity. Collect it after it stops.']],
-  weather_resonance: [['sci', 'The crystals are discharging in harmony. It\'s beautiful. It\'s also 40,000 volts.'], ['ops', 'Whole valley just lit up on sensors. Tread carefully.']],
-  honk: [['xo', 'Was that the horn? In a combat zone? Captain.'], ['sci', 'Fascinating. Every creature within a kilometre now knows exactly where you are.'], ['eng', 'Horn works, then. I\'ll tick it off the list.']],
-  curious: [['sci', 'The wildlife has gathered to watch you. Do something impressive.'], ['ops', 'You have an audience, Captain. Small. Round. Unblinking.']],
+  deploy: [['ops', 'Explorer away. Telemetry is green; we have you on the orbital pass.'], ['eng', 'She\'s freshly serviced, Captain. Try to bring her back with all her wheels.'],
+    ['xo', 'Surface team is go. Standing orders: mine, map, and report anything that moves.'], ['qm', 'Hold\'s empty. Every crate you bring back pays for the next landing.']],
+  deploy_lava: [['eng', 'Tyres are rated for heat, not for that. Stay off anything that glows.'], ['sci', 'Surface crust is thin in places. If the ground brightens under you, move.']],
+  deploy_ice: [['eng', 'Heaters on full. Cells drain faster in this cold; watch the hull readout.'], ['sci', 'Minus ninety at the surface. Crevasse fields show dark on your map.']],
+  deploy_toxic: [['sci', 'Four percent oxygen, the rest corrosive. Keep the cabin sealed the whole time.'], ['xo', 'Contaminated site. Decon on return, no exceptions.']],
+  deploy_terran: [['sci', 'Breathable air, liquid water, an active biosphere. Expect wildlife, and expect it to be territorial.'], ['qm', 'Organics sell. Fill the hold.']],
+  deploy_desert: [['ops', 'Open dunes to every horizon. Sand will hide deposits; trust the scanner over your eyes.'], ['eng', 'Grit gets into everything. Keep your speed up and the intakes closed.']],
+  deploy_crystal: [['sci', 'The whole formation is resonating at forty kilohertz. Sensors will be noisy down there.'], ['qm', 'Crystal fetches a good price. Bring back as much as you can carry.']],
+  deploy_barren: [['ops', 'No air, no water, no life signs. Quiet site. Keep it that way.'], ['sci', 'Nothing should live here. If something reads as alive, log it.']],
+  deploy_arid: [['ops', 'Canyon country. The edges are further down than they look.'], ['sci', 'Exposed strata all the way down. Some of the best deposits sit along the walls.']],
+  firstKill: [['xo', 'First hostile down. Log the engagement.'], ['ops', 'Contact destroyed. It fired first; that\'s on the record.'], ['sci', 'I would have liked that one intact for study.']],
+  lowHull: [['eng', 'Hull\'s at a third! Get clear and let the lander patch her.'], ['eng', 'She\'s coming apart, Captain. Break contact while there\'s something left to repair.'], ['xo', 'Recommend withdrawal to the lander. Now.']],
+  cargoFull: [['qm', 'Hold\'s full. Bring it home before something takes it off you.'], ['qm', 'That\'s a full load. Bank it at the lander.']],
+  banked: [['qm', 'Cargo received and logged.'], ['qm', 'Banked. Hold is clear for the next run.']],
+  boss: [['sci', 'That reading is one creature. One very large creature.'], ['xo', 'Apex contact. Captain, I\'d like it noted that I suggested staying in orbit.'], ['ops', 'Large signature closing on your position. Weapons free.']],
+  bossDown: [['sci', 'Apex down. I want tissue samples before the scavengers arrive.'], ['xo', 'Confirmed kill on the apex. Good work, Captain.'], ['ops', 'Signature is gone. Seismographs are settling.']],
+  death: [['eng', 'Explorer lost. Fabricating a replacement now.'], ['qm', 'That one\'s coming out of the budget.'], ['xo', 'Explorer down. Pilot recovered. Replacement inbound.']],
+  curio: [['sci', 'Anomaly logged. I want the full scan uploaded to the Institute.'], ['sci', 'Scan it, log it, do not bring it aboard.'], ['ops', 'Marked on the map. That\'s another one for the unexplained file.'], ['sci', 'Fascinating. I have no idea what it means yet.']],
+  curioAll: [['sci', 'Every anomaly on site catalogued. That\'s a complete survey.'], ['xo', 'Full survey complete. Noted in the captain\'s log.']],
+  dungeon: [['ops', 'We lose telemetry underground. Your beacon is all we\'ll have.'], ['xo', 'Entering the structure. Weapons ready, and keep the way out in mind.'], ['sci', 'Precursor architecture. Some of it is load-bearing. Some of it is defended.']],
+  wave: [['ops', 'Movement all around you. A lot of it.'], ['ops', 'Multiple contacts converging on your position.']],
+  idle: [['ops', 'Captain? The explorer hasn\'t moved in a while. Confirm status.'], ['eng', 'If you\'re holding position, at least idle the drive.'], ['sci', 'While you\'re stationary, the local wildlife has stopped grazing to watch you.']],
+  extract: [['ops', 'Dropship is burning hard for your position. Hold on for eight seconds.'], ['xo', 'Hold that ground until the dropship is down.']],
+  weather: [['ops', 'Weather front on top of you. We can see it from orbit.'], ['eng', 'She\'s weather-sealed. Mostly.']],
+  weather_storm: [['sci', 'Lightning finds the tallest metal object for kilometres. Captain, that\'s you.'], ['ops', 'Storm cell overhead. Watch for the strike markers.']],
+  weather_acid: [['eng', 'Acid rain. That\'s the paint gone, then.'], ['sci', 'pH of 1.4 and falling. Keep exposure short.']],
+  weather_sand: [['eng', 'Close the vents. Sandstorm is right on you.'], ['ops', 'We\'ve lost visual. Steering you by beacon.']],
+  weather_blizzard: [['ops', 'Whiteout. The lander beacon is your way home.'], ['eng', 'Ice is building on the sensors. Keep moving.']],
+  weather_ash: [['sci', 'The volcano is venting. Ejecta incoming; watch for the impact markers.'], ['xo', 'Debris falling across your area. Adjust course.']],
+  weather_meteors: [['sci', 'Meteor shower inbound. Stay clear of the impact markers.'], ['qm', 'Those impacts leave ore behind. Collect it once they stop.']],
+  weather_resonance: [['sci', 'The crystals are discharging in sequence. Forty thousand volts per arc.'], ['ops', 'Whole valley just lit up on sensors. Tread carefully.']],
+  lure: [['ops', 'Lure pulse away. Everything hostile within seventy metres is coming to you.'], ['sci', 'Every creature for a kilometre now knows exactly where you are.'], ['xo', 'You called them in, Captain. Make sure you have the guns for it.']],
+  curious: [['sci', 'The wildlife has gathered to watch you. Don\'t make any sudden moves.'], ['ops', 'You have company, Captain. Several of the locals, keeping their distance.']],
 };
 export function radioLine(event, rnd = Math.random) {
   const pool = RADIO[event];
@@ -174,20 +192,19 @@ export const WEATHER = {
 export function weatherFor(type) { return WEATHER[type] || null; }
 
 // ---------------------------------------------------------------- expedition report
-// One title per run, first match wins: the funniest true thing about how it went.
+// One rating per run, first match wins: the line the survey office files it under.
 export function expeditionRating(r) {
   const banked = r.banked || 0, kills = r.kills || 0;
-  if ((r.deaths || 0) >= 3) return ['Insurance Liability', 'The fabricator would like a word.'];
-  if ((r.bosses || 0) >= 2) return ['Apex of Apexes', 'The food chain has been restructured.'];
-  if ((r.curios || 0) >= (r.curioTotal || 99)) return ['Tourist of the Year', 'Saw everything. Touched most of it.'];
-  if ((r.punts || 0) >= 8) return ['Blob Launcher, First Class', 'The wildlife has filed a formal complaint.'];
-  if (kills >= 60) return ['One-Rover Extinction Event', 'Ecologists are drafting a strongly worded letter.'];
-  if ((r.bosses || 0) >= 1) return ['Big Game Hunter', 'It was bigger. You were ruder.'];
-  if ((r.dungeons || 0) >= 1 && kills >= 20) return ['Professional Trespasser', 'Went into the hole. Came out richer.'];
-  if (kills === 0 && banked > 0) return ['Conscientious Objector (With a Drill)', 'Harmed nothing but the geology.'];
-  if (banked >= 150) return ['Strip Miner Supreme', 'The planet is measurably lighter.'];
-  if ((r.deaths || 0) >= 1) return ['Learning Experience', 'Half the cargo, twice the humility.'];
-  if (banked === 0 && kills === 0) return ['Scenic Detour', 'Fuel spent: lots. Results: vibes.'];
-  if (kills >= 25) return ['Pest Control', 'Efficient. Unrequested. Efficient.'];
-  return ['Honest Day\'s Survey', 'Nothing exploded that wasn\'t supposed to.'];
+  if ((r.deaths || 0) >= 3) return ['Heavy Losses', 'Three or more explorers lost. Review the approach before the next landing.'];
+  if ((r.bosses || 0) >= 2) return ['Apex Clearance', 'Multiple apex predators destroyed. The site is safer for the next crew.'];
+  if ((r.curios || 0) >= (r.curioTotal || 99)) return ['Full Survey', 'Every anomaly on the site scanned and logged.'];
+  if (kills >= 60) return ['Sustained Engagement', 'Heavy resistance on the surface, all of it put down.'];
+  if ((r.bosses || 0) >= 1) return ['Apex Kill', 'The site\'s apex predator is confirmed destroyed.'];
+  if ((r.dungeons || 0) >= 1 && kills >= 20) return ['Structure Cleared', 'Entered a Precursor structure and came back out with the haul.'];
+  if (kills === 0 && banked > 0) return ['Clean Extraction', 'Cargo banked without a single engagement.'];
+  if (banked >= 150) return ['Major Haul', 'A heavy load of resources banked at the lander.'];
+  if ((r.deaths || 0) >= 1) return ['Costly Landing', 'An explorer lost; part of the cargo with it.'];
+  if (banked === 0 && kills === 0) return ['Reconnaissance', 'Site observed. Nothing banked, nothing engaged.'];
+  if (kills >= 25) return ['Area Secured', 'Hostile life cleared from the landing zone.'];
+  return ['Routine Survey', 'Objectives met without incident.'];
 }
