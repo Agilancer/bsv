@@ -1,6 +1,7 @@
 // Captain's abilities on the action bar (1-8). Unlocked by commander rank.
 // Each run(world, ship) returns true if it fired.
 import * as THREE from 'three/webgpu';
+import { LAY, MINE_BY_KEY, mineDamage } from './mines.js';
 
 export const ABILITIES = [
   {
@@ -87,6 +88,15 @@ export const ABILITIES = [
           W.combat.splash({ splash: 70, team: s.team, kind: 'shell', color: new THREE.Color(0xfff0a0), dmg, dmgType: 'explosive', owner: s, ws: { crit: 0.15, unique: [] } }, at, null);
         });
       }
+      return true;
+    },
+  },
+  {
+    k: 'mines', name: 'Lay Mines', key: '9', unlock: LAY.unlock, cd: LAY.cd, icon: 'mine',
+    desc: `Sow ${LAY.count} mines astern, of the kind loaded in the Mine Rack (Captain Abilities window; right-click the button to change it). Each is worth ${LAY.sec} s of your firepower.`,
+    run(W, s) {
+      const m = MINE_BY_KEY[(s.isPlayer && W.game && W.game.data.mineType) || s.mineType] || MINE_BY_KEY.contact;
+      W.mines.layFrom(s, m.k, LAY.count, mineDamage(m, s.rawDps || 20, LAY.sec));
       return true;
     },
   },

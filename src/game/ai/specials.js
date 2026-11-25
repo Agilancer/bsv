@@ -4,6 +4,7 @@
 import * as THREE from 'three/webgpu';
 import { ENEMIES } from '../data/enemies.js';
 import { TELEGRAPH } from '../combat/Combat.js';
+import { MINE_BY_KEY, ENEMY_SEC, enemyMineKit, mineDamage } from '../data/mines.js';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 // burst damage expressed as seconds of the ship's balanced damage output
@@ -21,15 +22,15 @@ const hostilesNear = (W, s, p, r) => W.ships.filter((o) => o.alive && W.hostile(
 const alliesNear = (W, s, r) => W.ships.filter((o) => o.alive && o !== s && o.team === s.team && o.position.distanceTo(s.position) < r);
 
 export const SPECIALS = {
+  // a minefield astern from the ship's kit (two kinds in its faction's dialect, data/mines.js), the kinds
+  // taken in turn; every mine is worth ENEMY_SEC of the ship's balanced output, as the old field was
   mines: {
     cd: 7, range: 900,
     run(W, s) {
-      const back = _v.set(-Math.sin(s.heading), 0, -Math.cos(s.heading));
+      if (!Array.isArray(s._mineKit)) { s._mineKit = enemyMineKit((s.design && s.design.faction) || s.faction, s.level); s._mineN = 0; }
+      const m = MINE_BY_KEY[s._mineKit[s._mineN++ % s._mineKit.length]] || MINE_BY_KEY.contact;
       const n = 2 + Math.min(4, s.design ? s.design.sizeIndex : 0);
-      for (let i = 0; i < n; i++) {
-        const p = s.position.clone().addScaledVector(back, s.dims.L * 0.6 + i * 26).add(new THREE.Vector3((Math.random() - 0.5) * 80, 0, (Math.random() - 0.5) * 80));
-        W.projectiles.spawn({ pos: p, vel: new THREE.Vector3(0, 0, 0.001), kind: 'mine', team: s.team, owner: s, dmg: burst(s, 1.0), dmgType: 'explosive', ws: { crit: 0, unique: [] }, life: 30, splash: 55, color: 0xff3040, size: 3, len: 3, trail: 0 });
-      }
+      W.mines.layFrom(s, m.k, n, mineDamage(m, burst(s, 1), ENEMY_SEC));
       return true;
     },
   },

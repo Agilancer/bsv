@@ -6,7 +6,8 @@ import { drawHullPlan } from './hullPlan.js';
 import { installWindows } from './winman.js';
 import { paintPanel } from './paint.js';
 import { ABILITIES } from '../game/data/abilities.js';
-import { BASES, RARITY, describe, itemShipStats, weaponStats } from '../game/data/items.js';
+import { MINE_TYPES, MINE_BY_KEY, LAY } from '../game/data/mines.js';
+import { BASES, RARITY, describe, itemShipStats, weaponStats, SHIELD_HIT } from '../game/data/items.js';
 import { slotKeys, slotType, xpForLevel, shipXpForLevel, itemScore, INV_SIZE } from '../game/Player.js';
 // HUD panels the camera frames around (hidden ones measure 0 and drop out)
 const SAFE_IDS = ['status', 'helm', 'radar', 'weapons', 'target', 'abilities', 'menubar', 'chat', 'objectives', 'hudPeek', 'stick', 'mStop', 'mDown', 'mAuto'];
@@ -22,6 +23,7 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
 const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'k' : Math.round(n).toString();
 const _p = new THREE.Vector3(), _q = new THREE.Vector3();
+const _c3 = new THREE.Color(), _c4 = new THREE.Color();
 const SLOT_LABEL = { broadside: 'Broadside', turret: 'Turret', prow: 'Prow', hangar: 'Hangar', module: 'Module', blueprint: 'Shipyard' };
 
 export class UI {
@@ -64,8 +66,10 @@ export class UI {
       <div class="bar shield" id="tShield"><i></i><span></span></div><div class="bar hull" id="tHull"><i></i><span></span></div></div>`));
     const ab = h(`<div id="abilities" class="holo"></div>`);
     for (const a of ABILITIES) {
-      const el = h(`<div class="ab" data-k="${a.k}" title="${a.name}">${icon(a.icon)}<div class="cd"></div><div class="cdt"></div><div class="key">${a.key}</div></div>`);
+      const el = h(`<div class="ab" data-k="${a.k}" title="${a.name}">${icon(a.icon)}<div class="cd"></div><div class="cdt"></div><div class="key">${a.key}</div>${a.k === 'mines' ? '<div class="mt"></div>' : ''}</div>`);
       el.addEventListener('click', () => this.game.useAbility(a.k));
+      // the Mine Rack: right-click (a long hold on a phone) loads the next kind
+      if (a.k === 'mines') el.addEventListener('contextmenu', (e) => { e.preventDefault(); this.game.cycleMine(); });
       el.addEventListener('mouseenter', (e) => this.showTip(`<div class="tn" style="color:var(--cyan)">${a.name}</div><div class="tb">Unlocks at rank ${a.unlock} · ${a.cd}s cooldown</div><div class="tl">${a.desc}</div>`, e));
       el.addEventListener('mouseleave', () => this.hideTip());
       ab.append(el);
@@ -314,11 +318,18 @@ export class UI {
     const body = this.windows.skills.querySelector('.wbody');
     const tab = this.skillTab || 'talents';
     const free = talentPoints(P) - spentPoints(P);
-    let html = `<div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn ${tab === 'talents' ? '' : 'violet'}" data-tab="talents">Talents · ${free} free</button><button class="btn ${tab === 'abilities' ? '' : 'violet'}" data-tab="abilities">Abilities</button>
+    let html = `<div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn ${tab === 'talents' ? '' : 'violet'}" data-tab="talents">Talents · ${free} free</button><button class="btn ${tab === 'abilities' ? '' : 'violet'}" data-tab="abilities">Abilities</button><button class="btn ${tab === 'mines' ? '' : 'violet'}" data-tab="mines">Mine Rack</button>
       <span style="flex:1"></span><button class="btn bad" id="respec">Respec (${200 * P.level} ¢)</button></div>`;
     if (tab === 'abilities') {
       html += ABILITIES.map((a) => `<div class="abl"><div class="ab ${P.level < a.unlock ? 'locked' : ''}">${icon(a.icon)}<div class="key">${a.key}</div></div>
         <div><div class="an">${a.name} <span class="label">· rank ${a.unlock} · ${Math.round(g.abilityCd(a))}s</span></div><div class="ad">${a.desc}</div></div></div>`).join('');
+    } else if (tab === 'mines') {
+      const cur = MINE_BY_KEY[P.mineType] || MINE_BY_KEY.contact;
+      const hex = (c) => '#' + c.toString(16).padStart(6, '0');
+      const ABSORB = { blast: 'Shields absorb the blast by its damage type', shrapnel: 'A holding facing stops every fragment', ion: 'Feeds on shields: regeneration locked', burn: 'Burns only through a breached facing', snare: 'Passes the bubble: shields cannot stop it' };
+      html += `<div class="ad" style="margin-bottom:10px">Ability <b>9</b> (rank ${LAY.unlock}) sows ${LAY.count} mines astern of the loaded kind. <b>0</b> or right-click the button loads the next kind. A mine senses a ship's shield bubble, so the facing toward it takes the blast. Enemy minelayers carry two kinds in their faction's style.</div>`;
+      html += MINE_TYPES.map((m) => `<div class="abl mrow ${P.level < m.unlock ? 'locked' : ''} ${m === cur ? 'on' : ''}" data-mine="${m.k}" style="--mc:${hex(m.color)}"><div class="ab ${P.level < m.unlock ? 'locked' : ''}">${icon('mine')}</div>
+        <div><div class="an">${m.name} <span class="label">· rank ${m.unlock} · ${m.dmgType}${m === cur ? ' · LOADED' : ''}</span></div><div class="ad">${m.desc}</div><div class="ad mabs">${ABSORB[m.absorb] || ''}</div></div></div>`).join('');
     } else {
       html += `<div class="talents">` + TREES.map((tr) => `<div class="tree"><div class="title" style="color:${tr.color};margin-bottom:8px">${tr.name}</div>` +
         TALENTS.filter((t) => t.tree === tr.k).map((t) => {
@@ -330,6 +341,7 @@ export class UI {
     body.innerHTML = html;
     body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { this.skillTab = b.dataset.tab; this.renderSkills(); });
     body.querySelector('#respec').onclick = () => { g.resetTalents(); this.renderSkills(); };
+    body.querySelectorAll('[data-mine]').forEach((el) => el.onclick = () => { if (g.loadMine(el.dataset.mine)) this.renderSkills(); });
     body.querySelectorAll('.tal').forEach((el) => {
       const t = TALENTS.find((x) => x.k === el.dataset.k);
       el.onclick = () => { if (g.learnTalent(t.k)) this.renderSkills(); };
@@ -529,6 +541,10 @@ export class UI {
       el.querySelector('.cdt').textContent = rem > 0 ? rem.toFixed(rem < 3 ? 1 : 0) : '';
       if (rem <= 0 && el._wasCd) el.classList.remove('ready'), void el.offsetWidth, el.classList.add('ready');
       el._wasCd = rem > 0;
+      if (a.k === 'mines') {
+        const m = MINE_BY_KEY[P.mineType] || MINE_BY_KEY.contact;
+        if (el._mt !== m.k) { el._mt = m.k; el.querySelector('.mt').style.setProperty('--mc', '#' + m.color.toString(16).padStart(6, '0')); el.title = `${a.name}: ${m.name} (right-click: next kind)`; }
+      }
     }
     const as = document.getElementById('autoStatus');
     const ap = g.autoplay;
@@ -636,6 +652,12 @@ export class UI {
       c.beginPath(); c.arc(x, y, pr, 0, Math.PI * 2); c.stroke(); c.shadowBlur = 0;
       c.fillStyle = '#ff9a2e'; c.font = '700 18px Orbitron, sans-serif'; c.textAlign = 'center'; c.fillText('☠', x, y + 6);
     }
+    if (world.mines) for (const m of world.mines.list) {
+      if (m.child || (m.def.stealth && m.team !== 1)) continue;
+      const [x, y] = map(m.pos);
+      c.fillStyle = m.team === 1 ? 'rgba(88,200,255,0.75)' : 'rgba(255,110,90,0.8)';
+      c.beginPath(); c.moveTo(x, y - 3); c.lineTo(x + 3, y); c.lineTo(x, y + 3); c.lineTo(x - 3, y); c.closePath(); c.fill();
+    }
     for (const o of world.ships) {
       if (!o.alive || o === s || o.cloaked) continue;
       const [x, y] = map(o.position);
@@ -649,6 +671,49 @@ export class UI {
       c.save(); c.translate(cx, cy); c.rotate(-(s.heading - yaw) + Math.PI);
       c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -10); c.lineTo(6, 8); c.lineTo(-6, 8); c.closePath(); c.fill(); c.restore();
     }
+  }
+
+  // the four shield facings as arcs on the plane round the captain's ship, just outside the nav ring:
+  // a dim track per facing, filled from its centre by its charge, flashing in the colour of what it
+  // just absorbed (energy cyan, kinetic white-gold, explosive amber, ion violet) and red when it collapses
+  drawShieldArcs(ctx, s, proj, ppu) {
+    const now = this.game.engine.time, cap = Math.max(1, s.maxShield * 0.3);
+    const rw = Math.max(26 / ppu, s.dims.L * 0.62);
+    const CEN = [0, Math.PI, Math.PI / 2, -Math.PI / 2];   // fore, aft, port, starboard (from the heading)
+    const HALF = 0.66, N = 14;
+    const arc = (a0, a1, rr) => {
+      ctx.beginPath();
+      for (let k = 0; k <= N; k++) {
+        const a = a0 + (a1 - a0) * (k / N);
+        const pt = proj(_q.set(s.position.x + Math.sin(a) * rr, s.position.y, s.position.z + Math.cos(a) * rr));
+        if (!pt) return false;
+        k ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y);
+      }
+      return true;
+    };
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      const f = Math.max(0, Math.min(1, s.shields[i] / cap));
+      const mid = s.heading + CEN[i];
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(40,70,120,0.35)';
+      if (arc(mid - HALF, mid + HALF, rw)) ctx.stroke();
+      const hit = Math.max(0, 1 - (now - s.shieldHitT[i]) / 0.6), brk = Math.max(0, 1 - (now - s.shieldBreakT[i]) / 1.2);
+      if (f > 0.005) {
+        const low = f < 0.25 ? 0.5 + 0.5 * Math.sin(this.game.engine.realTime * 10) : 1;
+        _c3.set(f < 0.25 ? 0xff7a9a : 0x58b8ff);
+        if (hit > 0) _c3.lerp(_c4.set(SHIELD_HIT[s.shieldHitType[i]] || 0x58b8ff), hit);
+        ctx.strokeStyle = `rgba(${_c3.r * 255 | 0},${_c3.g * 255 | 0},${_c3.b * 255 | 0},${(0.55 + 0.4 * hit) * low})`;
+        ctx.lineWidth = 3 + hit * 2.5;
+        if (hit > 0.2) { ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 10 * hit; }
+        if (arc(mid - HALF * f, mid + HALF * f, rw)) ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      if (brk > 0) {
+        ctx.strokeStyle = `rgba(255,90,122,${brk * 0.8})`; ctx.lineWidth = 2;
+        if (arc(mid - HALF, mid + HALF, rw * (1 + (1 - brk) * 0.25))) ctx.stroke();
+      }
+    }
+    ctx.lineCap = 'butt';
   }
 
   drawOverlay(realDt) {
@@ -698,6 +763,7 @@ export class UI {
         ctx.beginPath(); ctx.ellipse(c.x, c.y, r, r * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
         ctx.fillStyle = 'rgba(88,200,255,0.8)';
         for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + g.engine.realTime * 0.6; ctx.fillRect(c.x + Math.cos(a) * r - 2, c.y + Math.sin(a) * r * 0.55 - 2, 4, 4); }
+        this.drawShieldArcs(ctx, s, proj, pxPerUnit);
       }
       // hostiles shooting at us from off-screen: arrows on the edge
       for (const o of world.ships) {
