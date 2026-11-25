@@ -307,12 +307,12 @@ function bands(r, hex, dirSign, engine, { k = 1.6, count = 16, speed = 0.6, shar
   const b = sin(rad.mul(count).add(t.mul(speed * dirSign * 6.28))).mul(0.5).add(0.5).pow(sharp);
   const fade = smoothstep(1, 0.5, rad).mul(smoothstep(0.04, 0.2, rad));
   m.colorNode = col(hex, k);
-  m.opacityNode = b.mul(fade).mul(0.6).add(smoothstep(1, 0, rad).pow(3).mul(0.12));
+  m.opacityNode = b.mul(fade).mul(0.3).add(smoothstep(1, 0, rad).pow(3).mul(0.06));
   return mesh(flatDisc(r, 128), m, 2);
 }
 export function gravityWell(ph, engine) {
   const root = new THREE.Group(); root.position.set(ph.x, -5, ph.z);
-  root.add(bands(ph.r, 0xa070ff, 1, engine, { k: 1.4, count: 14, speed: 0.35 }));
+  root.add(bands(ph.r, 0xa070ff, 1, engine, { k: 0.9, count: 14, speed: 0.35 }));
   // the dark lens at the middle
   const dm = new THREE.SpriteNodeMaterial({ transparent: true, depthWrite: false });
   const d = length(uv().sub(0.5)).mul(2);
@@ -323,9 +323,9 @@ export function gravityWell(ph, engine) {
 }
 export function repulsor(ph, engine) {
   const root = new THREE.Group(); root.position.set(ph.x, -5, ph.z);
-  root.add(bands(ph.r, 0xe0ecff, -1, engine, { k: 1.8, count: 12, speed: 0.5 }));
+  root.add(bands(ph.r, 0xc8dcff, -1, engine, { k: 0.8, count: 12, speed: 0.5 }));
   root.add(new THREE.Mesh(new THREE.SphereGeometry(18, 16, 8), Object.assign(new THREE.MeshBasicNodeMaterial(), { colorNode: col(0xffffff, 10) })));
-  root.add(glowSprite(0xd8e8ff, 360, { k: 3, falloff: 3 }));
+  root.add(glowSprite(0xd8e8ff, 300, { k: 1.6, falloff: 4 }));
   return { root, anim() {} };
 }
 export function eddy(ph, engine) {
