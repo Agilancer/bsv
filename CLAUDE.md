@@ -6,6 +6,11 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 ## Layout
 - `src/engine/` — renderer + post (`Engine`), input map (`Input`), iso camera, assets, seeded RNG,
   procedural `Audio`. `Engine.simulate(seconds)` steps systems without drawing.
+  - Graphics device loss (GPU reset, the browser reclaiming a background tab's GPU): three would stop drawing for good,
+    so `Engine.gpuLost` holds the sim and rebuilds the renderer + post chain on the same canvas once the tab is visible
+    (`engine.onGpu` hooks: lost / restored / failed). Read `engine.renderer` fresh each time; never keep it. If it cannot
+    be rebuilt (5 losses a minute, or a WebGL context that is not restored in 10 s), main.js saves and reloads straight
+    back into the game (sessionStorage `velscour.gpuResume`), on WebGL2 for the rest of the session after WebGPU fails.
 - `src/fx/` — GPU particles (`Particles.js`: analytic motion, write-once ring buffer), sky,
   celestial bodies, ship/station materials, debris, title scene, lighting rig.
 - `src/game/` — `Game` (orchestrator, helm, rewards, equipment), `World` (sim hub), `Sector`
@@ -102,7 +107,8 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   long autoplay runs in chunks like `tools/soak.cjs` does, not in one synchronous loop.
 - `python3 tools/serve.py 8420`, then `node tools/shot.cjs "index.html?play&new&webgl" out.png 15000`
   (`EVAL="…"`, `POSTWAIT=ms`). Headless WebGPU canvases screenshot black: use `&webgl` for
-  pictures and `tools/gpuprobe.html` to verify the WebGPU path by pixel readback.
+  pictures and `tools/gpuprobe.html` to verify the WebGPU path by pixel readback. (Headless SwiftShader WebGPU loses
+  its device within seconds, so the game itself now reloads onto WebGL2 there; headed under `xvfb-run` it holds.)
 - Story: `node tools/story.cjs manual|auto|mobile` plays the opening for real; `node tools/storyff.cjs [0|1|2] --gate`
   fast-forwards the live story runtime to an ending (every briefing, choice and set piece stages; fights are not played).
 - Touch / phones: `node tools/touch.cjs --gate [--shots=dir]` emulates 360x640 and 800x360 with
