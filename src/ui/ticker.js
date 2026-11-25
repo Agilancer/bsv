@@ -88,6 +88,7 @@ export function installTicker(game) {
     try { grip.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
     const y0 = e.clientY, s0 = scale, h0 = Math.max(10, el.offsetHeight);
     sizing = true; el.classList.add('sizing');
+    if (game.cue) game.cue('drag');
     const move = (ev) => { T.scale = s0 * (h0 + ev.clientY - y0) / h0; };
     const up = () => {
       sizing = false; el.classList.remove('sizing');

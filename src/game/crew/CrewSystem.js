@@ -192,6 +192,7 @@ export class CrewSystem {
     delete recruit.cost;
     recruit.morale = Math.max(recruit.morale, 75);
     st.members.push(recruit);
+    if (this.game.cue) this.game.cue('hire');
     this.say(`${recruit.name} signed on as ${rankName(recruit)}, ${DEPTS[recruit.dept].name}`);
     this.changed(true);
     return true;
@@ -209,6 +210,7 @@ export class CrewSystem {
     if (st.members.length <= 1) return this.fail('Someone has to fly the ship');
     removeMember(st, m);
     changeMorale(st, -1.5, (x) => x.section === m.section);
+    if (this.game.cue) this.game.cue('crewLeave');
     this.say(`${m.name} dismissed from service`);
     this.changed(true);
     return true;
@@ -227,6 +229,7 @@ export class CrewSystem {
     if (P.credits < cost) return this.fail(`Promotion costs ${cost} ¢`);
     P.credits -= cost;
     promote(this.state, m);
+    if (this.game.cue) this.game.cue('epic');
     this.say(`${m.name} promoted to ${rankName(m)}`);
     this.changed(true);
     return true;
@@ -234,6 +237,7 @@ export class CrewSystem {
   appoint(post, m) {
     appoint(this.state, post, m);
     if (m.section !== OFFICER_POSTS[post].dept) m.section = OFFICER_POSTS[post].dept;
+    if (this.game.cue) this.game.cue('accept');
     this.say(`${m.name} appointed ${OFFICER_POSTS[post].name}`);
     this.changed(true);
     return true;

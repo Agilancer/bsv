@@ -419,7 +419,7 @@ export class UI {
     const g = this.game, a = g.audio, e = g.engine;
     const body = this.windows.options.querySelector('.wbody');
     const sl = (id, label, v) => `<label class="opt"><span>${label}</span><input type="range" id="${id}" min="0" max="100" value="${Math.round(v * 100)}"></label>`;
-    body.innerHTML = `${sl('oMaster', 'Master volume', a ? a.volume : 0.7)}${sl('oMusic', 'Music', a ? a.musicVolume : 0.45)}${sl('oBloom', 'Bloom', e.bloomStrength.value / 1.6)}
+    body.innerHTML = `${sl('oMaster', 'Master volume', a ? a.volume : 0.7)}${sl('oMusic', 'Music', a ? a.musicVolume : 0.45)}${sl('oUiVol', 'Interface sounds', a ? a.uiVolume : 0.8)}${sl('oBloom', 'Bloom', e.bloomStrength.value / 1.6)}
       <label class="opt"><span>Broadside arcs</span><input type="checkbox" id="oArcs" ${g.showArcs ? 'checked' : ''}></label>
       <label class="opt"><span>Planet scan prompt [V] over landable worlds</span><input type="checkbox" id="oScanP" ${g.settings().hideScanPrompt ? '' : 'checked'}></label>
       <label class="opt"><span>Hide interface during autoplay</span><input type="checkbox" id="oHide" ${g.settings().hideHudInAuto ? 'checked' : ''}></label>
@@ -433,6 +433,7 @@ export class UI {
     const q = (id) => body.querySelector('#' + id);
     q('oMaster').oninput = (ev) => { if (a) { a.volume = ev.target.value / 100; if (a.master) a.master.gain.value = a.volume; } };
     q('oMusic').oninput = (ev) => { if (a) { a.musicVolume = ev.target.value / 100; if (a.music) a.music.gain.value = a.musicVolume; } };
+    q('oUiVol').oninput = (ev) => { if (a) a.setUiVolume(ev.target.value / 100); };
     q('oBloom').oninput = (ev) => { e.bloomStrength.value = ev.target.value / 100 * 1.6; };
     q('oArcs').onchange = (ev) => { g.showArcs = ev.target.checked; };
     q('oScanP').onchange = (ev) => { g.settings().hideScanPrompt = !ev.target.checked; };
@@ -639,6 +640,7 @@ export class UI {
       c.fillStyle = b.userData.kind === 'sun' ? 'rgba(255,200,100,0.5)' : b.userData.kind === 'station' ? 'rgba(120,255,200,0.8)' : 'rgba(150,170,220,0.35)';
       c.beginPath(); c.arc(x, y, b.userData.kind === 'station' ? 6 : r, 0, Math.PI * 2); c.fill();
     }
+    if (g.phenomena) g.phenomena.drawRadar(c, map, k, center);
     for (const d of world.loot.drops) {
       if (d.type !== 'item') continue;
       const [x, y] = map(d.pos); c.fillStyle = RARITY[d.item.rarity].color; c.fillRect(x - 2, y - 2, 4, 4);
@@ -659,7 +661,7 @@ export class UI {
       c.beginPath(); c.moveTo(x, y - 3); c.lineTo(x + 3, y); c.lineTo(x, y + 3); c.lineTo(x - 3, y); c.closePath(); c.fill();
     }
     for (const o of world.ships) {
-      if (!o.alive || o === s || o.cloaked) continue;
+      if (!o.alive || o === s || o.cloaked || (g.phenomena && g.phenomena.radarHides(o))) continue;
       const [x, y] = map(o.position);
       c.fillStyle = o.team === 1 ? '#58c8ff' : o.elite === 2 ? '#ff9a2e' : o.elite ? '#ffd66a' : '#ff4a6a';
       const r = 2.5 + Math.min(5, o.dims.L / 40);

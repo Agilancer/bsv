@@ -11,6 +11,17 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     (`engine.onGpu` hooks: lost / restored / failed). Read `engine.renderer` fresh each time; never keep it. If it cannot
     be rebuilt (5 losses a minute, or a WebGL context that is not restored in 10 s), main.js saves and reloads straight
     back into the game (sessionStorage `velscour.gpuResume`), on WebGL2 for the rest of the session after WebGPU fails.
+  - Sound (`engine/Audio.js`): guns, hits, explosions, the drive and the music are synthesised (`audio.play(kind)`);
+    the interface and the game's notices are recorded cues, `game.cue(name, {tier, key, vol, pos})` (installed by
+    `game/sfx.js`, which also hooks buttons / tabs / sliders / toggles by delegation, windows, toasts by kind, chat,
+    item tooltips, modes, and watches contacts, shields and hull). The bank is `engine/sfxBank.js` (pure data): every
+    file under `assets/audio/ui/` (the SCI-FI UI SFX pack, built by `tools/audio/build_ui_sfx.py`: trimmed,
+    loudness-matched MP3) belongs to one cue. Families carry meaning: clicks/combos = handling, Tone1 = the interface,
+    Tone2 = progress and reward, Tone3 = the world (contacts, comms, drive, planets, alarms), rings = lock / pings /
+    messages, glitches = refusals / static / hard hits / ion disruption, impacts = the big beats. A Tone family is one
+    interval in every register (A high .. D/E low), picked by `tier` (rarity, size, rank) or `key` (each window keeps
+    its pitch). A new cue goes in the bank with a call site; `tests/sfx.test.mjs` fails on an unused file or cue.
+    The mecha pack in `assets/sounds/MECHA_SOUNDS_ASSET_PACK` is not used.
 - `src/fx/` — GPU particles (`Particles.js`: analytic motion, write-once ring buffer), sky,
   celestial bodies, ship/station materials, debris, title scene, lighting rig.
   - Ship materials (`materials.js` `hullMaterials(yard, glow, livery, paint)`): one cached set per key; nothing may
@@ -105,6 +116,18 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     save data in `data.contracts` (old three-field contracts migrate on load), history in `data.questLog`.
     Stations: `galaxy.js` gives every system at least one (94 total, 8 kinds in `STATION_KINDS`);
     outposts are appended from their own seeded stream so older stations keep index, seed and place.
+  - `phenomena/` — natural features of each system (`game.phenomena`): `data.js` (pure: `KINDS` — black hole, six
+    nebulae (dark / reflection / ion storm / cryogenic / emission / supernova remnant), asteroid fields from gravel to
+    planetoids, comet, pulsar, magnetar, quasar jet, gravity well, gravity fountain, wormhole pair, chronal eddy, tidal
+    binary — `FX` effect constants, `systemPhenomena(sys, detail)` from its own seeded stream, placed clear of planets,
+    stations, zones, signals and the arrival point (`keepClear`); home gets only calm ones), `visuals.js` (TSL meshes,
+    added to `World.bodies`), `index.js` (wraps `enterSystem` first; effects per frame on ships, shots and loot, in
+    fractions of each ship's own speed / hull / shield). Hooks elsewhere: `Ship.envRegen` (shield regen multiplier, reset
+    each frame), `buffs.surge` (x1.35 speed), `Ship.veiled` (ShipAI won't pick it out past `FX.dust.sight`), and
+    `World.avoid` (Ship.steerTo / steerHeading bend the wanted heading round hazard circles and big rocks with
+    `planet/avoid.js` `steerOffset`; AI always, the captain only under autoplay). Autoplay won't chase loot into hazards
+    (`hazardAt`). First sighting of each kind pays a survey bounty (`data.phenomena`). Radar / system map draw them.
+    Duels and arenas sit far outside any system, so nothing here reaches them.
   - `flavor/` — space-side game feel: slow-mo on big kills, last words (sober final transmissions). (No kill-streak callouts, in space or on the
     surface: they were removed on request. Do not add chained-kill counters or announcements back.)
 - `src/ui/` — HUD, overlay canvas, windows; `css/ui.css` holds the holo theme.

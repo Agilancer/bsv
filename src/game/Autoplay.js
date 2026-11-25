@@ -181,6 +181,7 @@ export class Autoplay {
     let best = null, bd = 1600 * 1600;
     for (const d of g.world.loot.drops) {
       if (d.type === 'item' && !g.canCollect(d)) continue;
+      if (g.phenomena && g.phenomena.hazardAt(d.pos, 60)) continue;   // not into a black hole or a pulsar's sweep
       const dd = d.pos.distanceToSquared(s.position);
       if (dd < bd) { bd = dd; best = d; }
     }

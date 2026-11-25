@@ -111,6 +111,7 @@ export function installPvpFx(game, G) {
       } else {
         if (!hits.has(i)) {
           hits.add(i); play('clank', 1); shakeT = now; shakeA = 14;
+          if (i === letters.length - 1 && game.cue) game.cue('pvpTitle');   // the last plate home: the title is set
           // sparks off the leading face (and off the seam under it)
           const x0 = dx > 0 ? rest.x : dx < 0 ? rest.x + rest.w : rest.x + rest.w * 0.3;
           const x1 = dx ? x0 : rest.x + rest.w * 0.7;
@@ -160,6 +161,7 @@ export function installPvpFx(game, G) {
     else {
       if (!hits.has('stamp')) {
         hits.add('stamp'); play('clank', 1.1); shakeT = now; shakeA = 18;
+        if (game.cue) game.cue('pvpStamp');
         const r = stamp.getBoundingClientRect();
         spray(r.left + r.width * 0.04, r.bottom - r.height * 0.18, r.left + r.width * 0.96, r.bottom - r.height * 0.18, 0, 1, 90, 1.1);
         spray(r.left, r.top + r.height * 0.3, r.left, r.bottom - r.height * 0.2, 1, 0, 22, 0.8);
