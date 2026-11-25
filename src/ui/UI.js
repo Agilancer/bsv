@@ -620,6 +620,7 @@ export class UI {
       c.fillStyle = b.userData.kind === 'sun' ? 'rgba(255,200,100,0.5)' : b.userData.kind === 'station' ? 'rgba(120,255,200,0.8)' : 'rgba(150,170,220,0.35)';
       c.beginPath(); c.arc(x, y, b.userData.kind === 'station' ? 6 : r, 0, Math.PI * 2); c.fill();
     }
+    if (g.phenomena) g.phenomena.drawRadar(c, map, k, center);
     for (const d of world.loot.drops) {
       if (d.type !== 'item') continue;
       const [x, y] = map(d.pos); c.fillStyle = RARITY[d.item.rarity].color; c.fillRect(x - 2, y - 2, 4, 4);
@@ -634,7 +635,7 @@ export class UI {
       c.fillStyle = '#ff9a2e'; c.font = '700 18px Orbitron, sans-serif'; c.textAlign = 'center'; c.fillText('☠', x, y + 6);
     }
     for (const o of world.ships) {
-      if (!o.alive || o === s || o.cloaked) continue;
+      if (!o.alive || o === s || o.cloaked || (g.phenomena && g.phenomena.radarHides(o))) continue;
       const [x, y] = map(o.position);
       c.fillStyle = o.team === 1 ? '#58c8ff' : o.elite === 2 ? '#ff9a2e' : o.elite ? '#ffd66a' : '#ff4a6a';
       const r = 2.5 + Math.min(5, o.dims.L / 40);

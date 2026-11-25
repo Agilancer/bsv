@@ -99,6 +99,7 @@ button { font-family: var(--font); }
 #radar { position: fixed; right: 16px; top: 16px; width: 236px; height: 236px; padding: 0; }
 #radar canvas { width: 100%; height: 100%; display: block; }
 #radar .sys { position: absolute; left: 12px; bottom: 8px; font-family: var(--head); font-size: 10px; color: var(--text-dim); letter-spacing: 0.12em; }
+#radar .phen { position: absolute; left: 12px; right: 12px; top: 8px; font-family: var(--head); font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; text-shadow: 0 0 6px currentColor; pointer-events: none; }
 
 #chat { position: fixed; right: 16px; top: 266px; width: 360px; height: 230px; padding: 8px 10px; display: flex; flex-direction: column; font-size: 13px; }
 #chat .tabs { display: flex; gap: 10px; margin-bottom: 4px; }
@@ -301,7 +302,7 @@ body.mobile #status .bars { width: 150px; gap: 3px; }
 body.mobile #status .lvl { font-size: 16px; min-width: 26px; }
 body.mobile #status .name { font-size: 11px; }
 body.mobile #radar { width: 118px; height: 118px; top: 8px; right: 8px; }
-body.mobile #radar .sys { display: none; }
+body.mobile #radar .sys, body.mobile #radar .phen { display: none; }
 body.mobile #target { top: 60px; width: min(220px, 56vw); padding: 4px 8px; }
 body.mobile #target .title { font-size: 12px; } body.mobile #target .label { font-size: 9px; } body.mobile #target .bar { height: 8px; }
 body.mobile #abilities { left: auto; right: 8px; bottom: 8px; transform: none; display: grid; grid-template-columns: repeat(4, 46px); gap: 6px; padding: 6px; }

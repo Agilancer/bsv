@@ -13,11 +13,13 @@ import { install as installFlavor } from './flavor/index.js';
 import { installTicker } from '../ui/ticker.js';
 import { installQuests } from './quests/index.js';
 import { installNaming } from './naming.js';
+import { installPhenomena } from './phenomena/index.js';
 
 export function install(game) {
   game.modes = game.modes || {};
   game.Autoplay = Autoplay;
   game.autoplayGoals = [resupplyGoal, advanceGoal];
+  installPhenomena(game);   // space phenomena: wraps enterSystem first, so the rest see a finished system
   installStations(game);
   installNav(game);
   installMMO(game);

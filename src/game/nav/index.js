@@ -4,6 +4,7 @@ import * as THREE from 'three/webgpu';
 import { galaxy, systemDetail, ARM_NAMES } from '../galaxy.js';
 import { save } from '../Player.js';
 import { TwoFinger } from '../../engine/gestures.js';
+import { systemPhenomena, phenomenaSummary } from '../phenomena/data.js';
 
 const fmt = (n) => (n >= 1e4 ? (n / 1e3).toFixed(1) + 'k' : Math.round(n).toString());
 const STAR_HEX = { yellow: '#ffd890', orange: '#ffa060', red: '#ff5a40', white: '#e8f0ff', blue: '#80b0ff', violet: '#c080ff' };
@@ -429,6 +430,7 @@ export function installNav(game) {
     el.innerHTML = `<div class="title" style="color:${STAR_HEX[d.star.k]}">${s.name}</div>
       <div class="label" style="margin:4px 0 8px">${d.star.k} star · danger ${s.danger} · ${ARM_NAMES[s.arm] || ''}</div>
       <div class="label" style="margin-bottom:8px">Held by: <span style="color:var(--white)">${({ pirate: 'Corsair Pirates', rival: 'Rival Companies', rustborn: 'Rustborn Scavengers', covenant: 'Hollow Star Covenant', brood: 'Leviathan Brood', silent: 'The Silent Choir' })[s.control]}</span></div>
+      ${(() => { const ph = phenomenaSummary(systemPhenomena(s, d)); return ph.length ? `<div class="label" style="margin-bottom:8px">Phenomena: <span style="color:var(--white)">${[...new Set(ph)].join(', ')}</span></div>` : ''; })()}
       <div class="statgrid"><span>Planets</span><b>${d.planets.length}</b><span>Moons</span><b>${d.planets.reduce((a, p) => a + p.moons.length, 0)}</b><span>Stations</span><b>${d.stations.length}</b><span>Belts</span><b>${d.belts.length}</b><span>Visited</span><b>${P.visited.includes(s.id) ? 'yes' : 'no'}</b>
       ${rt ? `<span>Jumps</span><b>${rt.length - 1}</b><span>Fuel</span><b>${fmt(jumpCost(rt, P))} ¢</b>` : ''}</div>
       <div style="margin-top:10px">${s.id === P.system ? '<div class="label">You are here</div>' : locked ? `<div class="label" style="color:var(--warn)">Requires commander rank ${s.danger - 6}</div>` : rt ? '<button class="btn" id="gJump">Engage jump drive</button>' : '<div class="label">No charted route</div>'}</div>
@@ -449,8 +451,15 @@ export function installNav(game) {
     W.querySelector('.wtitle span').textContent = `${game.sector.sys.name} · danger ${game.sector.sys.danger}`;
     if (!sCanvas) {
       const LEG = [['⚔', 'patrol'], ['⛫', 'raider base'], ['◌', 'mining belt'], ['✕', 'wreck field'], ['⚑', 'contested'], ['☠', 'boss lair'], ['◆', 'derelict'], ['✚', 'distress'], ['✺', 'anomaly'], ['?', 'signal']];
-      body.innerHTML = `<canvas class="smap"></canvas><div class="slegend"><button class="btn violet" id="sGalaxy">Galaxy map</button><span class="label">${document.body.classList.contains('mobile') ? 'Tap to warp · tap a gate twice to jump · pinch to zoom' : 'Click to warp · click a gate twice to jump · wheel zooms'}</span><span><b>◎</b> jump gate</span>${LEG.map(([g, n]) => `<span><b>${g}</b>${n}</span>`).join('')}</div>`;
+      body.innerHTML = `<canvas class="smap"></canvas><div class="slegend"><button class="btn violet" id="sGalaxy">Galaxy map</button><span class="label">${document.body.classList.contains('mobile') ? 'Tap to warp · tap a gate twice to jump · pinch to zoom' : 'Click to warp · click a gate twice to jump · wheel zooms'}</span><span><b>◎</b> jump gate</span>${LEG.map(([g, n]) => `<span><b>${g}</b>${n}</span>`).join('')}<span class="sphen" style="display:contents"></span></div>`;
       sCanvas = body.querySelector('canvas');
+      sCanvas.addEventListener('mousemove', (e) => {
+        // hovering a phenomenon names it and says what it does
+        if (!game.phenomena) return;
+        const L = sLayout(), r = sCanvas.getBoundingClientRect();
+        const R = game.phenomena.at((e.clientX - r.left - L.cx) / L.S, (e.clientY - r.top - L.cy) / L.S, 8 / L.S);
+        sCanvas.title = R ? `${R.K.name} — ${R.K.desc}` : '';
+      });
       body.querySelector('#sGalaxy').onclick = () => { game.ui.toggle('system', false); game.ui.toggle('galaxy', true); };
       panZoom(sCanvas, sView, 8);
       sCanvas.addEventListener('click', (e) => {
@@ -469,6 +478,8 @@ export function installNav(game) {
         game.warpTo(new THREE.Vector3(x, 0, z));
       });
     }
+    const ph = body.querySelector('.sphen');
+    if (ph && game.phenomena) ph.innerHTML = game.phenomena.legend().map(([g, n, c]) => `<span><b style="color:${c}">${g}</b>${n}</span>`).join('');
     sLoop();
   }
   function sLoop() { if (!game.ui.isOpen('system')) return; drawSystem(); requestAnimationFrame(sLoop); }
@@ -515,6 +526,7 @@ export function installNav(game) {
     const sc = STAR_HEX[D.star.k];
     const g = c.createRadialGradient(L.cx, L.cy, 0, L.cx, L.cy, 40); g.addColorStop(0, sc); g.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = g; c.beginPath(); c.arc(L.cx, L.cy, 40, 0, Math.PI * 2); c.fill();
+    if (game.phenomena) game.phenomena.drawMap(c, X, Y, L.S, t);
     for (const b of D.belts) { c.strokeStyle = 'rgba(160,150,140,0.25)'; c.setLineDash([2, 4]); c.lineWidth = Math.max(2, b.width * L.S); c.beginPath(); c.arc(L.cx, L.cy, (b.r0 + b.width / 2) * L.S, 0, Math.PI * 2); c.stroke(); c.setLineDash([]); }
     c.textAlign = 'center'; c.font = '500 11px Rajdhani, sans-serif';
     const placed = [];

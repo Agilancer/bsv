@@ -70,6 +70,18 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     save data in `data.contracts` (old three-field contracts migrate on load), history in `data.questLog`.
     Stations: `galaxy.js` gives every system at least one (94 total, 8 kinds in `STATION_KINDS`);
     outposts are appended from their own seeded stream so older stations keep index, seed and place.
+  - `phenomena/` — natural features of each system (`game.phenomena`): `data.js` (pure: `KINDS` — black hole, six
+    nebulae (dark / reflection / ion storm / cryogenic / emission / supernova remnant), asteroid fields from gravel to
+    planetoids, comet, pulsar, magnetar, quasar jet, gravity well, gravity fountain, wormhole pair, chronal eddy, tidal
+    binary — `FX` effect constants, `systemPhenomena(sys, detail)` from its own seeded stream, placed clear of planets,
+    stations, zones, signals and the arrival point (`keepClear`); home gets only calm ones), `visuals.js` (TSL meshes,
+    added to `World.bodies`), `index.js` (wraps `enterSystem` first; effects per frame on ships, shots and loot, in
+    fractions of each ship's own speed / hull / shield). Hooks elsewhere: `Ship.envRegen` (shield regen multiplier, reset
+    each frame), `buffs.surge` (x1.35 speed), `Ship.veiled` (ShipAI won't pick it out past `FX.dust.sight`), and
+    `World.avoid` (Ship.steerTo / steerHeading bend the wanted heading round hazard circles and big rocks with
+    `planet/avoid.js` `steerOffset`; AI always, the captain only under autoplay). Autoplay won't chase loot into hazards
+    (`hazardAt`). First sighting of each kind pays a survey bounty (`data.phenomena`). Radar / system map draw them.
+    Duels and arenas sit far outside any system, so nothing here reaches them.
   - `flavor/` — space-side game feel: slow-mo on big kills, last words (sober final transmissions). (No kill-streak callouts, in space or on the
     surface: they were removed on request. Do not add chained-kill counters or announcements back.)
 - `src/ui/` — HUD, overlay canvas, windows; `css/ui.css` holds the holo theme.
