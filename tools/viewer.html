@@ -13,7 +13,7 @@ import { initMaterials } from './src/fx/materials.js';
 import { SpaceBackdrop } from './src/fx/Space.js';
 import { CHASSIS } from './src/game/data/chassis.js';
 import { hullFor, buildHull, setHullKits } from './src/game/ship/HullBuilder.js';
-import { loadKit } from './src/game/ship/kitAssembler.js';
+import { loadKits } from './src/game/ship/kitAssembler.js';
 import { buildWeapon } from './src/game/ship/WeaponModels.js';
 import { BASES } from './src/game/data/items.js';
 import { SpaceLights } from './src/fx/lighting.js';
@@ -31,7 +31,7 @@ const q = new URLSearchParams(location.search);
 // ?cols=N wraps each row after N hulls;  ?heading=rad turns every hull (default: bow toward +x)
 // Part-kit hulls (docs/ships/kit-spec.md):  ?nokit forces the procedural builder;  ?vs puts the procedural hull
 // beside each kit hull;  ?hp draws a box at every hardpoint and engine;  ?guns mounts a weapon model on each mount
-if (q.has('nokit')) setHullKits(false); else await loadKit('velscour');
+if (q.has('nokit')) setHullKits(false); else await loadKits();
 const GUN = { broadside: 'macrocannon', turret: Object.keys(BASES).find((k) => BASES[k].slot === 'turret'), prow: Object.keys(BASES).find((k) => BASES[k].slot === 'prow') };
 if (!BASES[GUN.broadside] || BASES[GUN.broadside].slot !== 'broadside') GUN.broadside = Object.keys(BASES).find((k) => BASES[k].slot === 'broadside');
 const HPC = { broadside: 0xff4040, turret: 0x40ff60, prow: 0x40a0ff, hangar: 0xffe040 };
