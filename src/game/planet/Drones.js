@@ -111,11 +111,11 @@ export class Drones {
       tpl.traverse((o) => { if (o.isMesh) parts.push({ geo: bakeGeometry(o), mat: o.material === mats.glow || o.material === mats.lamp ? lights : body }); });
     } else {
       const g = new THREE.BoxGeometry(0.9, 0.35, 0.9);
-      const col = new Float32Array(g.attributes.position.count * 3).fill(0.6);
-      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const grey = new Float32Array(g.attributes.position.count * 3).fill(0.6);
+      g.setAttribute('color', new THREE.BufferAttribute(grey, 3));
       parts.push({ geo: g, mat: body });
       const s = new THREE.SphereGeometry(0.22, 8, 6); s.translate(0, 0.2, 0);
-      const c = col;
+      const c = col;   // the swarm colour (the THREE.Color above)
       const sc = new Float32Array(s.attributes.position.count * 3); for (let i = 0; i < sc.length; i += 3) { sc[i] = c.r; sc[i + 1] = c.g; sc[i + 2] = c.b; }
       s.setAttribute('color', new THREE.BufferAttribute(sc, 3));
       parts.push({ geo: s, mat: mats.glow });
@@ -238,6 +238,13 @@ export class Drones {
           const t = this.harvest(s, d, dt);
           if (t) { ox = t.x; oy = t.y; oz = t.z; }
           else { ox = vp.x + Math.sin(ang) * (rad + 10); oz = vp.z + Math.cos(ang) * (rad + 10); oy = vp.y + 6; }
+        }
+        // keep a body's width from the swarm-mates (8 sparrows over one target otherwise merge into a blob)
+        const sep = this.sizeK() * 1.2;
+        for (const o of s.drones) {
+          if (o === d || !o.alive) continue;
+          const sx = d.pos.x - o.pos.x, sz2 = d.pos.z - o.pos.z, q = sx * sx + sz2 * sz2;
+          if (q < sep * sep && q > 1e-6) { const k = (sep - Math.sqrt(q)) / Math.sqrt(q) * 0.5; ox += sx * k * 4; oz += sz2 * k * 4; }
         }
         this.steer(d, ox, oy, oz, speed, dt);
         // a short trail in the bay's colour: the swarm reads as yours, and as moving

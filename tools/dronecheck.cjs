@@ -20,7 +20,7 @@ const { chromium } = require('playwright');
     return out;
   });
   console.log(JSON.stringify(r));
-  const bad = Object.entries(r).filter(([, sizes]) => Math.max(...sizes.slice(0, -1)) < 0.3);   // collapsed: even the drone's biggest part is a point (the last is the nav light)
+  const bad = Object.entries(r).filter(([, sizes]) => sizes.some((x) => x < 0.02));   // any part collapsed to a point (a sparrow strut is an honest 0.26)
   console.log(bad.length ? 'COLLAPSED: ' + bad.map((x) => x[0]).join(',') : 'all drone parts have size');
   await b.close();
   process.exit(bad.length ? 1 : 0);
