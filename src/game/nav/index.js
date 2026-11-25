@@ -86,6 +86,22 @@ export function installNav(game) {
     game.ui.toggle('system', false);
     return true;
   };
+  // The autopilot's use of the drive: sparingly. Short and middling legs are sailed (at cruise); the drive is for
+  // real distances, and never back to back. False = sail there instead.
+  const AUTO_WARP_MIN = 7500, AUTO_WARP_GAP = 100;   // world units; seconds of space time between the autopilot's warps
+  let autoWarpAt = -1e9;
+  game.autoWarp = (pos) => {
+    const s = game.player; if (!s || warp) return false;
+    const now = game.engine.time, d = Math.hypot(pos.x - s.position.x, pos.z - s.position.z);
+    if (d < AUTO_WARP_MIN || (now >= autoWarpAt && now - autoWarpAt < AUTO_WARP_GAP)) return false;
+    if (!game.warpTo(pos)) return false;
+    autoWarpAt = now; return true;
+  };
+  // can the autopilot reach `pos` without a long sail? (near enough to sail, or the drive is ready or nearly so)
+  game.autoReach = (pos) => {
+    const s = game.player; if (!s) return false;
+    return Math.hypot(pos.x - s.position.x, pos.z - s.position.z) < AUTO_WARP_MIN || game.engine.time - autoWarpAt > AUTO_WARP_GAP - 12 || game.engine.time < autoWarpAt;
+  };
   game.isWarping = () => !!warp;
   game.warpState = () => warp;   // debug/tools
   game.cancelWarp = () => { if (!warp) return; warp = null; fade.style.opacity = '0'; game.engine.camera.fov = 32; game.engine.camera.updateProjectionMatrix(); };

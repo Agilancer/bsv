@@ -188,7 +188,7 @@ body.planet-touch #pButtons kbd, body.planet-touch #pAbilities .key { display: n
 /* small and short windows: the orbit chat log steps aside on the surface (toasts carry the news) */
 @media (max-width: 1100px), (max-height: 700px) { body.planet-mode #chat { display: none; } }
 
-/* ---- the voice from orbit, streak callouts, discovery cards, expedition report ---- */
+/* ---- the voice from orbit, discovery cards, expedition report ---- */
 #pComm { position: fixed; left: 16px; top: 212px; width: 320px; padding: 9px 12px; display: flex; gap: 10px; align-items: center; opacity: 0; transform: translateX(-14px); transition: opacity 0.3s, transform 0.3s; pointer-events: none !important; border-left: 2px solid var(--cc, var(--cyan)); }
 #pComm.show { opacity: 1; transform: none; }
 #pComm .cwave { display: flex; gap: 2px; align-items: center; height: 26px; flex: none; }
@@ -200,14 +200,6 @@ body.planet-touch #pButtons kbd, body.planet-touch #pAbilities .key { display: n
 #pComm .cwho { font-family: var(--head); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; }
 #pComm .ctext { font-size: 13px; line-height: 1.3; color: var(--text); min-height: 34px; margin-top: 2px; }
 
-#pStreak, .streak { position: fixed; left: 50%; top: 27%; transform: translate(-50%, -50%); text-align: center; pointer-events: none !important; opacity: 0; }
-.streak.show { animation: streakPop 2.2s cubic-bezier(0.2, 1.4, 0.4, 1) forwards; }
-.streak .sbig { font-family: var(--head); font-weight: 900; font-size: 34px; letter-spacing: 0.22em; color: #fff; text-shadow: 0 0 18px var(--sc, #58c8ff), 0 0 44px var(--sc, #58c8ff); white-space: nowrap; }
-.streak .ssub { font-family: var(--head); font-size: 11px; letter-spacing: 0.2em; color: var(--sc, #58c8ff); text-transform: uppercase; margin-top: 4px; }
-.streak[data-tier="0"] { --sc: #58c8ff; } .streak[data-tier="1"] { --sc: #9a6bff; } .streak[data-tier="2"] { --sc: #ffb040; }
-.streak[data-tier="3"] { --sc: #ff5a6a; } .streak[data-tier="4"] { --sc: #ff3df0; }
-.streak[data-tier="3"] .sbig, .streak[data-tier="4"] .sbig { font-size: 42px; }
-@keyframes streakPop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(2.2) skewX(-8deg); } 9% { opacity: 1; transform: translate(-50%, -50%) scale(1) skewX(-8deg); } 75% { opacity: 1; transform: translate(-50%, -50%) scale(1.04) skewX(-8deg); } 100% { opacity: 0; transform: translate(-50%, -70%) scale(1.1) skewX(-8deg); } }
 
 #pCard { position: fixed; left: 50%; top: 150px; transform: translateX(-50%) translateY(-10px); width: min(520px, 80vw); padding: 12px 18px 14px; text-align: center; opacity: 0; pointer-events: none !important; border-top: 2px solid var(--cc, var(--violet)); transition: opacity 0.6s, transform 0.6s; }
 #pCard.show { opacity: 1; transform: translateX(-50%); }
@@ -272,7 +264,6 @@ body.planet-touch #pButtons kbd, body.planet-touch #pAbilities .key { display: n
 #planetHud.compact #pCard.show { transform: none; }
 #planetHud.compact #pCard .ktitle { font-size: 13px; } #planetHud.compact #pCard .ktext { font-size: 12px; }
 #planetHud.compact:has(#pCard.show) #pComm { opacity: 0; }
-#planetHud.compact .streak .sbig { font-size: 22px; }
 #planetHud.compact #pStrip { max-width: calc(100vw - 16px); flex-wrap: wrap; justify-content: center; white-space: normal; text-align: center; font-size: 10px; top: var(--mt); padding: 4px 8px; }
 #planetHud.compact #pStrip .btn { min-height: 36px; padding: 6px 10px; }
 #pReport .rcard { max-height: calc(100vh - 16px); overflow-y: auto; }
@@ -297,7 +288,6 @@ body.planet-mode.mobile #toasts { top: calc(var(--mt) + 150px); }
   #planetHud.compact #pComm, #planetHud.compact #pCard { left: var(--ml); right: var(--mr); top: calc(var(--mt) + 218px); }
   #planetHud.compact #pBoss { left: calc(var(--ml) + 8px); right: calc(var(--mr) + 8px); top: calc(var(--mt) + 218px); }
   #planetHud.compact #pPrompt, #planetHud.compact.bossfight #pPrompt { left: 50%; right: auto; transform: translateX(-50%); top: auto; bottom: calc(var(--mb) + 236px); width: max-content; max-width: 86vw; }
-  #planetHud.compact .streak { top: 43%; }
   body.planet-mode.mobile #toasts { top: calc(var(--mt) + 222px); }
 }
 body.mobile #pReport { background: radial-gradient(ellipse, rgba(4, 8, 22, 0.8), rgba(0, 0, 0, 0.55) 80%); }

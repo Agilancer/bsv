@@ -1,6 +1,6 @@
 // The living, talking side of a landing site. Pure data + small pure helpers (no three.js, no DOM):
 // harmless fauna per biome, the curiosities an explorer can scan, the radio chatter from orbit,
-// kill-streak callouts, time-of-day presets and the expedition report's rating.
+// time-of-day presets and the expedition report's rating.
 import { RNG } from '../../engine/rng.js';
 
 // ---------------------------------------------------------------- harmless fauna
@@ -117,7 +117,6 @@ export const RADIO = {
   curio: [['sci', 'Fascinating. Completely useless, but fascinating.'], ['sci', 'Log it, scan it, do not bring it aboard.'], ['ops', 'Adding that to the map under "unexplained". The folder is getting thick.']],
   curioAll: [['sci', 'That\'s every anomaly on site catalogued. The Institute will name a corridor after you.'], ['xo', 'Full survey. A commendation is being drafted. Briefly.']],
   dungeon: [['ops', 'We lose telemetry underground. If you need us, yell upward.'], ['xo', 'Going into the dark hole voluntarily. Noted in the log, with punctuation.'], ['sci', 'Mind the architecture — some of it is load-bearing, some of it is teeth.']],
-  streak: [['ops', 'Somebody\'s having a day.'], ['xo', 'Leave some for the next survey team.'], ['eng', 'Barrels are glowing. Pretty. Stop it.']],
   wave: [['ops', 'Movement all around you. A lot of it. Mostly teeth.'], ['ops', 'Company\'s coming, and it didn\'t bring a dish.']],
   idle: [['ops', 'Captain? Still with us? The explorer hasn\'t moved and the crew is taking bets.'], ['eng', 'If you\'re just going to park, at least turn the engine off.'], ['sci', 'While you\'re stationary — the small round locals are staring at you. All of them.']],
   extract: [['ops', 'Dropship is burning hard for your position. Do not die in the next eight seconds.'], ['xo', 'Hold that ground. Preferably the part you\'re standing on.']],
@@ -138,17 +137,6 @@ export function radioLine(event, rnd = Math.random) {
   const [who, text] = pool[Math.floor(rnd() * pool.length) % pool.length];
   return { who, name: RADIO_CAST[who].name, hex: RADIO_CAST[who].hex, text };
 }
-
-// ---------------------------------------------------------------- kill streaks
-export const STREAKS = [
-  [2, 'DOUBLE KILL', ''], [3, 'TRIPLE KILL', ''], [4, 'OVERKILL', 'the paperwork is going to be enormous'],
-  [6, 'RAMPAGE', 'ecologists hate this one trick'], [9, 'EXTINCTION EVENT', 'please leave a breeding pair'],
-  [13, 'PLANETARY PEST CONTROL', 'invoice sent to the biosphere'], [18, 'THEY HAD FAMILIES', 'large ones, apparently'],
-];
-export const STREAK_WINDOW = 4.5;
-// the callout for reaching exactly n kills in a chain (null between tiers)
-export function streakFor(n) { for (const s of STREAKS) if (s[0] === n) return { n, title: s[1], sub: s[2], tier: STREAKS.indexOf(s) }; return null; }
-export function streakBonus(n) { return n >= 2 ? Math.min(0.5, 0.05 * (n - 1)) : 0; }   // bonus XP share per kill in a chain
 
 // ---------------------------------------------------------------- time of day
 // Multipliers and tints over the biome's own light. `dir` is the sun direction (x, y, z); a low sun
@@ -193,7 +181,7 @@ export function expeditionRating(r) {
   if ((r.bosses || 0) >= 2) return ['Apex of Apexes', 'The food chain has been restructured.'];
   if ((r.curios || 0) >= (r.curioTotal || 99)) return ['Tourist of the Year', 'Saw everything. Touched most of it.'];
   if ((r.punts || 0) >= 8) return ['Blob Launcher, First Class', 'The wildlife has filed a formal complaint.'];
-  if ((r.bestStreak || 0) >= 9) return ['One-Rover Extinction Event', 'Ecologists are drafting a strongly worded letter.'];
+  if (kills >= 60) return ['One-Rover Extinction Event', 'Ecologists are drafting a strongly worded letter.'];
   if ((r.bosses || 0) >= 1) return ['Big Game Hunter', 'It was bigger. You were ruder.'];
   if ((r.dungeons || 0) >= 1 && kills >= 20) return ['Professional Trespasser', 'Went into the hole. Came out richer.'];
   if (kills === 0 && banked > 0) return ['Conscientious Objector (With a Drill)', 'Harmed nothing but the geology.'];

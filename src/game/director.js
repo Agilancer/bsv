@@ -20,6 +20,7 @@ const ZONE_NAMES = { patrol: 'Patrol lane', base: 'Raider base', belt: 'Mining b
 const WAVES = { patrol: 2, base: 3, belt: 2, wrecks: 1, front: 2, lair: 1 };
 
 const FLED_R = 3600;   // further than this from its zone, a garrison ship has left the fight
+const PASSAGE_QUIET = 13, PASSAGE_REST = 16;   // autopilot passages: seconds of quiet sailing before a patrol meets the ship, and the lull after one is sent
 export class Director {
   constructor(sector) {
     this.sector = sector;
@@ -170,6 +171,20 @@ export class Director {
         }
       }
     }
+    // The autopilot sails between fights (the drive is kept for real distances), so its passages are not left empty:
+    // after a quiet stretch under way, a patrol turns up on the bow and the ship sails into it.
+    const G = W.game, ap = G && G.autoplay && G.autoplay.active ? G.autoplay : null;
+    if (ap && !G.docked && !(G.isWarping && G.isWarping()) && P.speed > P.maxSpeed * 0.5 && P.hull > P.maxHull * 0.5) {
+      this.quietT = (this.quietT || 0) + dt;
+      if (this.quietT > 4 && W.ships.some((o) => o.alive && o !== P && W.hostile(P, o) && o.position.distanceToSquared(pp) < 2600 * 2600)) this.quietT = 0;
+      if (this.quietT >= PASSAGE_QUIET && !nearZone && !(G.guild && G.guild.sortie)) {
+        this.quietT = -PASSAGE_REST; this.interceptT = Math.max(this.interceptT, 40);
+        const a = P.heading + (Math.random() - 0.5) * 0.9;
+        const at = pp.clone().add(new THREE.Vector3(Math.sin(a) * 1250, 0, Math.cos(a) * 1250));
+        for (const s of this.squad(this.foe(), at, 220)) s.ai.aggro = 2200;
+        W.toast('Contact: raiders on the bow', 'warn');
+      }
+    } else if (this.quietT > 0) this.quietT = Math.max(0, this.quietT - dt);
     // the lanes between zones are quiet; a patrol may still come looking for you
     this.interceptT -= dt;
     if (this.interceptT <= 0) {

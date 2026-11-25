@@ -208,7 +208,7 @@ export function installZones(game, G) {
     const d = s.position.distanceTo(C.center), my = G.side();
     if (d > 2600) {
       _v.copy(s.position).sub(C.center).setY(0).setLength(900).add(C.center);
-      if (!game.warpTo || !game.warpTo(_v)) s.steerTo(C.center, 200, 1);
+      if (!game.autoWarp || !game.autoWarp(_v)) s.steerTo(C.center, 200, 1);
       return;
     }
     let best = null, bd = Infinity;

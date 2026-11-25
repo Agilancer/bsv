@@ -162,8 +162,14 @@ export function questGoal(ap) {
       if (!s || !g.quests || !g.sector) return 0;
       if (job) return 4.5;
       if (s.hull / s.maxHull < 0.5) return 0;
-      if (wantBoard()) return 1.3;
-      return pickErrand() ? 1.2 : 0;
+      // a station across the system is not started for while the drive is still cooling (the autopilot's drive is for
+      // real distances, never back to back): there is work nearer by, and the errand keeps
+      const reach = (st) => !st || !g.autoReach || g.autoReach(st.position);
+      if (wantBoard()) { const n = g.nearestStation(); return n && !reach(n.station) ? 0 : 1.3; }
+      const q = pickErrand();
+      if (!q) return 0;
+      if (q.travel && q.travel.sys === P.system && q.travel.st != null && !reach(g.stations[q.travel.st])) return 0;
+      return 1.2;
     },
     update(dt) {
       const s = g.player, P = g.data, Q = g.quests;
@@ -205,8 +211,8 @@ export function questGoal(ap) {
         if (g.docked) { g.undock(); return false; }
         const d = st.position.distanceTo(s.position);
         if (g.isWarping()) return false;
-        if (d > 2600) g.warpTo(st.position.clone().add(_off));
-        else if (d <= 900 && !g.dockingTarget) g.modes.dock();   // this close, the nearest station is ours
+        if (d > 2600 && g.autoWarp(st.position.clone().add(_off))) return false;
+        if (d <= 900 && !g.dockingTarget) g.modes.dock();   // this close, the nearest station is ours
         else if (!g.dockingTarget) s.steerTo(st.position, 80, 1);
         return false;
       }

@@ -361,7 +361,7 @@ export function makePlanetGoal(game) {
       if (S.nearby()) { s.throttle = 0; S.scan(); if (S.state === 'panel') launch(); return false; }
       const far = Math.hypot(tp.x - s.position.x, tp.z - s.position.z);
       const warping = G.isWarping && G.isWarping();
-      const warped = far > 2600 && G.warpTo && !warping && G.warpTo(new THREE.Vector3(tp.x + 120, 0, tp.z + 120));
+      const warped = far > 2600 && G.autoWarp && !warping && G.autoWarp(new THREE.Vector3(tp.x + 120, 0, tp.z + 120));
       if (!warped && !warping) { s.throttle = 1; s.steerTo(new THREE.Vector3(tp.x, 0, tp.z), 100, 1); }
 
       return false;

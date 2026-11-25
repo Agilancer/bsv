@@ -27,9 +27,9 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     management, the `PvP sortie` goal), `zones.js` (contested Voidglass fields in the open galaxy),
     `arena.js` (instanced modes), `bots.js` (PvP captains), `ui.js` + `css/guild.css`. Save:
     `data.guild`, `data.pvp`, `data.diplo`. Hostile PvP captains use teams 8+ (`s.pvp`, `noLoot`).
-  - `planet/` living layer: `lifeData.js` (pure data: fauna, curios, radio lines, streaks, weather,
+  - `planet/` living layer: `lifeData.js` (pure data: fauna, curios, radio lines, weather,
     time of day, report rating), `Life.js` (wildlife herds, flyers, curios), `Weather.js` (fronts +
-    telegraphed strikes), `Extras.js` (comm strip, streak callouts, discovery cards, expedition
+    telegraphed strikes), `Extras.js` (comm strip, discovery cards, expedition
     report). All of it is skipped while `pilot.duel` is set so measured duels stay clean.
   - `quests/` — station quest boards. `data.js` (pure: templates x targets x station kind x danger,
     `boardOffers(sys, stationIndex, rotation)`, tracker `advance(q, ev, e)` over the `EVENTS` table),
@@ -38,8 +38,14 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     save data in `data.contracts` (old three-field contracts migrate on load), history in `data.questLog`.
     Stations: `galaxy.js` gives every system at least one (94 total, 8 kinds in `STATION_KINDS`);
     outposts are appended from their own seeded stream so older stations keep index, seed and place.
-  - `flavor/` — space-side game feel: kill-streak callouts, slow-mo on big kills, last words.
+  - `flavor/` — space-side game feel: slow-mo on big kills, last words. (No kill-streak callouts, in space or on the
+    surface: they were removed on request. Do not add chained-kill counters or announcements back.)
 - `src/ui/` — HUD, overlay canvas, windows; `css/ui.css` holds the holo theme.
+  - `ui/ticker.js` — `game.ticker`: one slim bar across the very top. `pin({tag, time, mid, act})` is the plate (a PvP
+    match or contested field: mode, clock, score); `say(text, {who, hex, cls})` crawls a line along it. With the
+    interface hidden for autoplay, toasts, rank-ups, story lines and the autopilot's log go there too. The HUD along
+    the top moves down while it is out (`html.tick-on`, `--tk`; phone layouts start from `--mt`, which includes it).
+    Status that belongs to a match or an event goes on the ticker, not in a panel mid-screen.
 
 ## Extension points
 - `game.modes[name]` — called by `game.command(name)` (menu bar / hotkeys).
@@ -61,7 +67,7 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - `node --test tests/*.test.mjs` (modules that import three: `import './support/three.mjs'` first)
 - Gameplay gates (dev server running; CI runs the first two): `node tools/soak.cjs 10 --gate`
   (autoplay pacing in the shipped config: kills per space-minute, idle share, planet share ≤30%,
-  no hung goal; `--space` drops planet runs),
+  no hung goal, ≤0.8 warps a minute, ≤8% of space time trailing a fleeing ship; `--space` drops planet runs),
   `node tools/stalemate.cjs 2,8,20 --gate` (no silent manoeuvring duels),
   `node tools/duel.cjs 5,15,30,50 --gate` (measured time-to-kill vs `balance.TTK`, per size class;
   seeded, 5 designs per cell, abilities off = sustained gunnery; `--sizes=4,5` to shard),
@@ -97,7 +103,8 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   seconds, `pvpEngage(L)`, per-mode `focus`); `node tools/pvp.cjs 4 --fixed` measures the autoplay
   captain's win rate at equal rating (target ~50%). Guild perks are capped at +8% XP, +8% credits,
   +1.5% hull per kill (`guildPerks`).
-- `duel.cjs 5,15,30,50 --gate` passes for all six sizes with the current tables. Gargantuans only count at
+- `duel.cjs 5,15,30,50 --gate` passed for all six sizes with these tables; after the autopilot targeting change it reads
+  gargantuan out of band ("it kills you" 1.6-1.8x; mid passes on its own with `--sizes=1`). Not retuned yet. Gargantuans only count at
   ranks 30 and 50 (`rel`), and their rank-30 pool sits on a cliff (0.4x below ~1.4, 2.9x above): move it in
   hundredths. Boss damage at rank 50 does not answer its multiplier (salvoes are clipped by the per-second
   `MIN_TTK` window), so it reads ~1.9x there by design.
@@ -109,6 +116,17 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   captain is in open space (not on a surface, the bridge or in an arena match).
 - Telegraphed specials pass `TELEGRAPH` (Combat.js) as ws: their own per-hit budget, outside the
   `MIN_TTK` per-source window. Escorts a boss spawns set `capRoot` to share its window.
+
+## Autopilot in space
+- Targets (`Autoplay.mark` / `pickTarget`): ships firing at the captain come first; a ship opening the range is a
+  runner: ranked last, and let go for 25 s once it has been out of reach for a few seconds (never bosses, story or PvP
+  ships; a fight-only captain with nothing else to shoot sees a lone runner through, which is what the duel tools use).
+- The drive is used sparingly: autopilot routes call `game.autoWarp(pos)` (7500+ units and 100 s apart; false = sail).
+  Shorter legs are sailed at cruise (`ship.cruiseUntil`, 1.9x, only with nothing hostile near), and the director sends
+  a patrol to meet the ship after a quiet stretch under way (`PASSAGE_QUIET`). Far station errands wait for the drive
+  (`game.autoReach`). The player's own warp (map click) is unchanged.
+- Watching on a phone (`mobile` + autoplay): the camera turns slowly until the fight lies along the screen's long side
+  and frames it from closer in (Game.js, `phoneWatch`); a hand on the camera holds that off for 12 s.
 
 ## Conventions
 - Hot loops allocate nothing; reuse module-level temp vectors.

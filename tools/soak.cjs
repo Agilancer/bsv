@@ -19,7 +19,7 @@ const { chromium } = require('playwright');
     const g = __game;
     if (!keepPlanet && g.planetAuto) g.planetAuto.score = () => 0;
     g.toggleAutoplay();
-    window.__soak = { states: {}, goalRun: {}, goalMax: {}, kills0: g.data.kills, perMin: [], lastKills: g.data.kills, t: 0 };
+    window.__soak = { states: {}, goalRun: {}, goalMax: {}, kills0: g.data.kills, perMin: [], lastKills: g.data.kills, t: 0, warps: 0, warping: false, chase: 0 };
   }, keepPlanet);
   const step = 5;
   for (let t = 0; t < minutes * 60; t += step) {
@@ -28,6 +28,9 @@ const { chromium } = require('playwright');
       for (let k = 0; k < step * 4; k++) {
         __engine.simulate(0.25);
         const A = g.autoplay; if (!A) continue;
+        // the drive is for real distances: count the autopilot's warps; and time spent trailing a ship that is running
+        const wp = !!(g.isWarping && g.isWarping()); if (wp && !S.warping) { S.warps++; const ws = g.warpState && g.warpState(); const why = (ws && ws.kind === 'jump' ? 'jump · ' : '') + (A.state === 'goal' && A.goal ? A.goal.name : A.state); S.warpWhy = S.warpWhy || {}; S.warpWhy[why] = (S.warpWhy[why] || 0) + 1; } S.warping = wp;
+        const tg = g.player && g.player.target; if (g.mode === 'space' && A.state === 'combat' && tg && tg._run && !tg._atk && tg.position.distanceTo(g.player.position) > 700) S.chase += 0.25;
         const st = g.mode !== 'space' ? g.mode : A.state === 'goal' && A.goal ? 'goal:' + A.goal.name : A.state === 'patrol' && A.waiting ? 'wave-gap' : A.state === 'patrol' && A.travel ? 'travel' : A.state;
         S.states[st] = (S.states[st] || 0) + 0.25;
         if (st === 'patrol') {
@@ -48,11 +51,12 @@ const { chromium } = require('playwright');
   const r = await p.evaluate(() => {
     const g = __game, S = window.__soak;
     for (const [k, v] of Object.entries(S.goalRun)) S.goalMax[k] = Math.max(S.goalMax[k] || 0, v);
-    return { patrol: S.patrol, kills: g.data.kills - S.kills0, perMin: S.perMin, states: S.states, goalMax: S.goalMax, level: g.data.level, credits: g.data.credits, system: g.data.system, deaths: g.data.deaths || 0 };
+    return { warps: S.warps, warpWhy: S.warpWhy, chase: S.chase, patrol: S.patrol, kills: g.data.kills - S.kills0, perMin: S.perMin, states: S.states, goalMax: S.goalMax, level: g.data.level, credits: g.data.credits, system: g.data.system, deaths: g.data.deaths || 0 };
   });
   const total = Object.values(r.states).reduce((a, b) => a + b, 0) || 1;
   console.log(`soak ${minutes} min · kills ${r.kills} (${(r.kills / minutes).toFixed(1)}/min) · rank ${r.level} · ${r.credits} ¢ · system ${r.system} · deaths ${r.deaths}`);
   console.log('kills per minute:', r.perMin.join(' '));
+  console.log(`warps: ${r.warps} (${(r.warps / minutes).toFixed(2)} per minute) ${JSON.stringify(r.warpWhy || {})} · trailing a runner: ${Math.round(r.chase)} s`);
   console.log('time share:', Object.entries(r.states).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(100 * v / total).toFixed(0)}%`).join(' · '));
   if (r.patrol) console.log('patrol breakdown (s):', JSON.stringify(Object.fromEntries(Object.entries(r.patrol).map(([k, v]) => [k, Math.round(v)]))));
   console.log('longest goal run (s):', JSON.stringify(Object.fromEntries(Object.entries(r.goalMax).map(([k, v]) => [k, Math.round(v)]))));
@@ -65,6 +69,9 @@ const { chromium } = require('playwright');
     const ground = (r.states.planet || 0) / total, spaceT = Math.max(1, total - (r.states.planet || 0));
     const patrol = (r.states.patrol || 0) / spaceT, between = patrol + (r.states.travel || 0) / spaceT;
     const kpm = r.kills / (spaceT / 60);
+    // the drive is used sparingly (well under one warp a minute; it was over two), and the captain does not trail runners across the system
+    if (r.warps / minutes > 0.8) bad.push(`${(r.warps / minutes).toFixed(2)} warps per minute > 0.8`);
+    if (r.chase / spaceT > 0.08) bad.push(`trailing a fleeing ship ${(100 * r.chase / spaceT).toFixed(0)}% of space time > 8%`);
     if (kpm < 2) bad.push(`kills per space-minute ${kpm.toFixed(1)} < 2`);
     if (patrol > 0.25) bad.push(`idle patrol ${(100 * patrol).toFixed(0)}% of space time > 25%`);
     if (between > 0.4) bad.push(`patrol+travel ${(100 * between).toFixed(0)}% of space time > 40%`);

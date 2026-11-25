@@ -11,7 +11,7 @@ import { THROTTLE_STEPS } from './ship/Ship.js';
 import { SIZES } from './data/enemies.js';
 import { galaxy } from './galaxy.js';
 import { talentStats, talentWeaponMod, rank, canLearn, TALENT_BY_KEY } from './data/talents.js';
-import { RNG, clamp } from '../engine/rng.js';
+import { RNG, clamp, wrapAngle } from '../engine/rng.js';
 import { PLAYER_NAMES, CHAT } from './data/names.js';
 import { Audio } from '../engine/Audio.js';
 import { installMobile, stickHeading } from '../ui/mobile.js';
@@ -496,23 +496,48 @@ export class Game {
       // pull the camera back for things that dwarf us
       const s = this.player, tg = s && s.target && s.target.alive ? s.target : null;
       const sep = tg ? tg.position.distanceTo(s.position) : 0;
-      const framing = tg && sep < 1600;
+      // (watching on a phone: only a fight that fits is framed; a far target is left to the threat arrows, and the
+      // ship stays the subject. The watch flag itself is worked out below, with the camera's turn.)
+      const phoneWatch = document.body.classList.contains('mobile') && !!(this.autoplay && this.autoplay.active);
+      const framing = tg && sep < (phoneWatch ? 1050 : 1600);
       // frame the fight: focus between the ships, pull back far enough to fit both
       this.cam.frameWith = framing ? tg.position : null;
-      this.cam.frameMix = this.autoplay && this.autoplay.active ? 0.5 : 0.42;
+      this.cam.frameMix = phoneWatch ? 0.5 * clamp(1.6 - sep / 650, 0.25, 1) : this.autoplay && this.autoplay.active ? 0.5 : 0.42;
       // fitMul adapts until both hulls sit inside the HUD-free area (any layout, any aspect)
       this.fitMul = this.fitMul || 1;
       this.cam.distFloor = framing ? Math.min(this.cam.maxDist, Math.max(tg.dims.L > 200 ? tg.dims.L * 1.5 + 250 : 0, sep * 1.3 + 220) * this.fitMul) : 0;
-      if (innerHeight > innerWidth && !this.cam.userZoomed) this.cam.distFloor = Math.max(this.cam.distFloor || 0, 720);   // portrait: see abeam (until the captain picks a zoom)
+      // Watching autoplay on a phone: the camera works for the viewer. It comes round (slowly, with slack) until the
+      // fight lies along the screen's long side, so both ships fit from much closer in and read as ships, not specks.
+      const phone = document.body.classList.contains('mobile'), watch = phoneWatch;
+      if (watch && framing && !(this.cam.manualYawT > 0)) {
+        const b = Math.atan2(tg.position.x - s.position.x, tg.position.z - s.position.z);
+        let d = wrapAngle((innerHeight > innerWidth ? b : b + Math.PI / 2) - this.cam.yawTarget);
+        if (Math.abs(d) > Math.PI / 2) d = wrapAngle(d + Math.PI);     // either end of the axis may be "up"
+        if (Math.abs(d) > 0.6) this.camTurn = true; else if (Math.abs(d) < 0.12) this.camTurn = false;
+        if (this.camTurn) this.cam.yawTarget += clamp(d, -0.4 * realDt, 0.4 * realDt);
+        this.cam.distFloor = Math.min(this.cam.maxDist, Math.max(tg.dims.L > 200 ? tg.dims.L * 1.2 + 200 : 0, sep * 0.85 + 230) * this.fitMul);
+      } else if (innerHeight > innerWidth && !this.cam.userZoomed) this.cam.distFloor = Math.max(this.cam.distFloor || 0, 720);   // portrait: see abeam (until the captain picks a zoom)
       // phones: never zoom out so far that your own hull is a speck — the threat arrows cover the rest
-      if (document.body.classList.contains('mobile')) this.cam.distFloor = Math.min(this.cam.distFloor || 0, 1150);
+      if (phone) this.cam.distFloor = Math.min(this.cam.distFloor || 0, 1150);
+      this.fitMin = watch ? 0.75 : 1;
+      this.cam.watchDist = watch ? 340 : 0;
+      // at cruise, motes of dust slide past the hull: the only thing in open space that shows how fast she is going
+      if (s && s.alive && s.cruiseUntil > t && s.speed > s.maxSpeed * 1.25) {
+        this.dustT = (this.dustT || 0) + dt * 26;
+        const fx = this.world.fx, hx = Math.sin(s.heading), hz = Math.cos(s.heading);
+        while (this.dustT >= 1) {
+          this.dustT -= 1;
+          const ahead = 160 + Math.random() * 420, side = (Math.random() - 0.5) * 520;
+          fx.glow.emit(s.position.x + hx * ahead + hz * side, s.position.y + (Math.random() - 0.5) * 120, s.position.z + hz * ahead - hx * side, 0, 0, 0, 2.6, 0.5, 0.7, 1, 0.55, 2.2, 0.6, 0, 0);
+        }
+      }
       this.cam.update(dt, t, realDt);
       if (framing) {
         const sf = this.cam.safe || { x: 0, y: 0, w: innerWidth, h: innerHeight };
         const out = this.offFrame(s, sf, 36) || this.offFrame(tg, sf, 36);
         const roomy = !this.offFrame(s, sf, sf.h * 0.22) && !this.offFrame(tg, sf, sf.h * 0.22);
         if (out) this.fitMul = Math.min(2.6, this.fitMul * (1 + 1.6 * realDt));
-        else if (roomy) this.fitMul = Math.max(1, this.fitMul * (1 - 0.25 * realDt));
+        else if (roomy) this.fitMul = Math.max(this.fitMin, this.fitMul * (1 - 0.25 * realDt));
       } else this.fitMul = Math.max(1, this.fitMul * (1 - 0.5 * realDt));
     }
     if (this.audio) {

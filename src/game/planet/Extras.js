@@ -1,6 +1,6 @@
-// The expedition's voice: radio chatter from the ship in orbit, kill-streak callouts, discovery
+// The expedition's voice: radio chatter from the ship in orbit, discovery
 // cards and the end-of-run report. DOM only — owned by the planet HUD root so it hides with it.
-import { radioLine, streakFor, streakBonus, STREAK_WINDOW, expeditionRating, CURIOS_PER_SITE } from './lifeData.js';
+import { radioLine, expeditionRating, CURIOS_PER_SITE } from './lifeData.js';
 import { RESOURCES } from './economy.js';
 
 const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
@@ -11,11 +11,10 @@ export class PlanetExtras {
     this.mode = mode;
     const root = mode.hud.root;
     this.comm = h(`<div id="pComm" class="holo"><div class="cwave"><i></i><i></i><i></i><i></i><i></i></div><div class="cbody"><div class="cwho"></div><div class="ctext"></div></div></div>`);
-    this.streakEl = h(`<div id="pStreak" class="streak"><div class="sbig"></div><div class="ssub"></div></div>`);
     this.cardEl = h(`<div id="pCard" class="holo"><div class="ktag"></div><div class="ktitle"></div><div class="ktext"></div></div>`);
-    root.append(this.comm, this.streakEl, this.cardEl);
+    root.append(this.comm, this.cardEl);
     this.nextRadio = 0; this.commT = 0; this.typed = 0; this.line = null; this.said = new Set();
-    this.chain = 0; this.chainT = 0; this.best = 0; this.streakT = 0; this.cardT = 0;
+    this.cardT = 0;
     this.idleT = 0; this.lowHull = false; this.fullSaid = false; this.kills = 0;
   }
 
@@ -50,33 +49,14 @@ export class PlanetExtras {
     this.cardT = 7;
   }
 
-  // a kill landed: extend the chain, call out the tiers. Returns the bonus XP share for this kill.
-  onKill(e) {
-    const M = this.mode;
+  // a kill landed: the first of a run gets a word from orbit
+  onKill() {
     this.kills++;
-    this.chain = this.chainT > 0 ? this.chain + 1 : 1;
-    this.chainT = STREAK_WINDOW;
-    if (this.chain > this.best) { this.best = this.chain; M.runStats.bestStreak = this.best; }
-    const s = streakFor(this.chain);
-    if (s) {
-      const el = this.streakEl;
-      el.querySelector('.sbig').textContent = s.title;
-      el.querySelector('.ssub').textContent = s.sub || `${s.n} in a row · +${Math.round(streakBonus(s.n) * 100)}% XP`;
-      el.dataset.tier = Math.min(4, s.tier);
-      el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
-      this.streakT = 2.2;
-      M.cam.addShake(0.6 + s.tier * 0.4);
-      if (s.tier >= 2) M.sfx('levelup', null, 0.5);
-      if (s.tier === 3) this.radio('streak');
-    }
     if (this.kills === 1) this.radio('firstKill', false, true);
-    return streakBonus(this.chain);
   }
 
   update(dt, realDt) {
     const M = this.mode, V = M.vehicle;
-    if (this.chainT > 0) { this.chainT -= dt; if (this.chainT <= 0) this.chain = 0; }
-    if (this.streakT > 0) { this.streakT -= realDt; if (this.streakT <= 0) this.streakEl.classList.remove('show'); }
     if (this.cardT > 0) { this.cardT -= realDt; if (this.cardT <= 0) this.cardEl.classList.remove('show'); }
     if (this.commT > 0) {
       this.commT -= realDt;
@@ -106,11 +86,11 @@ export class PlanetExtras {
       <div class="label">Expedition report · ${mode.survey.name}</div>
       <div class="rtitle">${title}</div><div class="rquip">${quip}</div>
       <div class="rgrid">
-        ${row('Hostiles destroyed', R.kills)}${row('Best kill streak', R.bestStreak || 0)}
+        ${row('Hostiles destroyed', R.kills)}${row('Wildlife launched', R.punts || 0)}
         ${row('Resources banked', R.banked)}${row('Items recovered', R.items)}
         ${row('Curiosities scanned', `${R.curios || 0}/${r.curioTotal}`)}${row('Apex kills', R.bosses)}
-        ${row('Dungeons entered', R.dungeons)}${row('Wildlife launched', R.punts || 0)}
-        ${row('Explorer XP', R.xp)}${row('Explorers lost', r.deaths)}
+        ${row('Dungeons entered', R.dungeons)}${row('Explorers lost', r.deaths)}
+        ${row('Explorer XP', R.xp)}
       </div>
       <div class="rgot">${got}</div>
       <button class="btn">Carry on</button></div></div>`);

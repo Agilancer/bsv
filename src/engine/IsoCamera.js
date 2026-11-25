@@ -17,6 +17,7 @@ export class IsoCamera {
     this.minDist = 140; this.maxDist = 2600;
     this.shake = 0;
     this.manualT = 0;              // seconds the last manual zoom still overrides distFloor
+    this.manualYawT = 0;           // seconds the last manual turn still holds off automatic turning
     this.userZoomed = false;       // the captain has picked a zoom (default floors stop applying)
     this.follow = null;            // object with .position
     this.lead = new THREE.Vector3();
@@ -39,14 +40,25 @@ export class IsoCamera {
       if (m.twist) this.yawTarget += m.twist;   // two-finger twist: the world turns with the fingers
       if (inp.held('camLeft')) this.yawTarget += realDt * 1.6;
       if (inp.held('camRight')) this.yawTarget -= realDt * 1.6;
+      // a hand on the camera: automatic turning (the watch camera in Game.js) stands off for a while
+      if (m.dragDX || m.twist || inp.held('camLeft') || inp.held('camRight')) this.manualYawT = 12;
     }
     this.yaw = damp(this.yaw, this.yawTarget, 8, realDt);
     if (this.manualT > 0) this.manualT -= realDt;
+    if (this.manualYawT > 0) this.manualYawT -= realDt;
     const floor = this.manualT > 0 ? 0 : this.distFloor || 0;
-    this.distance = damp(this.distance, Math.max(this.distTarget, floor), floor > this.distTarget ? 2 : 6, realDt);
+    // watchDist: a closer default while autoplay is being watched on a phone (until the captain picks a zoom)
+    const base = this.watchDist && !this.userZoomed ? Math.min(this.distTarget, this.watchDist) : this.distTarget;
+    this.distance = damp(this.distance, Math.max(base, floor), floor > base ? 2 : 6, realDt);
     if (this.follow) {
       this.target.copy(this.follow.position);
-      if (this.follow.velocity) this.lead.lerp(this._off.copy(this.follow.velocity).multiplyScalar(0.9), 1 - Math.exp(-2 * realDt));
+      if (this.follow.velocity) {
+        // look ahead of a moving ship, but never by more than the view can spare (a narrow portrait screen, a ship at cruise)
+        this._off.copy(this.follow.velocity).multiplyScalar(0.9);
+        const asp = innerWidth / innerHeight, cap = this.distance * (asp < 1 ? 0.115 * asp : 0.2), l = this._off.length();
+        if (l > cap) this._off.multiplyScalar(cap / l);
+        this.lead.lerp(this._off, 1 - Math.exp(-2 * realDt));
+      }
       this.target.add(this.lead.clone().multiplyScalar(this.frameWith ? 0.3 : 1));
       if (this.frameWith) this.target.lerp(this._off.copy(this.frameWith), this.frameMix || 0.32);
     }
