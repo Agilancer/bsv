@@ -11,6 +11,12 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     (`engine.onGpu` hooks: lost / restored / failed). Read `engine.renderer` fresh each time; never keep it. If it cannot
     be rebuilt (5 losses a minute, or a WebGL context that is not restored in 10 s), main.js saves and reloads straight
     back into the game (sessionStorage `velscour.gpuResume`), on WebGL2 for the rest of the session after WebGPU fails.
+  - Running while minimized (`engine.bg`): a hidden page gets no frames, so a worker clock (4 Hz, not throttled like
+    page timers) steps the sim in fixed 1/30 s steps without drawing. Wall-clock time the browser froze the page (phones,
+    Chrome energy saver) becomes `bg.debt` (capped at an hour) and is fast-forwarded when it runs again, a capped share of
+    each frame (`payDebt`). `engine.simulating` is set for every step no frame shows (simulate, background, fast-forward):
+    skip drawing work in update() when it is. `game/away.js`: the setting (`settings().bgRun`, on by default), the
+    FAST-FORWARD plate with Skip (`ticker.over`), quiet effects (`audio.quiet`), the "Away …" summary.
 - `src/fx/` — GPU particles (`Particles.js`: analytic motion, write-once ring buffer), sky,
   celestial bodies, ship/station materials, debris, title scene, lighting rig.
 - `src/game/` — `Game` (orchestrator, helm, rewards, equipment), `World` (sim hub), `Sector`
@@ -66,7 +72,8 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     surface: they were removed on request. Do not add chained-kill counters or announcements back.)
 - `src/ui/` — HUD, overlay canvas, windows; `css/ui.css` holds the holo theme.
   - `ui/ticker.js` — `game.ticker`: one slim bar across the very top. `pin({tag, time, mid, act})` is the plate (a PvP
-    match or contested field: mode, clock, score); `say(text, {who, hex, cls})` crawls a line along it. With the
+    match or contested field: mode, clock, score; `over(p)` shows a plate in front of it until cleared, for the
+    fast-forward after time away); `say(text, {who, hex, cls})` crawls a line along it. With the
     interface hidden for autoplay, toasts, rank-ups, story lines and the autopilot's log go there too. The HUD along
     the top moves down while it is out (`html.tick-on`, `--tk`; phone layouts start from `--mt`, which includes it).
     Status that belongs to a match or an event goes on the ticker, not in a panel mid-screen.

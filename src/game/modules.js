@@ -13,6 +13,7 @@ import { install as installFlavor } from './flavor/index.js';
 import { installTicker } from '../ui/ticker.js';
 import { installQuests } from './quests/index.js';
 import { installNaming } from './naming.js';
+import { installAway } from './away.js';
 
 export function install(game) {
   game.modes = game.modes || {};
@@ -27,6 +28,7 @@ export function install(game) {
   installGuild(game);     // guilds, alliances, contested zones, PvP arenas (after the MMO population and nav)
   installFlavor(game);
   installTicker(game);
+  installAway(game);      // keep running while minimized (after the ticker: its fast-forward plate lives there)
   installNaming(game);   // rename captain and hulls; names for new hulls
   installQuests(game);   // after stations, nav and planets: it wraps enterSystem and reads their state
 }

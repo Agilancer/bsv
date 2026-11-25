@@ -68,10 +68,6 @@ export function install(game) {
     }
   };
 
-  // mark fast-forwards (engine.simulate) so the bridge skips drawing its viewscreen for every step
-  const E = game.engine, simulate = E.simulate;
-  E.simulate = function (...a) { this.simulating = true; try { return simulate.apply(this, a); } finally { this.simulating = false; } };
-
   game.engine.add({
     update(dt, t, realDt) {
       crew.update(dt, t, realDt);

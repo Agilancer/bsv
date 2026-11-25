@@ -405,6 +405,7 @@ export class UI {
     body.innerHTML = `${sl('oMaster', 'Master volume', a ? a.volume : 0.7)}${sl('oMusic', 'Music', a ? a.musicVolume : 0.45)}${sl('oBloom', 'Bloom', e.bloomStrength.value / 1.6)}
       <label class="opt"><span>Broadside arcs</span><input type="checkbox" id="oArcs" ${g.showArcs ? 'checked' : ''}></label>
       <label class="opt"><span>Hide interface during autoplay</span><input type="checkbox" id="oHide" ${g.settings().hideHudInAuto ? 'checked' : ''}></label>
+      <label class="opt"><span>Keep running when minimized</span><input type="checkbox" id="oBg" ${g.settings().bgRun !== false ? 'checked' : ''}></label>
       <label class="opt"><span>Autoplay scraps outgrown hulls (35% of price)</span><input type="checkbox" id="oScrap" ${g.settings().autoScrapHulls ? 'checked' : ''}></label>
       <label class="opt"><span>Autoplay ambition</span><select id="oAuto"><option value="full">Full campaign</option><option value="hold">Hold this system</option><option value="combat">Combat &amp; loot only</option></select></label>
       <label class="opt"><span>Autoplay keeps</span><select id="oKeep"><option value="uncommon">Uncommon+</option><option value="rare">Rare+</option><option value="epic">Epic+</option><option value="legendary">Legendary+</option></select></label>
@@ -416,6 +417,7 @@ export class UI {
     q('oBloom').oninput = (ev) => { e.bloomStrength.value = ev.target.value / 100 * 1.6; };
     q('oArcs').onchange = (ev) => { g.showArcs = ev.target.checked; };
     q('oHide').onchange = (ev) => { g.settings().hideHudInAuto = ev.target.checked; };
+    q('oBg').onchange = (ev) => { g.settings().bgRun = ev.target.checked; };
     q('oScrap').onchange = (ev) => { g.settings().autoScrapHulls = ev.target.checked; };
     const AP = (g.data.autoplay ||= {});
     q('oAuto').value = AP.mode || 'full'; q('oKeep').value = AP.keep || 'rare';

@@ -26,6 +26,12 @@ export class Engine {
     // the engine rebuilds the renderer on the same canvas and holds the sim until it is back.
     this.gpu = { lost: false, losses: 0 };
     this.onGpu = [];        // fns(state, info) for 'lost' | 'restored' | 'failed' (could not rebuild)
+    // Running in the background. A hidden page gets no animation frames, so while it is hidden a worker
+    // clock (worker timers are not throttled like the page's) steps the sim without drawing. Time the
+    // browser froze the page outright (phones do, and Chrome's energy saver) is owed as `debt` and
+    // fast-forwarded once it can run again, up to `max` seconds. `enabled` is the captain's setting.
+    this.bg = { enabled: false, debt: 0, max: 3600, wall: 0, clock: null };
+    this.simulating = false;  // true for steps no frame will show (simulate, background, fast-forward)
   }
 
   // 'low' on phones and tablets (by user agent, a touch-first device, or ?mobile), else 'high'; ?q= overrides
@@ -65,9 +71,62 @@ export class Engine {
     window.addEventListener('resize', () => this.resize());
     // phones report the new size late (or not at all) after a rotation: ask again once it settles
     window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 300));
-    document.addEventListener('visibilitychange', () => { this._last = undefined; });
+    document.addEventListener('visibilitychange', () => { this._last = undefined; this.visibility(); });
     this.resize();
     return this;
+  }
+
+  // ---------------- running in the background ----------------
+  visibility() {
+    const B = this.bg;
+    if (document.hidden) {
+      if (!B.enabled || !this.running) return;
+      B.wall = Date.now();
+      this.bgClock(250);
+    } else if (B.clock && B.clock.running) {
+      this.bgClock(0);
+      this.bgAccrue();                            // the stretch since the last background step is owed too
+    }
+  }
+
+  // ms > 0 starts the background clock, 0 stops it
+  bgClock(ms) {
+    const B = this.bg;
+    if (!B.clock) {
+      try {
+        const src = 'let t=null;onmessage=(e)=>{clearInterval(t);t=e.data?setInterval(()=>postMessage(0),e.data):null;}';
+        const w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+        w.onmessage = () => this.bgTick();
+        B.clock = { set: (v) => w.postMessage(v) };
+      } catch (e) {
+        // no workers: page timers still tick (throttled to about once a second, or a minute), and the rest is debt
+        let t = null;
+        B.clock = { set: (v) => { clearInterval(t); t = v ? setInterval(() => this.bgTick(), v) : null; } };
+      }
+    }
+    B.clock.set(ms);
+    B.clock.running = ms > 0;
+  }
+
+  // wall-clock time since the last step becomes debt (Date.now: monotonic clocks stop while a phone sleeps)
+  bgAccrue() {
+    const B = this.bg, now = Date.now(), gap = (now - B.wall) / 1000;
+    B.wall = now;
+    if (gap > 0 && !this.paused) B.debt = Math.min(B.max, B.debt + gap);
+  }
+
+  bgTick() {
+    if (!document.hidden || !this.bg.clock.running) return;    // a message already in flight when the page came back
+    this.bgAccrue();
+    this.payDebt(60);                           // real time costs a few ms a tick; a frozen stretch catches up at ~25% of a core
+  }
+
+  // step owed time in fixed steps, within a budget of `ms` of CPU; nothing is drawn
+  payDebt(ms) {
+    const B = this.bg, step = 1 / 30, t0 = performance.now();
+    this.simulating = true;
+    try { while (B.debt >= step && performance.now() - t0 < ms) { this.step(step); B.debt -= step; } }
+    finally { this.simulating = false; }
   }
 
   // canvas undefined: three makes one (boot); a canvas: rebuild on it after a device loss, so the
@@ -231,10 +290,21 @@ export class Engine {
   }
 
   tick(ms) {
-    if (document.hidden) { this._last = undefined; return; }   // backgrounded: no sim, no draw
+    if (document.hidden) { this._last = undefined; return; }   // backgrounded: no draw (the background clock steps the sim)
     const now = ms / 1000;
     let realDt = this._last === undefined ? 1 / 60 : now - this._last;
-    if (this._last !== undefined) this.govern(realDt);
+    const B = this.bg, ff = B.debt > 0 && !this.paused && !this.gpu.lost;
+    // frames that carry a fast-forward are long on purpose (as is the one after): they say nothing about load
+    if (this._last !== undefined && !ff && !this._ffMs) this.govern(realDt);
+    if (ff) {
+      // back from a frozen stretch: fast-forward the owed time a frame at a time, so the picture keeps moving
+      // (a time-lapse) and the page stays responsive however much is owed. The sim gets about three quarters
+      // of each frame whatever drawing costs (24..100 ms), so a slow phone is not also a slow fast-forward.
+      const other = this._last === undefined ? 16 : Math.max(4, realDt * 1000 - (this._ffMs || 0)), t0 = performance.now();
+      this.payDebt(Math.min(100, Math.max(24, 3 * other)));
+      this._ffMs = performance.now() - t0;
+      if (B.debt < 1 / 30) B.debt = 0;
+    } else this._ffMs = 0;
     this._last = now;
     realDt = Math.min(realDt, 0.1);
     this.realTime += realDt;
@@ -258,15 +328,19 @@ export class Engine {
 
   // Step the simulation without drawing (tests, fast-forward). Returns game time.
   simulate(seconds, step = 1 / 30) {
-    const n = Math.ceil(seconds / step);
-    for (let k = 0; k < n; k++) {
-      this.time += step; this.realTime += step;
-      this.uTime.value = this.time; this.dt = step; this.realDt = step;
-      for (const s of this.systems) if (s.update && s.enabled !== false) s.update(step, this.time, step);
-      for (const s of this.systems) if (s.lateUpdate && s.enabled !== false) s.lateUpdate(step, this.time, step);
-      this.frame++;
-    }
+    const n = Math.ceil(seconds / step), was = this.simulating;
+    this.simulating = true;
+    try { for (let k = 0; k < n; k++) this.step(step); } finally { this.simulating = was; }
     return this.time;
+  }
+
+  // one fixed step of every system, no drawing (simulate, the background clock, fast-forward)
+  step(dt) {
+    this.time += dt; this.realTime += dt;
+    this.uTime.value = this.time; this.dt = dt; this.realDt = dt;
+    for (const s of this.systems) if (s.update && s.enabled !== false) s.update(dt, this.time, dt);
+    for (const s of this.systems) if (s.lateUpdate && s.enabled !== false) s.lateUpdate(dt, this.time, dt);
+    this.frame++;
   }
 
   flash(strength = 0.35, color = 0xff4030) {

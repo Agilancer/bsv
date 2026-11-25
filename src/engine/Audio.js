@@ -64,8 +64,9 @@ export class Audio {
     return Math.max(0, 1 - d / 1800) ** 1.6;
   }
 
+  // quiet: effects held back (a fast-forward would fire a battle's worth of them a frame); music plays on
   play(kind, pos, mul = 1) {
-    if (!this.ctx || !this.enabled || this.ctx.state !== 'running') return;
+    if (!this.ctx || !this.enabled || this.quiet || this.ctx.state !== 'running') return;
     const g = this.att(pos) * mul;
     if (g < 0.02) return;
     const lim = { cannon: 10, heavy: 4, beam: 6, missile: 6, torpedo: 4, explosion: 8, hit: 10, shield: 8, ui: 3 }[kind] || 6;

@@ -6,6 +6,7 @@
 //
 //   game.ticker.say(text, { who, hex, cls, html })   queue a line (who = speaker, in its colour)
 //   game.ticker.pin({ tag, time, mid, act } | null)  the plate: tag + clock, `mid` html (score, capture pips), `act` html
+//   game.ticker.over({ ... } | null)                 a plate shown in front of the pinned one while set (fast-forward)
 //   game.ticker.clear()                              drop everything waiting and crawling
 const SPEED = 6.6;    // em a second: about fifteen letters, a comfortable read on a phone at arm's length
 const GAP = 2.8;      // em between the end of one line and the start of the next
@@ -21,7 +22,7 @@ export function installTicker(game) {
   const pinEl = el.querySelector('.tk-pin'), tagEl = el.querySelector('.tk-tag'), timeEl = el.querySelector('.tk-time');
   const midEl = el.querySelector('.tk-mid'), lane = el.querySelector('.tk-lane'), actEl = el.querySelector('.tk-act');
   const calls = [];
-  let pinned = null, on = false, offT = 0, laneW = 0, em = 14, sizeT = 0;
+  let pinned = null, over = null, on = false, offT = 0, laneW = 0, em = 14, sizeT = 0;
   const sig = { tag: '', time: '', mid: '', act: '' };
 
   const measure = () => { laneW = lane.clientWidth; em = parseFloat(getComputedStyle(lane).fontSize) || 14; };
@@ -42,20 +43,29 @@ export function installTicker(game) {
     },
     pin(p) {
       pinned = p || null;
-      const tag = p ? p.tag || '' : '', time = p ? p.time || '' : '', mid = p ? p.mid || '' : '', act = p ? p.act || '' : '';
-      if (sig.tag !== tag) { sig.tag = tag; tagEl.textContent = tag; }
-      if (sig.time !== time) { sig.time = time; timeEl.textContent = time; }
-      if (sig.mid !== mid) { sig.mid = mid; midEl.innerHTML = mid; midEl.style.display = mid ? '' : 'none'; }
-      if (sig.act !== act) { sig.act = act; actEl.innerHTML = act; actEl.style.display = act ? '' : 'none'; }
-      el.classList.toggle('pinned', !!p);
+      if (!over) draw(pinned);
+    },
+    // a plate that stands in front of the pinned one while it is set (the fast-forward after time away);
+    // the match or field plate comes back when it is cleared
+    over(p) {
+      over = p || null;
+      draw(over || pinned);
     },
     clear() { for (const k of calls) k.el.remove(); calls.length = 0; },
   };
+  function draw(p) {
+    const tag = p ? p.tag || '' : '', time = p ? p.time || '' : '', mid = p ? p.mid || '' : '', act = p ? p.act || '' : '';
+    if (sig.tag !== tag) { sig.tag = tag; tagEl.textContent = tag; }
+    if (sig.time !== time) { sig.time = time; timeEl.textContent = time; }
+    if (sig.mid !== mid) { sig.mid = mid; midEl.innerHTML = mid; midEl.style.display = mid ? '' : 'none'; }
+    if (sig.act !== act) { sig.act = act; actEl.innerHTML = act; actEl.style.display = act ? '' : 'none'; }
+    el.classList.toggle('pinned', !!p);
+  }
   T.pin(null);
 
   game.engine.add({
     update(dt, t, realDt) {
-      const want = !!pinned || calls.length > 0;
+      const want = !!(pinned || over) || calls.length > 0;
       if (want) offT = 0.5; else if (offT > 0) offT -= realDt;
       const show = want || offT > 0;
       if (show !== on) { on = show; el.classList.toggle('on', on); document.documentElement.classList.toggle('tick-on', on); sizeT = 0; }
