@@ -75,10 +75,21 @@ class Corsair(K.Style):
             q = edge(h, i, z0, z1)
             if cut:
                 q = subquad(q, cut[0], cut[1], 0, 1)
-            p.slab(subquad(q, 0, 1, 0, 0.56), 0.035 * u, inset=0.05 * u, bevel=0.02 * u, mirror=True)
+            st = lambda qq: tuple((-x, y, z) for x, y, z in qq)         # the starboard flank was patched by other hands
+            p.slab(subquad(q, 0, 1, 0, 0.56), 0.035 * u, inset=0.05 * u, bevel=0.02 * u)
+            p.slab(st(subquad(q, 0, 1, 0.3, 1.0)), 0.03 * u, inset=0.05 * u, bevel=0.02 * u)
             if B.id == 'S' and i != 1:
                 continue
-            p.slab(subquad(q, 0.1, 0.9, 0.6, 1.0), 0.05 * u, 'dark' if i == 1 else 'hull', inset=0.06 * u, bevel=0.02 * u, mirror=True)
+            p.slab(subquad(q, 0.1, 0.9, 0.6, 1.0), 0.05 * u, 'dark' if i == 1 else 'hull', inset=0.06 * u, bevel=0.02 * u)
+            p.slab(st(subquad(q, 0.3, 1.0, 0.0, 0.26)), 0.055 * u, 'hull' if i == 1 else 'dark', inset=0.05 * u, bevel=0.02 * u)
+
+    def plate(self, p, B, h, q, length):    # a waist: one plate to port; to starboard a smaller one and a dark patch over a hole
+        u = B.W
+        st = lambda qq: tuple((-x, y, z) for x, y, z in qq)
+        p.slab(q, 0.03 * u, inset=0.05 * u, bevel=0.03 * u)
+        p.slab(st(subquad(q, 0, 0.55, 0, 1)), 0.03 * u, inset=0.05 * u, bevel=0.03 * u)
+        p.slab(st(subquad(q, 0.5, 1.0, 0.15, 0.95)), 0.055 * u, 'dark', inset=0.05 * u, bevel=0.02 * u)
+        return True
 
     def noz(self, noz):                     # mismatched nozzles in one block
         return [(x, y, min(r * (1.22 if i % 2 == 0 else 0.74), x * 0.96 if x else 9)) for i, (x, y, r) in enumerate(noz)]

@@ -57,6 +57,12 @@ Read this first when picking the work up (new session or another model). Then `C
        raised lobes round a dark sensor trench; frigate belly pod 1.3x deeper; cutter engine block 1.3 (the shield
        ellipsoid stops it there: ironhold_1 pokes through at 1.31) with a bigger main nozzle. Not done: the snout is
        still ~35% of L (45% needs a shorter `trenchc`, which the 1.2 W pitch floor forbids, or one section fewer).
+  - Third pass (session 4; renders in the scratchpad `yards4/`), one commit each:
+    1. Main hull of the faceted yards: DONE as a light pass. Tidewright: a sharper lozenge (shoulders at 0.36 W, a
+       shorter beam facet). Ironhold: `Style.plate` (new hook: a waist's flank plating) lays two courses of armour
+       brick in running bond, and bands L/C get a second, lower brick course on the deck edge. Corsair: belts and
+       waists are plated differently to port and starboard (no mirror; a dark patch one side only). The sections
+       are still six-point prisms between joints; most of a hull's length is mounts, so the change is modest.
   All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
   session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 

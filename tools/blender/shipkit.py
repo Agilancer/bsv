@@ -36,6 +36,7 @@ class Style:
     def extra_parts(self): return []
     def blockp(self, u, xi, xo): return None    # a battery block's section, when not the faceted one
     def app(self, p, B, variant): pass          # dress an appendage the yard takes from the ladder
+    def plate(self, p, B, h, q, length): return False       # a waist's flank plating (quad q), when not one plate
     # a yard's own body shapes (the defaults are the ladder's faceted forms)
     long_stag = False           # a staggered battery's housings run the whole section (one fairing)
     blocks = podpart = None     # replace the battery blocks / a belly pod: fn(B) / fn(B, variant, hangar, ln, deep) -> Part
@@ -343,7 +344,8 @@ def waist(B, length, variant, top=False):
         p.hloft([(pscale(h, 0.985), 0), (h, 0.03 * u), (h, length - 0.03 * u), (pscale(h, 0.985), length)])
     belts(p, B, h, 0.05 * u, length - 0.05 * u, (1, 3))
     q = edge(h, 2, 0.05 * u, length - 0.05 * u)
-    p.slab(q, 0.03 * u, inset=0.05 * u, bevel=0.03 * u, mirror=True)
+    if not Y.plate(p, B, h, q, length):
+        p.slab(q, 0.03 * u, inset=0.05 * u, bevel=0.03 * u, mirror=True)
     strake(p, B, 0.06 * u, length - 0.06 * u)
     det(p, 'hatch', (0, B.HT + 0.07 * u, 0.2 * u), length - 0.4 * u, side='mid')
     det(p, 'pd', (h[1][0] * 0.98, h[1][1] - 0.01 * u, 0.2 * u), length - 0.4 * u)
