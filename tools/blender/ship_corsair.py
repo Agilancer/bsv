@@ -20,7 +20,7 @@ def flight_deck(p, u, xa, xb, z0, z1, y, t=0.1):
     p.box('dark', w * 0.46, 0.02 * u, ln * 0.6, (xc, yt + 0.004 * u, z0 + 0.38 * ln))           # the landing strip
     p.box('trim', 0.03 * u, 0.02 * u, ln * 0.56, (xc, yt + 0.01 * u, z0 + 0.38 * ln))
     for sx in (-1, 1):
-        for j in range(4):                                                                       # landing lights
+        for j in range(4 if u > 10 else 2):                                                                       # landing lights
             p.box('glow', 0.04 * u, 0.02 * u, 0.05 * u, (xc + sx * w * 0.27, yt + 0.008 * u, z0 + 0.45 * u + j * 0.3 * u))
         p.box('dark', 0.1 * u, 0.02 * u, 0.9 * u, (xc + sx * w * 0.14, yt + 0.004 * u, z1 - 0.95 * u))      # launch slots
         p.box('trim', 0.02 * u, 0.02 * u, 0.9 * u, (xc + sx * w * 0.14, yt + 0.01 * u, z1 - 0.95 * u))

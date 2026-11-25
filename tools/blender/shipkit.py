@@ -1146,6 +1146,20 @@ def yprow(B, variant, length, marks, zr=0.3, wk=None, with_well=False, sock=None
         p.hloft([(hw, 0), (hw, 0.07 * length), (h, zr * 0.5)])
         p.body(h, zr * 0.5, zr)
         p.marker('sock.top', (0, HT, zr * 0.74), kind='command')
+    elif variant == 'snout':    # the destroyer: the hull steps down to a long slender snout, nearly half the ship
+        hs = B.std(0.7, 0.74, 0.74)
+        p.hloft([(h, 0), (h, zr * 0.45), (hs, zr)])
+        belts(p, B, hs, zr + 0.1 * u, zr + 0.3 * length, (1,))
+        h = hs
+    elif variant == 'lobes':    # the cruiser: a split head, two armoured lobes wider than the hull round a sensor trench
+        hh = B.std(1.24, 1.12, 1.1)
+        p.hloft([(h, 0), (h, zr * 0.3), (hh, zr)])
+        yt, z0, z1 = hh[0][1], zr * 0.55, zr + 0.5 * (length - zr)
+        lobe = lambda z, k, x=0.56: [((x - 0.3 * k) * u, yt - 0.1 * u, z), ((x + 0.34 * k) * u, yt - 0.1 * u, z), ((x + 0.26 * k) * u, yt + 0.2 * u * k, z), ((x - 0.2 * k) * u, yt + 0.2 * u * k, z)]
+        p.loft([lobe(z0, 0.5), lobe(z0 + 0.5 * u, 1.0), lobe(z1 - 0.9 * u, 0.9, 0.5), lobe(z1, 0.35, 0.4)], 'hull', mirror=True)
+        p.box('dark', 0.36 * u, 0.06 * u, (z1 - z0) * 0.8, (0, yt, (z0 + z1) / 2))
+        p.box('glow', 0.05 * u, 0.02 * u, (z1 - z0) * 0.6, (0, yt + 0.035 * u, (z0 + z1) / 2))
+        h = hh
     else:
         if spine:
             spine_(p, B, 0, zr, 1, wells=(zr * 0.5,), sock='none')
@@ -1171,7 +1185,7 @@ def yard_parts():
     # ---- band S: cutter (T1), corvette (T2)
     ps += [yprow(S, 'wedge', 12.5, MK[n[1]], zr=0.3, sock=True),
            battery(S, 'blister', 6.0, ('beam',)), *two(S),
-           engine(S, 'cutter', 18.0, [(0, 0.1, 0.44), (0.52, -0.42, 0.17)], blk=(1.27, 1.3, 1.28), fins=((1, 0.3), (3, 0.26))),
+           engine(S, 'cutter', 18.0, [(0, 0.1, 0.5), (0.6, -0.44, 0.18)], blk=(1.3, 1.3, 1.28), fins=((1, 0.3), (3, 0.26))),    # an engine with a nose
            engine(S, 'shoulder', 13.0, [(0, 0, 0.42)], fins=(), side=(0.6, -0.02), vents=False),
            (Y.nacelle or nacelle)(S), Y.command(S, 'blister'), Y.command(S, 'block')]
     # ---- band M: frigate (T3), destroyer (T4), light cruiser (T5)
@@ -1184,7 +1198,7 @@ def yard_parts():
            engine(M, 'block', 20.0, [(0.375, 0.195, 0.264), (0.32, -0.36, 0.174)], with_well=wl.get('block')),
            engine(M, 'tri', 17.0, [(0, 0.1, 0.36), (0.5, -0.32, 0.19)], hangars=(0.5,)),
            engine(M, 'mass', 30.0, [(0.38, 0.2, 0.27), (0.34, -0.36, 0.18)], blk=(1.08, 1.1, 1.12), fins=((2, 0.36, 0.42, 0.9, 0.2),), with_well=wl.get('mass', 0.42), hangars=(0.72,), front=0.66),
-           Y.command(M, 'keep'), ypod(M)]
+           Y.command(M, 'keep'), ypod(M, deep=1.3)]      # the frigate's deep belly
     # ---- the cruiser (T6) and the sections it shares with T7 and T8, in the band the yard's cruiser falls in
     B6 = M if Y.t6m else L
     ps += [yprow(B6, 'lobes', 4.0 * B6.W, MK[n[6]], zr=0.3)]

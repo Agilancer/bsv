@@ -37,7 +37,7 @@ class Hollow(K.Style):
 
     def belts(self, p, B, h, z0, z1, edges, t, inset, cut):
         u = B.W
-        for i in edges:                     # carapace scales: two rows, overlapping like tiles
+        for i in (edges if B.id != 'M' else [e for e in edges if e == 1]):     # carapace scales (band M: the upper flank only): two rows, overlapping like tiles
             q = edge(h, i, z0, z1)
             if cut:
                 q = subquad(q, cut[0], cut[1], 0, 1)

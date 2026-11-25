@@ -52,14 +52,21 @@ Read this first when picking the work up (new session or another model). Then `C
        the hull beside the turret line, the command block at the port deck's inboard edge; hangar gallery under them
        on the flank. A deck on the centreline is not possible: every dorsal well on T6/T8/T10 carries a turret.
        T10 unchanged (decks over the side hulls' crowns). corsair_6 sits at the band M triangle cap (no girder/struts).
+    4. Small classes: DONE as a first pass, in `yprow()` / `yard_parts()` for the five yards (Velscour untouched):
+       destroyer hull steps down to a slender snout (0.7 W) at the prow root; cruiser head flares to 1.24 W with two
+       raised lobes round a dark sensor trench; frigate belly pod 1.3x deeper; cutter engine block 1.3 (the shield
+       ellipsoid stops it there: ironhold_1 pokes through at 1.31) with a bigger main nozzle. Not done: the snout is
+       still ~35% of L (45% needs a shorter `trenchc`, which the 1.2 W pitch floor forbids, or one section fewer).
   All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
   session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 
 ## Next, in order
-1. Body shapes, second pass (what the first pass left): the main hull sections are still straight prisms of a
-   6-point section (h[1]..h[4] are indexed all over `shipkit.py`, so more points need care); turret wells and
-   broadside housings are square-cut on the curved yards (Aurelian, Hollow); Corsair decks are on the flanks, not over
-   the crown; Tidewright arrays are small on T9/T10; Corsair still uses the ladder's pods.
+1. Body shapes, what the second pass left (see "In progress" 1-4): one long profile over the whole ship (a warp in
+   `kitPlan.js`, hardpoints included) instead of a swell per section; Tidewright / Ironhold / Corsair main sections
+   are unchanged; band S and M hulls of the curved yards are faceted or coarse (triangle budgets: several hulls sit
+   at the band cap, so any new geometry there drops fixed-size detail and fails the running-lights test; raising
+   `BANDS[].tris` is the owner's call); Corsair T10 decks; destroyer snout length; Tidewright arrays small on T9/T10;
+   Corsair still uses the ladder's pods. None of the second pass has been through the critic loop.
 2. Run the critic loop on renders per yard (`tools/kitshots.cjs`, viewer `?yard=<lang>&fit&webgl&guns`).
    Known weak classes: cutter, frigate, destroyer and cruiser read alike; destroyer snout is short.
 3. Gameplay gates, never run since the rework: `node tools/duel.cjs 5,15,30,50 --gate`,
