@@ -12,8 +12,14 @@ import { YARDS } from '../data/chassis.js';
 import { clamp, wrapAngle, damp } from '../../engine/rng.js';
 
 const CRUISE = 1.9;   // engines to cruise: a ship on passage with nothing near (set per frame through cruiseUntil)
+// Launchers loft their warheads: a missile climbs out at up to ~17 degrees (a torpedo ~5) over a long shot and homes back
+// down, so the mount elevates for what it is shooting at. Rises with range, nothing at point-blank.
+const LOFT = { missile: 0.3, torpedo: 0.09 };
+const loftOf = (ws, horiz) => (ws.homing > 0 && LOFT[ws.kind] ? LOFT[ws.kind] * Math.min(1, horiz / 500) : 0);
+const ALT_SCAN = 0.4;   // s between a gun's looks round for something else to shoot when the ship's target is out of its arc
 const ARC = { broadside: 0.95, turret: 2.4, prow: 0.5, hangar: Math.PI };   // turret: half-angle from the bow (blind astern)
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
+const _a = new THREE.Vector3();   // aim point (Ship.aim)
 // reused spawn spec for Wake of Thorns mines (Projectiles.spawn copies what it needs)
 const MINE = { pos: new THREE.Vector3(), vel: new THREE.Vector3(0, 0, 0.001), kind: 'mine', team: 1, owner: null, dmg: 0, dmgType: 'explosive', ws: { crit: 0, unique: [] }, life: 14, splash: 55, color: 0xffa040, size: 2.4, len: 3, trail: 0 };
 let SHIP_ID = 1;
@@ -336,26 +342,61 @@ export class Ship {
     for (const w of this.weapons) {
       w.cd -= dt * rofMul;
       if (w.hp.type === 'hangar') { W.hangars.tick(this, w, dt, t); continue; }
-      const bears = tg && this.inArc(w, tg);
-      if (w.mount) this.aim(w, bears ? tg : null, dt);
-      if (w.cd <= 0 && bears && (this.autoFire || this.isPlayer === false) && (w.onTarget || !w.mount)) {
-        this.fire(w, tg, 1);
-      }
+      // what this gun shoots: the ship's target when it bears, else (on auto-fire) a hostile inside this gun's own arc
+      let shoot = tg && this.inArc(w, tg) ? tg : null;
+      const free = this.autoFire || this.isPlayer === false;
+      if (!shoot && free) shoot = this.otherTarget(w, t);
+      else w.alt = null;
+      // no shot: keep training on the ship's target (as far round as the mount goes) so the gun is ready when it bears
+      if (w.mount) this.aim(w, shoot || tg, dt, !!shoot);
+      w.shooting = shoot;
+      if (w.cd <= 0 && shoot && free && (w.onTarget || !w.mount)) this.fire(w, shoot, 1);
     }
+  }
+
+  // A gun whose ship's target is out of its arc picks its own: the nearest hostile it can bear on (kept while it
+  // still bears, re-chosen every ALT_SCAN s). Enemy guns only take ships on the captain's side as second targets,
+  // so the factions' ships do not start shooting one another.
+  otherTarget(w, t) {
+    const a = w.alt;
+    if (a && a.alive && !a.cloaked && t < w.altT) return this.inArc(w, a) ? a : null;
+    w.altT = t + ALT_SCAN * (0.8 + Math.random() * 0.4);
+    if (a && a.alive && !a.cloaked && this.inArc(w, a)) return a;
+    const W = this.world;
+    let best = null, bd = Infinity;
+    for (const o of W.ships) {
+      if (!o.alive || o.cloaked || o === this || !W.hostile(this, o)) continue;
+      if (this.team !== 1 && o.team !== 1) continue;
+      const d = o.position.distanceToSquared(this.position);
+      if (d < bd && this.inArc(w, o)) { bd = d; best = o; }
+    }
+    w.alt = best;
+    return best;
+  }
+
+  // Where a shot at tg will be aimed (world space), from the muzzle position mp: led by the shot's real flight time
+  // (beams need none) and, for launchers, lofted. launch() fires along the same line, so the barrel points where it goes.
+  aimPoint(w, ws, tg, mp, out) {
+    const dist = mp.distanceTo(tg.position);
+    const tt = ws.kind === 'beam' || !ws.speed ? 0 : Math.min(3, dist / ws.speed);
+    out.copy(tg.position).addScaledVector(tg.velocity, tt);
+    out.y += Math.hypot(out.x - mp.x, out.z - mp.z) * loftOf(ws, dist);
+    return out;
   }
 
   // Train a mount on its target: traverse and elevate at the gun's own rate, report when
   // it's on target, and let the barrels run back out after recoil. No target: return to rest.
-  aim(w, tg, dt) {
+  aim(w, tg, dt, live = true) {
     const M = w.mount;
     let wantYaw = 0, wantPitch = 0;
     if (tg) {
       // target relative to the mount, in the ship's frame (heading only; cheap, no matrix inverse)
-      const lead = Math.min(2.5, tg.position.distanceTo(this.position) / 600);
-      const dx = tg.position.x + tg.velocity.x * lead - this.position.x, dz = tg.position.z + tg.velocity.z * lead - this.position.z;
+      const mp = _w.copy(w.hp.pos).applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.heading).add(this.position);
+      const ap = this.aimPoint(w, w.ws, tg, mp, _a);
+      const dx = ap.x - this.position.x, dz = ap.z - this.position.z;
       const ch = Math.cos(this.heading), sh = Math.sin(this.heading);
       let lx = dx * ch - dz * sh - w.hp.pos.x, lz = dx * sh + dz * ch - w.hp.pos.z;
-      let ly = tg.position.y - this.position.y - w.hp.pos.y;
+      let ly = ap.y - this.position.y - w.hp.pos.y;
       if (w.mirror) { lx = -lx; lz = -lz; }
       if (w.flip) { lx = -lx; ly = -ly; }
       const horiz = Math.hypot(lx, lz);
@@ -373,7 +414,7 @@ export class Ship {
     w.aimPitch += clamp(wantPitch - w.aimPitch, -step * 0.6, step * 0.6);
     M.head.rotation.y = w.aimYaw;
     if (M.axis === 'x') M.pitch.rotation.z = w.aimPitch; else M.pitch.rotation.x = w.aimPitch;
-    w.onTarget = !!tg && Math.abs(M.yawLimit >= Math.PI ? wrapAngle(wantYaw - w.aimYaw) : wantYaw - w.aimYaw) < 0.12;
+    w.onTarget = !!tg && live && Math.abs(M.yawLimit >= Math.PI ? wrapAngle(wantYaw - w.aimYaw) : wantYaw - w.aimYaw) < 0.12;
     // recoil: barrels slam back and run out again
     for (const b of M.barrels) {
       if (b.kick <= 0) continue;
@@ -430,6 +471,7 @@ export class Ship {
     const tt = dist / spd;
     const err = (Math.random() - 0.5) * 0.7 * Math.min(1, dist / 600) * (0.5 + Math.min(1, Math.abs(target.yawRate || 0) * 4));
     const aim = _w.copy(target.position).addScaledVector(target.velocity, tt * (0.9 + err));
+    aim.y += Math.hypot(aim.x - mp.x, aim.z - mp.z) * loftOf(ws, dist);   // launchers loft (aimPoint: the mount elevates to match)
     const dir = aim.sub(mp).normalize();
     const sp = ws.spread + (splitK ? 0.08 * splitK : 0);
     if (sp) { const a = (Math.random() - 0.5) * sp * 2 + (splitK ? 0.12 * splitK : 0); dir.applyAxisAngle(THREE.Object3D.DEFAULT_UP, a); }
