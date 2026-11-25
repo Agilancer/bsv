@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const { LANDER, RAMP_FOOT_Z, landerScale } = await import('../src/game/planet/Lander.js');
+const { LANDER, RAMP_FOOT_Z, landerScale, TURRET_SHARE, TURRET_RANGE } = await import('../src/game/planet/Lander.js');
 const { herm, DESCENT, EXTRACT } = await import('../src/game/planet/Landing.js');
 
 const facts = JSON.parse(readFileSync(new URL('../assets/vehicles/lander.json', import.meta.url))).lander;
@@ -49,4 +49,9 @@ test('descent and extraction paths: above ground, slowing, arriving on the pad',
   // the timeline runs in order and stays short
   assert.ok(DESCENT.touch < DESCENT.ramp[0] && DESCENT.ramp[0] < DESCENT.roll && DESCENT.roll < DESCENT.settle && DESCENT.settle < DESCENT.end);
   assert.ok(DESCENT.end <= 16);
+});
+
+test('the turrets support, they do not carry: both together under the explorer\'s own fire', () => {
+  assert.ok(2 * TURRET_SHARE < 1 && TURRET_SHARE > 0.1);
+  assert.ok(TURRET_RANGE >= 150 && TURRET_RANGE <= 300);
 });

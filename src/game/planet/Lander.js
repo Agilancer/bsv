@@ -13,6 +13,7 @@ import { loadGLB } from './vehicleGLB.js';
 import { tex } from './ptex.js';
 import { landerGroup } from './siteModels.js';
 import { clamp } from '../../engine/rng.js';
+import { expectedExplorer } from './groundBalance.js';
 
 export const LANDER_URL = 'assets/vehicles/lander.glb';
 let gltf = null, pending = null;
@@ -34,6 +35,12 @@ export function landerScale(dims) {
   if (!dims) return 1;
   return clamp(Math.max(dims.W / LANDER.fitW, dims.L / LANDER.fitL, (dims.H || 0) / LANDER.fitH), 1, LANDER.maxScale);
 }
+
+// the twin rails: reach (3D), cadence per turret, slug speed, share of the expected explorer's DPS per turret
+export const TURRET_RANGE = 230, TURRET_CD = 0.3, TURRET_SPEED = 360, TURRET_SHARE = 0.35;
+
+const dpsAt = new Map();
+const explorerDps = (L) => { let d = dpsAt.get(L); if (d == null) dpsAt.set(L, d = expectedExplorer(L).dps); return d; };
 
 // shared by the one lander there is at a time
 export const uHeat = uniform(0), uThrust = uniform(0), uRetroI = uniform(0), uMainI = uniform(0), uPlasma = uniform(0);
@@ -284,7 +291,7 @@ export class Lander {
       T.cd -= dt;
       T.node.getWorldPosition(_v);
       let e = armed ? C.nearestTo(_v, 170) : null;
-      if (e && (!e.alive || e.under)) e = null;
+      if (e && (!e.alive || e.under || e.pos.distanceTo(_v) > TURRET_RANGE)) e = null;
       let yaw, pitch, aimed = false;
       if (e) {
         C.center(e, _w);
@@ -308,12 +315,13 @@ export class Lander {
         T.recoil = Math.max(0, T.recoil - dt * 3.2);
         if (T.rest) T.gun.position.copy(T.rest).addScaledVector(_v.set(0, 0, -1).applyAxisAngle(X, -T.pitch), T.recoil * 0.5);
       }
-      if (e) aimed = Math.abs(wrap(want - T.yaw)) < 0.12 && Math.abs(wrap(yaw) - want) < 0.05 && Math.abs(pitch - T.pitch) < 0.7;
-      if (aimed && T.cd <= 0) { T.cd = 0.3; this.fire(T, e); }
+      // on bearing (the rails can't depress far, but the slug flies straight at what they lay on)
+      if (e) aimed = Math.abs(wrap(want - T.yaw)) < 0.12 && Math.abs(wrap(yaw) - want) < 0.05;
+      if (aimed && T.cd <= 0) { T.cd = TURRET_CD; this.fire(T, e); }
     }
   }
   fire(T, e) {
-    const M = this.mode, V = M.vehicle;
+    const M = this.mode;
     T.barrel ^= 1;
     T.recoil = 1;
     // muzzle: the twin rails sit 0.26 either side of the gun's centre line
@@ -321,10 +329,12 @@ export class Lander {
     const mz = (T.muzzle ? T.muzzle.getWorldPosition(_v) : T.node.getWorldPosition(_v));
     _w.set(T.barrel ? 0.26 : -0.26, 0, 0).applyQuaternion(T.node.getWorldQuaternion(_q)).multiplyScalar(this.s);
     mz.add(_w);
-    const dir = _w.copy(T.aimAt).sub(mz).normalize();
+    const dir = _w.copy(T.aimAt).sub(mz);
+    const dist = dir.length(); dir.divideScalar(dist || 1);
     const lvl = (M.ex && M.ex.level) || 1;
-    const dmg = 16 * (1 + (lvl - 1) * 0.08) * ((V.stats && V.stats.dmgMul) || 1);
-    M.shots.spawn({ pos: mz.clone(), vel: dir.clone().multiplyScalar(360), team: 0, dmg, kind: 'bullet', color: 0x9ad8ff, size: 0.32 * Math.min(1.6, this.s), len: 10, life: 0.65, splash: 2.4 });
+    // each turret is worth about a third of the expected explorer's sustained fire at its level (groundBalance)
+    const dmg = TURRET_SHARE * explorerDps(lvl) * TURRET_CD;
+    M.shots.spawn({ pos: mz.clone(), vel: dir.clone().multiplyScalar(TURRET_SPEED), team: 0, dmg, kind: 'bullet', color: 0x9ad8ff, size: 0.32 * Math.min(1.6, this.s), len: 10, life: dist / TURRET_SPEED + 0.25, splash: 2.4 });
     M.pfx.muzzle(mz, dir, 0x9ad8ff, 1.3 * Math.min(1.5, this.s));
     M.pfx.sparks(mz, 3, 0xc0e8ff, 22, 0.2, 0.3);
     M.sfx('cannon', mz, 0.55);

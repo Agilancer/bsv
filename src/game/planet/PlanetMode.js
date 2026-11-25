@@ -587,7 +587,7 @@ export class PlanetMode {
     const E = this.engine;
     this.probes.recallAll(true);
     this.hud.destroy();
-    document.body.classList.remove('planet-mode', 'planet-touch');
+    document.body.classList.remove('planet-mode', 'planet-touch', 'planet-cine');
     uRoverRim.value = 0.5; uCreatureRim.value = 0.35;
     for (const l of [this.pfx.G, this.pfx.S, this.pfx.K]) E.remove(l);
     E.renderer.toneMappingExposure = this.savedExposure || 1.05;
