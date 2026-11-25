@@ -382,15 +382,17 @@ export class Creatures {
     if (!hunting) return this.wanderStep(e, dt);
     const sp = this.pace(e, 0.85);
     const ip = this.intercept(e, tgt, sp, _w);
-    this.move(e, dt, ip.x, ip.z, 1, true, d < 8 ? sp * 0.5 : sp);
-    if (d < 50 && d > 5 && e.cd <= 0) {
+    // big explorers (the higher marks) push creatures out further: reach and the charge's minimum grow with them
+    const big = Math.max(0, (tgt.radius || 1.5) - 2.2);
+    this.move(e, dt, ip.x, ip.z, 1, true, d < 8 + big ? sp * 0.5 : sp);
+    if (d < 50 && d > 5 + big && e.cd <= 0) {
       const wind = 0.65;
       e.chargeT = clamp((d + 14) / cs, 0.45, 1.4);
       const lp = this.lead(tgt, wind + d / cs * 0.8, _w);
       const ax = lp.x - e.pos.x, az = lp.z - e.pos.z, al = Math.hypot(ax, az) || 1;
       e.state = 'windup'; e.t = wind; e.cd = def.cd; e.dir.set(ax / al, 0, az / al); e.heading = Math.atan2(ax, az);
       M.warnLine(e.pos, e.dir, cs * e.chargeT + 4, e.radius + 2.6, wind + e.chargeT * 0.5, 0xff3020);
-    } else if (d < e.radius + 3 && e.cd <= def.cd - 1) { e.cd = def.cd; this.hitTarget(e, tgt, e.dmg * 0.35); }
+    } else if (d < e.radius + 3 + big && e.cd <= def.cd - 1) { e.cd = def.cd; this.hitTarget(e, tgt, e.dmg * 0.35); }
   }
 
   aiRanged(e, dt, d, dx, dz, hunting, tgt) {
