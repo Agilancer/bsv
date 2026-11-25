@@ -165,6 +165,19 @@ test('hardpoints take guns and bays; a frame swap keeps every item', () => {
   assert.equal(ex.inventory.length + Object.values(ex.loadout).filter(Boolean).length, n);
 });
 
+test('hand fitting follows the hardpoint rules and says why', async () => {
+  const { hpWhy } = await import('../src/game/planet/explorerItems.js');
+  const P = newPlayer(); const ex = ensureExplorer(P);
+  const rover1 = EXPLORER_BY_ID.ex_rover_1;
+  assert.match(hpWhy(ex, rover1, makeExItem('sparrow', 1, 'common'), null), /drone bays fit from .*Mk/, 'a one-mount rover keeps its gun');
+  ex.owned.push('ex_seraph_8'); setExChassis(ex, 'ex_seraph_8');
+  const ch = EXPLORER_BY_ID.ex_seraph_8;
+  ex.loadout = { 'hp:0': makeExItem('arc', 20, 'rare'), 'hp:1': makeExItem('mender', 20, 'rare') };
+  assert.match(hpWhy(ex, ch, makeExItem('mender', 20, 'rare'), null), /don't stack/, 'one support swarm of a kind');
+  assert.equal(hpWhy(ex, ch, makeExItem('sparrow', 20, 'rare'), null), '');
+  assert.match(hpWhy(ex, ch, makeExItem('sparrow', 20, 'rare'), ex.loadout['hp:0']), /keep a gun/i, 'cannot swap out the only gun for a bay');
+});
+
 test('autopilot: crafts for empty hardpoints, keeps a gun fitted, drone carriers field swarms', () => {
   for (const id of ['ex_rover_9', 'ex_gunship_12', 'ex_seraph_12']) {
     const P = newPlayer(); P.level = 40; P.credits = 5e6;

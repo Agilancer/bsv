@@ -57,7 +57,7 @@ export class Shots {
     p.life = o.life || 2; p.age = 0; p.splash = o.splash || 0; p.homing = o.homing || 0; p.target = o.target || null;
     p.grav = o.grav || 0; p.pierce = o.pierce || 0; p.burn = o.burn || 0; p.crit = o.crit || 0; p.critMul = o.critMul || 1.5;
     p.src = o.src || null; p.speed = o.vel.length(); p.spin = Math.random() * 6; p.trail = o.trail || 0;
-    p.hitSet.clear(); p.leech = o.leech || 0; p.chainreact = !!o.chainreact; p.twin = false; p.tele = o.tele ? TELE_HIT : null;
+    p.hitSet.clear(); p.leech = o.leech || 0; p.chainreact = !!o.chainreact; p.twin = false; p.tele = o.tele ? TELE_HIT : null; p.drone = !!o.drone;
     this.list.push(p);
     return p;
   }
@@ -94,7 +94,7 @@ export class Shots {
         if (p.team === 0) {
           const e = M.creatures.hitAlong(p.prev, p.pos, p.size, p.hitSet, _a);
           if (e) {
-            M.hitEnemy(e, p.dmg, _a, { crit: p.crit, burn: p.burn, color: p.color.getHex(), leech: p.leech, chainreact: p.chainreact, weak: M.creatures.lastWeak });
+            M.hitEnemy(e, p.dmg, _a, { crit: p.crit, burn: p.burn, color: p.color.getHex(), leech: p.leech, chainreact: p.chainreact, weak: M.creatures.lastWeak, drone: p.drone });
             if (p.splash) { this.splash(p, _a, e); dead = true; hitPoint = _a; }
             else { fx.impact(_a, p.color.getHex(), 0.8); if (p.pierce > 0) { p.pierce--; p.hitSet.add(e); } else dead = true; }
           }

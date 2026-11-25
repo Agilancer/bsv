@@ -168,6 +168,23 @@ const EXPLORER_NAMES = {
   lancer: ['Pike', 'Glaive', 'Halberd', 'Partisan', 'Spear', 'Longinus', 'Javelin', 'Trident', 'Gungnir', 'Dawnspear', 'Sunlance', 'Starpiercer'],
   seraph: ['Sprite', 'Herald', 'Vigil', 'Warden', 'Paladin', 'Archon', 'Cherubim', 'Dominion', 'Throne', 'Virtue', 'Ophanim', 'Empyrean'],
 };
+// what each mark adds that you can see (the Blender models build exactly these; the hangar names them)
+export const EX_MARK_ADDS = {
+  skiff: ['Twin pontoons and a cockpit pod', 'Stern stabiliser wing with tip fins', 'Bow canards and a sensor blister', 'Outrigger floats and a dorsal engine pair', 'Bow sensor bar', 'Outrigger wings, float engines and fins',
+    'Trimaran centre hull and a sensor mast', 'Radome and slung sensor pods', 'Ring array and a V-tail', 'Four pontoons, a deck, cabin and scanner dish', 'Radome posts and deck-edge skirts', 'Bowsprit sensor boom and a cabin crest'],
+  rover: ['6x6 cab and an open deck', 'Dropsides, roof beacon and a sample locker', 'Bull bar, winch, light bar and a core-sample rack', 'Armoured cab, roof rack and tarp load', 'Survey mast, spare wheel and snorkel', 'Roll cage with gun mounts',
+    '8x8 chassis, crane and survey containers', 'Fuel tank and outriggers', 'Bed armour skirts and a crane extension', '10x10 road train with a cargo module', 'Radar dish, ladders and floodlights', 'Flank armour and a crest'],
+  strider: ['Four legs and an armoured carapace', 'Sensor horns and a dorsal sensor pod', 'Armoured abdomen with exhausts', 'Raised gun platforms', 'Six legs, a longer body and grapple claws', 'Radiator fins and a mast',
+    'Lilac stripes and chevrons', 'Exhaust stacks and doubled hip armour', 'Eight legs and a command tower', 'Second tier and bridge wings', 'Sensor dish', 'Command spire and crest'],
+  gunship: ['Two tilt-rotor ducts', 'Nose sensor ball', 'Four ducts and shoulder gun sponsons', 'Belly ECM pods', 'Dorsal spine fin', 'Six ducts and sponson chevrons',
+    'Flank stripes', 'Rear avionics module', 'Eight ducts in two sizes, twin tail booms', 'Glowing duct rims', 'Sensor dome and antennas', 'Command crest and sponson banners'],
+  crawler: ['Twin tracks, front drill and exhaust stacks', 'Rear fenders with lockers', 'Front fenders with hazard noses', 'Exhaust shrouds and ripper teeth', 'Four track pods and a taller superstructure', 'Sensor mast',
+    'Pod guards and ladders', 'Floodlight bar and armour skirts', 'Wide pods, an ore hopper and a crane', 'Ore conveyor chute', 'Four exhaust stacks', 'Crest'],
+  lancer: ['Wedge hull, spinal lance and breech turret', 'Armour skirts and a fourth coil ring', 'Stern fins and a vented engine deck', 'Bow ram, muzzle brake and shoulder turrets', 'Sponsons with hover pods', 'Sponson engines and a cupola',
+    'Capacitor banks', 'Sponson rams and a sensor mast', 'Twin-hull catamaran, bridge and a long lance', 'Tower masts and tail fins', 'Outer sponsons', 'Crest, second lance yoke and hull rams'],
+  seraph: ['Robot core on two jet wings', 'Under-feathers, shoulder fins and backpack jets', 'Crest, tail fins and a dorsal gun post', 'Legs, four blades and a V-fin', 'Gauntlet blades and shoulder pods', 'Spine fins and gold pauldrons',
+    'Six blades and the halo', 'Tail train and gold knees', 'Crown and layered chest armour', 'Eight blades and a drone rack', 'Wing-tip drone launchers', 'Outer halo ring and back-rack mounts'],
+};
 // explorer level needed to build Mk m: 1, 5, 10, 14, 19, 23, 28, 32, 37, 41, 46, 50 (Mk XII at the cap)
 export const exMarkLevel = (m) => 1 + Math.round((m - 1) * 49 / 11);
 export const exHardpoints = (f, m) => f.hp[0] + Math.floor((m - 1) * (f.hp[1] - f.hp[0]) / 11);
@@ -181,7 +198,7 @@ for (const [fk, f] of Object.entries(EXPLORER_FRAMES)) {
       hp: Math.round(300 * Math.pow(eq, 1.35) * f.armor), speed: +(22 * f.speed * (1 + m * 0.025)).toFixed(1),
       cargo: Math.round(40 * eq * f.cargo),
       slots: { hp: exHardpoints(f, m), tool: f.tool + (m >= 7 ? 1 : 0), module: f.module + (m >= 4 ? 1 : 0) + (m >= 10 ? 1 : 0) },
-      level: exMarkLevel(m), price: Math.round(600 * Math.pow(eq, 2.4)), hover: f.hover, legs: f.legs || 0, droneBonus: f.droneBonus || 0,
+      level: exMarkLevel(m), price: Math.round(600 * Math.pow(eq, 2.4)), hover: f.hover, legs: f.legs || 0, droneBonus: f.droneBonus || 0, adds: EX_MARK_ADDS[fk][m - 1],
     });
   }
 }

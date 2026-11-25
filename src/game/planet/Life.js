@@ -247,6 +247,7 @@ export class Flyers {
       b.sphere(0.07, sx * 2.3, 0.05, -0.1, { color: F.glow, emit: 0.6 }, 1, 1, 1, 0);
     }
     const mat = vcMaterial(0.7);
+    mat.colorNode = attribute('color', 'vec3').mul(0.5);   // at the ground's value: birds must never read as the explorer's drones
     // wings flap in the vertex shader: lift grows with distance from the spine
     const flap = sin(mode.engine.uTime.mul(8.5).add(float(instanceIndex).mul(1.7)));
     mat.positionNode = positionLocal.add(vec3(0, abs(positionLocal.x).mul(flap).mul(0.42), 0));
@@ -259,6 +260,9 @@ export class Flyers {
     for (let i = 0; i < this.N; i++) this.birds.push({ r: 12 + Math.random() * 22, w: (0.32 + Math.random() * 0.2) * (i % 3 ? 1 : -1), a: Math.random() * 6.28, y: 15 + Math.random() * 7, s: 0.8 + Math.random() * 0.5 });
   }
   update(dt) {
+    // with drone bays fitted the sky belongs to the swarm: birds would read as drones
+    this.mesh.visible = !(this.mode.drones && this.mode.drones.swarms.length);
+    if (!this.mesh.visible) return;
     const M = this.mode, vp = M.vehicle.position, S = M.surfaceS;
     this.t += dt;
     // the flock drifts after the explorer without ever quite arriving

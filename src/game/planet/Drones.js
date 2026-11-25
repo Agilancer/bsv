@@ -9,7 +9,7 @@
 // Measured duels (pilot.duel) keep drones, so the ground contract sees what a fitted bay does.
 import * as THREE from 'three/webgpu';
 import { droneTemplate, glbMats } from './vehicleGLB.js';
-import { attribute, float, vec3, dot, normalView, positionView } from 'three/tsl';
+import { attribute, float, vec3, dot, normalView, positionView, positionLocal, smoothstep } from 'three/tsl';
 import { cargoTotal, RESOURCES } from './economy.js';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _a = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _e = new THREE.Euler();
@@ -81,8 +81,9 @@ export class Drones {
     const col = new THREE.Color(TYPE_HEX[type]);
     const body = new THREE.MeshStandardNodeMaterial({ roughness: 0.45, metalness: 0.35 });
     const rim = float(1).sub(dot(normalView, positionView.normalize().negate()).clamp(0, 1)).pow(2);
-    body.colorNode = attribute('color', 'vec3').mul(1.1);
-    body.emissiveNode = vec3(col.r, col.g, col.b).mul(rim.mul(1.8).add(0.22));
+    // gunmetal pushed 45% toward the swarm's colour: the type reads in the body's value as well as its core
+    body.colorNode = attribute('color', 'vec3').mul(0.3).add(0.04).mix(vec3(col.r, col.g, col.b).mul(0.75), 0.45);
+    body.emissiveNode = vec3(col.r, col.g, col.b).mul(rim.mul(1.4).add(0.12));
     if (tpl) {
       tpl.updateMatrixWorld(true);
       tpl.traverse((o) => { if (o.isMesh) parts.push({ geo: o.geometry.clone().applyMatrix4(o.matrixWorld), mat: o.material === mats.glow || o.material === mats.lamp ? o.material : body }); });
@@ -97,6 +98,11 @@ export class Drones {
       s.setAttribute('color', new THREE.BufferAttribute(sc, 3));
       parts.push({ geo: s, mat: mats.glow });
     }
+    // a bright core in the swarm's colour (HDR: it blooms) and a soft dot on the ground under each drone
+    const core = new THREE.MeshBasicNodeMaterial();
+    core.colorNode = vec3(col.r * 2.1, col.g * 2.1, col.b * 2.1);   // blooms a little, keeps its hue, leaves the drone's shape readable
+    const cg = new THREE.SphereGeometry(0.16, 10, 8); cg.translate(0, 0.16, 0);
+    parts.push({ geo: cg, mat: core });
     for (const p of parts) {
       const im = new THREE.InstancedMesh(p.geo, p.mat, CAP);
       im.count = 0; im.frustumCulled = false; im.castShadow = p.mat !== mats.glow;
@@ -104,14 +110,28 @@ export class Drones {
       list.push(im);
     }
     this.meshes[type] = list;
+    // ground dots (one flat additive disc per drone, drawn at the terrain under it)
+    const dm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const dd = positionLocal.xz.length();
+    dm.colorNode = vec3(col.r, col.g, col.b).mul(1.4);
+    dm.opacityNode = smoothstep(1.0, 0.25, dd).mul(0.7);
+    const dg = new THREE.CircleGeometry(1, 20); dg.rotateX(-Math.PI / 2);
+    const dots = new THREE.InstancedMesh(dg, dm, CAP);
+    dots.count = 0; dots.frustumCulled = false; dots.renderOrder = 3;
+    M.scene.add(dots);
+    (this.dots ||= {})[type] = dots;
   }
-  dispose() { for (const list of Object.values(this.meshes)) for (const im of list) { this.mode.scene.remove(im); im.dispose(); } this.meshes = {}; }
+  dispose() {
+    for (const list of Object.values(this.meshes)) for (const im of list) { this.mode.scene.remove(im); im.dispose(); }
+    for (const im of Object.values(this.dots || {})) { this.mode.scene.remove(im); im.dispose(); }
+    this.meshes = {}; this.dots = {};
+  }
   // the explorer was rebuilt (new materials): drop the instanced meshes so they are made again
   remesh() { this.dispose(); for (const t of TYPES) this.ensureMeshes(t); }
 
   // drones grow a little with the mark so a Mk XII's swarm still reads beside it
   // drones are 2.4-3.4 m: big enough to read beside a Mk XII hull from the field camera
-  sizeK() { const v = this.mode.vehicle.v; return 2.3 + Math.min(0.8, Math.max(0, ((v && v.size) || 1) - 1)) * 1.1; }
+  sizeK() { const v = this.mode.vehicle.v; return 3.2 + Math.min(0.8, Math.max(0, ((v && v.size) || 1) - 1)) * 1.25; }
   draw() {
     const counts = {};
     for (const t of TYPES) counts[t] = 0;
@@ -128,12 +148,22 @@ export class Drones {
         _q.setFromEuler(_e);
         _m.compose(d.pos, _q, _s.set(sz, sz, sz));
         for (const im of list) im.setMatrixAt(i, _m);
+        const dots = this.dots && this.dots[s.type];
+        if (dots) {
+          const g = this.mode.S.ground(d.pos.x, d.pos.z), h = Math.max(0, d.pos.y - g);
+          _v.set(d.pos.x, g + 0.15, d.pos.z); _q.identity();
+          const r = sz * (1.1 + Math.min(1.2, h * 0.06));
+          _m.compose(_v, _q, _s.set(r, 1, r));
+          dots.setMatrixAt(i, _m);
+        }
       }
     }
     for (const t of TYPES) {
       const list = this.meshes[t];
       if (!list) continue;
       for (const im of list) { im.count = Math.min(CAP, counts[t]); im.instanceMatrix.needsUpdate = true; }
+      const dots = this.dots && this.dots[t];
+      if (dots) { dots.count = Math.min(CAP, counts[t]); dots.instanceMatrix.needsUpdate = true; }
     }
   }
 
@@ -166,20 +196,21 @@ export class Drones {
           if (focus) d.target = focus;
           else if (!d.target || !d.target.alive || d.target.pos.distanceTo(vp) > ds.range * 1.3) d.target = M.creatures.nearestTo(vp, ds.range);
           if (d.target) {
-            const e = d.target, R = e.radius + 6;
-            ox = e.pos.x + Math.sin(ang * 1.6) * R; oz = e.pos.z + Math.cos(ang * 1.6) * R; oy = e.pos.y + Math.max(3, e.height * 0.7);
+            const e = d.target, strike = focus && e === focus, R = e.radius + (strike ? 3 : 6);
+            ox = e.pos.x + Math.sin(ang * (strike ? 3.2 : 1.6)) * R; oz = e.pos.z + Math.cos(ang * (strike ? 3.2 : 1.6)) * R; oy = e.pos.y + Math.max(strike ? 2 : 3, e.height * 0.7);
+            if (strike) speed *= 1.8;
             d.cd -= dt;
             if (d.cd <= 0 && d.pos.distanceTo(e.pos) < 28) { d.cd += 1 / ds.rof; if (d.cd < 0) d.cd = 0; this.fire(s, d, e); }
           } else { ox = vp.x + Math.sin(ang) * (rad + 8); oz = vp.z + Math.cos(ang) * (rad + 8); oy = vp.y + 5 + Math.sin(ang * 2) * 0.8; }
         } else if (s.type === 'mender') {
-          ox = vp.x + Math.sin(ang) * (rad + 4.5); oz = vp.z + Math.cos(ang) * (rad + 4.5); oy = vp.y + 4;
+          const R = Math.max(rad * 1.7, rad + 3); ox = vp.x + Math.sin(ang) * R; oz = vp.z + Math.cos(ang) * R; oy = vp.y + 4;
           if (V.hp < V.stats.maxHp && M.state === 'play' && d.pos.distanceTo(vp) < rad + 9) {   // repairs only from close escort
             V.heal(V.stats.maxHp * ds.power * dt);
             d.cd -= dt;
             if (d.cd <= 0) { d.cd = 0.3 + Math.random() * 0.2; _w.copy(vp); _w.y += 1.2; M.pfx.timedBeam(d.pos.clone(), _w.clone(), 0.25, ds.color, 1.2, 0.14); }
           }
         } else if (s.type === 'aegis') {
-          ox = vp.x + Math.sin(ang) * (rad + 4); oz = vp.z + Math.cos(ang) * (rad + 4); oy = vp.y + 2.4 + Math.sin(ang * 3) * 0.5;
+          const R = Math.max(rad * 1.4, rad + 2.5); ox = vp.x + Math.sin(ang) * R; oz = vp.z + Math.cos(ang) * R; oy = vp.y + 2.4 + Math.sin(ang * 3) * 0.5;
         } else if (s.type === 'magpie') {
           const t = this.harvest(s, d, dt);
           if (t) { ox = t.x; oy = t.y; oz = t.z; }
@@ -211,7 +242,8 @@ export class Drones {
     _v.subVectors(_w, d.pos).normalize();
     const crit = Math.random() < ds.crit;
     const dmg = ds.power * V.stats.dmgMul * M.dmgBuff * (crit ? 1.5 + ds.critDmg : 1) * (this.focusT > 0 && e === this.focus ? 1.3 : 1);
-    M.shots.spawn({ pos: d.pos, vel: _v.multiplyScalar(150), team: 0, dmg, crit: crit ? 1 : 0, kind: 'bullet', color: ds.color, size: 0.12, len: 2.6, life: 0.4 });
+    const strike = this.focusT > 0 && e === this.focus;
+    M.shots.spawn({ drone: true, pos: d.pos, vel: _v.multiplyScalar(150), team: 0, dmg, crit: crit ? 1 : 0, kind: 'bullet', color: ds.color, size: strike ? 0.2 : 0.14, len: strike ? 4.5 : 3, life: 0.4 });
     if (Math.random() < 0.5) M.pfx.muzzle(d.pos, _v.normalize(), ds.color, 0.35);   // a swarm of muzzles must not white out the fight
     d.yaw = Math.atan2(_v.x, _v.z);
   }
@@ -247,8 +279,8 @@ export class Drones {
     const M = this.mode, V = M.vehicle, ds = s.ds, fx = M.pfx;
     const R = ds.splash || 6;
     const crit = Math.random() < ds.crit;
-    const dmg = ds.power * V.stats.dmgMul * M.dmgBuff * (crit ? 1.5 + ds.critDmg : 1);
-    M.creatures.forInRadius(d.pos, R, (e, dd) => M.hitEnemy(e, dmg * (1 - 0.45 * dd / R), _v.copy(e.pos).setY(e.pos.y + 1), { crit }));
+    const dmg = ds.power * V.stats.dmgMul * M.dmgBuff * (crit ? 1.5 + ds.critDmg : 1) * (this.focusT > 0 && d.target === this.focus ? 1.3 : 1);
+    M.creatures.forInRadius(d.pos, R, (e, dd) => M.hitEnemy(e, dmg * (1 - 0.45 * dd / R), _v.copy(e.pos).setY(e.pos.y + 1), { crit, drone: true }));
     fx.explode(d.pos, 0.42, ds.color); fx.ring(d.pos, R * 0.85, ds.color, 20); fx.dust(d.pos, 2, M.dustHex, 2, 4);   // kept small: a friendly blast must not bury the explorer
     M.sfx('cannon', d.pos, 0.35);
     this.killDrone(s, d, false);

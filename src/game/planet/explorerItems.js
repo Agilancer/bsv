@@ -393,16 +393,28 @@ export function explorerStats(ex) {
 // Hardpoints hold guns and drone bays together: at least one gun stays fitted, at most one bay of a
 // support kind, and bays fill at most half the mounts (all but one on a drone carrier).
 export function bayCap(ch) { return ch.droneBonus ? Math.max(1, ch.slots.hp - 1) : Math.floor(ch.slots.hp / 2); }
-export function hpAllowed(ex, ch, it, replacing) {
-  if (it.slot !== 'bay') return true;
+// why a bay may not go on a mount (replacing what is there now), or '' when it may
+export function hpWhy(ex, ch, it, replacing) {
+  if (it.slot === 'gun') {
+    return '';
+  }
+  if (it.slot !== 'bay') return '';
   const fitted = exSlotKeys(ch).filter((k) => k.startsWith('hp:')).map((k) => ex.loadout[k]).filter((x) => x && x !== replacing);
   const bays = fitted.filter((x) => x.slot === 'bay'), guns = fitted.filter((x) => x.slot === 'gun');
-  if (!guns.length && ch.slots.hp > 1 && fitted.length >= ch.slots.hp - 1) return false;   // keep a mount for a gun
-  if (ch.slots.hp === 1 || bays.length >= bayCap(ch)) return false;
+  const cap = bayCap(ch);
+  if (!cap) {
+    let m = ch.tier;
+    while (m < 12 && !bayCap(EXPLORER_BY_ID[`ex_${ch.frame}_${m}`])) m++;
+    const at = EXPLORER_BY_ID[`ex_${ch.frame}_${m}`];
+    return `${ch.cls} Mk ${ch.tier} carries only a gun: drone bays fit from ${at.fullName} (explorer level ${at.level})`;
+  }
+  if (!guns.length && (fitted.length >= ch.slots.hp - 1 || (replacing && replacing.slot === 'gun'))) return 'One mount must keep a gun';
+  if (bays.length >= cap) return `This mark carries at most ${cap} drone bay${cap > 1 ? 's' : ''}`;
   const support = (x) => ['mender', 'aegis', 'magpie'].includes(EX_BASES[x.base].drone);
-  if (support(it) && bays.some((x) => x.base === it.base)) return false;
-  return true;
+  if (support(it) && bays.some((x) => x.base === it.base)) return `One ${EX_BASES[it.base].name} at a time: support swarms don't stack`;
+  return '';
 }
+export const hpAllowed = (ex, ch, it, replacing) => !hpWhy(ex, ch, it, replacing);
 export function equipExItem(ex, item, slotKey = null) {
   const ch = EXPLORER_BY_ID[ex.chassis];
   const keys = exSlotKeys(ch).filter((k) => k.startsWith(SLOT_OF[item.slot] + ':'));

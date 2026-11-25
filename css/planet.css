@@ -159,7 +159,7 @@ body.planet-hud-hidden .toast:not(.legend) { display: none; }
 .bptext { flex: 1; min-width: 0; }
 .schem { display: block; width: 100%; max-width: 340px; aspect-ratio: 340 / 220; margin: 8px 0 2px; border: 1px solid rgba(88, 160, 255, 0.25); background: radial-gradient(ellipse at center, rgba(20, 50, 110, 0.35), rgba(4, 8, 22, 0.6)); }
 .slots.hps .slot { position: relative; }
-.item.bayitem { position: relative; }
+.slots.hps .slot.selm { border-color: var(--violet); box-shadow: inset 0 0 14px rgba(154, 107, 255, 0.7), 0 0 8px rgba(154, 107, 255, 0.5); }
 .item.bayitem svg { color: var(--bc, #6affd0); }
 .item .baybadge { position: absolute; right: 3px; top: 1px; font-size: 11px; color: var(--bc); text-shadow: 0 0 6px var(--bc); pointer-events: none; }
 .slots.hps .hpn { position: absolute; left: 3px; top: 1px; font-family: var(--head); font-size: 10px; color: rgba(255, 200, 120, 0.85); pointer-events: none; }

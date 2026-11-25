@@ -7,7 +7,7 @@ import { EXPLORER_BY_ID, EXPLORER_FRAMES, CHASSIS_BY_ID } from '../data/chassis.
 import { slotKeys } from '../Player.js';
 import {
   EX_BASES, EX_INV_SIZE, EX_SLOT_LABEL, exSlotKeys, exDescribe, exItemScore, explorerStats, ensureExplorer, equipExItem, unequipExItem,
-  equipBestEx, setExChassis, scrapYield, explorerXpForLevel, SLOT_OF, exDroneStats, droneSheetDps, exAffixPool, EX_AFFIXES,
+  equipBestEx, setExChassis, scrapYield, explorerXpForLevel, SLOT_OF, exDroneStats, droneSheetDps, exAffixPool, EX_AFFIXES, hpWhy,
 } from './explorerItems.js';
 import {
   RESOURCES, RES_KEYS, SHIP_UPGRADES, upgradeCost, buyShipUpgrade, refineryShipStats, reforgeCost, empowerCost, overchargeCost, imbueCost,
@@ -130,10 +130,25 @@ export class PlanetWindows {
     }
     if (this.exTab === 'loadout') {
       body.querySelectorAll('.cell').forEach((c) => {
-        c.addEventListener('click', () => { const it = ex.inventory[+c.dataset.i]; if (it && equipExItem(ex, it)) { G.ui.hideTip(); this.changed(); } });
+        c.addEventListener('click', () => {
+          const it = ex.inventory[+c.dataset.i];
+          if (!it) return;
+          if (SLOT_OF[it.slot] === 'hp') {
+            const mountKeys = keys.filter((k) => k.startsWith('hp:'));
+            const target = this.selMount && mountKeys.includes(this.selMount) ? this.selMount
+              : mountKeys.find((k) => !ex.loadout[k]) || mountKeys.reduce((a, b) => (exAutoScore(ex.loadout[a]) <= exAutoScore(ex.loadout[b]) ? a : b));
+            const why = hpWhy(ex, ch, it, ex.loadout[target]);
+            if (why) { G.ui.toast(why, 'warn'); return; }
+            if (equipExItem(ex, it, target)) { this.selMount = null; G.ui.hideTip(); this.changed(); }
+          } else if (equipExItem(ex, it)) { G.ui.hideTip(); this.changed(); }
+        });
         c.addEventListener('contextmenu', (e) => { e.preventDefault(); const it = ex.inventory[+c.dataset.i]; if (it) this.scrap(it); });
       });
-      body.querySelectorAll('.slot').forEach((s) => s.addEventListener('click', () => { if (unequipExItem(ex, s.dataset.slot)) { G.ui.hideTip(); this.changed(); } }));
+      body.querySelectorAll('.slot').forEach((s) => s.addEventListener('click', () => {
+        const k = s.dataset.slot;
+        if (k.startsWith('hp:') && this.selMount !== k) { this.selMount = k; this.refresh(); return; }
+        if (unequipExItem(ex, k)) { this.selMount = null; G.ui.hideTip(); this.changed(); }
+      }));
       body.querySelector('#exBest').onclick = () => { fitExplorer(ex); this.changed(); };   // by what the gear does, a gun always fitted
       body.querySelector('#exScrap').onclick = () => { for (const it of ex.inventory.slice()) if (it.rarity === 'common') this.scrap(it, true); this.refresh(); };
     } else if (this.exTab === 'hangar') {
@@ -184,9 +199,12 @@ export class PlanetWindows {
         let sub = '';
         if (t === 'hp' && it) {
           const g = st.guns.find((x) => x.key === k), b = st.bays.find((x) => x.key === k);
-          sub = g ? `${fmt(g.ws.dmg * g.ws.pellets * g.ws.barrels * g.ws.rof * st.dmgMul)} dps` : b ? `${b.ds.count}× ${b.ds.type}` : '';
+          const ds = b && b.ds;
+          sub = g ? `${fmt(g.ws.dmg * g.ws.pellets * g.ws.barrels * g.ws.rof * st.dmgMul)} dps`
+            : !ds ? '' : ds.type === 'sparrow' || ds.type === 'scarab' ? `${ds.count}× · ${fmt(droneSheetDps(ds) * st.dmgMul)} dps`
+            : ds.type === 'mender' ? `${ds.count}× · ${(ds.power * ds.count * 100).toFixed(1)}%/s` : ds.type === 'aegis' ? `${ds.count}× · ${ds.count * ds.charges} catches` : `${ds.count}× · ${(ds.power * ds.count).toFixed(1)}/s ore`;
         }
-        slots += `<div class="slot${t === 'hp' ? ' hp' : ''}${it && it.slot === 'bay' ? ' bay' : ''}" data-slot="${k}">${it ? this.exItemEl(it) : ''}${t === 'hp' ? `<span class="hpn">${+k.split(':')[1] + 1}</span>` : ''}${sub ? `<span class="hpi">${sub}</span>` : ''}</div>`;
+        slots += `<div class="slot${t === 'hp' ? ' hp' : ''}${it && it.slot === 'bay' ? ' bay' : ''}${this.selMount === k ? ' selm' : ''}" data-slot="${k}">${it ? this.exItemEl(it) : ''}${t === 'hp' ? `<span class="hpn">${+k.split(':')[1] + 1}</span>` : ''}${sub ? `<span class="hpi">${sub}</span>` : ''}</div>`;
       }
       slots += '</div>';
     }
@@ -194,7 +212,7 @@ export class PlanetWindows {
     for (let i = 0; i < EX_INV_SIZE; i++) {
       const it = ex.inventory[i];
       let up = '';
-      if (it) { const same = keys.filter((k) => k.startsWith(SLOT_OF[it.slot] + ':')); const worst = same.length ? Math.min(...same.map((k) => exItemScore(ex.loadout[k]))) : Infinity; if (exItemScore(it) > worst) up = '<span class="up">▲</span>'; }
+      if (it) { const same = keys.filter((k) => k.startsWith(SLOT_OF[it.slot] + ':')); const worst = same.length ? Math.min(...same.map((k) => exAutoScore(ex.loadout[k]))) : Infinity; if (exAutoScore(it) > worst) up = '<span class="up">▲</span>'; }
       inv += `<div class="cell" data-i="${i}">${it ? this.exItemEl(it, up) : ''}</div>`;
     }
     inv += '</div>';
@@ -209,13 +227,13 @@ export class PlanetWindows {
       </div><div>
         ${inv}
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn" id="exBest">Equip best</button><button class="btn violet" id="exScrap">Scrap commons</button></div>
-        <div class="label" style="margin-top:6px">Click: equip / unequip · Right-click: scrap for resources</div>
+        <div class="label" style="margin-top:6px">${this.selMount ? `Mount ${+this.selMount.split(':')[1] + 1} selected: the next gun or bay you click goes there · click it again to unequip` : 'Click a mount to choose where the next gun or bay goes · click an item to fit it · right-click scraps'}</div>
       </div></div>`;
   }
   markInfo(ex, c) {
     const prev = EXPLORER_BY_ID[`ex_${c.frame}_${c.tier - 1}`];
     const gain = prev ? [c.slots.hp > prev.slots.hp ? '+1 hardpoint' : '', c.slots.tool > prev.slots.tool ? '+1 tool' : '', c.slots.module > prev.slots.module ? '+1 module' : ''].filter(Boolean).join(' · ') : '';
-    return `<b style="color:var(--white)">${c.fullName}</b> · hull ${c.hp} · speed ${c.speed} · cargo ${c.cargo} · ${c.slots.hp} hardpoints · ${c.slots.tool} tools · ${c.slots.module} modules${gain ? ` · <span style="color:var(--good)">${gain}</span>` : ''} · requires level ${c.level}${ex.owned.includes(c.id) ? '' : '<br>' + this.costHtml(chassisCost(c))}`;
+    return `<b style="color:var(--white)">${c.fullName}</b>${c.adds ? ` · <span style="color:var(--cyan)">${c.tier > 1 ? 'adds' : 'is'}: ${esc(c.adds)}</span>` : ''}<br>hull ${c.hp} · speed ${c.speed} · cargo ${c.cargo} · ${c.slots.hp} hardpoints · ${c.slots.tool} tools · ${c.slots.module} modules${gain ? ` · <span style="color:var(--good)">${gain}</span>` : ''} · requires level ${c.level}${ex.owned.includes(c.id) ? '' : '<br>' + this.costHtml(chassisCost(c))}`;
   }
   exHangarHtml(ex, ch, canSwap) {
     let hangar = '<div class="hangar">';
@@ -257,7 +275,8 @@ export class PlanetWindows {
       <div class="bps">${bpKeys.filter((k) => EX_BASES[k].slot === 'gun').map(bpRow).join('')}</div><div class="bps">${bpKeys.filter((k) => EX_BASES[k].slot === 'bay').map(bpRow).join('')}</div>
       <div class="bpinfo"><div class="bptext"><b style="color:var(--white)">${esc(sel.name)}</b> <span class="label">· ${sel.slot === 'bay' ? 'drone bay' : 'gun'} · item level ${ex.level}</span>
         <div class="bpdesc">${d.lines.map(esc).join('<br>')}</div>
-        <div class="bpvs" style="color:${vs == null || vs >= 1 ? 'var(--good)' : 'var(--warn)'}">${ok ? vsTxt : 'Blueprint not recovered yet'}</div></div>
+        <div class="bpvs" style="color:${vs == null || vs >= 1 ? 'var(--good)' : 'var(--warn)'}">${ok ? vsTxt : 'Blueprint not recovered yet'}</div>
+        ${sel.slot === 'bay' && ok && hpWhy(ex, ch, sample, null) ? `<div class="bpvs" style="color:var(--warn)">${esc(hpWhy(ex, ch, sample, null))}: it would wait in the gear bay</div>` : ''}</div>
       <div class="bpbtns"><button class="btn" data-craft="0" ${ok ? '' : 'disabled'}>Craft<div class="costs">${this.costHtml(craftCost(this.bp, ex.level))}</div></button>
         <div class="mwork"><select id="bpAffix" ${ok ? '' : 'disabled'}>${opts}</select><button class="btn violet" data-craft="1" ${ok ? '' : 'disabled'}>Masterwork <span class="label">rare+</span><div class="costs">${this.costHtml(craftCost(this.bp, ex.level, true, this.bpAffix || null))}</div></button></div></div></div>
       <div class="label" style="margin-top:12px">Tools and modules come off the fabricator at random, at item level ${ex.level}</div>
@@ -273,7 +292,7 @@ export class PlanetWindows {
       const cap = exEmpowerCap(ex), ce = exWorkshopCost(it, 'empower'), cr = exWorkshopCost(it, 'reforge');
       h += `<div class="uprow"><div><div class="un">Empower</div><div class="ud">Item level ${it.ilvl} → ${Math.min(cap, it.ilvl + 1)} (cap: explorer level + 3 = ${cap})</div></div><div class="costs">${this.costHtml(ce)}</div><button class="btn" data-ws="empower" ${it.ilvl >= cap ? 'disabled' : ''}>Empower</button></div>`;
       it.affixes.forEach((a, i) => { h += `<div class="uprow"><div><div class="un">Reforge</div><div class="ud">${esc(EX_AFFIXES[a.k].fmt(a.v))}</div></div><div class="costs">${this.costHtml(cr)}</div><button class="btn violet" data-ws="reforge" data-i="${i}">Reforge</button></div>`; });
-      h += `<div class="label" style="margin-top:6px">Mastery ${it.lvl}: fitted guns and bays earn it with every kill</div>`;
+      h += `<div class="label" style="margin-top:6px">Mastery ${it.lvl} (+${Math.round((it.lvl - 1) * 4)}% to its numbers, +4% a level): fitted guns and bays earn it with every kill</div>`;
     } else h += '<div class="label">Nothing to work on.</div>';
     return h + '</div></div>';
   }

@@ -260,7 +260,10 @@ export class PlanetMode {
         this.toast(`${e.name}: weak point destroyed!`, 'epic');
       }
     }
-    e.hp -= d; e.flash = 1; e.lastHit = this.engine.time;
+    e.hp -= d; e.lastHit = this.engine.time;
+    // the hit flash: at most four pulses a second, and softer from drones (a swarm would hold it white)
+    // scaled by the hit's share of the creature: chip damage barely shows, a big hit flashes
+    if (this.engine.time - (e.flashT || -1) > 0.25 || weak) { e.flash = Math.max(e.flash, Math.min(o.drone ? 0.4 : 0.9, 0.15 + 6 * d / Math.max(1, e.maxHp))); e.flashT = this.engine.time; }
     if (e.mode !== 'hunt') C.aggro(e);
     if (o.burn) { e.burnT = 3; e.burnDps = Math.max(e.burnDps, dmg * o.burn / 3); }
     if (o.leech) this.vehicle.heal(d * o.leech);
@@ -311,7 +314,9 @@ export class PlanetMode {
       if (!this.pilot.duel && Math.random() < 0.03 + 0.04 * def.size + (e.elite ? 0.12 : 0)) this.blueprintFound('salvaged from the wreck');
     }
     // fitted guns and drone bays earn mastery with every kill
-    for (const [k, it] of Object.entries(this.ex.loadout)) if (it && k.startsWith('hp:') && grantExItemXp(it, def.xp * (1 + 0.12 * (e.level - 1)) * 0.6)) this.toast(`${it.name}: mastery ${it.lvl}`, '');
+    const ups = [];
+    for (const [k, it] of Object.entries(this.ex.loadout)) if (it && k.startsWith('hp:') && grantExItemXp(it, def.xp * (1 + 0.12 * (e.level - 1)) * 0.6)) ups.push(`${it.name} ${it.lvl}`);
+    if (ups.length) { this.toast(`Mastery up (+4% each): ${ups.join(', ')}`, ''); this.refreshStats(); }
     for (const [res, ev] of Object.entries(def.drops)) {
       const n = ev * sizeMul * (0.5 + Math.random());
       const k = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);
@@ -356,7 +361,7 @@ export class PlanetMode {
       this.pfx.pillar(this.vehicle.position, 0x9a6bff, 30, 3, 40); this.pfx.ring(this.vehicle.position, 18, 0x9a6bff, 64);
       this.refreshStats();
       this.vehicle.hp = this.vehicle.stats.maxHp;
-      if ([3, 6, 9, 13, 17, 21, 26, 31, 37].includes(ex.level)) this.later(1.2, () => this.blueprintFound('decoded from survey data'));
+      if ([5, 8, 12, 15, 19, 23, 27, 32, 37].includes(ex.level)) this.later(1.2, () => this.blueprintFound('decoded from survey data'));
     }
   }
   refreshStats() {
