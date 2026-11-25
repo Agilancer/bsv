@@ -4,6 +4,7 @@
 //   game.modes.explorer  — L: explorer bay (loadout, gear, hangar, fabricator)
 //   game.planet          — { scanner, windows, current (PlanetMode), debugDeploy(type, opts) }
 //   game.planetAuto      — autoplay goal {name, score(game), update(dt) -> done}
+//   game.probeAuto       — orbit-only autoplay goal: drop / recover orbital probes, sightseeing scans
 //   game.statProviders   — refinery ranks feed the warship's stats
 import { Scanner } from './Scan.js';
 import { PlanetWindows } from './Windows.js';
@@ -12,7 +13,7 @@ import { ensureExplorer } from './explorerItems.js';
 import { refineryShipStats, surveyPlanet } from './economy.js';
 import { EXTRA_TEXTURES } from './biomes.js';
 import { preload } from '../../engine/Assets.js';
-import { makePlanetGoal, autoSpend } from './Autopilot.js';
+import { makePlanetGoal, makeProbeGoal, autoSpend } from './Autopilot.js';
 import { ENEMIES } from './enemies.js';
 
 export function install(game) {
@@ -52,7 +53,8 @@ export function install(game) {
 
   // autoplay: the captain's long-horizon goal list takes factories (ap) => {name, score, update}
   game.planetAuto = makePlanetGoal(game);
-  if (Array.isArray(game.autoplayGoals)) game.autoplayGoals.push(() => game.planetAuto);
+  game.probeAuto = makeProbeGoal(game);              // orbit-only: drop / recover orbital probes, look at new worlds
+  if (Array.isArray(game.autoplayGoals)) game.autoplayGoals.push(() => game.planetAuto, () => game.probeAuto);
   game.refineryAuto = () => autoSpend(game);          // stations call this while resupplying
 
   // stylesheet + the extra surface textures
@@ -81,7 +83,7 @@ export function install(game) {
       P.scanner.update(dt);
       if (game.mode === 'planet') game.planetSessionTime = (game.planetSessionTime || 0) + dt;   // autoplay's planet budget
       const A = game.autoplay;
-      if (A && !Array.isArray(game.autoplayGoals) && Array.isArray(A.extra) && !A.extra.includes(game.planetAuto)) A.extra.push(game.planetAuto);
+      if (A && !Array.isArray(game.autoplayGoals) && Array.isArray(A.extra)) for (const x of [game.planetAuto, game.probeAuto]) if (!A.extra.includes(x)) A.extra.push(x);
     },
   });
 

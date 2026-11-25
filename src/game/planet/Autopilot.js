@@ -5,7 +5,8 @@
 import * as THREE from 'three/webgpu';
 import { cargoTotal, surveyPlanet } from './economy.js';
 import { ensureExplorer } from './explorerItems.js';
-import { autoCraft, fitExplorer, landingWeights, pickSite, orbitalProbeAuto, needWeights, worldAppeal } from './autoCraft.js';
+import { autoCraft, fitExplorer, landingWeights, pickSite, orbitalProbeAuto, needWeights, worldAppeal, pickProbeWorld, curiosityPick } from './autoCraft.js';
+import { biomeFor } from './biomes.js';
 import { PLANET_ABILITIES } from './abilities.js';
 
 const _v = new THREE.Vector3(), _w = { x: 0, z: 0 };
@@ -275,7 +276,7 @@ export function makePlanetGoal(game) {
     score(g = game) {
       if (g.mode === 'planet' || goal.phase === 'surface') return 5;
       if (g.mode !== 'space' || !g.sector || !g.player || g.docked) return 0;
-      if (g.planet && ['scanning', 'panel', 'drop', 'entering'].includes(g.planet.scanner.state)) return 5;
+      if (g.planet && !(g.probeAuto && g.probeAuto.busy) && ['scanning', 'panel', 'drop', 'entering'].includes(g.planet.scanner.state)) return 5;
       const ex = ensureExplorer(g.data);
       const since = g.data.playtime - (ex.lastRunAt || -1e9);
       const story = storyNeedsGround(g.data);   // the campaign is waiting on something only a landing can do: shorter rest between runs (the session budget still holds)
@@ -330,8 +331,7 @@ export function makePlanetGoal(game) {
       // match for, and fit its tools to what this world carries
       const launch = () => {
         const ex = ensureExplorer(G.data), sv = S.survey, say = (m) => G.autoplay && G.autoplay.log && G.autoplay.log(m);
-        const op = orbitalProbeAuto(G.data, sv, G.data.playtime);
-        if (op) say(`Orbit: ${op}`);
+        orbitWork(G, sv, say);
         S.siteIdx = pickSite(sv, ex.level);
         const refit = fitExplorer(ex, landingWeights(sv, G.data));
         const site = sv.sites[S.siteIdx];
@@ -366,6 +366,124 @@ export function makePlanetGoal(game) {
       const warped = far > 2600 && G.autoWarp && !warping && G.autoWarp(new THREE.Vector3(tp.x + 120, 0, tp.z + 120));
       if (!warped && !warping) { s.throttle = 1; s.steerTo(new THREE.Vector3(tp.x, 0, tp.z), 100, 1); }
 
+      return false;
+    },
+  };
+  return goal;
+}
+
+// Over a surveyed world: recover the orbital probe's haul or drop one (the first probe on a world
+// pays a survey bounty: commander XP goes through the game), with something to see from the bridge.
+// Returns the log line ('' when there was nothing to do).
+export function orbitWork(G, sv, say) {
+  const out = {};
+  const line = orbitalProbeAuto(G.data, sv, G.data.playtime, { out });
+  const ex = ensureExplorer(G.data);
+  (ex.visits ||= {})[sv.key] = Math.round(G.data.playtime);
+  const s = G.player, fx = G.world && G.world.fx;
+  if (out.drop && s && fx) {
+    fx.column(s.position, 0x58e0ff, 200, 40); fx.ring(s.position, 160, 0x58e0ff, 64);
+    if (G.audio) G.audio.play('missile', null, 0.7);
+  }
+  if (out.bounty) {
+    if (G.gainXp) G.gainXp(out.bounty.xp);
+    G.ui.toast(`Survey bounty · ${sv.name}: +${out.bounty.credits} ¢ · +${out.bounty.xp} XP · explorer +${out.bounty.exXp} XP`, 'epic');
+    if (out.exUps) G.ui.toast(`Explorer level ${ex.level}`, 'epic');
+  }
+  if (line && say) say(`Orbit: ${line}`);
+  return line;
+}
+
+// The orbit-only probe run: no landing, so it costs no ground time. The captain flies over a world
+// in the system to drop an orbital probe (a survey bounty the first time, a hopper that fills between
+// visits), to recover a probe that has mined a good load, or now and then just to look at a world it
+// has not seen. Exposed as game.probeAuto.
+export const PROBE_REST = 150;    // playtime between probe runs
+export const CURIO_REST = 420;    // ...and between runs made only to look
+const PROBE_LIMIT = 150;          // seconds one run may take (the soak gate fails a goal at 240)
+export function makeProbeGoal(game) {
+  const goal = {
+    name: 'Probe a world', busy: false, pick: null, t: 0, pickT: -1e9, pickFor: null,
+    reset(G = game) {
+      const ex = ensureExplorer(G.data), now = G.data.playtime || 0;
+      ex.lastProbeAt = now;
+      if (goal.pick && goal.pick.curious) ex.lastCurioAt = now;
+      goal.busy = false; goal.pick = null; goal.t = 0; goal.pickFor = null;
+      return true;
+    },
+    // landable worlds in this system, nearest first, with their surveys
+    cands(G) {
+      const s = G.player, out = [];
+      for (const p of G.sector.planets) {
+        const info = p.userData.info;
+        if (!info || !info.landable) continue;
+        const sv = info.autoSurvey || (info.autoSurvey = surveyPlanet(info, G.sector.sys));
+        out.push({ planet: p, survey: sv, dist: Math.hypot(p.position.x - s.position.x, p.position.z - s.position.z) });
+      }
+      return out;
+    },
+    choose(G) {
+      // (re-read every few seconds, not every think)
+      const now = G.data.playtime || 0;
+      if (goal.pickFor === G.sector && now - goal.pickT < 4) return goal.pick;
+      goal.pickT = now; goal.pickFor = G.sector;
+      const c = goal.cands(G), ex = ensureExplorer(G.data);
+      let p = pickProbeWorld(c, G.data, now);
+      if (p) p = { ...p, curious: false };
+      else if (now - (ex.lastCurioAt ?? -1e9) >= CURIO_REST) { p = curiosityPick(c, G.data, now); if (p) p = { ...p, curious: true }; else ex.lastCurioAt = now - CURIO_REST * 0.5; }
+      goal.pick = p || null;
+      return goal.pick;
+    },
+    score(g = game) {
+      if (goal.busy) {
+        // under way: keep at it (through a fight) unless the system changed under it
+        if (g.mode === 'space' && goal.pick && goal.pick.planet.parent && g.player && g.player.alive) return 3;
+        goal.reset(g);
+        return 0;
+      }
+      if (g.mode !== 'space' || !g.sector || !g.player || g.docked || !g.planet) return 0;
+      const mode = (g.data.autoplay && g.data.autoplay.mode) || 'full';
+      if (mode !== 'full') return 0;
+      if ((g.data.tutorial || 0) < 7 && (g.data.playtime || 0) < 600) return 0;
+      const ex = ensureExplorer(g.data), now = g.data.playtime || 0;
+      if (now - (ex.lastProbeAt ?? -1e9) < PROBE_REST) return 0;
+      if (g.planet.scanner.state !== 'idle') return 0;
+      const pl = g.player;
+      if (pl.hull < pl.maxHull * 0.6) return 0;
+      const pop = g.mmo || g.population;
+      if (pop && (pop.raidPending || pop.raid)) return 0;
+      if (g.world.ships.some((o) => o.alive && g.world.hostile(pl, o) && o.position.distanceToSquared(pl.position) < 1800 * 1800)) return 0;
+      const p = goal.choose(g);
+      return p ? (p.curious ? 0.6 : 0.8) : 0;
+    },
+    update(dt) {
+      const G = game, P = G.planet, s = G.player;
+      if (!P || G.mode !== 'space' || !s || !s.alive) return goal.reset();
+      const S = P.scanner, say = (m) => G.autoplay && G.autoplay.log && G.autoplay.log(m);
+      if (!goal.busy) {
+        if (!goal.pick) return goal.reset();
+        goal.busy = true; goal.t = 0;
+        const sv = goal.pick.survey;
+        say(goal.pick.curious ? `Setting course for ${sv.name} — a ${biomeFor(sv.type).name.toLowerCase()} ${sv.moon ? 'moon' : 'world'}, just to have a look`
+          : (ensureExplorer(G.data).orbital || {})[sv.key] ? `Setting course for ${sv.name} to recover the orbital probe's haul` : `Setting course for ${sv.name} to drop an orbital probe`);
+      }
+      goal.t += dt;
+      if (goal.t > PROBE_LIMIT) { if (S.state === 'panel' || S.state === 'scanning') S.close(); return goal.reset(); }
+      if (S.state === 'scanning') { s.throttle = 0; return false; }
+      if (S.state === 'panel') {
+        const line = orbitWork(G, S.survey, say);
+        if (!line && goal.pick.curious) say(`Orbit: looked over ${S.survey.name} — ${S.survey.sites.length} landing sites, hazard ${S.survey.hazardName.toLowerCase()}`);
+        S.close();
+        return goal.reset();
+      }
+      if (S.state !== 'idle') return goal.reset();
+      const target = goal.pick.planet, near = S.nearby(), tp = target.position;
+      const far = Math.hypot(tp.x - s.position.x, tp.z - s.position.z);
+      // over the target, or over a moon beside it once there: work whichever world is under the ship
+      if (near && (near === target || far < target.userData.info.radius * 1.6 + 250)) { s.throttle = 0; S.scan(); return false; }
+      const warping = G.isWarping && G.isWarping();
+      const warped = far > 2600 && G.autoWarp && !warping && G.autoWarp(new THREE.Vector3(tp.x + 120, 0, tp.z + 120));
+      if (!warped && !warping) { s.throttle = 1; s.steerTo(_v.set(tp.x, 0, tp.z), 100, 1); }
       return false;
     },
   };

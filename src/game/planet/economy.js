@@ -5,7 +5,7 @@
 import { RNG, hashStr } from '../../engine/rng.js';
 import { AFFIXES, BASES, RARITY, grantItemXp, ITEM_MAX_LVL, rollRarity } from '../data/items.js';
 import { EXPLORERS, EXPLORER_BY_ID } from '../data/chassis.js';
-import { rollExItem, makeExItem, EX_INV_SIZE, EX_AFFIXES, exAffixPool } from './explorerItems.js';
+import { rollExItem, makeExItem, EX_INV_SIZE, EX_AFFIXES, exAffixPool, ensureExplorer, grantExplorerXp, explorerXpForLevel } from './explorerItems.js';
 import { SIZES } from '../data/enemies.js';
 
 export const RESOURCES = {
@@ -413,6 +413,44 @@ export function orbitalProbeYield(survey, probe, now) {
   const top = weights.sort((a, b) => b[1] - a[1])[0][0];
   if (units - given > 0) out[top] = (out[top] || 0) + units - given;
   return out;
+}
+
+// A captain who has never landed has no ore to build one from: the yard sells the same probe for
+// credits alone, so worlds can be seeded from the first jump on.
+export const ORBITAL_PROBE_CREDITS = 420;
+export function orbitalProbeCost(data) { return affordable(data, ORBITAL_PROBE_COST) ? ORBITAL_PROBE_COST : { credits: ORBITAL_PROBE_CREDITS }; }
+// Haul capacity: the refinery's Haul Capacity ranks deepen the orbital probe's hopper too.
+export function orbitalProbeCap(data) { return 60 + 6 * (((data && data.refinery && data.refinery.probe) || {}).cap || 0); }
+// The first probe on a world sends back survey data: a bounty from the Survey Office (credits and
+// commander XP by rank, explorer XP, a data core, salvaged tech; more on a hazardous world).
+export function probeBounty(survey, L = 1, exLevel = 1) {
+  L = Math.max(1, L || 1);
+  const hz = Math.max(1, survey.hazard || 1), k = 1 + 0.15 * hz;
+  return {
+    credits: Math.round((60 + 15 * L) * k), xp: Math.round(25 * L * k),
+    exXp: Math.round(explorerXpForLevel(Math.max(1, exLevel)) * 0.06 * k),
+    res: { datacore: 1, tech: hz >= 3 ? 2 : 1 },
+  };
+}
+// Drop a probe over a surveyed world (one per world): pays the cost, records it, pays the bounty
+// the first time this world is probed. Returns { cost, bounty|null, exUps } or null if it can't.
+export function dropOrbitalProbe(data, survey, now) {
+  const ex = ensureExplorer(data);
+  ex.orbital ||= {}; ex.probed ||= {};
+  if (ex.orbital[survey.key]) return null;
+  const cost = orbitalProbeCost(data);
+  if (!pay(data, cost)) return null;
+  ex.orbital[survey.key] = { t: now, cap: orbitalProbeCap(data) };
+  let bounty = null, exUps = 0;
+  if (!ex.probed[survey.key]) {
+    ex.probed[survey.key] = Math.max(1, Math.round(now));   // (playtime 0 would read as "never")
+    bounty = probeBounty(survey, data.level, ex.level);
+    data.credits = (data.credits || 0) + bounty.credits;
+    addResources(data, bounty.res);
+    exUps = grantExplorerXp(ex, bounty.exXp);
+  }
+  ex.probesDropped = (ex.probesDropped || 0) + 1;
+  return { cost, bounty, exUps };
 }
 
 // cargo -> bank. Returns total units banked.

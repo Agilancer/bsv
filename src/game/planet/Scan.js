@@ -3,7 +3,7 @@
 // landing sites), drop an orbital probe, and launch the explorer in a drop pod.
 import * as THREE from 'three/webgpu';
 import { vec3, float, positionLocal, normalize, smoothstep, abs, sin, uniform, max, dot, normalView, positionViewDirection, asin, atan } from 'three/tsl';
-import { surveyPlanet, planetKey, featureName, RESOURCES, RES_KEYS, ORBITAL_PROBE_COST, orbitalProbeYield, pay, addResources } from './economy.js';
+import { surveyPlanet, planetKey, featureName, RESOURCES, RES_KEYS, orbitalProbeCost, orbitalProbeYield, dropOrbitalProbe, probeBounty, addResources } from './economy.js';
 import { ensureExplorer, explorerStats } from './explorerItems.js';
 import { biomeFor } from './biomes.js';
 import { PlanetMode } from './PlanetMode.js';
@@ -173,7 +173,7 @@ export class Scanner {
       <div class="label" style="margin:10px 0 2px">Explorer: ${st.chassis.fullName} · level ${ex.level} · hull ${Math.round(st.maxHp)} · cargo ${st.cargo}</div>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
         <button class="btn violet deploy" id="pDeploy">Deploy explorer</button>
-        ${op ? `<button class="btn" id="pProbeRecover">Recover probe haul (${opN})</button>` : `<button class="btn" id="pProbeDrop" title="${Object.entries(ORBITAL_PROBE_COST).map(([k, v]) => `${v} ${k}`).join(', ')}">Drop orbital probe</button>`}
+        ${op ? `<button class="btn" id="pProbeRecover">Recover probe haul (${opN})</button>` : `<button class="btn" id="pProbeDrop" title="${Object.entries(orbitalProbeCost(G.data)).map(([k, v]) => `${v} ${k}`).join(', ')}${(ex.probed || {})[S.key] ? '' : ` · first probe here: survey bounty +${probeBounty(S, G.data.level, ex.level).credits} ¢`}">Drop orbital probe${(ex.probed || {})[S.key] ? '' : ' ★'}</button>`}
         <button class="btn" id="pBay">Explorer bay</button>
       </div>`;
     body.querySelectorAll('.site').forEach((el) => el.addEventListener('click', () => { this.siteIdx = +el.dataset.i; this.showPanel(); }));
@@ -181,18 +181,21 @@ export class Scanner {
     body.querySelector('#pBay').onclick = () => G.planet.windows.toggle('explorer', true);
     const drop = body.querySelector('#pProbeDrop');
     if (drop) drop.onclick = () => {
-      if (!pay(G.data, ORBITAL_PROBE_COST)) { G.ui.toast('Orbital probe needs 40 ore, 15 crystal, 250 ¢', 'warn'); return; }
-      ex.orbital ||= {};
-      ex.orbital[S.key] = { t: G.data.playtime, cap: 60 };
+      const r = dropOrbitalProbe(G.data, S, G.data.playtime);
+      if (!r) { G.ui.toast(`Orbital probe needs ${Object.entries(orbitalProbeCost(G.data)).map(([k, v]) => `${v} ${k === 'credits' ? '¢' : k}`).join(', ')}`, 'warn'); return; }
       G.world.fx.column(G.player.position, 0x58e0ff, 200, 40);
       G.ui.toast('Orbital probe away — it will mine until full', 'epic');
+      if (r.bounty) {
+        if (G.gainXp) G.gainXp(r.bounty.xp);
+        G.ui.toast(`Survey bounty: +${r.bounty.credits} ¢ · +${r.bounty.xp} XP · explorer +${r.bounty.exXp} XP · data core, salvaged tech`, 'epic');
+      }
       this.showPanel();
     };
     const rec = body.querySelector('#pProbeRecover');
     if (rec) rec.onclick = () => {
       const y = orbitalProbeYield(S, op, G.data.playtime);
       const n = addResources(G.data, y);
-      op.t = G.data.playtime;
+      if (n) op.t = G.data.playtime;
       G.ui.toast(n ? `Probe haul recovered: ${n} units` : 'The probe has nothing yet', n ? 'epic' : 'warn');
       this.showPanel();
     };
