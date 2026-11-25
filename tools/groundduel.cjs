@@ -188,6 +188,7 @@ async function dungeonRuns(cfg) {
                 // (Anything that keeps an absolute time is cleared below, so nothing waits on a later clock.)
                 E.time = 1000; E.uTime.value = E.time;
                 M.toastT = 0; M.lureT = 0; M.mineHintT = 0; M.aimEnemy = null; M.aimPoint.set(0, 0, 0);
+                M.cam.shake = 0;   // a big kill's shake outlasts its duel, and the shaking camera draws Math.random
                 M.creatures.list.length = 0; M.shots.clear(); M.timers.length = 0; M.ground.clear();
                 // nothing carried over from the previous duel: gun spin and cooldowns, the pilot's stuck/wiggle
                 // memory, deployed turrets, buffs, threat
