@@ -60,11 +60,10 @@ export function acceptScore(q, env) {
     case 'gkill': return !env.planet ? 0 : c.boss ? 1 : 2.2;
     case 'dungeon': return env.planet ? 1 : 0;
     case 'land': return !env.planet ? 0 : c.ptype ? (env.ptypes.has(c.ptype) ? 1.4 : 0) : 2;
-    case 'punt': return env.planet ? 1.1 : 0;
     default: return 0;
   }
 }
-const isPlanetQuest = (q) => q.ev === 'bank' || q.ev === 'scan' || q.ev === 'gkill' || q.ev === 'dungeon' || q.ev === 'land' || q.ev === 'punt';
+const isPlanetQuest = (q) => q.ev === 'bank' || q.ev === 'scan' || q.ev === 'gkill' || q.ev === 'dungeon' || q.ev === 'land';
 const isErrand = (q) => !!q.travel && (q.ev === 'dock' || q.ev === 'visit');
 
 function envFor(game) {

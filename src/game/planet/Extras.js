@@ -80,17 +80,16 @@ export class PlanetExtras {
     const R = mode.runStats, ex = mode.ex;
     const r = { ...R, deaths: R.deaths || 0, curioTotal: mode.curios ? mode.curios.total : CURIOS_PER_SITE };
     const [title, quip] = expeditionRating(r);
-    const got = Object.entries(R.gathered).filter(([, v]) => v > 0).map(([k, v]) => `<span style="color:${RESOURCES[k].color}">${v} ${RESOURCES[k].short}</span>`).join(' · ') || '<span class="label">nothing, technically</span>';
+    const got = Object.entries(R.gathered).filter(([, v]) => v > 0).map(([k, v]) => `<span style="color:${RESOURCES[k].color}">${v} ${RESOURCES[k].short}</span>`).join(' · ') || '<span class="label">no resources banked</span>';
     const row = (k, v) => `<div class="rrow"><span>${k}</span><b>${v}</b></div>`;
     const el = h(`<div id="pReport"><div class="rcard holo scan">
       <div class="label">Expedition report · ${mode.survey.name}</div>
       <div class="rtitle">${title}</div><div class="rquip">${quip}</div>
       <div class="rgrid">
-        ${row('Hostiles destroyed', R.kills)}${row('Wildlife launched', R.punts || 0)}
+        ${row('Hostiles destroyed', R.kills)}${row('Explorer XP', R.xp)}
         ${row('Resources banked', R.banked)}${row('Items recovered', R.items)}
         ${row('Curiosities scanned', `${R.curios || 0}/${r.curioTotal}`)}${row('Apex kills', R.bosses)}
         ${row('Dungeons entered', R.dungeons)}${row('Explorers lost', r.deaths)}
-        ${row('Explorer XP', R.xp)}
       </div>
       <div class="rgot">${got}</div>
       <button class="btn">Carry on</button></div></div>`);

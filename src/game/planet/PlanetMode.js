@@ -533,7 +533,7 @@ export class PlanetMode {
     this.ex.runs = (this.ex.runs || 0) + 1;
     this.sfx('jump', null, 0.8);
     G.ui.chat('SYS', null, `Explorer deploying to ${this.survey.name} · ${this.siteInfo.name} · hazard ${this.survey.hazardName}`, 'sys');
-    G.ui.chat('SYS', null, 'WASD drive · Mouse aim · LMB fire · RMB/F mine · Shift boost · 1-4 abilities · X probe · R interact · H horn · L explorer bay · U refinery', 'sys');
+    G.ui.chat('SYS', null, 'WASD drive · Mouse aim · LMB fire · RMB/F mine · Shift boost · 1-4 abilities · X probe · R interact · H lure pulse · L explorer bay · U refinery', 'sys');
   }
 
   exit() {
@@ -686,7 +686,7 @@ export class PlanetMode {
       ctl.boost = k('ShiftLeft') || k('ShiftRight');
       for (let i = 0; i < 4; i++) ctl.abil[i] = h('Digit' + (i + 1));
       ctl.probe = h('KeyX'); ctl.interact = h('KeyR');
-      if (h('KeyH')) this.honk();
+      if (h('KeyH')) this.lure();
       this.pickAim(m.nx, m.ny);
     }
     if (auto) { this.pilot.control(ctl, dt); }
@@ -729,21 +729,22 @@ export class PlanetMode {
     }
   }
 
-  // the horn: scatters the wildlife, wakes the neighbours, achieves nothing else
-  honk() {
+  // lure pulse: a sonic charge that draws every hostile within 70 m onto the explorer (and scatters
+  // the wildlife) — for pulling a nest out to open ground instead of driving into it
+  lure() {
     const V = this.vehicle, now = this.engine.time;
-    if (!V.alive || this.state !== 'play' || now < (this.honkT || 0)) return;
-    this.honkT = now + 1.2;
-    this.sfx('honk', null, 1);
+    if (!V.alive || this.state !== 'play' || now < (this.lureT || 0)) return;
+    this.lureT = now + 1.2;
+    this.sfx('lure', null, 1);
     this.ground.pulse(V.position.x, V.position.z, 0xffd66a, 0.7);
     this.pfx.ring(V.position, 10, 0xffd66a, 40);
     if (!this.dungeon) this.wildlife.startle(V.position, 48);
     let woke = 0;
     this.creatures.forInRadius(V.position, 70, (e) => { if (e.mode !== 'hunt') { this.creatures.aggro(e); woke++; } });
     this.noise(0.02);
-    this.honks = (this.honks || 0) + 1;
-    if (this.honks === 1) this.toast(woke ? `HONK. ${woke} hostile${woke > 1 ? 's' : ''} noticed.` : 'HONK.', woke ? 'warn' : '');
-    if (this.honks === 2 || woke >= 3) this.extras.radio('honk', false, true);
+    this.lures = (this.lures || 0) + 1;
+    if (this.lures === 1) this.toast(woke ? `Lure pulse: ${woke} hostile${woke > 1 ? 's' : ''} drawn in` : 'Lure pulse: nothing in range', woke ? 'warn' : '');
+    if (this.lures === 2 || woke >= 3) this.extras.radio('lure', false, true);
   }
 
   // ---------------- mining ----------------

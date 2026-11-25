@@ -489,10 +489,10 @@ test('time of day is seeded and keeps the sun above the horizon', () => {
 });
 
 test('the expedition report always finds a title', () => {
-  assert.equal(expeditionRating({ kills: 0, banked: 40 })[0], 'Conscientious Objector (With a Drill)');
-  assert.equal(expeditionRating({ deaths: 3 })[0], 'Insurance Liability');
-  assert.equal(expeditionRating({ curios: 5, curioTotal: 5 })[0], 'Tourist of the Year');
-  for (const r of [{}, { kills: 3, banked: 10 }, { punts: 9 }, { bosses: 1 }]) { const [t, q] = expeditionRating(r); assert.ok(t && q); }
+  assert.equal(expeditionRating({ kills: 0, banked: 40 })[0], 'Clean Extraction');
+  assert.equal(expeditionRating({ deaths: 3 })[0], 'Heavy Losses');
+  assert.equal(expeditionRating({ curios: 5, curioTotal: 5 })[0], 'Full Survey');
+  for (const r of [{}, { kills: 3, banked: 10 }, { kills: 30 }, { bosses: 1 }]) { const [t, q] = expeditionRating(r); assert.ok(t && q); }
 });
 
 import { WEATHER, weatherFor } from '../src/game/planet/lifeData.js';
@@ -503,4 +503,13 @@ test('every biome has a weather front with a radio line; strikes are telegraphed
     assert.ok(w.fog >= 0 && w.fog <= 0.6 && w.dim <= 0.5);
     if (w.strike) { assert.ok(w.strike.lead >= 1.2, 'time to drive out of the ring'); assert.ok(w.strike.dmg <= 0.1); assert.ok(w.strike.every >= 2.5); }
   }
+});
+
+import { migrateLife, CURIO_KINDS as LIFE_CURIO_KINDS, FAUNA_RENAMES } from '../src/game/planet/lifeData.js';
+test('old saves carry renamed fauna and curiosity records over', () => {
+  const D = migrateLife({ faunaCodex: { blorp: { seen: 1, punts: 4, best: 30 }, skitter: { seen: 1, punts: 0, best: 0 } }, curios: { gnome: 3, duck: 1, vendor: 2, camp: 1 } });
+  assert.deepEqual(D.faunaCodex, { strider: { seen: 1 }, skitter: { seen: 1 } });
+  assert.deepEqual(D.curios, { custodian: 3, vault: 1, wreck: 2, camp: 1 });
+  for (const k of Object.keys(D.curios)) assert.ok(LIFE_CURIO_KINDS.includes(k));
+  for (const to of Object.values(FAUNA_RENAMES)) assert.ok(Object.values(FAUNA).some((f) => f.id === to));
 });

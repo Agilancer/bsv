@@ -362,11 +362,11 @@ export class UI {
   renderFieldNotes(body, top) {
     const P = this.game.data, fc = P.faunaCodex || {}, cu = P.curios || {};
     const hex = (n) => '#' + (n >>> 0).toString(16).padStart(6, '0');
-    let h = top + `<div class="label" style="margin-bottom:8px">Harmless wildlife · met by driving near a herd on its home world</div><div class="clist">`;
+    let h = top + `<div class="label" style="margin-bottom:8px">Native wildlife · catalogued by driving near a herd on its home world</div><div class="clist">`;
     for (const [world, f] of Object.entries(FAUNA)) {
       const r = fc[f.id];
-      h += r ? `<div class="centry"><div class="cn" style="color:${hex(f.glow)}">${f.name}</div><div class="label">${world} worlds · harmless</div><div class="cd">${f.note}</div><div class="label">${r.punts ? `Launched ${r.punts} · record ${r.best} m` : 'Never launched. Commendable restraint.'}</div></div>`
-        : `<div class="centry unknown"><div class="cn">???</div><div class="label">${world} worlds</div><div class="cd">Something small is hopping about down there.</div></div>`;
+      h += r ? `<div class="centry"><div class="cn" style="color:${hex(f.glow)}">${f.name}</div><div class="label">${world} worlds · non-hostile</div><div class="cd">${f.note}</div><div class="label">Catalogued · non-hostile</div></div>`
+        : `<div class="centry unknown"><div class="cn">???</div><div class="label">${world} worlds</div><div class="cd">Unidentified life signs. Drive near a herd to catalogue it.</div></div>`;
     }
     h += `</div><div class="label" style="margin:12px 0 8px">Curiosities · scanned from the explorer (five on every landing site)</div><div class="clist">`;
     for (const k of CURIO_KINDS) {

@@ -113,7 +113,7 @@ export class PlanetHUD {
     if (this.numbers.length > 80) this.numbers.shift();
     this.numbers.push({ pos: pos.clone(), v: Math.max(1, Math.round(amount)), crit, kind, t: 0, dx: (Math.random() - 0.5) * 30 });
   }
-  // free text that floats up from a world position (punt distances and the like)
+  // free text that floats up from a world position (damage numbers, pickups and the like)
   floatText(pos, text, color = '#ffffff') {
     if (this.numbers.length > 80) this.numbers.shift();
     this.numbers.push({ pos: pos.clone(), text, color, t: 0, dx: 0, kind: 'text' });
