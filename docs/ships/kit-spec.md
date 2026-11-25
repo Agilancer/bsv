@@ -53,16 +53,17 @@ weapon model changes.
 |---|---|---|---|
 | Broadside | Socket 0.5 s wide × 0.7 s tall × 0.9 s long | Gunhouse up to 2.8 s long (fore-aft); barrels reach 3.45 s outboard of the pivot; yaw ±0.95 rad, pitch ±0.45 rad | Mount pitch ≥ 2.9 s ≈ 2.1 W along the hull; nothing in the swept fan outboard |
 | Turret | Base 1.0 s across | Barrels about 1.0 s, full 360 degrees | Well ≥ 1.1 s ≈ 0.8 W across; nothing taller than the well rim within 1.2 s |
-| Prow | Housing up to 2.3 s wide (4 tubes at 1.2 s scale ≈ 2.8 s) × 0.85 s tall | Barrel up to 3.3 × 1.2 s long, yaw ±0.5 rad | A prow face at least that wide per mount, or mounts stacked; nothing ahead |
+| Prow | Housing up to 2.3 s wide (4 tubes at 1.2 s scale ≈ 2.8 s) × 0.85 s tall | Barrel up to 3.3 × 1.2 s long, yaw ±0.5 rad | A prow face wide enough for the mounts under the rule below; nothing ahead |
 
 These are the clearances to aim for. Some chassis cannot meet them (eight mounts on a dreadnought, four
 prow mounts on any hull; today's builder overlaps them too), so the binding rules are:
 
 - **Battery length** is 0.5 L, centred on the body.
 - **Rows needed** = `ceil(2.1 W × mounts per side / battery length)`, capped per band: S 1, M 2, L 3, C 3,
-  X 3, G 3. Rows are the hull's facet tiers. Classes with side hulls or battery blocks (T7, T10, fortress
-  worlds) add one more row on those.
-- **When the cap is reached,** mounts close up within their rows. The pitch may shrink to a floor of
+  X 3, G 3. Rows are the hull's facet tiers. A chassis with `arch.outrig === 'hulls'` or `arch.galleries`
+  adds one more row on its side hulls or battery blocks.
+- **When the cap is reached,** mounts close up within their rows. Pitch is the centre-to-centre spacing
+  of neighbouring pivots in a row, with the pivots inside the battery length. It may shrink to a floor of
   1.2 W, where the longest gunhouses overlap their neighbours at rest. Below that floor the kit is wrong.
 - **Prow mounts** share one prow face and may interpenetrate: pitch at least 0.3 W, on a face at least
   1.2 W wide for three or four mounts.
