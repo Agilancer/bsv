@@ -38,8 +38,11 @@ export class Game {
   settings() {
     const d = this.data || {};
     d.settings ||= {};
-    if (d.settings.hideHudInAuto === undefined) d.settings.hideHudInAuto = true;   // default on
-    return d.settings;
+    const s = d.settings;
+    // "hide interface during autoplay" defaults off. Saves from when it defaulted on had `true` written in by
+    // this getter, so they get the new default once; after that the captain's own choice stands.
+    if (!s.hudAutoV) { s.hudAutoV = 1; s.hideHudInAuto = false; }
+    return s;
   }
 
   // Enter a full-screen mode with its own scene (planet surface, bridge). Space sim pauses.
