@@ -3,7 +3,7 @@
 // identity in custom properties, materials are slots by name. The layout maths lives in kitPlan.js (pure,
 // node-tested); this file loads kits and turns a baked plan into what buildHull returns.
 import * as THREE from 'three/webgpu';
-import { hullMaterials } from '../../fx/materials.js';
+import { hullMaterials, hotMaterial } from '../../fx/materials.js';
 import { indexKit, planHull, bakePlan } from './kitPlan.js';
 
 const kits = new Map();        // lang -> indexed kit
@@ -42,7 +42,7 @@ export function kitFromGLTF(gltf, lang) {
   scene.traverse((root) => {
     const ud = root.userData;
     if (!ud || !ud.part) return;
-    const part = { part: ud.part, variant: ud.variant, band: ud.band, len: ud.len, fixed: !!ud.fixed, markers: [], meshes: [] };
+    const part = { part: ud.part, variant: ud.variant, band: ud.band, len: ud.len, fixed: !!ud.fixed, pitch: ud.pitch, markers: [], meshes: [] };
     _inv.copy(root.matrixWorld).invert();
     const byShut = new Map();
     root.traverse((o) => {
@@ -59,13 +59,13 @@ export function kitFromGLTF(gltf, lang) {
       const g = o.geometry.clone();
       _m.multiplyMatrices(_inv, o.matrixWorld);
       g.applyMatrix4(_m);
-      if (!g.attributes.normal) g.computeVertexNormals();
-      else g.attributes.normal.applyNormalMatrix(_n3.getNormalMatrix(_m));
+      // kits are exported without normals (a faceted language: bakePlan gives every triangle its face normal)
+      if (g.attributes.normal) g.attributes.normal.applyNormalMatrix(_n3.getNormalMatrix(_m));
       if (!byShut.has(shut)) byShut.set(shut, { shut, geo: {} });
       const geo = byShut.get(shut).geo, mat = (o.material && o.material.name) || 'hull';
       const flat = g.index ? g.toNonIndexed() : g;
-      const prev = geo[mat], pos = flat.attributes.position.array, nrm = flat.attributes.normal.array;
-      geo[mat] = prev ? { pos: join(prev.pos, pos), nrm: join(prev.nrm, nrm) } : { pos, nrm };
+      const prev = geo[mat], pos = flat.attributes.position.array, nrm = flat.attributes.normal ? flat.attributes.normal.array : null;
+      geo[mat] = prev ? { pos: join(prev.pos, pos), nrm: nrm && prev.nrm ? join(prev.nrm, nrm) : null } : { pos, nrm };
     });
     part.meshes = [...byShut.values()];
     parts.push(part);
@@ -88,6 +88,9 @@ export function kitPlanFor(chassis) {
   return plan.ok ? plan : null;
 }
 
+// Running lights are not a yard colour: red to port, green to starboard, on every hull and under any paint.
+const RUNNING = { port: [0xff2414, 3.2], stbd: [0x28ff48, 2.6] };
+
 // What buildHull returns, from a kit: { group, hardpoints, engines, dims } (kit-spec sections 1 and 7).
 export function assembleHull(chassis, kit, plan = planHull(chassis, kit)) {
   if (!plan.ok) throw new Error(`kit ${kit.lang} cannot build ${chassis.id}: ${plan.why}`);
@@ -100,7 +103,7 @@ export function assembleHull(chassis, kit, plan = planHull(chassis, kit)) {
     geo.setAttribute('normal', new THREE.BufferAttribute(g.normal, 3));
     geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array((g.position.length / 3) * 2), 2));
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, mats[name] || mats.hull);
+    const mesh = new THREE.Mesh(geo, mats[name] || (RUNNING[name] ? hotMaterial(...RUNNING[name]) : mats.hull));
     mesh.name = name;
     group.add(mesh);
   }

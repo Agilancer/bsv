@@ -17,17 +17,45 @@ export const BANDS = [
 export const bandFor = (W) => BANDS.find((b) => W < b.max);
 
 // Class layouts by tier (design-brief section 2): which variants make the class, where its keyed masses go
-// (u: 0 stern .. 1 bow), how many battery tiers it stacks and how many nozzles it shows.
-// Only the frigate exists so far; a tier without a layout keeps the procedural builder.
+// (u: 0 stern .. 1 bow), how many battery rows it has (facet tiers, plus the row on side hulls or battery
+// blocks) and how many nozzles it shows. `sections` fixes the number of battery sections when the mounts are
+// not on them (the heavy cruiser's battery blocks). A tier without a layout keeps the procedural builder.
+const HANGAR = (u) => ({ part: 'hangar', variant: 'mouth', sock: 'sock.side', u, mirror: true });
 export const CLASS_LAYOUT = {
-  3: {
-    bow: 'bastion', battery: 'trench1', stern: 'block', rows: 1, nozzles: 4,
-    keyed: [
-      { part: 'command', variant: 'keep', sock: 'sock.top', u: 0.5 },
-      { part: 'ventral', variant: 'hangarpod', sock: 'sock.bottom', u: 0.5 },
-      { part: 'appendage', variant: 'bastion', sock: 'sock.side', u: 0.78, mirror: true },
-    ],
-  },
+  // cutter: an engine with a nose
+  1: { bow: 'wedge', battery: 'blister', stern: 'cutter', rows: 1, nozzles: 3,
+    keyed: [{ part: 'command', variant: 'blister', sock: 'sock.top', u: 0.8 }] },
+  // corvette: broad shoulders, two nacelles faired into the flanks
+  2: { bow: 'wedge', battery: 'blister', stern: 'shoulder', rows: 1, nozzles: 3,
+    keyed: [{ part: 'command', variant: 'block', sock: 'sock.top', u: 0.42 }, { part: 'appendage', variant: 'nacelle', sock: 'sock.side', u: 0.2, mirror: true }] },
+  // frigate: deep belly
+  3: { bow: 'bastion', battery: 'trench1', stern: 'block', rows: 1, nozzles: 4,
+    keyed: [{ part: 'command', variant: 'keep', sock: 'sock.top', u: 0.5 }, { part: 'ventral', variant: 'hangarpod', sock: 'sock.bottom', u: 0.5 }] },
+  // destroyer: long snout with a flat tube face
+  4: { bow: 'snout', battery: 'trenchc', stern: 'tri', rows: 1, nozzles: 3,
+    keyed: [{ part: 'command', variant: 'keep', sock: 'sock.top', u: 0.4 }, HANGAR(0.1)] },
+  // light cruiser: waisted hull, the bridge in the head
+  5: { bow: 'head', battery: 'waist2', stern: 'mass', rows: 2, nozzles: 4,
+    keyed: [{ part: 'command', variant: 'keep', sock: 'sock.top', u: 0.85 }, HANGAR(0.22)] },
+  // cruiser: split head
+  6: { bow: 'lobes', battery: 'deck2', stern: 'block5', rows: 2, nozzles: 5,
+    keyed: [{ part: 'command', variant: 'keep', sock: 'sock.top', u: 0.46 }, HANGAR(0.19)] },
+  // heavy cruiser: wide body, the broadside on battery blocks
+  7: { bow: 'bastion', battery: 'core', stern: 'block5', sections: 3, rows: 2, nozzles: 5,
+    keyed: [{ part: 'command', variant: 'tower', sock: 'sock.top', u: 0.57 }, { part: 'appendage', variant: 'blocks', sock: 'sock.side', u: 0.57, mirror: true },
+      { part: 'ventral', variant: 'keel', sock: 'sock.bottom', u: 0.57 }, HANGAR(0.2)] },
+  // battlecruiser: delta wings and a reactor bulge
+  8: { bow: 'lance', battery: 'deck2', stern: 'delta', rows: 2, nozzles: 6,
+    keyed: [{ part: 'command', variant: 'rake', sock: 'sock.top', u: 0.48 }, { part: 'appendage', variant: 'delta', sock: 'sock.side', u: 0.15, mirror: true },
+      { part: 'ventral', variant: 'reactor', sock: 'sock.bottom', u: 0.13 }, HANGAR(0.23)] },
+  // battleship: gun spine and split prow
+  9: { bow: 'split', battery: 'spine3', stern: 'banks8', rows: 3, nozzles: 8,
+    keyed: [{ part: 'command', variant: 'tower', sock: 'sock.top', u: 0.47 }, HANGAR(0.155), HANGAR(0.205)] },
+  // dreadnought: tri-hull
+  10: { bow: 'bastion', battery: 'deck3', stern: 'banks6', rows: 4, nozzles: 8,
+    keyed: [{ part: 'command', variant: 'citadel', sock: 'sock.top', u: 0.29 }, { part: 'ventral', variant: 'keel', sock: 'sock.bottom', u: 0.29 },
+      { part: 'command', variant: 'flag', sock: 'sock.top', u: 0.86 }, { part: 'appendage', variant: 'sidehull', sock: 'sock.side', u: 0.55, mirror: true },
+      HANGAR(0.15), HANGAR(0.2)] },
 };
 export const STRETCH = [0.92, 1.08];
 export const PITCH_FLOOR = 1.2;      // x W: closest two pivots may stand in one battery row
@@ -56,7 +84,8 @@ export function indexKit(raw) {
       bounds = { min, max };
     }
     const markers = [...p.markers].sort((a, b) => (a.mk < b.mk ? -1 : a.mk > b.mk ? 1 : a.n - b.n));
-    return { ...p, meshes, bounds, markers };
+    const tris = p.tris ?? meshes.reduce((a, m) => a + (m.shut ? 0 : Object.values(m.geo).reduce((b, g) => b + (g.idx ? g.idx.length : g.pos.length / 3) / 3, 0)), 0);
+    return { ...p, meshes, bounds, markers, tris };
   });
   return { lang: raw.lang, parts };
 }
@@ -66,7 +95,9 @@ function eachVertex(g, fn) {
   else for (let k = 0; k < pos.length; k += 3) fn(pos[k], pos[k + 1], pos[k + 2]);
 }
 
-const find = (kit, band, part, variant) => kit.parts.find((p) => p.band === band && p.part === part && (variant == null || p.variant === variant));
+// crew-scale parts (`fixed`: hangar mouths, detail) are modelled once and serve every band
+const find = (kit, band, part, variant) => kit.parts.find((p) => p.band === band && p.part === part && (variant == null || p.variant === variant))
+  || kit.parts.find((p) => p.fixed && p.part === part && p.variant === variant);
 const marks = (part, mk) => part.markers.filter((m) => m.mk === mk);
 
 // Waists that bring a chain `gap` (reference units) short of its length closest to it: [full, half] counts.
@@ -83,7 +114,7 @@ export function pickSpread(m, n) {
 
 // A placement maps part space into the hull: p' = (sx * s * x, s * y, sz * z) + t, with sx = -1 for the
 // starboard copy of a port-side part.
-const place = (part, s, sz, t, sx = 1) => ({ part, s, sz, t, sx });
+const place = (part, s, sz, t, sx = 1, pair = false) => ({ part, s, sz, t, sx, pair });
 const at = (pl, p) => [pl.sx * pl.s * p[0] + pl.t[0], pl.s * p[1] + pl.t[1], pl.sz * p[2] + pl.t[2]];
 
 // The plan for a chassis: where every part goes, the hardpoints and engines read off the markers, and dims.
@@ -103,8 +134,8 @@ export function planHull(chassis, kit) {
 
   // ---- chain the sections, stern to bow (steps 2 and 3)
   const perSection = marks(bat, 'hp.bs').filter((m) => (m.tier || 0) < lay.rows).length;
-  if (nb && !perSection) return fail('battery section has no broadside markers');
-  const nBat = nb ? Math.ceil(nb / perSection) : 1;
+  if (nb && !perSection && !lay.sections) return fail('battery section has no broadside markers');
+  const nBat = lay.sections || (nb ? Math.ceil(nb / perSection) : 1);
   const fixedLen = stern.len + bow.len + nBat * bat.len;
   const [nFull, nHalf] = waistFill(Lref - fixedLen, band.refW);
   const waists = [...Array(nFull).fill(wFull), ...Array(nHalf).fill(wHalf)];
@@ -140,15 +171,15 @@ export function planHull(chassis, kit) {
     if (!best) return fail(`no ${k.sock} socket for ${k.part}`);
     usedSock.add(`${best.i}:${k.sock}`);
     const fs = part.fixed ? 1 : s, fz = part.fixed ? 1 : sz;
-    placements.push(place(part, fs, fz, best.p));
-    if (k.mirror) placements.push(place(part, fs, fz, [-best.p[0], best.p[1], best.p[2]], -1));
+    placements.push(place(part, fs, fz, best.p, 1, !!k.mirror));
+    if (k.mirror) placements.push(place(part, fs, fz, [-best.p[0], best.p[1], best.p[2]], -1, true));
   }
 
   // ---- hardpoints and engines from the markers (step 6)
-  const all = (mk) => {
+  const all = (mk, both = false) => {
     const out = [];
     placements.forEach((pl, i) => {
-      if (pl.sx < 0) return;
+      if (pl.sx < 0 && !both) return;
       for (const m of marks(pl.part, mk)) out.push({ m, pl, i, p: at(pl, m.p), covered: !!m.sock && usedSock.has(`${i}:sock.${m.sock}`) });
     });
     return out.sort((a, b) => a.p[2] - b.p[2]);
@@ -156,9 +187,21 @@ export function planHull(chassis, kit) {
   const used = new Set();              // `${placement index}:${mk}:${n}` of mounts that carry a weapon
   const use = (e) => used.add(`${e.i}:${e.m.mk}:${e.m.n}`);
   const hardpoints = [];
-  const bs = all('hp.bs').filter((e) => (e.m.tier || 0) < lay.rows).sort((a, b) => (a.m.tier || 0) - (b.m.tier || 0) || a.p[2] - b.p[2]);
-  if (bs.length < nb) return fail(`${bs.length} broadside markers for ${nb} slots`);
-  bs.slice(0, nb).forEach((e, index) => {
+  // the mounts are shared out over the battery rows as evenly as the rows allow (upper rows first), and spread
+  // along each row; indices run by row, then aft to fore
+  const byRow = new Map();
+  for (const e of all('hp.bs')) { const t = e.m.tier || 0; if (t < lay.rows) { if (!byRow.has(t)) byRow.set(t, []); byRow.get(t).push(e); } }
+  const rowIds = [...byRow.keys()].sort((a, b) => a - b), want = new Map(rowIds.map((t) => [t, 0]));
+  const have = rowIds.reduce((a, t) => a + byRow.get(t).length, 0);
+  if (have < nb) return fail(`${have} broadside markers for ${nb} slots`);
+  for (let k = 0; k < nb; k++) {
+    let best = null;
+    for (const t of rowIds) if (want.get(t) < byRow.get(t).length && (best == null || want.get(t) < want.get(best))) best = t;
+    want.set(best, want.get(best) + 1);
+  }
+  const bs = [];
+  for (const t of rowIds) for (const k of pickSpread(byRow.get(t).length, want.get(t))) bs.push(byRow.get(t)[k]);
+  bs.forEach((e, index) => {
     use(e);
     hardpoints.push({ type: 'broadside', index, side: 'port', pos: e.p, dir: [1, 0, 0], tier: e.m.tier || 0 });
     hardpoints.push({ type: 'broadside', index, side: 'starboard', pos: [-e.p[0], e.p[1], e.p[2]], dir: [-1, 0, 0], tier: e.m.tier || 0 });
@@ -180,7 +223,7 @@ export function planHull(chassis, kit) {
     use(e);
     hardpoints.push({ type: 'hangar', index: i, side: sx > 0 ? 'port' : 'starboard', pos: [sx * e.p[0], e.p[1], e.p[2]], dir: [sx, 0, 0] });
   }
-  const engines = all('eng').map((e) => ({ pos: e.p, r: (e.m.r || 1) * 0.7 * e.pl.s }));
+  const engines = all('eng', true).map((e) => ({ pos: e.p, r: (e.m.r || 1) * 0.7 * e.pl.s }));
   if (engines.length !== lay.nozzles) return fail(`${engines.length} nozzles, the class has ${lay.nozzles}`);
 
   // ---- shutters: a spare mount is closed by its part's shutter mesh; a mount under a filled socket is hidden
@@ -188,31 +231,68 @@ export function planHull(chassis, kit) {
     if (!m.shut) return true;
     const [mk, n] = m.shut.split(':');
     const mark = pl.part.markers.find((x) => x.mk === mk && x.n === +n);
-    if (!mark || used.has(`${i}:${mk}:${n}`)) return false;
+    // the starboard copy of a mirrored part follows its port twin (the placement before it)
+    if (!mark || used.has(`${pl.pair && pl.sx < 0 ? i - 1 : i}:${mk}:${n}`)) return false;
     return !(mark.sock && usedSock.has(`${i}:sock.${mark.sock}`));
   }));
 
-  // ---- bounds of the art (step 8): top for dims, bottom for the depth test
-  let top = -Infinity, bottom = Infinity;
+  // ---- fixed-size detail (step 7): instanced along each `det` run at the detail's own pitch and at absolute
+  // size, so it reads as the same thing on a cutter and on a dreadnought; capped by the band's triangle budget
+  let tris = placements.reduce((a, pl) => a + pl.part.tris, 0);
+  const structure = placements.length;
+  for (let i = 0; i < structure; i++) {
+    const pl = placements[i];
+    for (const m of marks(pl.part, 'det')) {
+      const d = find(kit, band.id, 'detail', m.kind);
+      if (!d) continue;
+      const ax = m.ax === 'x' ? 0 : m.ax === 'y' ? 1 : 2, k = ax === 2 ? pl.sz : pl.s;
+      const run = (m.run || 0) * k, pitch = d.pitch || 3, n = Math.max(1, Math.floor(run / pitch) + 1), lead = (run - (n - 1) * pitch) / 2;
+      const p0 = at(pl, m.p), twin = m.side === 'port' && !pl.pair && Math.abs(p0[0]) > 1e-6;
+      for (let j = 0; j < n; j++) {
+        if (tris + d.tris * (twin ? 2 : 1) > band.tris) break;
+        const t = p0.slice();
+        t[ax] += (lead + j * pitch) * (ax === 0 ? pl.sx : 1);
+        const cmd = pl.part.part === 'command';
+        placements.push({ ...place(d, 1, 1, t, pl.sx), cmd });
+        shown.push(d.meshes);
+        if (twin) { placements.push({ ...place(d, 1, 1, [-t[0], t[1], t[2]], -pl.sx), cmd }); shown.push(d.meshes); }
+        tris += d.tris * (twin ? 2 : 1);
+      }
+    }
+  }
+
+  // ---- bounds of the art (step 8): top for dims; the hull's own top (without the command structure, which may
+  // be a tall tower) and bottom for the depth test
+  let top = -Infinity, bottom = Infinity, hullTop = -Infinity;
   for (const pl of placements) {
-    top = Math.max(top, pl.s * pl.part.bounds.max[1] + pl.t[1]);
+    const y1 = pl.s * pl.part.bounds.max[1] + pl.t[1];
+    top = Math.max(top, y1);
+    if (!isCommand(pl)) hullTop = Math.max(hullTop, y1);
     bottom = Math.min(bottom, pl.s * pl.part.bounds.min[1] + pl.t[1]);
   }
-  return { ok: true, band, scale: s, stretch, chain: chain.map((p) => `${p.part}/${p.variant}`), placements, shown, hardpoints, engines, dims: { ...dims, top }, bottom };
+  return { ok: true, band, scale: s, stretch, chain: chain.map((p) => `${p.part}/${p.variant}`), placements, shown, hardpoints, engines, dims: { ...dims, top }, bottom, hullTop };
 }
 
 // Step 5: apply each placement to its part's geometry and merge per material. Returns flat, non-indexed
 // Float32Arrays { <material>: { position, normal } } plus the triangle count and the area per material.
-export function bakePlan(plan) {
+// The command structure and the detail on it (a tower is not part of the hull's depth: design-brief section 0).
+export const isCommand = (pl) => pl.part.part === 'command' || !!pl.cmd;
+
+// Running lights are red to port and green to starboard: a mirrored copy swaps the two materials.
+const MIRROR_MAT = { port: 'stbd', stbd: 'port' };
+const matOf = (pl, mat) => (pl.sx < 0 && MIRROR_MAT[mat]) || mat;
+export function bakePlan(plan, only = null) {
   const count = {};
-  plan.placements.forEach((pl, i) => { for (const m of plan.shown[i]) for (const [mat, g] of Object.entries(m.geo)) count[mat] = (count[mat] || 0) + (g.idx ? g.idx.length : g.pos.length / 3); });
+  plan.placements.forEach((pl, i) => { if (only && !only(pl)) return; for (const m of plan.shown[i]) for (const [mat0, g] of Object.entries(m.geo)) { const mat = matOf(pl, mat0); count[mat] = (count[mat] || 0) + (g.idx ? g.idx.length : g.pos.length / 3); } });
   const out = {}, fill = {};
   for (const [mat, n] of Object.entries(count)) { out[mat] = { position: new Float32Array(n * 3), normal: new Float32Array(n * 3) }; fill[mat] = 0; }
   const area = {};
   let tris = 0;
   plan.placements.forEach((pl, i) => {
+    if (only && !only(pl)) return;
     const { s, sz, t, sx } = pl, kx = sx * s;
-    for (const m of plan.shown[i]) for (const [mat, g] of Object.entries(m.geo)) {
+    for (const m of plan.shown[i]) for (const [mat0, g] of Object.entries(m.geo)) {
+      const mat = matOf(pl, mat0);
       const P = out[mat].position, N = out[mat].normal, { pos, nrm, idx } = g;
       const n = idx ? idx.length : pos.length / 3;
       let o = fill[mat];
@@ -246,4 +326,75 @@ export function shieldLevel(dims, x, y, z) {
   const ax = dims.W * SHIELD.x, ay = (dims.Ht + dims.top) * SHIELD.yK + SHIELD.yPad, az = dims.L * SHIELD.z;
   const dy = y - dims.top * SHIELD.yC;
   return (x * x) / (ax * ax) + (dy * dy) / (ay * ay) + (z * z) / (az * az);   // <= 1 inside
+}
+
+// The assembled hull seen from port, for the crew cutaway (hullPlan.js sideProfile): at `n` stations along z, the
+// silhouette's top and bottom (t, b), the hull's own top and bottom without the command structure (ht, hb), a
+// split prow's notch (the open gap between an upper and a lower blade: first station and the gap's upper and
+// lower edge from there to the last station that has one) and the command structure's span and height.
+// tools/kitprofiles.mjs writes this for every kit hull into kitProfiles.js, so the cutaway needs no kit loaded.
+export function kitSideProfile(plan, n = 96) {
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const tri = [];       // [z0, y0, z1, y1, z2, y2, isCommand]
+  let zMin = Infinity, zMax = -Infinity;
+  plan.placements.forEach((pl, i) => {
+    if (pl.part.part === 'detail') return;
+    const cmd = isCommand(pl) ? 1 : 0;
+    for (const m of plan.shown[i]) for (const g of Object.values(m.geo)) {
+      const { pos, idx } = g, cnt = idx ? idx.length : pos.length / 3, t = [];
+      for (let v = 0; v < cnt; v++) {
+        const k = (idx ? idx[v] : v) * 3, z = pl.sz * pos[k + 2] + pl.t[2], y = pl.s * pos[k + 1] + pl.t[1];
+        t.push(z, y); zMin = Math.min(zMin, z); zMax = Math.max(zMax, z);
+        if (t.length === 6) { tri.push([...t, cmd]); t.length = 0; }
+      }
+    }
+  });
+  const eps = (zMax - zMin) * 1e-4, zs = Array.from({ length: n + 1 }, (_, j) => zMin + eps + ((zMax - zMin - 2 * eps) * j) / n);
+  const cols = zs.map(() => ({ all: [], hull: [] }));
+  for (const t of tri) {
+    const lo = Math.min(t[0], t[2], t[4]), hi = Math.max(t[0], t[2], t[4]);
+    for (let j = Math.max(0, Math.ceil(((lo - zMin - eps) / (zMax - zMin - 2 * eps)) * n)); j <= n && zs[j] <= hi; j++) {
+      const z = zs[j];
+      let a = Infinity, b = -Infinity;
+      for (let e = 0; e < 3; e++) {
+        const z0 = t[e * 2], y0 = t[e * 2 + 1], z1 = t[((e + 1) % 3) * 2], y1 = t[((e + 1) % 3) * 2 + 1];
+        if ((z0 - z) * (z1 - z) > 0 || z0 === z1) continue;
+        const y = y0 + ((y1 - y0) * (z - z0)) / (z1 - z0);
+        a = Math.min(a, y); b = Math.max(b, y);
+      }
+      if (b < a) continue;
+      cols[j].all.push([a, b]);
+      if (!t[6]) cols[j].hull.push([a, b]);
+    }
+  }
+  const { Ht } = plan.dims;
+  const merge = (iv) => {
+    iv.sort((p, q) => p[0] - q[0]);
+    const out = [];
+    for (const [a, b] of iv) { const last = out[out.length - 1]; if (last && a <= last[1] + Ht * 0.02) last[1] = Math.max(last[1], b); else out.push([a, b]); }
+    return out;
+  };
+  const t = [], b = [], ht = [], hb = [], gaps = [];
+  cols.forEach((c) => {
+    const all = merge(c.all), hull = merge(c.hull.length ? c.hull : c.all);
+    t.push(r2(all[all.length - 1][1])); b.push(r2(all[0][0]));
+    ht.push(r2(hull[hull.length - 1][1])); hb.push(r2(hull[0][0]));
+    gaps.push(all.length > 1 && all[all.length - 1][0] - all[0][1] > Ht * 0.05 ? [r2(all[all.length - 1][0]), r2(all[0][1])] : null);
+  });
+  // a split prow: the run of gapped stations in the forward third that reaches furthest forward
+  let notch = null, j1 = n;
+  while (j1 > n * 0.66 && !gaps[j1]) j1--;
+  if (gaps[j1]) {
+    let j0 = j1;
+    while (j0 > 0 && gaps[j0 - 1]) j0--;
+    if (j1 - j0 >= 2) notch = { j0, up: gaps.slice(j0, j1 + 1).map((g) => g[0]), lo: gaps.slice(j0, j1 + 1).map((g) => g[1]) };
+  }
+  // the command structure: the tallest command part
+  let cmd = null;
+  for (const pl of plan.placements) {
+    if (pl.part.part !== 'command') continue;
+    const y1 = pl.s * pl.part.bounds.max[1] + pl.t[1];
+    if (!cmd || y1 > cmd[2]) cmd = [r2(pl.sz * pl.part.bounds.min[2] + pl.t[2]), r2(pl.sz * pl.part.bounds.max[2] + pl.t[2]), r2(y1)];
+  }
+  return { z: zs.map(r2), t, b, ht, hb, notch, cmd };
 }

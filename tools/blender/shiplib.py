@@ -11,7 +11,7 @@
 import bpy, math, json, os
 from vlib import G
 
-MATS = ['hull', 'trim', 'dark', 'glow', 'engine', 'paint', 'mark', 'glyph', 'sail', 'kit']
+MATS = ['hull', 'trim', 'dark', 'glow', 'engine', 'paint', 'mark', 'glyph', 'sail', 'kit', 'port', 'stbd']
 REF_W = {'S': 3.6, 'M': 7.2, 'L': 13.0, 'C': 20.0, 'X': 32.0, 'G': 70.0}
 
 
@@ -40,6 +40,59 @@ def subquad(q, u0, u1, v0, v1):
     """Part of a quad (a, b, c, d): u runs a->b (and d->c), v runs a->d (and b->c)."""
     def at(u, v): return lerp(lerp(q[0], q[1], u), lerp(q[3], q[2], u), v)
     return (at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1))
+
+
+# ---------------------------------------------------------------- half profiles
+# A half profile is the port side of a section, crown to keel: [(x, y, tag)] with x >= 0 and y never rising;
+# tag is the material of the edge that starts at the point. Cuts return new profiles, so a section is a run of
+# closed prisms (bulkhead, casemate bay, turret well ...) and no two rings ever need matching point counts.
+def prof(pts, tag='hull'):
+    return [(float(x), float(y), tag) for x, y in pts]
+
+
+def pscale(h, kx=1.0, ky=None, yo=0.0):
+    ky = kx if ky is None else ky
+    return [(x * kx, y * ky + yo, t) for x, y, t in h]
+
+
+def _cross(h, y, last=False):
+    rng = range(len(h) - 2, -1, -1) if last else range(len(h) - 1)
+    for i in rng:
+        a, b = h[i], h[i + 1]
+        if a[1] != b[1] and a[1] >= y >= b[1]:
+            return i, a[0] + (b[0] - a[0]) * (a[1] - y) / (a[1] - b[1])
+    raise ValueError(f'profile has no point at y = {y}')
+
+
+def xat(h, y, last=False):
+    return _cross(h, y, last)[1]
+
+
+def cut_side(h, y1, y0, xb, tag='dark'):
+    """A level-floored recess (casemate, trench) between heights y1 > y0, back wall at x = xb."""
+    i1, x1 = _cross(h, y1)
+    i0, x0 = _cross(h, y0, True)
+    assert x1 > xb and x0 > xb, 'recess deeper than the profile'
+    return h[:i1 + 1] + [(x1, y1, tag), (xb, y1, tag), (xb, y0, tag), (x0, y0, h[i0][2])] + h[i0 + 1:]
+
+
+def cut_top(h, yw, tag='dark'):
+    """Cut the crown down to a level floor at yw (a turret well)."""
+    i, x = _cross(h, yw)
+    return [(0.0, yw, tag), (x, yw, h[i][2])] + h[i + 1:]
+
+
+def cut_bot(h, yw, tag='dark'):
+    i, x = _cross(h, yw, True)
+    return h[:i + 1] + [(x, yw, tag), (0.0, yw, tag)]
+
+
+def pring(h, z, sym=True):
+    """Ring of game points and the material of each ring edge. sym: mirror the half profile across x."""
+    if not sym:
+        return [(x, y, z) for x, y, _ in h], [t for _, _, t in h]
+    pts = [(x, y, z) for x, y, _ in h] + [(-x, y, z) for x, y, _ in h[-2:0:-1]]
+    return pts, [t for _, _, t in h[:-1]] + [h[j][2] for j in range(len(h) - 2, -1, -1)]
 
 
 class Solid:
@@ -90,6 +143,7 @@ class Solid:
 class Part:
     def __init__(self, role, variant, band='M', length=None, fixed=False):
         self.role, self.variant, self.band, self.len, self.fixed = role, variant, band, length, fixed
+        self.props = {}     # extra custom properties on the part root (e.g. a detail's pitch)
         self.solids = []    # (Solid, shut key or None)
         self.markers = []   # (mk, n, (x, y, z), props)
         self._n = {}
@@ -130,6 +184,27 @@ class Part:
         if caps[1]:
             s.face(rings[-1], cm[1] or mf(len(rings) - 2, 0))
         return self._add(s, mirror, shut)
+
+    def hloft(self, stations, sym=True, over=None, caps=(True, True), cap_mat=None, mirror=False, shut=None):
+        """Skin half profiles: stations = [(profile, z)], equal point counts. Faces take the tag of the ring they
+        start from; over = {span: material} repaints a whole span."""
+        rings, tags = [], []
+        for h, z in stations:
+            r, t = pring(h, z, sym)
+            rings.append(r)
+            tags.append(t)
+        over = over or {}
+        return self.loft(rings, lambda r, i: over.get(r, tags[r][i]), caps=caps, cap_mat=cap_mat or 'hull', mirror=mirror, shut=shut)
+
+    def body(self, h, z0, z1, feats=()):
+        """A run of prisms of profile h from z0 to z1; feats = [(za, zb, fn)] apply fn(profile) over [za, zb]."""
+        zs = sorted({round(z0, 4), round(z1, 4), *[round(min(max(z, z0), z1), 4) for f in feats for z in f[:2]]})
+        for a, b in zip(zs, zs[1:]):
+            hh = h
+            for fa, fb, fn in feats:
+                if fa <= a + 1e-3 and fb >= b - 1e-3:
+                    hh = fn(hh)
+            self.hloft([(hh, a), (hh, b)])
 
     def box(self, mat, w, h, d, at, mirror=False, shut=None):
         x, y, z = at
@@ -218,6 +293,8 @@ def build(parts, spacing=40.0):
             root['len'] = float(p.len)
         if p.fixed:
             root['fixed'] = True
+        for k, v in p.props.items():
+            root[k] = v
         keys = []
         for s, shut in p.solids:
             if shut not in keys:
@@ -248,7 +325,7 @@ def export(roots, lang, out_dir):
     bpy.ops.object.select_all(action='DESELECT')
     bpy.ops.export_scene.gltf(
         filepath=glb, export_format='GLB', use_selection=False, export_yup=True, export_extras=True,
-        export_apply=True, export_normals=True, export_tangents=False, export_texcoords=True,
+        export_apply=True, export_normals=False, export_tangents=False, export_texcoords=False,
         export_materials='EXPORT', export_image_format='NONE', export_animations=False, export_skins=False,
         export_morph=False, export_cameras=False, export_lights=False)
     r3 = lambda x: round(float(x), 3)
@@ -261,6 +338,9 @@ def export(roots, lang, out_dir):
             entry['len'] = r3(root['len'])
         if 'fixed' in root:
             entry['fixed'] = True
+        for k in root.keys():
+            if k not in ('part', 'variant', 'band', 'len', 'fixed'):
+                entry[k] = root[k] if isinstance(root[k], (str, bool, int)) else r3(root[k])
         lo, hi, tris, area = [1e9] * 3, [-1e9] * 3, 0, {}
         for ob in root.children:
             if ob.type == 'EMPTY':

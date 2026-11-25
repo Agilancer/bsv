@@ -5,6 +5,7 @@
 // Frame: +Z bow, +Y up, +X port. u: 0 stern .. 1 bow.
 import { YARDS } from '../data/chassis.js';
 import { LIVERIES } from '../data/liveries.js';
+import { KIT_PROFILES } from './kitProfiles.js';
 
 // Masts and spires are sensor pylons on a spacecraft: this share of the old needle height (and stouter).
 export const MAST_K = 0.45;
@@ -270,6 +271,8 @@ function lineAt(pts, z) {
 // (hullTop/hullBottom, for fitting decks), the castle stack and thin lines (masts, bowsprit).
 // All in hull units (the chassis' length L); u = z / L + 0.5.
 export function sideProfile(chassis, samples = 120) {
+  const kp = !chassis.S && !chassis.kit && !chassis.livery && chassis.shape !== 'sphere' ? KIT_PROFILES[chassis.id] : null;
+  if (kp) return kitProfile(chassis, kp);
   const P = chassis.S ? chassis : hullPlan(chassis);
   const parts = profileParts(P);
   const zs = new Set();
@@ -323,3 +326,32 @@ export function sideProfile(chassis, samples = 120) {
   };
 }
 export const profileAt = lineAt;
+
+// The same record for a hull assembled from a part kit, from its measured silhouette (kitProfiles.js). The
+// command structure (a sunk keep on the small classes, a terraced bridge tower on the big ones) is split into
+// as many storeys as the deck plan stacks rooms on (crew/layout.js reads hullPlan().castle.tiers); a split
+// prow's notch opens the outline between its blades. No masts, spires or bowsprit: a kit hull has none.
+function kitProfile(chassis, kp) {
+  const P = hullPlan(chassis), { L, Ht, Hb } = P;
+  const line = (ys) => kp.z.map((z, i) => [z, ys[i]]);
+  const top = line(kp.t), bottom = line(kp.b);
+  let outline = [...top, ...[...bottom].reverse()];
+  if (kp.notch) {
+    const j0 = kp.notch.j0, j1 = j0 + kp.notch.up.length - 1;
+    const upper = kp.notch.up.map((y, i) => [kp.z[j0 + i], y]), lower = kp.notch.lo.map((y, i) => [kp.z[j0 + i], y]);
+    outline = [...top, ...bottom.slice(j1 + 1).reverse(), ...upper.reverse(), ...lower, ...bottom.slice(0, j1 + 1).reverse()];
+  }
+  // the command structure: at least a sixth of the hull long on the plan, so its rooms can be read
+  const zc = (kp.cmd[0] + kp.cmd[1]) / 2, half = Math.max((kp.cmd[1] - kp.cmd[0]) / 2, L * 0.085);
+  const y0 = Math.max(Ht, lineAt(line(kp.ht), zc) ?? Ht), y1 = Math.max(y0 + Ht * 0.12, lineAt(top, zc) ?? kp.cmd[2]);
+  const n = P.castle.tiers, step = (y1 - y0) / (n + 1), towers = [];
+  for (let i = 0; i < n; i++) {
+    const k = 1 - 0.3 * (i / Math.max(1, n));
+    towers.push({ y0: y0 + step * i, y1: y0 + step * (i + 1), z0: zc - half * k, z1: zc + half * k });
+  }
+  const bridge = { y0: y0 + step * n, y1, z0: zc - half * 0.5, z1: zc + half * 0.5 };
+  return {
+    L, Ht, Hb, zMin: kp.z[0], zMax: kp.z[kp.z.length - 1], top, bottom, outline,
+    hullTop: line(kp.ht), hullBottom: line(kp.hb), castle: { towers, bridge }, lines: [], spires: 0, sails: 0, kit: true,
+  };
+}
