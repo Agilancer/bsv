@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { CRAFT, LEAD, BERTH, wingPlan, wingLine, LINES, LINE_BY_YARD, LINE_BY_FACTION, lineFor, lineForShip } from '../src/game/data/craft.js';
+import { CRAFT, LEAD, BERTH, wingPlan, wingLine, LINES, LINE_BY_YARD, LINE_BY_FACTION, lineFor, lineForShip, hostilePaint, hueSat, hueGap, ALLY_PAINT, ALLY_BAND } from '../src/game/data/craft.js';
+import { LIVERIES } from '../src/game/data/liveries.js';
 import { YARDS } from '../src/game/data/chassis.js';
 import { ENEMY_FACTIONS } from '../src/game/data/enemies.js';
 
@@ -52,6 +53,19 @@ test('every yard and enemy style flies a design line', () => {
   assert.equal(lineForShip({ faction: 'pirate', chassis: { kind: 'enemy', yard: 'tidewright' } }), 'raider');
   assert.equal(lineForShip({ faction: 'rival', chassis: { kind: 'enemy', yard: 'ironhold' } }), 'foundry');
   assert.equal(lineForShip({ faction: 'pirate', chassis: { yard: 'aurelian' } }), 'concord');
+});
+
+test('a hostile wing never paints in the captain\'s blue', () => {
+  const ally = hueSat(ALLY_PAINT);
+  const glows = [];
+  for (const y of Object.values(YARDS)) glows.push(y.glow, y.engine, y.window);
+  for (const l of Object.values(LIVERIES)) for (const v of Object.values(l.palette || {})) if (typeof v === 'number') glows.push(v);
+  glows.push(0xa0b0ff, 0x9ff0ff, 0x60a0ff, 0x7ad8ff, 0xc0d0e0);
+  for (const f of [...Object.keys(ENEMY_FACTIONS), 'x']) for (const g of glows) {
+    const c = hueSat(hostilePaint(g, f));
+    assert.ok(c.s > 0.12 ? hueGap(c.h, ally.h) >= ALLY_BAND : !c.blue, `${f} ${g.toString(16)} -> ${hostilePaint(g, f).toString(16)}`);
+  }
+  assert.equal(hostilePaint(0xff3050, 'pirate'), 0xff3050);   // a warm faction keeps its own colour
 });
 
 const dir = new URL('../assets/ships/craft/', import.meta.url);

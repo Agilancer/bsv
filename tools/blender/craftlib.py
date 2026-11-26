@@ -82,8 +82,9 @@ def plume(P, at, hw, hh, L, segs=12, p=2.0):
     tapers to nothing, and a hot core half its length; fade_plumes grades both from the nozzle to the tip"""
     o = [(0.0, 0.74, 0.74), (-0.12, 0.84, 0.84), (-0.42, 0.58, 0.58), (-0.72, 0.28, 0.28), (-1.0, 0.04, 0.04)]
     P.loft([(z * L, hw * a, hh * b, 0.0, p) for z, a, b in o], 'flame', 0x9a9a9a, segs, at=at, caps=False)
-    c = [(0.0, 0.46, 0.46), (-0.1, 0.5, 0.5), (-0.5, 0.24, 0.24), (-1.0, 0.03, 0.03)]
-    P.loft([(z * L * 0.5, hw * a, hh * b, 0.0, p) for z, a, b in c], 'flame', WHITE, max(8, segs - 4), at=at, caps=False)
+    # the core runs the plume's whole length but thins fast, so the fade takes its tip to nothing (no hard point)
+    c = [(0.0, 0.46, 0.46), (-0.1, 0.5, 0.5), (-0.32, 0.22, 0.22), (-0.65, 0.07, 0.07), (-1.0, 0.02, 0.02)]
+    P.loft([(z * L, hw * a, hh * b, 0.0, p) for z, a, b in c], 'flame', WHITE, max(8, segs - 4), at=at, caps=False)
 
 
 def slot_drive(P, at, w, h, depth=None, flame=2.2, mat='dark', tint=DARK2, ring=CHROME):
@@ -94,8 +95,12 @@ def slot_drive(P, at, w, h, depth=None, flame=2.2, mat='dark', tint=DARK2, ring=
     P.box(w * 1.22, h * 1.3, d, (x, y, z + d / 2), mat, tint, 0.01)
     for dy in (1, -1):
         P.box(w * 1.26, h * 0.12, 0.06, (x, y + dy * h * 0.6, z - 0.02), 'chrome', ring, 0.0)
-    P.box(w, h, 0.05, (x, y, z - 0.02), 'glow', WHITE, 0.0)
-    P.box(w * 0.7, h * 0.4, 0.06, (x, y, z - 0.03), 'lamp', 0xfff4ff, 0.0)
+    # the slot reads as a recessed throat, not a light box: a dark lip round it, the glow set back, vanes across it
+    for dx in (1, -1):
+        P.box(w * 0.1, h * 1.05, 0.08, (x + dx * w * 0.52, y, z - 0.03), 'dark', DARK, 0.0)
+    P.box(w * 0.96, h * 0.9, 0.04, (x, y, z + 0.01), 'glow', 0xb8b8b8, 0.0)
+    for k in (-1, 0, 1):
+        P.box(w * 0.035, h * 0.9, 0.07, (x + k * w * 0.26, y, z - 0.015), 'dark', DARK, 0.0)
     if flame:
         plume(P, (x, y, z - 0.04), w / 2, h / 2, min(w, h) * flame, 10, p=3.0)
     r = min(w, h) / 2

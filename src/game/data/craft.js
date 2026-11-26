@@ -62,3 +62,26 @@ export function lineForShip(ship) {
   if (ch.kind === 'enemy' && LINE_BY_FACTION[ship.faction]) return LINE_BY_FACTION[ship.faction];
   return lineFor(ch.yard);
 }
+
+// Wing colours. The captain's wing paints ALLY_PAINT; a hostile wing paints its yard's glow, except that it
+// never paints in the captain's blue: a colour within ALLY_BAND degrees of its hue (or a pale bluish one)
+// takes the faction's own alternative, else the standard hostile red.
+export const ALLY_PAINT = 0x3f8cff;
+export const ALLY_BAND = 45;
+const HOSTILE_ALT = { silent: 0xc84cff, brood: 0x40ffd0, covenant: 0xff2a50 };
+const HOSTILE_RED = 0xff4a3a;
+export function hueSat(hex) {
+  const r = ((hex >> 16) & 255) / 255, g = ((hex >> 8) & 255) / 255, b = (hex & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
+  if (d === 0) return { h: 0, s: 0, l, blue: false };
+  const s = d / (1 - Math.abs(2 * l - 1));
+  let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = (h * 60 + 360) % 360;
+  return { h, s, l, blue: b > r };
+}
+export const hueGap = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+export function hostilePaint(hex, faction) {
+  const c = hueSat(hex), ally = hueSat(ALLY_PAINT);
+  const near = c.s > 0.12 ? hueGap(c.h, ally.h) < ALLY_BAND : c.blue;
+  return near ? HOSTILE_ALT[faction] ?? HOSTILE_RED : hex;
+}

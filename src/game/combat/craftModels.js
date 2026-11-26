@@ -151,10 +151,13 @@ export function craftMaterials(engine) {
   // bigger craft carry bigger plates and deeper seams (ps is plates per unit: 1.5 small .. 0.5 large)
   const depth = float(0.55).sub(ps.mul(0.15));
   const panel = cell.mul(0.12).add(0.94).mul(seam.mul(depth).add(float(1).sub(depth)));
-  const dark = vec3(0.075, 0.08, 0.095);
   // pale plate is held under bloom: albedo capped about 0.65
-  const plate = vc.mul(mix(dark, vec3(0.72), tone)).mul(panel).min(0.65);
-  const paint = accent.mul(vc.x.mul(0.85).add(0.1)).mul(mix(float(0.85), float(1), ally));
+  // a hostile wing's plate goes dark but keeps most of each panel's own hue and value (a scavenger's patchwork
+  // must survive it): value pressed down, the panel's colour offset from grey kept at 70%
+  const lum = dot(vc, vec3(0.3, 0.59, 0.11));
+  const hostilePlate = vec3(lum.mul(0.34).add(0.012)).add(vc.sub(lum).mul(0.7)).mul(vec3(1.05, 0.98, 0.9));   // a shade warm: nothing hostile leans blue
+  const plate = mix(hostilePlate, vc.mul(0.72), tone.sub(0.2).div(0.8).clamp(0, 1)).mul(panel).min(0.65);
+  const paint = accent.mul(vc.x.mul(0.85).add(0.1)).mul(mix(float(0.62), float(1), ally));   // a hostile wing's paint stays under ours
   const glass = vec3(0.025, 0.04, 0.07);
   const obsidian = vc.mul(0.35).mul(panel);
   const black = vec3(0);

@@ -2,7 +2,7 @@
  "fighter": {
   "size": "S",
   "tris": 5304,
-  "plume_tris": 228,
+  "plume_tris": 256,
   "dims": {
    "L": 8.124,
    "W": 6.086,
@@ -38,7 +38,7 @@
  "bomber": {
   "size": "S",
   "tris": 6936,
-  "plume_tris": 288,
+  "plume_tris": 320,
   "dims": {
    "L": 9.702,
    "W": 3.081,
@@ -85,7 +85,7 @@
  "drone": {
   "size": "S",
   "tris": 3344,
-  "plume_tris": 128,
+  "plume_tris": 144,
   "dims": {
    "L": 2.558,
    "W": 1.778,
@@ -116,7 +116,7 @@
  "decoy": {
   "size": "S",
   "tris": 3320,
-  "plume_tris": 128,
+  "plume_tris": 144,
   "dims": {
    "L": 7.094,
    "W": 2.94,
@@ -147,7 +147,7 @@
  "gunship": {
   "size": "M",
   "tris": 9446,
-  "plume_tris": 428,
+  "plume_tris": 480,
   "dims": {
    "L": 14.069,
    "W": 7.636,
@@ -215,16 +215,16 @@
  },
  "torpboat": {
   "size": "M",
-  "tris": 9308,
-  "plume_tris": 256,
+  "tris": 9248,
+  "plume_tris": 288,
   "dims": {
    "L": 17.074,
-   "W": 4.671,
-   "H": 4.06,
+   "W": 4.554,
+   "H": 4.01,
    "minZ": -8.034,
    "maxZ": 9.04,
    "minY": -1.34,
-   "maxY": 2.72
+   "maxY": 2.67
   },
   "guns": [
    [
@@ -263,27 +263,27 @@
  },
  "tender": {
   "size": "M",
-  "tris": 7564,
-  "plume_tris": 256,
+  "tris": 7500,
+  "plume_tris": 288,
   "dims": {
-   "L": 9.398,
-   "W": 6.179,
-   "H": 2.678,
+   "L": 10.599,
+   "W": 5.379,
+   "H": 2.522,
    "minZ": -3.998,
-   "maxZ": 5.4,
-   "minY": -1.238,
+   "maxZ": 6.601,
+   "minY": -1.082,
    "maxY": 1.44
   },
   "guns": [
    [
-    1.731,
+    1.342,
     -0.22,
-    5.389
+    6.592
    ],
    [
-    -1.731,
+    -1.342,
     -0.22,
-    5.389
+    6.592
    ]
   ],
   "missiles": [],
@@ -305,16 +305,16 @@
  },
  "frigate": {
   "size": "L",
-  "tris": 15964,
-  "plume_tris": 684,
+  "tris": 15984,
+  "plume_tris": 768,
   "dims": {
    "L": 32.247,
    "W": 8.402,
-   "H": 9.101,
+   "H": 9.173,
    "minZ": -15.122,
    "maxZ": 17.125,
    "minY": -1.831,
-   "maxY": 7.27
+   "maxY": 7.342
   },
   "guns": [
    [

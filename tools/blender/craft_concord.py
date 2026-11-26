@@ -5,7 +5,7 @@
 #   halo drives   every nozzle inside a free gilt ring cowl, held on a ring of stator vanes, a band of the wing's
 #                 colour round its waist; the bigger blocks also wear a crown collar (a gilt band off the hull)
 #   fan sails     the clipper's sails: gilt battens fanned up and back from the spine, membranes of the wing's
-#                 colour between them with scalloped edges, splayed in pairs
+#                 colour between them, cut straight along a gilt-framed trailing edge, splayed in pairs
 # Paint is laid in blocks (prow saddles, spine panels, pod caps, drive bands, sail membranes) so a wing reads from
 # above; only the fighter wears a bubble canopy (the others have faired glazing or a slit bridge band); repair
 # emitters, weld heads and marks use the `mend` slot.
@@ -20,7 +20,7 @@
 #             on each), two great lance turrets on the deck, the aft one superfiring from the bridge block
 #   torpboat  the longbow: one long launcher spine with coils and a great gilt trumpet muzzle, a compact aft body
 #             with drum magazines, a pair of fan sails and twin halo drives
-#   tender    two substantial caliper booms folded forward, a beam dish on a gilt yoke at each tip facing the bow,
+#   tender    two substantial caliper booms raked forward like pincer jaws, a beam dish on a gilt yoke at each tip,
 #             manipulators with weld heads between them, twin halo drives
 #   frigate   the clipper: a lance prow, blade strakes widening aft, a stepped three-tier superstructure with a slit
 #             bridge band, a row of three lance turrets stepping up to it and a pair amidships, fan sails above the
@@ -426,25 +426,29 @@ def membrane(P, poly, t, mat, tint):
     return skin(P, [[tuple(p - nr * t / 2) for p in q], [tuple(p + nr * t / 2) for p in q]], mat, tint, angle=30)
 
 
-def fan(P, root, lean, angs, lens, rib=0.045, th=0.03, sc=0.16, r0=0.16, nb=5):
-    """a fan sail: gilt battens radiating from `root`, raked up and back (angles above the aft horizontal), leaned
-    `lean` degrees outboard; membranes of the wing's colour between them, scalloped along the edge in a gilt frame"""
+def fan(P, root, lean, angs, L0, L1, rib=0.045, th=0.03, r0=0.16, nb=5, over=2.5):
+    """a fan sail, straight-cut: gilt battens radiating from `root`, raked up and back (angles above the aft
+    horizontal) and leaned `lean` degrees outboard, their tips on one straight trailing edge from the leading batten
+    (L0 long) to the last (L1); membranes of the wing's colour between them, a gilt frame along the edge, and the
+    ribs run on past it"""
     R0, lam = V(root), math.radians(lean)
 
     def d(a):
         a = math.radians(a)
         return V((math.sin(lam) * math.sin(a), math.cos(lam) * math.sin(a), -math.cos(a)))
-    E = [R0 + d(a) * L for a, L in zip(angs, lens)]
-    S0 = [R0 + d(a) * L * r0 for a, L in zip(angs, lens)]
-    edge = [E[0]]
+    A, B = R0 + d(angs[0]) * L0, R0 + d(angs[-1]) * L1
+    w = B - A
+    E = []
+    for a in angs:   # where each batten meets the straight edge
+        u = d(a)
+        uw = u.cross(w)
+        E.append(R0 + u * (((A - R0).cross(w)).dot(uw) / uw.length_squared))
+    S0 = [R0 + (e - R0) * r0 for e in E]
     for i in range(len(E) - 1):
-        M = (E[i] + E[i + 1]) / 2
-        M = M + (R0 - M).normalized() * ((E[i + 1] - E[i]).length * sc)
-        membrane(P, [S0[i], E[i], M, E[i + 1], S0[i + 1]], th, 'paint', WHITE)
-        edge += [M, E[i + 1]]
-    for a, L, e in zip(angs, lens, E):
-        tube(P, [tuple(R0), tuple(e + d(a) * rib * 2)], rib, rib * 0.75, 'trim', GOLD, nb)
-    tube(P, [tuple(p) for p in edge], rib * 0.7, rib * 0.7, 'trim', GOLD, 4)
+        membrane(P, [S0[i], E[i], E[i + 1], S0[i + 1]], th, 'paint', WHITE)
+    for a, e in zip(angs, E):
+        tube(P, [tuple(R0), tuple(e + d(a) * rib * over)], rib, rib * 0.75, 'trim', GOLD, nb)
+    tube(P, [tuple(A), tuple(B)], rib * 0.8, rib * 0.8, 'trim', GOLD, nb)
     P.sphere(rib * 2.6, tuple(R0), 'trim', GOLD2, segs=6)
     return E
 
@@ -758,7 +762,7 @@ def torpboat(P):
     patch(P, CP, -2.3, -0.9, UP - 0.7, UP + 0.7, 'paint', WHITE, nz=2, na=3, off=0.004)
     # the clipper's sails: a splayed pair of fans from the spine
     for sx in (1, -1):
-        fan(P, (sx * 0.32, 1.02, -2.9), sx * 50, [74, 60, 46, 32, 18], [2.2, 2.9, 3.15, 2.95, 2.35], rib=0.05)
+        fan(P, (sx * 0.32, 1.02, -2.9), sx * 50, [74, 60, 46, 32, 18], 2.5, 3.0, rib=0.05)
     # twin halo drives behind a crown collar
     crown(P, S, -6.55, 0.5, 0.16, 0.09, 8, 20)
     for sx in (1, -1):
@@ -785,30 +789,30 @@ def tender(P):
     P.torus(0.46, 0.06, (0, 1.05, -1.6), 'y', 'mend', GREEN, 16, 4)
     P.sphere(0.12, (0, 1.32, -1.6), 'mend', GREEN, segs=8)
     lamp(P, (0, 1.0, -2.9), STROBE, 0.07)
-    # two caliper booms folded forward, a beam dish on a gilt yoke at each tip facing the bow
+    # two caliper booms raked forward like pincer jaws, a beam dish on a gilt yoke at each tip facing the bow
     for sx in (1, -1):
-        path = spline([(sx * 1.2, -0.05, -0.6), (sx * 2.25, -0.1, 0.2), (sx * 2.6, -0.15, 1.6), (sx * 2.35, -0.2, 3.0),
-                       (sx * 1.85, -0.22, 4.0)], 3)
+        path = spline([(sx * 1.3, -0.05, 0.2), (sx * 2.0, -0.1, 1.4), (sx * 2.2, -0.15, 2.9), (sx * 1.95, -0.2, 4.3),
+                       (sx * 1.45, -0.22, 5.4)], 3)
         m = len(path)
-        sweep(P, path, [(0.44 - 0.12 * k / (m - 1), 0.38 - 0.1 * k / (m - 1), 2.6) for k in range(m)], 'hull', PEARL2, n=12)
-        sweep(P, [tuple(V(p) + V((0, 0.36 - 0.1 * k / (m - 1), 0))) for k, p in enumerate(path)][1:-2],
-              [(0.26 - 0.07 * k / (m - 1), 0.016, 2.6) for k in range(1, m - 2)], 'paint', WHITE, n=6)
+        sweep(P, path, [(0.44 - 0.17 * k / (m - 1), 0.38 - 0.13 * k / (m - 1), 2.6) for k in range(m)], 'hull', PEARL2, n=12)
+        sweep(P, [tuple(V(p) + V((0, 0.36 - 0.13 * k / (m - 1), 0))) for k, p in enumerate(path)][1:-2],
+              [(0.26 - 0.1 * k / (m - 1), 0.016, 2.6) for k in range(1, m - 2)], 'paint', WHITE, n=6)
         fr = frames(path)
         for j in (1, m - 3):
             c, t, sd, uu = fr[j]
-            r0 = 0.44 - 0.12 * j / (m - 1)
+            r0 = 0.44 - 0.17 * j / (m - 1)
             P.torus(r0 * 1.02, 0.065, tuple(c), 'z', 'trim', GOLD, 14, 4, rot=(0, math.degrees(math.atan2(t.x, t.z)), 0))
         T = V(path[-1])
-        C = T + V((-sx * 0.05, 0.0, 0.9))
+        C = T + V((-sx * 0.05, 0.0, 0.78))
         rot = (0, -sx * 8, 0)
-        dish(P, tuple(C), 0.95, rot, n=16)
+        dish(P, tuple(C), 0.8, rot, n=16)
         for k in (1, -1):    # the gilt yoke: a fork from the boom's tip to trunnions on the dish's sides
-            side = C + rotm(rot) @ V((k * 1.02, 0, -0.08))
-            mid = T + V((k * 0.62, 0.0, 0.25))
+            side = C + rotm(rot) @ V((k * 0.88, 0, -0.08))
+            mid = T + V((k * 0.55, 0.0, 0.22))
             P.strut(tuple(T), tuple(mid), 0.14, 0.14, 'trim', GOLD)
             P.strut(tuple(mid), tuple(side), 0.12, 0.12, 'trim', GOLD)
             P.sphere(0.11, tuple(side), 'trim', GOLD2, segs=8)
-        P.sphere(0.3, tuple(T), 'trim', GOLD2, segs=10)
+        P.sphere(0.26, tuple(T), 'trim', GOLD2, segs=10)
         lamp(P, tuple(T + V((sx * 0.3, 0.2, 0.0))), WIN, 0.08)
         nav(P, tuple(V(path[m // 2]) + V((sx * 0.42, 0.0, 0.0))), sx, 0.08)
         # manipulators with weld heads between the booms, under the bow
@@ -897,7 +901,7 @@ def frigate(P):
     turret(P, (0, 3.33, 0.55), 1.35, 2.8)
     # the great fan sails above the bridge
     for sx in (1, -1):
-        fan(P, (sx * 0.45, 4.22, -4.8), sx * 50, [76, 62, 48, 34, 20], [4.0, 5.1, 5.5, 5.1, 4.0], rib=0.09, th=0.045)
+        fan(P, (sx * 0.45, 4.22, -4.8), sx * 50, [76, 62, 48, 34, 20], 4.7, 5.4, rib=0.09, th=0.045)
     # engine bank inside the crown collar
     crown(P, S, -13.0, 1.0, 0.22, 0.13, 10, 24)
     halo(P, (0, 0.2, -14.95), 0.9, flame=3.0, segs=18, k=1.38, vanes=6)

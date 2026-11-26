@@ -6,7 +6,7 @@
 // hostile craft with point defence. Each kind is one instanced mesh (craftModels.js: the Blender models).
 import * as THREE from 'three/webgpu';
 import { wrapAngle, clamp } from '../../engine/rng.js';
-import { CRAFT, wingPlan, lineForShip } from '../data/craft.js';
+import { CRAFT, wingPlan, lineForShip, hostilePaint, ALLY_PAINT } from '../data/craft.js';
 import { craftMaterials, loadCraft, onCraftLoaded, standIn, HOSTILE_FIRE } from './craftModels.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _v = new THREE.Vector3(), _e = new THREE.Euler();
@@ -18,7 +18,13 @@ const KINDS = Object.keys(CRAFT);
 const CAP = { fighter: 256, bomber: 128, drone: 64, decoy: 24, gunship: 48, torpboat: 32, tender: 24, frigate: 24 };
 // wing colours: the captain's side flies pale plate with blue bands; a hostile wing wears its yard's glow on
 // dark plate; a decoy is violet
-const ALLY = new THREE.Color(0x3f8cff), DECOY = new THREE.Color(0xc08cff);
+const ALLY = new THREE.Color(ALLY_PAINT), DECOY = new THREE.Color(0x8ec8ff);
+const wingCache = new Map();
+function hostileWingColour(hex, faction) {
+  const key = hex + ':' + faction;
+  if (!wingCache.has(key)) wingCache.set(key, new THREE.Color(hostilePaint(hex, faction)));
+  return wingCache.get(key);
+}
 const FIRE = HOSTILE_FIRE.getHex();
 // where the guns and engines are until the models' facts load (craft space, nose +z)
 const DEF_GUN = [[0, 0, 3]], DEF_ENG = [[0, 0, -3, 0.3]];
@@ -125,7 +131,7 @@ export class Hangars {
       pos, vel: side.multiplyScalar(def.cls === 'S' ? 60 : 30).add(ship.velocity), heading: Math.atan2(side.x, side.z), bank: 0,
       hp: decoy ? ship.maxHull * 0.06 : small * def.hp, cd: 1 + Math.random(), state: 'out', t: 0, volley: 0, salvo: 0, pdCd: 0,
       orbit: Math.random() * Math.PI * 2, ally,
-      color: new THREE.Color(decoy ? DECOY : ally ? ALLY : ship.yard.glow), tone: decoy ? 0.75 : ally ? 1 : 0.2,
+      color: new THREE.Color(decoy ? DECOY : ally ? ALLY : hostileWingColour(ship.yard.glow, ship.faction)), tone: decoy ? 0.75 : ally ? 1 : 0.2,
       speed: def.speed, size: DRAW[def.cls] || 1, decoy, weave: U.includes('weavers'), eng: 0,
     };
     // the bolts and beams keep the colours the wings always fired
@@ -212,6 +218,8 @@ export class Hangars {
           const g = this.guns(c);
           this.at(c, g[c.volley++ % g.length], _p);
           W.beams.add(_p, _h, fi >= 0 ? 0x7ad8ff : 0x7affb0, big ? 1.6 : 0.8, big ? 0.7 : 0.5);   // add() copies its endpoints
+          // the emitter flares as it beams: green for the captain's healers, the wing colour for a hostile one
+          fx.trailPuff(_p, c.ally ? 0x7affb0 : c.color.getHex(), big ? 9 : 5, 0.35);
         }
       } else if (!tg || c.state === 'home') {
         goal = own.position;
