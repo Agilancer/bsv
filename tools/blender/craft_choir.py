@@ -292,26 +292,71 @@ def dome(P, c, R, n, k=0.75, gap=9, lat=(-4, 84), phase=0.0, tint=OB2, core=0.8,
 
 
 def vent(P, at, w, h, roll=0.0, flame=1.6, tint=OB1, depth=None):
-    """a slot drive w across and h tall, turned by roll (degrees, +x side up), opening aft at `at`: an obsidian
-    housing, metal lips, the lit slot flush in its aft face and a flattened plume (slot_drive, turned)"""
+    """a slot drive w across and h tall, turned by roll (degrees, +x side up), opening aft at `at`: slot_drive
+    turned to any angle (an obsidian housing, metal lips, a dark lip round a recessed glowing throat with vanes
+    across it) and a flattened plume whose hot core fades out along its whole length"""
     x, y, z = at
     d = depth or max(0.14, min(w, h) * 1.3)
     R = (0, 0, roll)
     a = math.radians(roll)
-    hv = V((-math.sin(a), math.cos(a), 0))
+    wv, hv = V((math.cos(a), math.sin(a), 0)), V((-math.sin(a), math.cos(a), 0))
     P.box(w * 1.25, h * 1.6, d, (x, y, z + d / 2), 'obsidian', tint, 0.0, rot=R)
     for s in (1, -1):
         o = V(at) + hv * (s * h * 0.66)
         P.box(w * 1.28, max(0.04, h * 0.18), 0.06, (o.x, o.y, z - 0.02), 'chrome', EDGE, 0.0, rot=R)
-    P.box(w, h, 0.05, (x, y, z - 0.02), 'glow', WHITE, 0.0, rot=R)
-    P.box(w * 0.7, h * 0.45, 0.06, (x, y, z - 0.03), 'lamp', 0xfff4ff, 0.0, rot=R)
+        o = V(at) + wv * (s * w * 0.52)
+        P.box(w * 0.1, h * 1.05, 0.08, (o.x, o.y, z - 0.03), 'dark', OB1, 0.0, rot=R)
+    P.box(w * 0.96, h * 0.9, 0.04, (x, y, z + 0.01), 'glow', 0xb8b8b8, 0.0, rot=R)
+    for k in (-1, 0, 1):
+        o = V(at) + wv * (k * w * 0.26)
+        P.box(max(0.03, w * 0.035), h * 0.9, 0.07, (o.x, o.y, z - 0.015), 'dark', OB1, 0.0, rot=R)
     L = (w + h) * 0.5 * flame
     if flame:
         o = [(0.0, 0.74, 0.74), (-0.12, 0.84, 0.84), (-0.42, 0.58, 0.58), (-0.72, 0.28, 0.28), (-1.0, 0.04, 0.04)]
         P.loft([(q * L, w / 2 * p, h / 2 * r, 0.0, 3.0) for q, p, r in o], 'flame', 0x9a9a9a, 10, at=(x, y, z - 0.04), caps=False, rot=R)
-        c = [(0.0, 0.46, 0.46), (-0.1, 0.5, 0.5), (-0.5, 0.24, 0.24), (-1.0, 0.03, 0.03)]
-        P.loft([(q * L * 0.5, w / 2 * p, h / 2 * r, 0.0, 3.0) for q, p, r in c], 'flame', WHITE, 8, at=(x, y, z - 0.04), caps=False, rot=R)
+        c = [(0.0, 0.46, 0.46), (-0.1, 0.5, 0.5), (-0.32, 0.22, 0.22), (-0.65, 0.07, 0.07), (-1.0, 0.02, 0.02)]
+        P.loft([(q * L, w / 2 * p, h / 2 * r, 0.0, 3.0) for q, p, r in c], 'flame', WHITE, 8, at=(x, y, z - 0.04), caps=False, rot=R)
     P.empty('eng', (x, y, z), {'r': round(min(w, h) / 2, 3), 'fl': round(L, 3) if flame else 0.0})
+
+
+def vane(P, phi, inner, outer, thick, tint=OB2, paint=0, n_up=None):
+    """a leaf plate in the plane through the z axis at roll phi, spanned between two edges given as (rho, z)
+    lists (inner along the hull, outer free): thickest down its middle, thin at its free edge. paint=1 lays a
+    painted band on its upper face (both faces of an upright vane)."""
+    N = tangent(phi)
+    rows = ((0.0, 0.7), (0.5, 1.0), (1.0, 0.22))
+    k_at = lambda f: 0.7 + 0.6 * f if f <= 0.5 else 1.0 - 1.56 * (f - 0.5)
+
+    def plate(fs, lift, half, mat, tnt, idx):
+        bm = bmesh.new()
+        top, bot = [], []
+        for f in fs:
+            tr, br = [], []
+            for i in idx:
+                (ri, zi), (ro, zo) = inner[i], outer[i]
+                p = radial(phi, ri + (ro - ri) * f, zi + (zo - zi) * f)
+                c = lift(f)
+                tr.append(bm.verts.new(_G(*(p + N * (c + half(f))))))
+                br.append(bm.verts.new(_G(*(p + N * (c - half(f))))))
+            top.append(tr)
+            bot.append(br)
+        m = len(idx)
+        for r in range(len(fs) - 1):
+            for i in range(m - 1):
+                bm.faces.new((top[r][i], top[r][i + 1], top[r + 1][i + 1], top[r + 1][i]))
+                bm.faces.new((bot[r][i], bot[r + 1][i], bot[r + 1][i + 1], bot[r][i + 1]))
+        for r in (0, len(fs) - 1):
+            for i in range(m - 1):
+                bm.faces.new((top[r][i], bot[r][i], bot[r][i + 1], top[r][i + 1]))
+        for i in (0, m - 1):
+            bm.faces.new([top[r][i] for r in range(len(fs))] + [bot[r][i] for r in reversed(range(len(fs)))])
+        _emit(P, bm, mat, tnt, 35)
+    n = len(inner)
+    plate([f for f, _ in rows], lambda f: 0.0, lambda f: thick / 2 * k_at(f), 'obsidian', tint, range(n))
+    if paint:
+        sides = (1, -1) if abs(N.y) < 0.3 else ((1,) if N.y > 0 else (-1,))
+        for sd in sides:
+            plate((0.2, 0.45, 0.7), lambda f, sd=sd: sd * (thick / 2 * k_at(f) + 0.016), lambda f: 0.0125, 'paint', WHITE, range(1, n - 1))
 
 
 def rays(P, c, n, rho, w, h, phase=0.0, flame=1.6):
@@ -389,26 +434,24 @@ def seed(P, at, L, r, tint=OB3):
 
 # ---------------------------------------------------------------- fighter
 def fighter(P):
-    C = V((0, 0.12, -0.55))
-    # the heart: a five-petal dome round a lit core; its gaps draw a star of light from above
-    dome(P, C, 0.95, 5, k=0.72, gap=10, phase=36, paint=(0, 14), tint=OB3)
-    # five pointed blades, painted along their backs
-    tips = {}
-    for az in (36, 108, 180, 252, 324):
-        pts, d, N, tp = blade(P, C, az, 0.7, 2.75 if az == 180 else 3.0, 1.2, 0.26, ys=(0.0, -0.12, -0.04, 0.24), tint=OB2, paint=0.34, swirl=-16)
-        tips[az] = pts[-1]
-    # the lance: an obsidian sheath and a crystal needle, with a needle on each forward blade
-    spike(P, C + V((0, -0.02, 0.75)), (0, 0.06, 2.9), 0.3, 0.11, 'obsidian', OB3, 6, 0.5)
-    needle(P, (0, 0.06, 2.6), 2.1, 0.1)
-    for az in (36, 324):
-        needle(P, tips[az] + V((0, 0, -0.25)), 1.05, 0.075, collar=False)
-    # the drive: a boss under the aft blade with three rays of vents
-    P.loft([(-0.55, 0.42, 0.34, -0.28, 2), (-1.25, 0.55, 0.44, -0.3, 2), (-2.0, 0.5, 0.4, -0.3, 2)], 'obsidian', OB1, 10)
-    P.loft([(-1.3, 0.57, 0.46, -0.3, 2), (-1.4, 0.57, 0.46, -0.3, 2)], 'obsidian', RIM, 10)
-    rays(P, (0, -0.3, -2.02), 3, 0.22, 0.32, 0.1, phase=60)
-    lamp(P, tuple(tips[108] + V((0, 0.08, 0))), NAV_P, 0.06)
-    lamp(P, tuple(tips[252] + V((0, 0.08, 0))), NAV_S, 0.06)
-    lamp(P, tuple(tips[180] + V((0, 0.1, 0))), STROBE, 0.05)
+    K = 1.12
+    IN = [(r * K, z * K) for r, z in ((0.42, -2.9), (0.52, -1.9), (0.54, -0.7), (0.48, 0.5), (0.42, 1.4), (0.52, 2.2), (0.86, 2.86))]
+    OUT = [(r * K, z * K) for r, z in ((0.6, -3.05), (1.45, -2.45), (1.92, -1.25), (1.9, 0.1), (1.62, 1.35), (1.25, 2.3), (0.92, 2.92))]
+    # a hexagonal spindle, its nose a three-petal bud lit through the gaps (the focal glow)
+    SP = [(-3.4, 0.38, 0.38, 0, 2), (-2.7, 0.62, 0.62, 0, 2), (0.6, 0.58, 0.58, 0, 2), (1.5, 0.44, 0.44, 0, 2)]
+    P.loft(SP, 'obsidian', OB1, 6, phase=0.5)
+    band(P, -2.78, -2.62, 0.64, 0.64, 'obsidian', RIM, 6, 0.5)
+    heart(P, (0, 0, 1.95), 0.54, 3, (1, 1, 1.75), gap=18, lat=(-62, 80), phase=0, nu=4, nv=8, tint=OB3, pinch=(1, 0.55))
+    # three leaf blades 120 degrees apart (one dorsal, two ventral-lateral), raked forward round the guns
+    for phi in (0, 120, 240):
+        vane(P, phi, IN, OUT, 0.2, OB2, paint=1)
+        tip = radial(phi, OUT[-1][0] - 0.03, OUT[-1][1] - 0.12)
+        needle(P, tip, 0.75, 0.075, collar=False)
+    lamp(P, tuple(radial(120, OUT[2][0] + 0.04, OUT[2][1])), NAV_P, 0.065)
+    lamp(P, tuple(radial(240, OUT[2][0] + 0.04, OUT[2][1])), NAV_S, 0.065)
+    lamp(P, tuple(radial(0, OUT[2][0] + 0.04, OUT[2][1])), STROBE, 0.055)
+    # the drive: three rays of vents between the blades
+    rays(P, (0, 0, -3.42), 3, 0.21, 0.3, 0.11, phase=60)
 
 
 # ---------------------------------------------------------------- bomber

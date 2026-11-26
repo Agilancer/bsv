@@ -4,12 +4,12 @@
 # colour laid on in solid painted blocks (roof slabs, cowls, caps) with hazard striping and chevrons. Each class
 # has its own drive: the gridded square nozzle bank (every nozzle in its own cell) is the line's signature on
 # the gunship and frigate; the rest carry ducts, nacelles, pods, a slot vent or one great bell. See craftlib.py.
-#   fighter   hammerhead interceptor: a transverse armour brick with a bolted glacis, cannon housings at its ends
-#             and the cab on top, an exposed spine with shock rams back to an aft core flanked by two ducted
+#   fighter   hammerhead interceptor: a transverse armour brick with a tapered snout between the cannon housings
+#             at its ends, the cab on top, an exposed spine with shock rams back to an aft core flanked by two ducted
 #             slot drives (an I from above)
 #   bomber    ordnance hauler: armoured cab, keel spine, two heavy torpedoes in open roll-cage cradles along its
-#             flanks (warheads in ordnance orange), a third in the belly release rail; an aft yoke carries two
-#             octagonal drive nacelles
+#             flanks (warheads in ordnance orange), a third in the belly release rail; a stern block no wider
+#             than the cradles with two octagonal drive barrels in line behind the torpedoes
 #   drone     armoured cube in a bumper cage, a painted roof, work lights, an emitter on a hydraulic boom, a weld
 #             head and a claw on the two arms folded under it, thruster pods on the cage's after corners
 #   decoy     unmanned signal truss: a square lattice girder carrying a transmitter drum, a ventral dish, a heavy
@@ -265,17 +265,16 @@ def dome(P, at, R, h, n, length, r, gap=0.5):
 
 # ---------------------------------------------------------------- fighter
 def fighter(P):
-    # the hammerhead: a transverse armour brick with a bolted glacis, the cab on a painted roof slab, the two
-    # cannon housings at its ends
-    P.box(2.5, 0.9, 1.9, (0, 0.0, 2.45), 'hull', SAND, 0.1, taper=(0.94, 0.62), shear=(0, -0.3))
+    # the hammerhead: a transverse armour brick with a tapered snout, the cab on a painted roof slab, the two
+    # cannon housings at its ends flanking the snout
+    P.box(2.5, 0.9, 1.4, (0, 0.0, 2.2), 'hull', SAND, 0.1)
+    P.loft([(2.8, 1.12, 0.43, 0.0, 4), (3.3, 0.86, 0.36, -0.05, 4), (3.75, 0.5, 0.24, -0.12, 3.5), (3.98, 0.3, 0.15, -0.15, 3)],
+           'hull', SAND2, 8, phase=0.5)
     P.box(1.9, 0.18, 1.0, (0, 0.52, 2.1), 'paint', WHITE, 0.04)
     bolts(P, (-0.85, 0.61, 1.66), (0.85, 0.61, 1.66), 5)
-    a = math.radians(36)
-    for y, w in ((-0.18, 2.2), (0.2, 2.0)):                                            # glacis strakes
-        z = 3.4 - (y + 0.45) / 0.9 * 0.66 + 0.035 * math.cos(a)
-        P.box(w, 0.26, 0.07, (0, y + 0.035 * math.sin(a), z), 'trim', SAND3, 0.0, rot=(-36, 0, 0))
-        z = 3.4 - (y + 0.45) / 0.9 * 0.66 + 0.075 * math.cos(a)
-        bolts(P, (-0.8, y + 0.075 * math.sin(a), z), (0.8, y + 0.075 * math.sin(a), z), 5, 'z')
+    bolts(P, (-1.0, 0.45, 2.84), (1.0, 0.45, 2.84), 6)
+    for sx in (1, -1):                                                                  # snout cheek plates
+        P.strut((sx * 1.1, 0.0, 2.85), (sx * 0.56, -0.1, 3.8), 0.07, 0.4, 'trim', SAND3)
     P.box(2.3, 0.3, 0.9, (0, -0.52, 2.5), 'trim', SAND3, 0.05)                         # belly armour
     # the armoured cab: a block with a slit visor and side ports, an armoured hatch
     P.box(1.05, 0.5, 1.2, (0, 0.85, 1.95), 'hull', SAND, 0.07, taper=(0.82, 0.7), shear=(0, -0.12))
@@ -283,8 +282,8 @@ def fighter(P):
     for sx in (1, -1):
         side_slit(P, (sx * 0.475, 0.86, 1.9), 0.1, 0.5, sx, rz=-sx * 9)
     P.box(0.5, 0.07, 0.5, (0, 1.12, 1.82), 'trim', SAND3, 0.02)
-    P.sphere(0.12, (0, -0.68, 3.0), 'dark', GUN2, segs=8)                                # chin sensor
-    P.sphere(0.07, (0, -0.70, 3.1), 'glow', WHITE, segs=6)
+    P.sphere(0.12, (0, -0.45, 3.35), 'dark', GUN2, segs=8)                               # chin sensor
+    P.sphere(0.07, (0, -0.47, 3.45), 'glow', WHITE, segs=6)
     # cannon housings at the ends of the head: armoured casings with painted caps, cooling jackets, heavy barrels
     for sx in (1, -1):
         gx = sx * 1.5
@@ -370,8 +369,8 @@ def bomber(P):
             P.box(0.12, 1.26, 0.16, (ox, 0.05, z), 'trim', IRON, 0.0)
             P.box(1.6, 0.12, 0.16, (sx * 1.45, -0.52, z), 'trim', IRON, 0.0)
             P.cyl(0.525, 0.08, (tx, 0.05, z), 'z', 'dark', GUN, 12, caps=False)
-        P.box(0.12, 0.12, 5.3, (ox, 0.62, -0.2), 'trim', IRON, 0.0)
-        P.box(0.12, 0.12, 5.3, (ox, -0.52, -0.2), 'trim', IRON, 0.0)
+        P.box(0.12, 0.12, 5.4, (ox, 0.62, -0.25), 'trim', IRON, 0.0)
+        P.box(0.12, 0.12, 5.4, (ox, -0.52, -0.25), 'trim', IRON, 0.0)
         P.box(0.08, 0.03, 4.0, (ox, 0.695, 0.1), 'paint', WHITE, 0.0)
         piston(P, (sx * 0.66, 0.4, 1.1), (sx * 1.25, 0.5, 1.1), 0.08)
         piston(P, (sx * 0.66, 0.4, -0.4), (sx * 1.25, 0.5, -0.4), 0.08)
@@ -382,26 +381,25 @@ def bomber(P):
     P.cyl(0.08, 0.8, (0, -0.98, 2.9), 'z', 'trim', WARM, 12, r2=0.32)
     for z in (-0.3, 1.6):
         P.box(0.8, 0.1, 0.14, (0, -0.68, z), 'trim', IRON, 0.0)
-    # the aft yoke and two octagonal drive nacelles: painted cowls and caps, intake grilles, radiator fins, big bells
-    P.box(4.0, 0.9, 1.4, (0, 0.05, -3.35), 'hull', SAND2, 0.08)
-    hazard(P, (0, 0.51, -3.35), 1.9, 0.55)
-    bolts(P, (-1.0, 0.505, -3.95), (1.0, 0.505, -3.95), 5)
-    slot_drive(P, (0, 0.05, -4.2), 0.9, 0.36, flame=2.0)
+    # the stern block, no wider than the cradles: a painted cowl, fin stacks, and two octagonal drive barrels set
+    # into it in line behind the torpedoes, a slot sustainer between them
+    P.box(4.6, 1.5, 2.0, (0, 0.05, -3.7), 'hull', SAND, 0.1)
+    P.box(3.9, 0.04, 1.3, (0, 0.82, -3.85), 'paint', WHITE, 0.0)
+    hazard(P, (0, 0.82, -2.95), 3.6, 0.3)
+    vents(P, (0, 0.86, -4.05), 1.4, 0.7, 4)
+    bolts(P, (-1.8, 0.84, -4.4), (1.8, 0.84, -4.4), 8)
     for sx in (1, -1):
-        nx = sx * 2.35
-        P.loft([(-1.45, 0.56, 0.56, 0, 2.6), (-1.15, 0.7, 0.7, 0, 2.6), (1.15, 0.7, 0.7, 0, 2.6), (1.45, 0.58, 0.58, 0, 2.6)],
-               'hull', SAND, 8, at=(nx, 0.05, -4.05), phase=0.5)
-        P.loft([(-0.25, 0.73, 0.73, 0, 2.6), (0.25, 0.73, 0.73, 0, 2.6)], 'paint', WHITE, 8, at=(nx, 0.05, -2.98), phase=0.5)
-        P.box(0.46, 0.03, 2.0, (nx, 0.725, -4.4), 'paint', WHITE, 0.0)
-        P.box(0.8, 0.8, 0.05, (nx, 0.05, -2.58), 'dark', GUN, 0.0)
-        for k in range(3):
-            P.box(0.8, 0.07, 0.07, (nx, -0.2 + k * 0.25, -2.54), 'trim', IRON, 0.0)
-        fins(P, sx * 3.0, 0.05, -5.1, -3.5, 5, 0.5, sx, out=0.24)
-        bell(P, (nx, 0.05, -5.5), 0.52, flame=2.8, segs=14)
-        nav(P, (nx + sx * 0.66, 0.4, -3.0), sx)
-        rcs(P, (nx, -0.72, -4.2), 0.16, sx)
-    P.cyl(0.035, 0.3, (0, 0.65, -3.85), 'y', 'chrome', STEEL, 6)
-    lamp(P, (0, 0.84, -3.85), STROBE, 0.05)
+        fins(P, sx * 2.3, 0.05, -4.55, -2.85, 5, 1.1, sx, out=0.2)
+        nx = sx * 1.45
+        P.loft([(-0.6, 0.58, 0.58, 0, 2.6), (-0.35, 0.68, 0.68, 0, 2.6), (0.8, 0.68, 0.68, 0, 2.6)],
+               'hull', SAND2, 8, at=(nx, 0.0, -5.0), phase=0.5)
+        P.loft([(-0.15, 0.71, 0.71, 0, 2.6), (0.15, 0.71, 0.71, 0, 2.6)], 'paint', WHITE, 8, at=(nx, 0.0, -4.95), phase=0.5)
+        bell(P, (nx, 0.0, -5.6), 0.5, flame=2.8, segs=14)
+        nav(P, (sx * 2.32, 0.6, -2.85), sx)
+        rcs(P, (sx * 2.0, -0.82, -3.4), 0.16, sx)
+    slot_drive(P, (0, 0.0, -4.85), 0.6, 0.32, flame=2.0)
+    P.cyl(0.035, 0.3, (0.0, 0.98, -4.4), 'y', 'chrome', STEEL, 6)
+    lamp(P, (0.0, 1.17, -4.4), STROBE, 0.05)
     P.empty('gun', (0, -0.98, 3.3))                                                     # torpedo release
 
 
