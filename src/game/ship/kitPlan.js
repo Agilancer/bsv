@@ -139,14 +139,17 @@ const at = (pl, p) => [pl.sx * pl.s * p[0] + pl.t[0], pl.s * p[1] + pl.t[1], pl.
 // their housings) is scaled about the centreline by a curve over the length: beam (x, outboard of a core of W / 2), the hull above the
 // centreline and the hull below it. u runs 0 at the stern .. 1 at the bow; the curve is 1 between p0 and p1 and
 // falls to 1 - a at the ends as t^e ([beam, above, below, e]), so it never grows a hull: dims, the shield
-// ellipsoid and the hardpoint contract hold. Smooth yards use e = 2 (their sections are cut into stations by the
+// ellipsoid and the hardpoint contract hold. Smooth yards ease in (e > 1: their sections are cut into stations by the
 // generator); faceted yards are straight between joints, so they taper or rake linearly. Velscour and Ironhold
 // keep a constant section.
+// The plateau [p0, p1] is widened per hull to cover its broadside mounts (profileFor), so the curve works on the bow
+// and the stern; the beam amplitude is kept low where a yard has outboard dress at its ends (Hollow's mandibles and
+// tail spines, Tidewright's collector arrays), which the beam warp would draw in with the hull.
 export const PROFILE = {
-  aurelian: { p0: 0.36, p1: 0.5, fore: [0.12, 0.1, 0.1, 2], aft: [0.1, 0.08, 0.08, 2] },         // swelling amidships, drawn in both ways
-  hollow: { p0: 0.4, p1: 0.5, fore: [0.18, 0.14, 0.12, 1.7], aft: [0.16, 0.12, 0.14, 1.7] },      // a bulging body
-  tidewright: { p0: 0.12, p1: 0.3, fore: [0.2, 0.14, 0.14, 1], aft: [0.03, 0.03, 0.03, 1] },      // a long fine taper to the stem
-  corsair: { p0: 0.3, p1: 0.3, fore: [0.05, 0.16, 0, 1], aft: [0, 0, 0.14, 1] },                   // raked: the crown falls to the bow, the keel rises to the stern
+  aurelian: { p0: 0.4, p1: 0.5, fore: [0.16, 0.12, 0.12, 1.6], aft: [0.2, 0.12, 0.1, 1.6] },       // swelling amidships, drawn in both ways
+  hollow: { p0: 0.4, p1: 0.5, fore: [0.16, 0.14, 0.12, 1.6], aft: [0.2, 0.14, 0.16, 1.6] },        // a bulging body
+  tidewright: { p0: 0.12, p1: 0.3, fore: [0.06, 0.18, 0.18, 1], aft: [0.04, 0.04, 0.04, 1] },      // a long fine taper to the stem
+  corsair: { p0: 0.3, p1: 0.3, fore: [0.05, 0.2, 0, 1], aft: [0, 0, 0.18, 1] },                    // raked: the crown falls to the bow, the keel rises to the stern
 };
 // the three scales at height u, into out = [kx, ky above, ky below]
 export function profileAt(pr, u, out) {
@@ -155,6 +158,15 @@ export function profileAt(pr, u, out) {
   const t = Math.min(1, Math.max(0, u > pr.p1 ? (u - pr.p1) / (1 - pr.p1) : (pr.p0 - u) / pr.p0)), q = side[3] === 1 ? t : side[3] === 2 ? t * t : Math.pow(t, side[3]);
   out[0] = 1 - side[0] * q; out[1] = 1 - side[1] * q; out[2] = 1 - side[2] * q;
   return out;
+}
+// A yard's curve for one hull: the full section holds over every broadside mount and half a casemate past it, so
+// the profile draws the hull in toward its ends and never closes a casemate round its gunhouse.
+export function profileFor(pr, hardpoints, L, W) {
+  let a = Infinity, b = -Infinity;
+  for (const h of hardpoints) if (h.type === 'broadside') { const u = h.pos[2] / L + 0.5; a = Math.min(a, u); b = Math.max(b, u); }
+  if (a > b) return pr;
+  const m = (0.6 * W) / L;
+  return { ...pr, p0: Math.max(0.05, Math.min(pr.p0, a - m)), p1: Math.min(0.95, Math.max(pr.p1, b + m)) };
 }
 const KP = [1, 1, 1];
 // warp a point of the placed ship in place (p: array, o: offset)
@@ -316,7 +328,7 @@ export function planHull(chassis, kit) {
   // ---- bounds of the art (step 8): top for dims; the hull's own top (without the command structure, which may
   // be a tall tower) and bottom for the depth test
   let top = -Infinity, bottom = Infinity, hullTop = -Infinity;
-  const warp = PROFILE[kit.lang] ? { pr: PROFILE[kit.lang], z0: -L / 2, len: L, core: W / 2 } : null;
+  const warp = PROFILE[kit.lang] ? { pr: profileFor(PROFILE[kit.lang], hardpoints, L, W), z0: -L / 2, len: L, core: W / 2 } : null;
   if (warp) {
     for (const h of hardpoints) { h.pos = h.pos.slice(); warpAt(warp, h.pos); }
     for (const e of engines) { e.pos = e.pos.slice(); warpAt(warp, e.pos); }

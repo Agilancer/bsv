@@ -63,33 +63,40 @@ Read this first when picking the work up (new session or another model). Then `C
        brick in running bond, and bands L/C get a second, lower brick course on the deck edge. Corsair: belts and
        waists are plated differently to port and starboard (no mirror; a dark patch one side only). The sections
        are still six-point prisms between joints; most of a hull's length is mounts, so the change is modest.
-    2. Whole-ship profile: DONE in code, NOT yet reviewed in renders (only a Hollow T7-T10 top view was looked at:
-       the bulge reads, nothing broken). `kitPlan.js` `PROFILE` (per yard: aurelian, hollow, tidewright, corsair;
-       Velscour and Ironhold constant) + `profileAt` / `warpAt`: after placement every vertex, hardpoint and nozzle
-       is scaled by a curve over the length (beam outboard of a core of W / 2, so prow pitch and turret wells keep
-       their shape; hull above / below the centreline separately; never above 1, so dims and the shield hold).
-       Applied in `planHull` (hardpoints, engines, top / bottom / hullTop from vertices), `bakePlan` and
-       `kitSideProfile`. Aurelian's per-section swell is now 0, Hollow's 0.04 (segments); `ZSEG` stations follow
-       `Style.fair`. Tests pass (223). To do: render every yard (`?yard=<lang>&fit&webgl&guns`, `&tmin=&tmax=`,
-       `&pitch=1.2` for a plan view) and tune the `PROFILE` amplitudes by eye.
+    2. Whole-ship profile: DONE and reviewed (session 5). `kitPlan.js` `PROFILE` (per yard: aurelian, hollow, tidewright,
+       corsair; Velscour and Ironhold constant) + `profileAt` / `warpAt`: after placement every vertex, hardpoint and
+       nozzle is scaled by a curve over the length (beam outboard of a core of W / 2, so prow pitch and turret wells keep
+       their shape; hull above / below the centreline separately; never above 1, so dims and the shield hold). Applied in
+       `planHull`, `bakePlan` and `kitSideProfile`. Review: every yard rendered from the play camera, the side and above,
+       and as plan / side silhouettes baked in node with the unwarped outline under them: nothing broken (no detached
+       parts, no inside-out faces, mounts in their housings). Found and fixed: the curve pinched the broadside (a
+       gunhouse stood up to 0.09 W prouder of its armour on Tidewright and Hollow) and drew in Tidewright's bow collector
+       arrays with the hull. Now `profileFor` widens the plateau per hull to cover every broadside mount and half a
+       casemate past it, so the curve works only on the bow and the stern (the gunhouses sit as on the unwarped kit);
+       amplitudes retuned for that: Aurelian beam 0.2 aft / 0.16 fore, Hollow 0.2 / 0.16 (low enough to keep its
+       mandibles and tail spines), Corsair rake 0.2 crown / 0.18 keel, Tidewright beam 0.06 fore (its fine taper is in
+       height, 0.18). The effect stays modest: the bow and stern sections already taper on their own, and most of a hull's
+       length is mounts. Viewer: `__viewer.clay(true)` shows normals on a dark ground (holes and inside-out faces).
     3. Square mounts on Aurelian / Hollow (band S, ventral wells, T9 spine wells): NOT started.
     4. Triangle budget (hollow_3 5954/6000, hollow_7 9994/10000, corsair_6 6000/6000): NOT started.
   All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
   session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 
 ## Next, in order
-1. Body shapes: third pass items 2 (review renders, tune `PROFILE`), 3 and 4 above; then what the second pass left: Tidewright / Ironhold / Corsair main sections
+1. Body shapes: third pass items 3 and 4 above; then what the second pass left: Tidewright / Ironhold / Corsair main sections
    are unchanged; band S and M hulls of the curved yards are faceted or coarse (triangle budgets: several hulls sit
    at the band cap, so any new geometry there drops fixed-size detail and fails the running-lights test; raising
    `BANDS[].tris` is the owner's call); Corsair T10 decks; destroyer snout length; Tidewright arrays small on T9/T10;
    Corsair still uses the ladder's pods. None of the second pass has been through the critic loop.
 2. Run the critic loop on renders per yard (`tools/kitshots.cjs`, viewer `?yard=<lang>&fit&webgl&guns`).
    Known weak classes: cutter, frigate, destroyer and cruiser read alike; destroyer snout is short.
-3. Gameplay gates. Duel gate measured on main (2026-11-25): small, mid, large, epic and legendary within band;
-   gargantuan out of band at 1.43x you-kill / 1.62x it-kills, with L50 gargantuan at 1224 s vs a 280 s target and
-   L50 mid it-kills at 227 s vs 75 s. There is no pre-rework baseline yet: run `node tools/duel.cjs 5,15,30,50 --gate`
-   on commit 1480cb8 to compare before blaming the rework. Still never run since the rework: `node tools/duel.cjs 5,15,30,50 --gate`,
-   `node tools/soak.cjs 10 --gate` (broadside mounts moved inboard; time-to-kill may have shifted).
+3. Gameplay gates: done for the rework. Measured on commit 34ec6b0 (main + the `?nokit` flag), the same code with and
+   without kit hulls (`QS='&nokit' node tools/duel.cjs ...`). Duel, kit hulls (you-kill / it-kills, x target): small
+   0.89/0.76, mid 0.98/1.02, large 1.04/1.02, epic 0.89/1.17, legendary 1.23/1.46, gargantuan 0.96/1.65 OUT. Old
+   procedural hulls: small 0.96/0.86, mid 0.98/0.91, large 1.02/1.02, epic 0.81/1.10, legendary 1.42/1.51 OUT,
+   gargantuan 1.18/1.56 OUT. The kit hulls do not shift balance beyond the duel tool's noise; gargantuan "it kills
+   you" is out of band with both hulls (pre-existing, CLAUDE.md Balance): the gargantuan retune is a separate balance
+   task. Soak gate with kit hulls: PASS (4.2 kills/min, 0.6 warps/min, no deaths, no hung goal).
 4. Enemy hulls: liveries and role kits on kit hulls, then the enemy-only languages (rustborn, silent, brood).
 5. Re-pick the title line (`src/fx/TitleScene.js`) from the new hulls; rename the sailing-ship fields
    (`castle`, `keel`, `sails`...) in data and code.
