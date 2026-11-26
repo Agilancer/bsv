@@ -441,7 +441,7 @@ def fighter(P):
     roof(P, c, 0.36, 0.75, 0, 0.9, 0.52)
     # a slab of oxide armour grafted over the starboard shoulder at a cant, port skirt plates
     P.box(0.5, 0.07, 1.25, (-0.7, 0.31, -0.55), 'hull', OXIDE, 0.01, rot=(0, -8, 44))
-    bolts(P, (-0.55, 0.47, -1.05), (-0.62, 0.45, -0.05), 3)
+    bolts(P, (-0.55, 0.47, -1.05), (-0.62, 0.45, -0.05), 3, s=0.07)
     skirt(P, H, -1.9, 1.1, 1, 3, rng, (PALE2, OXIDE, STEEL), drop=0.5, ang=26, t=0.07)
     # engines: a big drive can in the wing's colour to starboard, a navy thruster pod half its size to port
     salvage_engine(P, (-0.28, 0.1, -3.45), 0.5, 1.55, cowl=True)
@@ -516,6 +516,7 @@ def bomber(P):
     lamp(P, (-0.08, dt + 0.34, -2.2), STROBE, 0.06)
     rcs(P, (1.15, 0.3, 1.8), 0.15, 1)
     rcs(P, (-1.2, 0.35, -2.4), 0.15, -1)
+    P.empty('gun', (0, bottom(H, 0.5) - 0.25, 2.0))   # the torpedo release in the belly bay: the last gun
 
 
 # ---------------------------------------------------------------- repair drone
