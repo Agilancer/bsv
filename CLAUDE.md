@@ -200,6 +200,10 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     `.wbody` (phones still scroll the window). New `.win` panels appended to `#ui` are picked up on their own.
   - `ui/prefs.js` — interface preferences kept per device in localStorage (`velscour.ui`: window layout, ticker
     size), not in the captain's save.
+- Installable app: `manifest.webmanifest` + the icon links in `index.html` (iOS home screen: `apple-touch-icon`, title
+  "Velscour"; desktop Chrome / Edge install: the `any` plate; Android / ChromeOS: `maskable`). The art in
+  `assets/icons/` is built from the logo's steel V by `python3 tools/icons/build_icons.py` (Pillow + numpy, seeded):
+  rebuild, don't hand-edit. `tests/icons.test.mjs` checks sizes, links and that the iOS / maskable icons are opaque.
 
 ## Extension points
 - `game.modes[name]` — called by `game.command(name)` (menu bar / hotkeys).
