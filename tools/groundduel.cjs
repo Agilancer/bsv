@@ -127,6 +127,20 @@ async function dungeonRuns(cfg) {
     M.updateThreat = () => {}; M.updateCamps = () => {}; M.updateMouths = () => {}; M.hud.update = () => {};
     M.dungeons.length = 0; M.level.crates.forEach((c) => { c.opened = true; });
     M.lander.position.set(4000, 0, 4000);
+    // no progression between duels: a kill pays the commander and the explorer xp, and a rank-up there fires
+    // its effects (level-up column, refit, crew advances) from the same Math.random stream as the duel, so
+    // every later duel read a different stream depending on which kill crossed a rank. Where that fell
+    // depended on the new captain's random crew (their xp bonus), so anything that drew Math.random at boot
+    // (more hull kits loading: three's uuids) moved it: L50 Citadel Strider kite read 211 s, then 854 s.
+    // The explorer levelling past the level-L build mid-sweep also made it stronger than the contract.
+    g.gainXp = () => {}; M.gainXp = () => {};
+    // render resources built on first use (a creature kind's instanced batch) draw Math.random too (three's uuids):
+    // the duel that met a kind first paid for it out of its stream, every later one did not. They draw from a side
+    // stream instead, so a duel reads the same stream whether it runs alone or after the whole sweep.
+    let side = 0x2545F491;
+    const sideRandom = () => { side = (side + 0x6D2B79F5) >>> 0; let t = side; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const aside = (o, name) => { const f = o[name]; o[name] = function (...a) { const r = Math.random; Math.random = sideRandom; try { return f.apply(this, a); } finally { Math.random = r; } }; };
+    aside(M.creatures, 'batch');
     // a flat arena: terrain occlusion is real play, but it makes single duels too noisy to calibrate on
     M.S = M.surfaceS = Object.assign({}, M.S, { height: () => 0, ground: () => 0, fluidLevel: -1e9 });
     const V = M.vehicle, ex = M.ex;
@@ -159,11 +173,22 @@ async function dungeonRuns(cfg) {
             const d = list[(k * 7 + L) % list.length];
             for (const mode of cfg.modes) {
               const run = (shoot, secs) => {
+                // the same terrain at the start of every duel, built before its stream is seeded: chunks stream in
+                // round the explorer and each one built draws Math.random (three's uuids), so a duel that drove into
+                // ground an earlier duel had already loaded read a different stream than the same duel run alone
+                // (L5 Gatekeeper of Eons kite: 453 s alone, 771 s after the sweep before it)
+                { const T = M.terrain; for (const ch of T.chunks.values()) if (ch.mesh) { T.group.remove(ch.mesh); ch.mesh.geometry.dispose(); }
+                  T.chunks.clear(); T.queue.length = 0; T.center = { cx: 1e9, cz: 1e9 }; T.update(0, 0, true); }
                 // every run draws from its own seeded stream (same code => same answer)
                 { let a = (L * 7919 + si * 104729 + k * 1299709 + (shoot ? 1 : 2) * 15485863 + mode.length * 32452843) >>> 0; Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
                 // ...and from the same clock: the page ran a machine-dependent number of real frames before this
-                // script, so game time carries an arbitrary fraction that flips cooldown comparisons by a frame
-                E.time = Math.ceil((E.time + 1) / 1000) * 1000; E.uTime.value = E.time;
+                // script, so game time carries an arbitrary fraction that flips cooldown comparisons by a frame. The
+                // same value every run, not just a round one: 0.05 s steps added at t = 61000 round differently than at
+                // t = 1000, and a dash or a telegraph's reaction beat then landed a frame apart from the duel run alone.
+                // (Anything that keeps an absolute time is cleared below, so nothing waits on a later clock.)
+                E.time = 1000; E.uTime.value = E.time;
+                M.toastT = 0; M.lureT = 0; M.mineHintT = 0; M.aimEnemy = null; M.aimPoint.set(0, 0, 0);
+                M.cam.shake = 0;   // a big kill's shake outlasts its duel, and the shaking camera draws Math.random
                 M.creatures.list.length = 0; M.shots.clear(); M.timers.length = 0; M.ground.clear();
                 // nothing carried over from the previous duel: gun spin and cooldowns, the pilot's stuck/wiggle
                 // memory, deployed turrets, buffs, threat
@@ -175,9 +200,19 @@ async function dungeonRuns(cfg) {
                 M.level.drops.length = 0; if (M.site && M.site !== M.level) M.site.drops.length = 0;
                 V.velocity.set(0, 0, 0);
                 if (M.warnings) M.warnings.length = 0;
+                // the telegraph count too: the pilot misses one warning in MISS_EVERY by its sequence number, so a
+                // count carried over from earlier duels chose which of this boss's strikes went undodged
+                M.warnSeq = 0;
+                // and an empty hold and bay: what earlier duels picked up fills them (a full hold or bay changes pickups)
+                for (const r of Object.keys(M.cargo)) delete M.cargo[r];
+                ex.inventory.length = 0;
                 V.alive = true; V.setVisible(true); M.state = 'play';
                 V.hp = V.stats.maxHp; V.shield = V.stats.maxShield; V.invuln = 0; V.bubble = 0; V.boostT = 0;
+                V.dashT = 0; V.lastHit = -10; V.pitch = V.roll = V.yawRate = V.aimYaw = V.wheelSpin = 0;
+                V.v.turret.rotation.y = 0; for (const gm of V.v.guns) gm.group.rotation.y = 0;   // gun mounts ease onto the aim: start from rest, not where the last duel left them
                 V.place(0, 0, 0);
+                // the drone swarms launch fresh from their pods (the last duel's drones were wherever it left them)
+                V.v.root.updateMatrixWorld(true); M.drones.swarms = []; M.drones.t = 0; M.drones.sync();
                 const a = Math.random() * Math.PI * 2;
                 const spawn = () => { const e = M.creatures.spawn(d, V.position.x + Math.cos(a) * 42, V.position.z + Math.sin(a) * 42, L, { awake: true }); e.mode = 'hunt'; return e; };
                 target = spawn();

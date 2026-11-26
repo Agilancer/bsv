@@ -36,6 +36,7 @@ export function install(game) {
       if (opts.level) site.level = opts.level;
       if (opts.features) site.features = opts.features;
       const mode = new PlanetMode(game, { info, sys, survey, site });
+      mode.quick = !opts.cinematic;   // tools start on the ground; {cinematic: true} flies the descent
       mode.enter();
       P.current = mode;
       return mode;

@@ -18,7 +18,9 @@ import { Interactables, planSurface, buildSurface } from './Site.js';
 import { Probes } from './Probes.js';
 import { Dungeon, portalMaterial } from './Dungeon.js';
 import { DUNGEON_THEMES } from './dungeonGen.js';
-import { landerGroup, beaconMaterial, texturedMat } from './siteModels.js';
+import { beaconMaterial, texturedMat } from './siteModels.js';
+import { Lander } from './Lander.js';
+import { Landing } from './Landing.js';
 import { GeoBuilder, rockGeometry } from './geo.js';
 import { RESOURCES, bankCargo, loseCargo, cargoTotal, addResources, planetKey, groundKillReward, learnBlueprint } from './economy.js';
 import { ensureExplorer, explorerStats, grantExplorerXp, EX_INV_SIZE, scrapYield, rollExItem, grantExItemXp, EX_BASES } from './explorerItems.js';
@@ -139,17 +141,22 @@ export class PlanetMode {
     this.drones.sync();
     this.creatures = new Creatures(this);
     this.probes = new Probes(this);
-    // lander + beacon
-    this.lander = landerGroup(E);
-    this.landerHome = new THREE.Vector3(0, this.S.height(0, 0), 0);
-    this.lander.position.copy(this.landerHome).add(new THREE.Vector3(-9, 0, -9));
-    this.lander.rotation.y = Math.PI * 0.25;
+    // the dropship (Lander.js, flown by Landing.js) + its homing beacon. It stands on the pad with its stern ramp
+    // toward +x +z, sized to the explorer it carries
+    this.landerCtl = new Lander(this);
+    this.landerCtl.fit(this.vehicle);
+    this.lander = this.landerCtl.root;
+    this.landerHome = new THREE.Vector3(-4, 0, -4);
+    this.landerHome.y = this.S.height(this.landerHome.x, this.landerHome.z);
+    this.lander.position.copy(this.landerHome);
+    this.lander.rotation.y = Math.PI * 1.25;
     scene.add(this.lander);
     const bg = new THREE.CylinderGeometry(0.7, 0.7, 1, 12, 1, true); bg.translate(0, 0.5, 0);
     this.beacon = new THREE.Mesh(bg, beaconMaterial(E, 0x58c8ff));
     this.beacon.scale.set(1, 160, 1); this.beacon.renderOrder = 18;
-    this.beacon.position.copy(this.lander.position); this.beacon.position.y += 11.5;
+    this.placeBeacon();
     scene.add(this.beacon);
+    this.landing = new Landing(this);
     buildSurface(this, this.plan);
     this.camps = this.plan.camps;
     this.lairs = this.plan.lairs;
@@ -387,6 +394,7 @@ export class PlanetMode {
     V.build();
     V.place(pos.x, pos.z, h);
     if ((V.v.size || 1) !== size0) this.fitCamera();
+    if (this.landerCtl && this.state === 'play') { this.landerCtl.fit(V); this.placeBeacon(); }
     if (this.drones) this.drones.remesh();
     this.refreshStats();
   }
@@ -420,8 +428,9 @@ export class PlanetMode {
     if (this.game.cue) this.game.cue('respawn');
     V.alive = true; V.setVisible(true);
     V.hp = V.stats.maxHp; V.shield = V.stats.maxShield; V.invuln = 2;
-    const p = this.dungeon ? this.dungeon.startPos : _v.set(this.lander.position.x + 10, 0, this.lander.position.z + 10);
-    V.place(p.x, p.z, 0);
+    const h = this.landerCtl.outHeading, off = this.landerCtl.s * 11.5 + V.radius + 3;
+    const p = this.dungeon ? this.dungeon.startPos : _v.set(this.lander.position.x + Math.sin(h) * off, 0, this.lander.position.z + Math.cos(h) * off);
+    V.place(p.x, p.z, this.dungeon ? 0 : h);
     this.pfx.pillar(V.position, 0x58c8ff, 40, 3, 40); this.pfx.ring(V.position, 10, 0x58c8ff, 48);
     this.drones.relaunchAll();
     this.state = 'play';
@@ -568,13 +577,12 @@ export class PlanetMode {
     document.body.classList.toggle('planet-touch', !!this.touch);   // no keyboard hints on touch
     this.applyAtmosphere();
     this.hud.show();
-    // descent: the lander drops from orbit on retro-thrusters
+    // planetfall: the dropship's descent cinematic (Landing.js); tools deploy with `quick` and start on the ground
     this.state = 'descent'; this.stateT = 0;
-    this.lander.position.y = this.landerHome.y + 160;
-    this.vehicle.setVisible(false);
     this.vehicle.place(this.lander.position.x + 9, this.lander.position.z + 9, Math.PI * 0.25);
-    this.cam.focus.set(this.lander.position.x, this.landerHome.y, this.lander.position.z);
-    this.cam.distance = 150; this.cam.distTarget = 80;
+    this.cam.focus.copy(this.vehicle.position);
+    if (this.quick) this.landing.settle();
+    else this.landing.startDescent();
     this.ex.runs = (this.ex.runs || 0) + 1;
     this.sfx('jump', null, 0.8);
     if (G.cue) G.cue('land');
@@ -586,7 +594,7 @@ export class PlanetMode {
     const E = this.engine;
     this.probes.recallAll(true);
     this.hud.destroy();
-    document.body.classList.remove('planet-mode', 'planet-touch');
+    document.body.classList.remove('planet-mode', 'planet-touch', 'planet-cine');
     uRoverRim.value = 0.5; uCreatureRim.value = 0.35;
     for (const l of [this.pfx.G, this.pfx.S, this.pfx.K]) E.remove(l);
     E.renderer.toneMappingExposure = this.savedExposure || 1.05;
@@ -603,30 +611,40 @@ export class PlanetMode {
     if (this.dungeon) { this.toast('Leave the dungeon first', 'warn'); return; }
     const V = this.vehicle;
     const dist = Math.hypot(V.position.x - this.lander.position.x, V.position.z - this.lander.position.z);
-    if (dist < 22) { this.ascend(); return; }
+    if (dist < this.dockR + 4) { this.ascend(); return; }
     this.state = 'extract'; this.stateT = 8;
     this.extractAt = V.position.clone();
+    this.landing.xP = null;
     this.toast('Dropship inbound — hold out for 8 seconds!', 'epic');
     this.extras.radio('extract', true);
     this.spawnWave(true);
   }
+  // lift-off: the explorer drives up the ramp and the dropship climbs back to orbit (Landing.js)
   ascend() {
-    const V = this.vehicle;
     if (this.game.cue) this.game.cue('launch');
     this.bank();
-    V.setVisible(false); this.probes.recallAll(true);
-    this.pfx.pillar(V.position, 0x58c8ff, 30, 3, 30);
     this.state = 'ascent'; this.stateT = 0;
     this.lander.visible = true;
-    this.sfx('jump', null, 0.8);
+    this.mining = false;
+    this.landing.startAscent();
   }
+  // the explorer is out on the ground (end of the descent, or a skip)
+  deployed() {
+    this.state = 'play';
+    this.placeBeacon();
+    this.toast(`${this.siteInfo.name} · ${this.biome.name} · ${this.tod.name}`, 'epic');
+    this.later(1.5, () => this.extras.radio(Math.random() < 0.65 ? 'deploy_' + this.type : 'deploy', true) || this.extras.radio('deploy', true));
+  }
+  get dockR() { return 10 + 8 * this.landerCtl.s; }
+  placeBeacon() { this.beacon.position.copy(this.lander.position); this.beacon.position.y += 12 * this.landerCtl.s; }
   bank() {
     const n = bankCargo(this.data, this.cargo);
     if (n) {
       this.runStats.banked += n;
       this.toast(`Banked ${n} resource units`, 'epic');
       if (n >= 20) this.extras.radio('banked');
-      this.pfx.timedBeam(_v.copy(this.lander.position).setY(this.lander.position.y + 8), _w.copy(this.vehicle.position).setY(this.vehicle.position.y + 1), 1.2, 0x58c8ff, 2.2, 0.6);
+      this.landerCtl.rampFoot(_v); _v.y += 1.5;
+      this.pfx.timedBeam(_v, _w.copy(this.vehicle.position).setY(this.vehicle.position.y + 1), 1.2, 0x58c8ff, 2.2, 0.6);
       this.pfx.ring(this.vehicle.position, 8, 0x58c8ff, 40);
     }
     return n;
@@ -653,8 +671,8 @@ export class PlanetMode {
     // ---- controls ----
     const ctl = this.readControls(dt);
     this.stateT -= dt;
-    if (this.state === 'descent') this.updateDescent(dt);
-    else if (this.state === 'ascent') this.updateAscent(dt);
+    this.landing.update(dt);
+    if (this.state === 'descent' || this.state === 'ascent') { /* flown by Landing */ }
     else if (this.state === 'dead') { if (this.stateT <= 0) this.respawn(); }
     else if (this.state === 'extract') this.updateExtract(dt);
     const live = (this.state === 'play' || this.state === 'extract') && V.alive;
@@ -677,7 +695,7 @@ export class PlanetMode {
       this.terrain.update(V.position.x, V.position.z);
       this.updateCamps(dt);
       this.updateThreat(dt);
-      this.updateLander(dt);
+      this.updateLander(dt);   // here in the frame, and one draw a frame: the duel tools' seeded stream depends on it
       this.updateMouths(dt);
       // measured duels (tools/groundduel.cjs) run without the living layer: nothing here may touch
       // the explorer or draw from the seeded random stream
@@ -699,14 +717,16 @@ export class PlanetMode {
     // camera: follow with a little look toward the cursor
     _w.set(0, 0, 0);
     if (V.alive && this.state === 'play') { _w.subVectors(this.aimPoint, V.position).multiplyScalar(0.18); _w.y = 0; if (_w.length() > 14) _w.setLength(14); }
-    const focusTarget = this.state === 'descent' || this.state === 'ascent' ? _a.copy(this.lander.position).setY(Math.max(this.lander.position.y * 0.6, this.landerHome.y)) : V.position;
     if (this.hud.boss && (!this.hud.boss.alive || this.hud.boss.def.size < 5)) this.cam.extra = damp(this.cam.extra, 0, 1, realDt);
-    this.cam.update(realDt, focusTarget, _w);
+    // a cinematic owns the camera; the play camera still runs while it blends back in
+    const cine = this.landing.active;
+    if (!cine || this.landing.blend > 0) this.cam.update(realDt, V.position, _w);
     // fog tracks zoom so the play area stays crisp
     const B = this.biome, D = this.cam.distance;
     const wf = this.dungeon ? 0 : this.weather.fog;   // weather closes the haze in
     this.scene.fog.near = D * (this.dungeon ? 0.9 : B.fogNear * (1 - wf * 0.55));
     this.scene.fog.far = D * (this.dungeon ? 2.2 : B.fogFar * (1 - wf * 0.6));
+    if (cine) this.landing.camera(realDt);
     // the key light (and its shadow frustum) follows the explorer
     const f = this.cam.focus;
     this.sun.position.copy(f).addScaledVector(this.sunDir, 160);
@@ -936,21 +956,25 @@ export class PlanetMode {
     if (!extraction) { this.toast(this.threat > 0.6 ? 'Seismic readings spiking — the swarm is coming' : 'Hostiles inbound', 'warn'); this.extras.radio('wave'); }
   }
   updateLander(dt) {
-    const V = this.vehicle, L = this.lander;
+    const V = this.vehicle, L = this.lander, C = this.landerCtl;
+    C.update(dt);
+    C.updateTurrets(dt, C.armed && !this.pilot.duel);
+    // idling engines vent a little (always exactly one random draw a frame, as before the dropship was flown)
+    if (Math.random() < 0.15 && this.state === 'play') C.each('retro', (p, i) => { if (i === 0) this.pfx.smoke(p, 1.2 * C.s, 0.08); });
+    if (this.state !== 'play') { this.atLander = false; this.ground.set(1, 0, 0, 1, 0); return; }
+    const R = this.dockR;
     const d = Math.hypot(V.position.x - L.position.x, V.position.z - L.position.z);
-    this.ground.set(1, L.position.x, L.position.z, 18, d < 18 ? 0.75 : 0.4, 0x58c8ff, d < 18 ? 0.12 : 0);
+    this.ground.set(1, L.position.x, L.position.z, R, d < R ? 0.75 : 0.4, 0x58c8ff, d < R ? 0.12 : 0);
     // the homing beacon is for finding the pad from afar: it thins out as the explorer comes home
-    const bs = clamp((d - 20) / 110, 0.12, 1);
+    const bs = clamp((d - R - 2) / 110, 0.12, 1);
     this.beacon.scale.x = this.beacon.scale.z = damp(this.beacon.scale.x, bs, 4, dt);
-    this.atLander = d < 18 && this.state === 'play' && V.alive;
+    this.atLander = d < R && V.alive;
     if (this.atLander) {
       if (cargoTotal(this.cargo) > 0) this.bank();
       V.heal(V.stats.maxHp * 0.25 * dt);
       V.shield = Math.min(V.stats.maxShield, V.shield + V.stats.maxShield * 0.3 * dt);
-      if (Math.random() < 0.3) this.pfx.beam(_v.copy(L.position).setY(L.position.y + 7), _w.copy(V.position).setY(V.position.y + 1), 0.2, 0x58c8ff, 0.8);
+      if (Math.random() < 0.3) { C.rampFoot(_v); _v.y += 1.5; this.pfx.beam(_v, _w.copy(V.position).setY(V.position.y + 1), 0.2, 0x58c8ff, 0.8); }
     }
-    const eng = L.userData.engines;
-    if (Math.random() < 0.15) { _v.copy(eng[0]).applyMatrix4(L.matrixWorld); this.pfx.smoke(_v, 1.2, 0.08); }
   }
   updateMouths() {
     const V = this.vehicle;
@@ -968,51 +992,15 @@ export class PlanetMode {
   }
 
   // ---------------- sequences ----------------
-  updateDescent(dt) {
-    const L = this.lander, H = this.landerHome;
-    const t = (this.stateT0 = (this.stateT0 || 0) + dt);
-    const k = Math.min(1, t / 3.2);
-    const ease = 1 - Math.pow(1 - k, 3);
-    L.position.y = H.y + 160 * (1 - ease);
-    const fx = this.pfx;
-    for (const e of L.userData.engines) { _v.copy(e).applyMatrix4(L.matrixWorld); fx.thruster(_v, _w.set(0, -1, 0), 0x58c8ff, 1.6, 2.2); }
-    if (L.position.y - H.y < 25) for (let i = 0; i < 3; i++) fx.dust(_v.set(L.position.x + (Math.random() - 0.5) * 20, H.y, L.position.z + (Math.random() - 0.5) * 20), 5, this.dustHex, 2, 14);
-    if (k >= 1 && !this.touched) {
-      this.touched = true;
-      fx.ring(L.position, 26, this.dustHex, 80); fx.ring(L.position, 18, 0x58c8ff, 60);
-      for (let i = 0; i < 10; i++) fx.dust(_v.set(L.position.x + (Math.random() - 0.5) * 24, H.y, L.position.z + (Math.random() - 0.5) * 24), 7, this.dustHex, 3, 16);
-      this.cam.addShake(3);
-      this.later(0.7, () => {
-        const V = this.vehicle;
-        V.setVisible(true);
-        const off = Math.max(9, 8 + V.radius * 1.25);   // the big marks roll out clear of the lander
-        V.place(L.position.x + off, L.position.z + off, Math.PI * 0.25);
-        V.velocity.set(Math.sin(Math.PI * 0.25) * 18, 0, Math.cos(Math.PI * 0.25) * 18);
-        fx.pillar(V.position, 0x58c8ff, 20, 2, 24);
-        this.ground.pulse(V.position.x, V.position.z, 0x58c8ff, 1);
-        this.state = 'play';
-        this.toast(`${this.siteInfo.name} · ${this.biome.name} · ${this.tod.name}`, 'epic');
-        this.later(1.5, () => this.extras.radio(Math.random() < 0.65 ? 'deploy_' + this.type : 'deploy', true) || this.extras.radio('deploy', true));
-      });
-    }
-  }
+  // the dropship called down to the explorer: it flies in under the play camera, turrets covering, and sets down
+  // with its ramp toward the explorer; then the lift-off (Landing.js)
   updateExtract(dt) {
-    const L = this.lander, P = this.extractAt;
-    if (!this.vehicle.alive) { this.state = 'dead'; this.stateT = 4; return; }
+    if (!this.vehicle.alive) { this.state = 'dead'; this.stateT = 4; this.landing.extract(8, dt); this.landing.parked(); return; }
     const k = 1 - Math.max(0, this.stateT) / 8;
-    L.position.set(P.x - 9, this.S.ground(P.x, P.z) + 140 * (1 - k * k * (3 - 2 * k)), P.z - 9);
-    this.beacon.position.copy(L.position); this.beacon.position.y = L.position.y + 11.5;
-    for (const e of L.userData.engines) { _v.copy(e).applyMatrix4(L.matrixWorld); this.pfx.thruster(_v, _w.set(0, -1, 0), 0x58c8ff, 1.4, 2); }
-    this.ground.set(1, P.x, P.z, 14, 1.6, 0xffd060, k);
+    const P = this.landing.extract(8 * k, dt);
+    this.placeBeacon();
+    this.ground.set(1, P.x, P.z, 9 * this.landerCtl.s, 1.6, 0xffd060, k);
     if (this.stateT <= 0) { this.state = 'play'; this.ascend(); }
-  }
-  updateAscent(dt) {
-    const L = this.lander;
-    const t = (this.ascT = (this.ascT || 0) + dt);
-    L.position.y += dt * (8 + t * 40);
-    for (const e of L.userData.engines) { _v.copy(e).applyMatrix4(L.matrixWorld); this.pfx.thruster(_v, _w.set(0, -1, 0), 0x58c8ff, 2, 3); }
-    if (t < 1) for (let i = 0; i < 2; i++) this.pfx.dust(_v.set(L.position.x + (Math.random() - 0.5) * 20, this.S.ground(L.position.x, L.position.z), L.position.z + (Math.random() - 0.5) * 20), 6, this.dustHex, 3, 14);
-    if (t > 2.4 && !this.finishing) { this.finishing = true; this.hud.flashOverlay('Returning to orbit', () => this.finish()); }
   }
 
   // ambient particles: pollen, dust, snow, embers, motes, spores, crystal glints

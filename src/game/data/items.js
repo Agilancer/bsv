@@ -3,6 +3,7 @@
 import { RNG } from '../../engine/rng.js';
 import { NAMED } from './uniques.js';
 import { WEAPON_VARIANTS } from './weapons.js';
+import { shotStyle, beamStyle, firePattern, shotSound } from './ordnance.js';
 
 export const RARITIES = [
   { k: 'common', name: 'Common', color: '#c4cad6', affixes: [0, 0], weight: 520, mult: 1.0 },
@@ -36,7 +37,7 @@ export const BASES = {
   // twice an autocannon), next to nothing on bare hull, and every strike disrupts (see DISRUPT)
   ion: { slot: 'turret', name: 'Ion Disruptor', kind: 'beam', dmgType: 'ion', dmg: 27, rof: 0.9, range: 460, barrels: 1, disrupt: 2, color: 0x58a8ff, icon: 'ion' },
   // ---- prow (forward heavy weapons) ----
-  torpedo: { slot: 'prow', name: 'Torpedo Tubes', kind: 'torpedo', dmgType: 'explosive', dmg: 160, rof: 0.18, range: 900, speed: 150, barrels: 2, homing: 0.4, splash: 45, color: 0xff7030, icon: 'torpedo' },
+  torpedo: { slot: 'prow', name: 'Torpedo Tubes', kind: 'torpedo', dmgType: 'explosive', dmg: 160, rof: 0.18, range: 900, speed: 150, barrels: 2, homing: 0.4, splash: 45, color: 0xff7030, pattern: 'pair', icon: 'torpedo' },
   nova: { slot: 'prow', name: 'Nova Cannon', kind: 'shell', dmgType: 'explosive', dmg: 380, rof: 0.1, range: 1100, speed: 340, barrels: 1, splash: 110, color: 0xfff0a0, icon: 'nova' },
   spinal: { slot: 'prow', name: 'Spinal Lance', kind: 'beam', dmgType: 'energy', dmg: 330, rof: 0.14, range: 820, barrels: 1, color: 0xa0f0ff, icon: 'lance' },
   // ---- hangars ----
@@ -293,6 +294,12 @@ export function weaponStats(item) {
     craft: b.craft, count: b.count, rebuild: b.rebuild, heal: (b.heal || 0) * scale,
     beamW: b.beamW || 1, beamT: b.beamT || 0, pSize: b.pSize || 1, turn: b.turn || 0, trail: b.trail || 0,
   };
+  if (b.kind !== 'module' && b.kind !== 'hangar' && b.kind !== 'blueprint') {
+    // looks, sound and volley pattern (data/ordnance.js)
+    if (b.kind === 'beam') s.beam = beamStyle(b); else s.fx = shotStyle(b);
+    s.pattern = firePattern(b, b.slot);
+    [s.sfx, s.pitch] = shotSound(b);
+  }
   if (s.unique.includes('ironCurtain')) s.splash *= 1.4;
   for (const a of item.affixes) {
     switch (a.k) {
@@ -333,6 +340,13 @@ export function itemShipStats(item, out) {
   return out;
 }
 
+const shotWord = (n, kind) => `${n} ${kind === 'torpedo' ? 'torpedoes' : kind === 'missile' ? 'missiles' : 'shots'}`;
+const PATTERN_LINE = {
+  pair: (n, k) => `Fires ${shotWord(n, k)} one after another, a beat apart`,
+  spread: (n, k) => `Fires a fanned spread of ${shotWord(n, k)} that home back in`,
+  salvo: (n, k) => `Fires a rapid salvo of ${shotWord(n, k)} from one tube`,
+};
+
 export function describe(item) {
   const b = BASES[item.base], r = RARITY[item.rarity];
   const lines = [];
@@ -348,6 +362,7 @@ export function describe(item) {
       const T = DMG_TYPES[b.dmgType];
       if (T) lines.push(`×${T.shield} vs shields · ×${T.hull} vs hull`);
       if (b.innate) for (const k of b.innate) if (UNIQUES[k]) lines.push(`Built in · ${UNIQUES[k].name}: ${UNIQUES[k].desc}`);
+      if (PATTERN_LINE[s.pattern] && s.barrels > 1) lines.push(PATTERN_LINE[s.pattern](s.barrels, b.kind));
       if (s.disrupt) lines.push(`Disrupts: shields stop regenerating, guns reload ${Math.round((1 - DISRUPT.rof) * 100)}% slower for ${s.disrupt}s`);
     }
   } else {
