@@ -369,7 +369,7 @@ def turret(P, at, s=1.0, blen=2.0, flip=1, nb=2, n=12):
 def pdmount(P, at, s=1.0):
     x, y, z = at
     P.cyl(0.30 * s, 0.14 * s, (x, y + 0.04 * s, z), 'y', 'trim', GOLD, 10)
-    P.sphere(0.24 * s, (x, y + 0.14 * s, z), 'hull', PEARL2, (1, 0.8, 1.1), segs=8)
+    P.sphere(0.24 * s, (x, y + 0.14 * s, z), 'hull', PEARL2, (1, 0.8, 1.1), segs=6)
     lance(P, (x, y + 0.2 * s, z + 0.12 * s), 0.85 * s, 0.04 * s, name='pd', collars=1)
 
 
@@ -799,11 +799,11 @@ def tender(P):
             r0 = 0.44 - 0.12 * j / (m - 1)
             P.torus(r0 * 1.02, 0.065, tuple(c), 'z', 'trim', GOLD, 14, 4, rot=(0, math.degrees(math.atan2(t.x, t.z)), 0))
         T = V(path[-1])
-        C = T + V((-sx * 0.05, 0.0, 0.85))
+        C = T + V((-sx * 0.05, 0.0, 0.9))
         rot = (0, -sx * 8, 0)
-        dish(P, tuple(C), 0.82, rot, n=16)
+        dish(P, tuple(C), 0.95, rot, n=16)
         for k in (1, -1):    # the gilt yoke: a fork from the boom's tip to trunnions on the dish's sides
-            side = C + rotm(rot) @ V((k * 0.88, 0, -0.08))
+            side = C + rotm(rot) @ V((k * 1.02, 0, -0.08))
             mid = T + V((k * 0.62, 0.0, 0.25))
             P.strut(tuple(T), tuple(mid), 0.14, 0.14, 'trim', GOLD)
             P.strut(tuple(mid), tuple(side), 0.12, 0.12, 'trim', GOLD)
@@ -848,7 +848,7 @@ def frigate(P):
     # painted bow saddle and stern band
     patch(P, S, 8.6, 11.2, UP - 0.9, UP + 0.9, 'paint', WHITE, nz=3, na=6)
     patch(P, S, -13.3, -11.6, UP - 1.0, UP + 1.0, 'paint', WHITE, nz=2, na=6)
-    windows(P, S, -11.0, 8.0, 0.16, 8, 0.13)
+    windows(P, S, -11.0, 8.0, 0.16, 7, 0.13)
     # blade strakes along the chine, widening aft into an arrowhead; painted along their crest, gilt edged
     zs = [11.8, 9.0, 5.0, 1.0, -3.0, -7.0, -10.5, -12.8, -14.15]
     ws = [0.03, 0.45, 0.95, 1.25, 1.45, 1.6, 1.6, 1.35, 0.8]
@@ -897,7 +897,7 @@ def frigate(P):
     turret(P, (0, 3.33, 0.55), 1.35, 2.8)
     # the great fan sails above the bridge
     for sx in (1, -1):
-        fan(P, (sx * 0.45, 4.22, -5.0), sx * 50, [76, 62, 48, 34, 20], [3.1, 3.9, 4.2, 3.9, 3.1], rib=0.08, th=0.04)
+        fan(P, (sx * 0.45, 4.22, -4.8), sx * 50, [76, 62, 48, 34, 20], [4.0, 5.1, 5.5, 5.1, 4.0], rib=0.09, th=0.045)
     # engine bank inside the crown collar
     crown(P, S, -13.0, 1.0, 0.22, 0.13, 10, 24)
     halo(P, (0, 0.2, -14.95), 0.9, flame=3.0, segs=18, k=1.38, vanes=6)

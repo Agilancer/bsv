@@ -90,8 +90,22 @@ def hexhull(P, secs, mat='trim', tint=GUN, at=(0, 0, 0)):
 HEXA = [math.radians(a) for a in range(0, 360, 60)]
 
 
-def mesh(P, verts, faces, mat, tint):
-    """a closed mesh from part-local game points"""
+def mesh(P, verts, faces, mat, tint, centre=None):
+    """a mesh from part-local game points: closed (normals recalculated), or open with every face turned away from
+    `centre` (a plate with no underside: the hull it lies on hides it)"""
+    if centre is not None:
+        V = [Vector(v) for v in verts]
+        c = Vector(centre)
+        out = []
+        for f in faces:
+            pts = [V[i] for i in f]
+            n = Vector((0.0, 0.0, 0.0))
+            for i in range(len(pts)):
+                a, b = pts[i], pts[(i + 1) % len(pts)]
+                n += Vector(((a.y - b.y) * (a.z + b.z), (a.z - b.z) * (a.x + b.x), (a.x - b.x) * (a.y + b.y)))
+            m = sum(pts, Vector()) / len(pts)
+            out.append(f if n.dot(m - c) >= 0 else tuple(reversed(f)))
+        faces = out
     bm = bmesh.new()
     ox, oy, oz = P.o
     vs = [bm.verts.new(G(v[0] + ox, v[1] + oy, v[2] + oz)) for v in verts]
@@ -100,7 +114,8 @@ def mesh(P, verts, faces, mat, tint):
             bm.faces.new([vs[i] for i in f])
         except ValueError:
             pass
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    if centre is None:
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     return P.M._obj(bm, P.g, mat, tint, 0.0, segs=1)
 
 
@@ -135,10 +150,10 @@ def patch(P, secs, face, za, zb, u0, u1, mat, tint, t=0.045, lift=0.004, x0=0.0)
     faces = []
     for r in range(R - 1):
         a, b = 4 * r, 4 * (r + 1)
-        faces += [(a, a + 2, b + 2, b), (a + 1, b + 1, b + 3, a + 3), (a, b, b + 1, a + 1), (a + 2, a + 3, b + 3, b + 2)]
+        faces += [(a + 1, b + 1, b + 3, a + 3), (a, b, b + 1, a + 1), (a + 2, a + 3, b + 3, b + 2)]
     e = 4 * (R - 1)
     faces += [(0, 1, 3, 2), (e, e + 2, e + 3, e + 1)]
-    mesh(P, verts, faces, mat, tint)
+    mesh(P, verts, faces, mat, tint, centre=sum((Vector(v) for v in verts), Vector()) / len(verts))
 
 
 def patchwork(P, secs, rng, za, zb, faces=(0, 2, 3, 5), step=(0.8, 1.6), tones=TONES, gap=0.05, keep=None, x0=0.0,
@@ -170,10 +185,12 @@ def tube_patch(P, c, rad, za, zb, a0, a1, mat, tint, t=0.05, n=3, lift=0.005):
     ix = lambda i, k, l: i * (n + 1) * 2 + k * 2 + l
     faces = []
     for k in range(n):
-        faces += [(ix(0, k, 1), ix(0, k + 1, 1), ix(1, k + 1, 1), ix(1, k, 1)), (ix(0, k, 0), ix(1, k, 0), ix(1, k + 1, 0), ix(0, k + 1, 0)),
+        faces += [(ix(0, k, 1), ix(0, k + 1, 1), ix(1, k + 1, 1), ix(1, k, 1)),
                   (ix(0, k, 0), ix(0, k + 1, 0), ix(0, k + 1, 1), ix(0, k, 1)), (ix(1, k, 0), ix(1, k, 1), ix(1, k + 1, 1), ix(1, k + 1, 0))]
     faces += [(ix(0, 0, 0), ix(0, 0, 1), ix(1, 0, 1), ix(1, 0, 0)), (ix(0, n, 0), ix(1, n, 0), ix(1, n, 1), ix(0, n, 1))]
-    mesh(P, verts, faces, mat, tint)
+    am = math.radians((a0 + a1) / 2)
+    zm = (za + zb) / 2
+    mesh(P, verts, faces, mat, tint, centre=(c[0] + math.sin(am) * rad(zm) * 0.6, c[1] + math.cos(am) * rad(zm) * 0.6, zm))
 
 
 def facet(P, secs, z, d, sx, up, mat, tint, frac=0.72, t=0.035, slide=0.5, x0=0.0, bevel=0.0):
@@ -353,9 +370,9 @@ def dome(P, at, R, kind='twin', flip=1, L=2.0, side=1, lift=0.6):
     cannon or rotary"""
     x, y, z = at
     f = flip
-    P.cyl(R * 0.98, lift + 0.1, (x, y + f * (0.05 - lift / 2), z), 'y', 'trim', GUN2, 18)
-    P.cyl(R * 1.04, 0.12, (x, y + f * 0.1, z), 'y', 'dark', DARK2, 18)
-    P.sphere(R, (x, y + f * 0.14, z), 'paint', WHITE, (1, 0.5, 1.08), segs=14)
+    P.cyl(R * 0.98, lift + 0.1, (x, y + f * (0.05 - lift / 2), z), 'y', 'trim', GUN2, 14)
+    P.cyl(R * 1.04, 0.12, (x, y + f * 0.1, z), 'y', 'dark', DARK2, 14)
+    P.sphere(R, (x, y + f * 0.14, z), 'paint', WHITE, (1, 0.5, 1.08), segs=12)
     yb = y + f * (0.14 + 0.24 * R)
     P.box(0.92 * R, 0.4 * R, 0.5 * R, (x, yb, z + 0.82 * R), 'trim', STEEL, 0.03)
     P.box(0.5 * R, 0.07, 0.08, (x, yb + f * 0.13 * R, z + 1.08 * R), 'dark', DARK, 0.0)
@@ -450,7 +467,10 @@ def bomber(P):
     # the torpedo tub: gunwales along the deck edges, cradles across, two warheads to port and a heavy one to
     # starboard either side of a painted keel; warm tips forward
     dt = top(H, -0.3)
-    P.box(0.18, 0.62, 4.7, (1.0, 0.72, -0.3), 'hull', OXIDE, 0.02)
+    for z0, z1, h, tint, mat in ((-2.65, -1.0, 0.62, OXIDE, 'hull'), (-0.95, 0.75, 0.56, PALE2, 'hull'), (0.8, 2.05, 0.6, STEEL, 'trim')):
+        P.box(0.18, h, z1 - z0, (1.0, 0.41 + h / 2, (z0 + z1) / 2), mat, tint, 0.02)
+    for z in (-1.0, 0.78):
+        P.box(0.24, 0.7, 0.1, (1.02, 0.74, z), 'dark', DARK, 0.0)
     P.box(0.18, 0.52, 4.7, (-1.02, 0.67, -0.3), 'trim', GUN2, 0.02)
     P.box(0.2, 0.035, 4.7, (1.0, 1.045, -0.3), 'paint', WHITE, 0.0)
     for z, h in ((2.0, 0.32), (-2.65, 0.4)):
@@ -625,16 +645,21 @@ def gunship(P):
     patchwork(P, H, rng, -6.0, 5.5, faces=(0, 2, 3, 5), step=(1.0, 2.0))
     patchwork(P, H, rng, -6.0, 5.5, faces=(1,), step=(0.9, 1.6), keep=lambda f, a, b: b < tz - 0.85 or a > tz + 0.85)
     patchwork(P, H, rng, -6.0, 5.5, faces=(4,), step=(1.6, 2.6), tones=UNDER)
-    # the ram-plough: a wide crusher blade in the wing's colour across the bow, teeth on its edge, braced to the hull
-    a, b = Vector((-2.1, -0.62, 6.9)), Vector((2.55, -0.62, 7.45))
-    c, d = Vector((2.3, 0.42, 5.4)), Vector((-1.95, 0.42, 5.2))
-    slab(P, (a, b, c, d), 0.3, 'paint', WHITE)
-    n = ((b - a).cross(d - a)).normalized()
-    P.strut(tuple(a + n * 0.12 + Vector((0, -0.02, 0.04))), tuple(b + n * 0.12 + Vector((0, -0.02, 0.04))), 0.26, 0.26, 'trim', STEEL)
-    P.strut(tuple(d + n * 0.3 + Vector((0.1, 0, 0))), tuple(c + n * 0.3 + Vector((-0.1, 0, 0))), 0.2, 0.08, 'dark', WELD)
-    for t, L in ((0.06, 0.55), (0.27, 0.75), (0.5, 0.62), (0.72, 0.8), (0.93, 0.5)):
-        p = a.lerp(b, t) + n * 0.1
-        spike(P, tuple(p), (p.x, p.y - 0.1, p.z + L), 0.14)
+    # the ram-plough: a V of armour across the bow, its keel off to starboard and its port wing the longer, the wings
+    # in the wing's colour on steel ribs, a steel cutting edge with teeth, braced to the hull on bare girders
+    rf, rb = Vector((-0.35, -0.62, 7.7)), Vector((-0.25, 0.44, 5.5))
+    for s2, fo, bo in ((1, Vector((2.6, -0.62, 6.45)), Vector((2.3, 0.42, 5.0))), (-1, Vector((-2.05, -0.62, 6.55)), Vector((-1.9, 0.42, 5.05)))):
+        q = (rf, fo, bo, rb) if s2 > 0 else (fo, rf, rb, bo)
+        slab(P, q, 0.28, 'paint', WHITE)
+        n = ((q[1] - q[0]).cross(q[3] - q[0])).normalized()
+        P.strut(tuple(rf + n * 0.1), tuple(fo + n * 0.1), 0.26, 0.26, 'trim', STEEL)
+        for t in (0.35, 0.72):
+            P.strut(tuple(rf.lerp(fo, t) + n * 0.32), tuple(rb.lerp(bo, t) + n * 0.32), 0.14, 0.1, 'trim', STEEL2)
+        for t, L in ((0.3, 0.6), (0.62, 0.75), (0.92, 0.5)):
+            p = rf.lerp(fo, t) + n * 0.08
+            spike(P, tuple(p), (p.x + s2 * 0.08, p.y - 0.1, p.z + L * (1.15 if s2 > 0 else 0.85)), 0.13)
+    P.strut(tuple(rf + Vector((0, 0.12, 0.05))), tuple(rb + Vector((0, 0.32, 0))), 0.22, 0.22, 'trim', STEEL)
+    spike(P, (-0.35, -0.5, 7.6), (-0.4, -0.6, 8.55), 0.18)
     for s, (p, q) in ((1, ((1.4, 0.0, 4.6), (2.35, -0.25, 6.6))), (-1, ((-1.4, 0.0, 4.6), (-1.95, -0.25, 6.2)))):
         P.strut(p, q, 0.22, 0.26, 'trim', GUN2)
         lamp(P, (q[0] + s * 0.25, q[1] + 0.1, q[2] + 0.4), NAV_P if s > 0 else NAV_S, 0.1)
@@ -900,9 +925,10 @@ def frigate(P):
         P.torus(0.45, 0.07, (0.3, 0.0, z), 'z', 'glow', WHITE, 14, 4)
     hexhull(P, H)
     tz = -10.8
-    patchwork(P, H, rng, -14.0, 12.4, faces=(0, 2, 3, 5), step=(1.6, 3.0))
+    patchwork(P, H, rng, -14.0, 12.4, faces=(0, 2), step=(1.6, 3.0))
+    patchwork(P, H, rng, -14.0, 12.4, faces=(3, 5), step=(2.6, 4.4))
     patchwork(P, H, rng, -14.0, 12.4, faces=(1,), step=(1.4, 2.6), keep=lambda f, a, b: (b < tz - 1.3 or a > tz + 1.3) and b < 10.1)
-    patchwork(P, H, rng, -14.0, 12.4, faces=(4,), step=(2.0, 3.4), tones=UNDER)
+    patchwork(P, H, rng, -14.0, 12.4, faces=(4,), step=(3.4, 5.0), tones=UNDER)
     patch(P, H, 1, 10.15, 12.35, 0.03, 0.97, 'paint', WHITE, t=0.06)
     slashes(P, (-0.4, 0, 11.2), 1.5, ang=40, w=0.24, gap=0.5, secs=H, mat='dark', tint=WELD, dy=0.065)
     # the hammerhead: a transverse armoured head, its port arm longer, its top the wing's colour, breaching spikes
@@ -985,7 +1011,7 @@ def frigate(P):
     # engine bank: one huge drive can in the wing's colour to port, a foundry slot block and a can half its size
     # to starboard
     P.box(7.8, 4.2, 0.7, (0, 0.3, -14.3), 'dark', DARK2, 0.06)
-    salvage_engine(P, (1.5, 0.6, -16.4), 1.6, 2.3, cowl=True, segs=22)
+    salvage_engine(P, (1.5, 0.6, -16.4), 1.6, 2.3, cowl=True, segs=18)
     slot_grid(P, (-2.3, 1.05, -15.3), 2, 2, 0.72, 0.46, L=1.0)
     salvage_engine(P, (-2.3, -1.15, -15.3), 0.8, 1.1, tint=STEEL2, ribs=2, segs=16)
     lamp(P, (-2.3, 2.0, -14.4), STROBE, 0.13)

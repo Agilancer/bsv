@@ -16,17 +16,18 @@
 #             like a horn, a crown of five antenna needles round the long centre emitter
 #   gunship   "trefoil": three fat lobes round a three-petal dome, two reaching forward, one aft; a great orb
 #             turret rides each lobe, a missile pair lies on each forward lobe, a crystal lance between them;
-#             a three-ray drive on the aft lobe and a vent behind each forward lobe
+#             a three-ray drive at the end of the aft lobe
 #   torpboat  "fletched lance": one long hexagonal launcher spine with a flared muzzle (a warm warhead in its
 #             lit mouth) held in three crescent prongs, thick tri-segment collars along it; astern a five-petal
 #             rosette round a dome: two petals carry the magazines, three the drives
 #   tender    "lotus": a heart under a three-petal crown and a crystal spire, six long blades opened flat round
 #             it (a six-point star from above); three end in green beam dishes, two in mending claws, the aft
 #             one carries the drives
-#   frigate   "precentor": a hexagonal spine; three crescent prongs round the spinal lance at the bow (the main
-#             gun); amidships a stepped lotus (six broad petals, six rising crown petals, a six-petal heart and
-#             a spire) carrying a ring of orb turrets, more orbs fore, aft and below; crystal point defence;
-#             a five-petal drive crown astern round five rays of vents
+#   frigate   "precentor": a hexagonal spine dressed in three leaf-shaped keel strakes (two high, one under);
+#             three crescent prongs round the spinal lance at the bow (the main gun); amidships a stepped lotus
+#             on a plinth (five broad petals, five rising crown petals, a five-petal heart and a spire); rows
+#             of orb turrets along the strakes and the spine; crystal point defence; a five-petal drive crown
+#             astern round five rays of vents
 import math
 from craftlib import *
 import bmesh                      # after craftlib: bpy has to be loaded first
@@ -412,7 +413,7 @@ def fighter(P):
 
 # ---------------------------------------------------------------- bomber
 def bomber(P):
-    C, R, S = V((0, 0, 0.2)), 1.32, (1, 0.95, 3.0)
+    C, R, S = V((0, 0, 0.2)), 1.45, (1, 0.95, 2.75)
     # a five-petal bud round a dark core; the grooves between the petals cradle the seeds
     P.sphere(R * 0.86, tuple(C), 'obsidian', OB1, scale=S, segs=14)
     for k in range(5):
@@ -423,10 +424,10 @@ def bomber(P):
     # five seeds in the grooves (three on top), strapped by crescent clasps, warm warheads out at the bow
     for k in range(5):
         phi = k * 72
-        c = radial(phi, 1.16, 0.4)
-        seed(P, tuple(c), 5.3, 0.36)
+        c = radial(phi, 1.28, 0.4)
+        seed(P, tuple(c), 5.3, 0.4)
         for z in (-0.9, 1.5):
-            sweep(P, arcpts(V((c.x, c.y, z)), radial(phi, 1, 0), tangent(phi), 0.43, -80, 80, 8), (0, 0, 1), 0.1, 0.22,
+            sweep(P, arcpts(V((c.x, c.y, z)), radial(phi, 1, 0), tangent(phi), 0.47, -80, 80, 8), (0, 0, 1), 0.1, 0.22,
                   'obsidian', RIM, taper=lambda t: 0.6 + 0.4 * math.sin(math.pi * t))
     # the bow emitter
     crystal(P, (0, 0, 3.9), (0, 0, 1), 0.2, 0.35, 0.1, 'glass', LENS, 5)
@@ -436,13 +437,13 @@ def bomber(P):
     P.loft([(-3.75, 0.88, 0.84, 0, 2), (-3.85, 0.88, 0.84, 0, 2)], 'obsidian', RIM, 10, phase=0.5)
     rays(P, (0, 0, -4.22), 5, 0.46, 0.42, 0.13, phase=36)
     lamp(P, (0, 0.86, -3.6), STROBE, 0.06)
-    lamp(P, tuple(radial(108, 1.33, 0.2)), NAV_P, 0.07)
-    lamp(P, tuple(radial(252, 1.33, 0.2)), NAV_S, 0.07)
+    lamp(P, tuple(radial(108, 1.45, 0.2)), NAV_P, 0.07)
+    lamp(P, tuple(radial(252, 1.45, 0.2)), NAV_S, 0.07)
     # the drop bay under the belly: the last gun
-    P.box(0.62, 0.06, 1.8, (0, -1.235, 0.4), 'obsidian', OB1, 0.0)
+    P.box(0.66, 0.06, 1.8, (0, -1.365, 0.4), 'obsidian', OB1, 0.0)
     for sx in (1, -1):
-        P.box(0.08, 0.04, 1.8, (sx * 0.35, -1.27, 0.4), 'glow', WHITE, 0.0)
-    P.empty('gun', (0, -1.34, 0.6))
+        P.box(0.08, 0.04, 1.8, (sx * 0.37, -1.4, 0.4), 'glow', WHITE, 0.0)
+    P.empty('gun', (0, -1.47, 0.6))
 
 
 # ---------------------------------------------------------------- repair drone
@@ -526,16 +527,13 @@ def gunship(P):
         t = 0.8
         p = pts[round(t * (len(pts) - 1))]
         y = p.y + 0.675 * tp(t)
-        P.box(0.78, 0.12, 1.5, (p.x, y + 0.04, p.z + 0.1), 'obsidian', RIM, 0.02)
+        P.box(0.92, 0.14, 1.7, (p.x, y + 0.04, p.z + 0.1), 'obsidian', RIM, 0.02)
         for s in (-1, 1):
-            mx = p.x + s * 0.2
-            P.cyl(0.15, 1.3, (mx, y + 0.24, p.z + 0.1), 'z', 'obsidian', OB3, 8)
-            P.cyl(0.155, 0.14, (mx, y + 0.24, p.z + 0.35), 'z', 'paint', WHITE, 8)
-            P.cyl(0.15, 0.32, (mx, y + 0.24, p.z + 0.91), 'z', 'lamp', WARM, 8, r2=0.02)
-        P.empty('msl', (p.x, y + 0.24, p.z + 1.1))
-        # and a vent behind each forward lobe
-        q = pts[3]
-        vent(P, tuple(q + N * (0.85 if N.z < 0 else -0.85) + V((0, -0.05, -0.1))), 0.5, 0.16, 0.0, 1.8)
+            mx = p.x + s * 0.24
+            P.cyl(0.19, 1.5, (mx, y + 0.3, p.z + 0.1), 'z', 'obsidian', OB3, 8)
+            P.cyl(0.195, 0.16, (mx, y + 0.3, p.z + 0.4), 'z', 'paint', WHITE, 8)
+            P.cyl(0.19, 0.36, (mx, y + 0.3, p.z + 1.03), 'z', 'lamp', WARM, 8, r2=0.02)
+        P.empty('msl', (p.x, y + 0.3, p.z + 1.25))
         lamp(P, tuple(pts[-2] + d * 0.1 + V((0, 0.25, 0))), NAV_P if az == 50 else NAV_S, 0.09)
     # a crystal lance between the forward lobes
     spike(P, C + V((0, -0.1, 1.35)), (0, 0.22, 2.8), 0.34, 0.14, 'obsidian', OB3, 6, 0.5)
@@ -543,7 +541,7 @@ def gunship(P):
     # the drive: a boss on the aft lobe with three rays of vents
     q = lobes[180][0][-3]
     P.loft([(q.z + 0.9, 0.5, 0.42, q.y, 2), (q.z - 0.1, 0.62, 0.54, q.y, 2), (q.z - 0.5, 0.58, 0.5, q.y, 2)], 'obsidian', OB1, 10)
-    rays(P, (0, q.y, q.z - 0.52), 3, 0.26, 0.4, 0.13, phase=60, flame=1.8)
+    rays(P, (0, q.y, q.z - 0.52), 3, 0.28, 0.46, 0.15, phase=60, flame=1.8)
     spike(P, (0, q.y + 0.4, q.z + 0.5), (0, q.y + 1.2, q.z - 0.2), 0.08, 0.04, 'chrome', EDGE, 4)
     lamp(P, (0, q.y + 1.23, q.z - 0.22), STROBE, 0.08)
 

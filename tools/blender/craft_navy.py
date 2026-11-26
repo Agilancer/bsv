@@ -202,7 +202,7 @@ def fighter(P):
     # armoured cab set into the plate: faceted slit glazing, painted roof
     cab(P, -0.6, 1.75, 0.46, 0.24, 0.52, paint=False)
     # dorsal saddle behind the cab and armour strakes along the flanks
-    plate(P, H, -2.55, -0.75, 0.55, 2.45, 'paint')
+    plate(P, H, -2.5, -1.0, 0.55, 2.45, 'paint')
     for va in (7.0, 3.0):
         plate(P, H, -1.4, 1.3, va, va + 1.0, 'trim', PLATE3, off=0.025)
     plate(P, H, -2.4, 1.8, 5.0, 6.0, 'trim', PLATE3, off=0.02)
@@ -210,11 +210,12 @@ def fighter(P):
     lamp(P, (0.3, top(H, -2.0) + 0.29, -2.0), STROBE, 0.05)
     # cheek cannon in armoured housings either side of the nose
     for sx in (1, -1):
-        GH = [(0.4, 0.13, 0.13, -0.16), (0.7, 0.19, 0.19, -0.16), (2.05, 0.19, 0.19, -0.16), (2.4, 0.14, 0.14, -0.16)]
-        octo(P, GH, 'trim', PLATE2, at=(sx * 0.62, 0, 0))
-        octo(P, GH, 'dark', DARK2, at=(sx * 0.62, 0, 0), z0=1.55, z1=1.75, grow=0.02, caps=False)
-        barrel(P, (sx * 0.62, -0.16, 2.3), 1.05, 0.07)
-        rcs(P, (sx * 0.62, 0.1, 0.75), 0.13, sx)
+        GH = [(0.3, 0.14, 0.14, -0.04), (0.6, 0.2, 0.2, -0.04), (2.05, 0.2, 0.2, -0.04), (2.4, 0.15, 0.15, -0.04)]
+        octo(P, GH, 'trim', PLATE2, at=(sx * 0.7, 0, 0))
+        octo(P, GH, 'dark', DARK2, at=(sx * 0.7, 0, 0), z0=1.5, z1=1.72, grow=0.02, caps=False)
+        plate(P, GH, 0.7, 1.4, 0.6, 2.4, 'paint', WHITE, at=(sx * 0.7, 0, 0), off=0.015)
+        barrel(P, (sx * 0.7, -0.04, 2.3), 1.05, 0.07)
+        rcs(P, (sx * 0.52, 0.36, 0.0), 0.13, sx)
     # drive block: the collar with three bells, thruster pods flush on its flanks carrying the outer two
     drive(P, -3.42, [(-0.46, -0.05, 0.2), (0.0, -0.05, 0.2), (0.46, -0.05, 0.2)], 1.06, 0.64, 0.0, L=0.9)
     vents(P, (0, 0.62, -2.95), 0.62, 0.5, 4)
@@ -290,7 +291,7 @@ def bomber(P):
 def drone(P):
     CORE = [(-0.62, 0.36, 0.24, 0.0), (-0.42, 0.58, 0.36, 0.0), (0.36, 0.58, 0.36, 0.0), (0.6, 0.4, 0.26, -0.02)]
     octo(P, CORE, 'hull', PLATE)
-    plate(P, CORE, -0.42, 0.3, 0.55, 2.45, 'paint', WHITE, off=0.02)
+    plate(P, CORE, -0.42, 0.3, 0.0, 3.0, 'paint', WHITE, off=0.02)
     plate(P, CORE, -0.3, 0.3, 4.2, 6.8, 'trim', PLATE3, off=0.02)
     P.box(0.2, 0.04, 0.24, (0, top(CORE, -0.1) + 0.04, -0.1), 'dark', DARK2, 0.0)
     # the octagonal gyro ring (flats on the axes), its segments alternately in the wing's colours
@@ -470,8 +471,8 @@ def torpboat(P):
     for sx in (1, -1):
         lamp(P, (sx * 1.48, 0.25, 7.6), NAV_P if sx > 0 else NAV_S, 0.09)
     # the loading rail along the spine: painted chamfers either side, two torpedoes riding it
-    plate(P, H, -0.4, 6.8, 0.45, 0.95, 'paint')
-    plate(P, H, -0.4, 6.8, 2.05, 2.55, 'paint')
+    plate(P, H, 0.6, 6.8, 0.45, 0.95, 'paint')
+    plate(P, H, 0.6, 6.8, 2.05, 2.55, 'paint')
     yt = top(H, 0.0)
     for sx in (1, -1):
         P.box(0.1, 0.12, 9.6, (sx * 0.38, yt + 0.06, 2.0), 'chrome', MACH, 0.0)
@@ -504,8 +505,11 @@ def torpboat(P):
                 P.cyl(0.02, 0.16, (cx, cy, 2.64), 'z', 'lamp', WARM, 8, r2=0.11)
         P.empty('msl', (mx, my, 2.75))
         # side hatches and the feed chutes into the spine
-        for z in (-1.6, -0.3, 1.0):
-            plate(P, MAG, z - 0.42, z + 0.42, 7.2 if sx > 0 else 3.2, 7.8 if sx > 0 else 3.8, 'dark', DARK2, at=at, p=3.2, off=0.02)
+        va = 7.3 if sx > 0 else 3.3
+        plate(P, MAG, -2.0, 1.9, va, va + 0.4, 'dark', DARK2, at=at, p=3.2, off=0.02)
+        plate(P, MAG, -2.0, 1.9, va + 0.18, va + 0.22, 'chrome', MACH, at=at, p=3.2, off=0.04)
+        for z in (-1.5, -0.2, 1.1):
+            plate(P, MAG, z - 0.08, z + 0.08, va - 0.06, va + 0.46, 'trim', PLATE3, at=at, p=3.2, off=0.05)
         for z in (-1.6, 1.4):
             P.box(0.6, 0.6, 0.7, (sx * 1.2, -0.2, z), 'trim', MACH, 0.03)
         rcs(P, (sx * 1.0, yt - 0.1, 6.0), 0.2, sx)
@@ -564,13 +568,15 @@ def tender(P):
         P.cyl(0.2, 0.04, (bx, by, 5.46), 'z', 'mend', GREEN, 12)
         P.empty('gun', (bx, by, 5.55))
         # manipulator arm on the boom's inner shoulder, a weld head over the cradle
-        sh, el, wr = (sx * 1.2, 0.35, 2.0), (sx * 0.95, 0.85, 2.9), (sx * 0.5, 0.45, 3.6)
-        P.sphere(0.15, sh, 'dark', DARK, segs=8)
-        P.strut(sh, el, 0.14, 0.14, 'trim', MACH)
-        P.sphere(0.12, el, 'dark', DARK, segs=8)
-        P.strut(el, wr, 0.12, 0.12, 'trim', MACH)
-        P.cyl(0.07, 0.3, (wr[0], wr[1] - 0.12, wr[2]), 'y', 'chrome', CHROME, 8, r2=0.11)
-        P.sphere(0.08, (wr[0], wr[1] - 0.28, wr[2]), 'mend', GREEN, segs=8)
+        sh, el, wr = (sx * 1.25, 0.4, 1.9), (sx * 1.0, 0.95, 2.9), (sx * 0.5, 0.5, 3.7)
+        P.cyl(0.24, 0.22, (sh[0], sh[1] - 0.05, sh[2]), 'y', 'dark', DARK2, 10)
+        P.sphere(0.18, sh, 'trim', MACH, segs=10)
+        P.strut(sh, el, 0.2, 0.2, 'trim', PLATE3)
+        P.sphere(0.15, el, 'dark', DARK2, segs=10)
+        P.strut(el, wr, 0.17, 0.17, 'trim', PLATE3)
+        P.box(0.26, 0.2, 0.3, wr, 'dark', DARK2, 0.02)
+        P.cyl(0.08, 0.3, (wr[0], wr[1] - 0.22, wr[2]), 'y', 'chrome', CHROME, 8, r2=0.13)
+        P.sphere(0.1, (wr[0], wr[1] - 0.4, wr[2]), 'mend', GREEN, segs=8)
         lamp(P, (bx + sx * 0.5, by, 1.8), NAV_P if sx > 0 else NAV_S, 0.09)
         rcs(P, (bx, by + 0.62, 0.5), 0.2, sx)
     greebles(P, rng, -0.8, 0.8, top(H, -4.0), -4.5, -3.2, 0, 0.12, 0.3)
@@ -633,17 +639,17 @@ def frigate(P):
     lamp(P, (0, ym + 1.68, -5.4), STROBE, 0.12)
     greebles(P, rng, -1.1, 1.1, ym - 0.02, -6.0, -4.4, 6, 0.2, 0.5)
     # turrets: two forward (the second raised to fire over the first), one aft facing astern, one ventral
-    turret(P, 0, top(H, 6.2) - 0.05, 6.2, s=1.45, L=3.0, r=0.13)
+    turret(P, 0, top(H, 6.4) - 0.05, 6.4, s=1.7, L=3.2, r=0.15)
     y2 = top(H, 2.0)
-    octo(P, [(0.7, 1.0, 0.3, 0), (1.0, 1.15, 0.38, 0), (3.0, 1.15, 0.38, 0), (3.3, 1.0, 0.3, 0)], 'trim', PLATE2, at=(0, y2 + 0.2, 0))
-    turret(P, 0, y2 + 0.5, 2.0, s=1.45, L=3.0, r=0.13)
+    octo(P, [(0.4, 1.15, 0.34, 0), (0.7, 1.32, 0.42, 0), (3.3, 1.32, 0.42, 0), (3.6, 1.15, 0.34, 0)], 'trim', PLATE2, at=(0, y2 + 0.2, 0))
+    turret(P, 0, y2 + 0.56, 2.0, s=1.7, L=3.2, r=0.15)
     ya = top(H, -10.2) - 0.05
-    P.cyl(1.04, 0.35, (0, ya + 0.17, -10.2), 'y', 'dark', DARK2, 16)
-    HA = [(-11.0, 0.66, 0.3, 0), (-10.6, 0.95, 0.43, 0), (-9.5, 0.95, 0.43, 0), (-9.0, 0.7, 0.3, 0)]
-    octo(P, HA, 'trim', MACH, at=(0, ya + 0.75, 0))
-    plate(P, HA, -10.8, -9.4, 0.7, 2.3, 'paint', WHITE, at=(0, ya + 0.75, 0), off=0.02)
+    P.cyl(1.2, 0.38, (0, ya + 0.19, -10.2), 'y', 'dark', DARK2, 16)
+    HA = [(-11.3, 0.78, 0.34, 0), (-10.9, 1.1, 0.5, 0), (-9.4, 1.1, 0.5, 0), (-8.9, 0.8, 0.34, 0)]
+    octo(P, HA, 'trim', MACH, at=(0, ya + 0.85, 0))
+    plate(P, HA, -11.0, -9.2, 0.7, 2.3, 'paint', WHITE, at=(0, ya + 0.85, 0), off=0.02)
     for sx in (1, -1):
-        aft_barrel(P, (sx * 0.36, ya + 0.75, -10.9), 2.8, 0.13)
+        aft_barrel(P, (sx * 0.42, ya + 0.85, -11.2), 3.0, 0.15)
     turret(P, 0, bot(H, -1.0) + 0.05, -1.0, s=1.3, L=2.6, r=0.12, flip=-1)
     # point-defence sponsons on the flanks
     for sx in (1, -1):
