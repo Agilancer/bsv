@@ -39,6 +39,12 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     `ship.yard` so trails and effects follow. `game.setPaint({scheme, accent})` repaints in place and saves
     `data.ship.paint` (per hull; `data.paint` = last choice, which a new hull takes). UI: `ui/paint.js`, folded in the
     Ship window. Enemies, PvP captains, derelicts and the title line keep their own colours.
+  - Title backdrop (`TitleScene.js`): `TITLE_LINE`, led by the Hollow battleship (battleships, not dreadnoughts: the
+    T10 side hulls, pylons and fairings sit in front of their broadside housings). Every ship carries ONE gun, a
+    title-only triple cannon (not WeaponModels): turrets on the turret mounts, seated on the skin by raycast and
+    superfiring over each other; gunhouses sized to fit inside the broadside housings, barrels abeam. A mount whose
+    gun would meet the hull or another turret stays empty; prow and hangar mounts stay empty. The lead is armed
+    before the first frame, the escorts one a frame after. Review: `tools/title_viewer.html?webgl&line=a,b&t=30`.
 - `src/game/` — `Game` (orchestrator, helm, rewards, equipment), `World` (sim hub), `Sector`
   (a star system + encounter director), `Player` (save data), `Autoplay`, `Loot`.
   - `data/` — chassis (60 ships + 60 explorers), items (bases/rarities/affixes/uniques),
