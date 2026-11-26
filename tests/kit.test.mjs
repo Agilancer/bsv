@@ -8,6 +8,8 @@ import { CHASSIS, CHASSIS_BY_ID } from '../src/game/data/chassis.js';
 import { hullPlan, sideProfile } from '../src/game/ship/hullPlan.js';
 import { KIT_PROFILES } from '../src/game/ship/kitProfiles.js';
 import { BANDS, CLASS_LAYOUT, YARDS, layoutFor, PITCH_FLOOR, STRETCH, bandFor, indexKit, planHull, bakePlan, shieldLevel, waistFill, pickSpread, isCommand, kitSideProfile } from '../src/game/ship/kitPlan.js';
+import * as KP from '../src/game/ship/kitPlan.js';
+import { visibleOpenEdges, loosePieces, mountMargins, fanBlock } from './support/hullGeom.mjs';
 
 const load = (lang) => indexKit(JSON.parse(fs.readFileSync(new URL(`../assets/ships/kits/${lang}.json`, import.meta.url))));
 const KITS = Object.fromEntries(YARDS.map((y) => [y, load(y)]));      // the six player yards
@@ -278,6 +280,41 @@ test('each class has its own gesture (design-brief section 2)', () => {
   const side = tier(10).plan.hardpoints.filter((h) => h.type === 'broadside' && Math.abs(h.pos[0]) > tier(10).plan.dims.W * 1.4);
   assert.ok(side.length >= 4, 'dreadnought side-hull trenches');
   assert.ok(tier(10).plan.engines.filter((e) => Math.abs(e.pos[0]) > tier(10).plan.dims.W * 0.9).length === 2, 'dreadnought engine banks on the side hulls');
+});
+
+// Geometry checks after the technical review (tests/support/hullGeom.mjs): holes, floating pieces, seated mounts, clear fans.
+test('no hole shows: every open edge of a baked hull lies on another face or is enclosed by the hull', () => {
+  for (const { c, plan } of built) {
+    const v = visibleOpenEdges(KP, plan);
+    assert.equal(v.length, 0, `${c.id}: ${v.length} open edges show, e.g. ${JSON.stringify(v.slice(0, 3))} (W)`);
+  }
+});
+
+test('nothing floats: every piece of structure touches the hull', () => {
+  for (const { c, plan } of built) {
+    const loose = loosePieces(KP, plan);
+    assert.equal(loose.length, 0, `${c.id}: ${JSON.stringify(loose.slice(0, 3))}`);
+  }
+});
+
+test('mounts sit in their armour: gunhouses inside the warped housing, prow housings buried', () => {
+  for (const { c, plan } of built) {
+    const m = mountMargins(KP, plan);
+    assert.ok(m.gun <= 0.03, `${c.id}: a broadside gunhouse stands ${m.gun.toFixed(2)} W proud of its armour`);
+    // (the approved Velscour battlecruiser's lance reads 0.18 W: three housings side by side in a fine prow)
+    assert.ok(m.prow <= 0.2, `${c.id}: a prow gun housing stands ${m.prow.toFixed(2)} W outside the hull`);
+  }
+});
+
+test('broadside fans: no class blocks its guns much more than the Velscour hull of the class', () => {
+  const ref = {};
+  for (const b of built) if (b.c.yard === 'velscour') ref[b.c.tier] = fanBlock(KP, b.plan);
+  for (const { c, plan } of built) {
+    if (c.yard === 'velscour') continue;
+    const f = fanBlock(KP, plan), r = ref[c.tier];
+    assert.ok(f.mean <= r.mean + 0.12, `${c.id}: ${(f.mean * 100).toFixed(0)}% of broadside rays blocked (Velscour ${(r.mean * 100).toFixed(0)}%)`);
+    if (!r.worst) assert.ok(f.worst <= 4, `${c.id}: ${f.worst} of 45 rays blocked at one mount`);
+  }
 });
 
 test('side profiles for the crew cutaway are up to date with the kit', () => {

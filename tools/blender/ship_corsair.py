@@ -21,7 +21,7 @@ def flight_deck(p, u, xa, xb, z0, z1, y, t=0.1):
     p.box('trim', 0.03 * u, 0.02 * u, ln * 0.56, (xc, yt + 0.01 * u, z0 + 0.38 * ln))
     for sx in (-1, 1):
         for j in range(4 if u > 10 else 2):                                                                       # landing lights
-            p.box('glow', 0.04 * u, 0.02 * u, 0.05 * u, (xc + sx * w * 0.27, yt + 0.008 * u, z0 + 0.45 * u + j * 0.3 * u))
+            p.box('glow', 0.04 * u, 0.02 * u, 0.05 * u, (xc + sx * w * 0.27, yt + 0.008 * u, z0 + 1.1 * u + j * 0.3 * u))
         p.box('dark', 0.1 * u, 0.02 * u, 0.9 * u, (xc + sx * w * 0.14, yt + 0.004 * u, z1 - 0.95 * u))      # launch slots
         p.box('trim', 0.02 * u, 0.02 * u, 0.9 * u, (xc + sx * w * 0.14, yt + 0.01 * u, z1 - 0.95 * u))
 
@@ -37,7 +37,6 @@ def pontoon(B, variant, z0=-1.0, z1=6.0, zg=1.3):
     sec = lambda z, rk: [(xi, yd, z), (0.5 * u, yd, z), (0.64 * u, 0.3 * u, z + rk * 0.12 * u), (0.64 * u, -0.12 * u, z + rk * 0.26 * u), (0.42 * u, -0.42 * u, z + rk * 0.4 * u), (xi, -0.36 * u, z + rk * 0.4 * u)]
     za = z0 + 0.45 * u
     p.loft([sec(za, 1), sec(za + 0.5 * u, 0), sec(zg - 0.5 * u, 0), sec(zg, -1)], 'hull', cap_mat=('dark', 'dark'))
-    p.box('trim', 0.8 * u, 0.04 * u, 0.05 * u, (0.22 * u, 0.8 * u, za))                 # the landing mouth: frame and lights
     p.box('glow', 0.5 * u, 0.025 * u, 0.03 * u, (0.24 * u, 0.68 * u, za + 0.03 * u))
     p.box('hull', 0.07 * u, 0.7 * u, 0.1 * u, (0.2 * u, 0.5 * u, zg - 0.04 * u))        # two launch mouths forward
     p.box('glow', 0.5 * u, 0.02 * u, 0.03 * u, (0.22 * u, 0.72 * u, zg - 0.03 * u))
@@ -133,24 +132,48 @@ class Corsair(K.Style):
     block_aft = ((0.3, 0.5), (0.9, 0.15))
 
     def blockp(self, u, xi, xo):
-        return prof([(xi, 0.66 * u), (xo - 0.42 * u, 0.66 * u), (xo, 0.3 * u), (xo - 0.04 * u, 0.1 * u), (xo - 0.38 * u, -0.62 * u), (xi, -0.62 * u)])
+        return prof([(xi, 0.66 * u), (xo - 0.2 * u, 0.66 * u), (xo, 0.6 * u), (xo - 0.03 * u, 0.0), (xo - 0.38 * u, -0.62 * u), (xi, -0.62 * u)])     # (the upper casemates' face upright)
 
-    def wing(self, B):
-        return pontoon(B, 'delta')
+    def podpart(self, B, variant, hangar, ln, deep, wide=1.0):     # a belly pod cut from a salvaged raked-hexagon hull
+        hexa = lambda X, a, b: prof([(0, a), (X * 0.6, a), (X, a - 0.36 * (a - b)), (X * 0.94, a - 0.56 * (a - b)), (X * 0.5, b), (0, b)])
+        return K.spod(B, variant, hangar, ln, deep, wide=wide, shape=hexa, fore=lambda t: 1 - 0.7 * t, aft=lambda t: 1 - 0.5 * t ** 1.2, N=2,
+                      full=None if hangar else (-9.0 * ln, 8.0 * ln))
+
+    def pod(self, p, B, k, X, hangar):      # patched: a darker plate welded over the starboard flank, point defence on the shoulders
+        ln = 0.6 if p.variant == 'reactor' else 0.9 if B.id == 'C' else 1.0
+        if not hangar:
+            x = X * k * 0.995
+            p.slab(((-x, -0.9 * k, -6.0 * k * ln), (-x, -2.6 * k, -6.0 * k * ln), (-x, -2.6 * k, 1.5 * k * ln), (-x, -0.9 * k, 1.5 * k * ln)), 0.08 * k, 'dark', inset=0.1 * k, bevel=0.05 * k, out=(-1, 0, 0))
+            p.slab(((x, -0.6 * k, -3.0 * k * ln), (x, -2.0 * k, -3.0 * k * ln), (x, -2.0 * k, 5.0 * k * ln), (x, -0.6 * k, 5.0 * k * ln)), 0.08 * k, 'hull', inset=0.1 * k, bevel=0.05 * k, out=(1, 0, 0))
+        det(p, 'pd', (X * k * 0.6, 1.3 * k + 0.05, -5.0 * k * ln), 10.0 * k * ln)
+
+    def wing(self, B):                      # the carrier's delta: a hangar gallery and its flight deck on the wing's root
+        u = B.W
+        p, st = K.delta(B)
+        yd = 0.42 * u                       # the deck, clear of the aftmost broadside's fan (its front stops at z 0.4)
+        gal = lambda z, k: [(-0.3 * u, yd, z), (0.42 * u * k, yd, z), (0.42 * u * k, -0.02 * u, z), (-0.3 * u, -0.02 * u, z)]
+        p.loft([gal(-1.55 * u, 0.9), gal(-1.35 * u, 1.0), gal(0.15 * u, 1.0), gal(0.3 * u, 0.85)], 'hull', cap_mat=('dark', 'dark'))
+        for z in (-0.95 * u, -0.25 * u):                 # hangar bays on the gallery's outboard wall, lit like doorways
+            p.slab(((0.42 * u, yd - 0.06 * u, z - 0.25 * u), (0.42 * u, 0.06 * u, z - 0.25 * u), (0.42 * u, 0.06 * u, z + 0.25 * u), (0.42 * u, yd - 0.06 * u, z + 0.25 * u)), 0.01 * u, 'dark', embed=0.02 * u, out=(1, 0, 0))
+            p.box('glow', 0.02 * u, 0.02 * u, 0.4 * u, (0.425 * u, yd - 0.08 * u, z))
+        flight_deck(p, u, -0.32 * u, 0.55 * u, -1.72 * u, 0.4 * u, yd)
+        p.marker('hp.hg', (0.42 * u, (yd - 0.02 * u) / 2, -0.6 * u))
+        return p
 
     def extra_parts(self):
         return [pontoon(K.M, 'deck', -0.6, 6.4)]
 
-    def sidehull(self, B):                  # the dreadnought's side hulls are carrier hulls: a deck over each
+    def sidehull(self, B):                  # the dreadnought's side hulls are carrier hulls: a flight deck on each one's crown
         u = B.W
         p = K.sidehull(B)
-        cx, y = 0.5 * u, 0.62 * B.HT + 0.02 * u
-        gal = lambda z, k: [(cx - 0.4 * u * k, y, z), (cx + 0.4 * u * k, y, z), (cx + 0.34 * u * k, 0.12 * u, z), (cx - 0.34 * u * k, 0.12 * u, z)]
-        p.loft([gal(-3.3 * u, 0.8), gal(-1.2 * u, 1.0)], 'hull', cap_mat=('dark', 'hull'))    # the landing gallery over the tail
-        p.box('glow', 0.4 * u, 0.02 * u, 0.03 * u, (cx, y - 0.1 * u, -3.31 * u))
-        p.loft([gal(1.7 * u, 1.0), gal(2.5 * u, 0.7)], 'hull', cap_mat=('hull', 'dark'))      # launch mouths over the bow
-        flight_deck(p, u, 0.06 * u, 1.04 * u, -3.7 * u, 3.3 * u, y)
-        p.marker('hp.hg', (cx + 0.4 * u, 0.3 * u, 0.2 * u))
+        cx, w = K.side_cx()
+        cx, y = cx * u, 0.62 * B.HT + 0.02 * u      # (on the side hull's own crown: a raised gallery walls in the body's upper battery)
+        gal = lambda z, k: [(cx - 0.8 * w * u * k, y, z), (cx + 0.8 * w * u * k, y, z), (cx + 0.7 * w * u * k, 0.12 * u, z), (cx - 0.7 * w * u * k, 0.12 * u, z)]
+        p.loft([gal(-3.3 * u, 0.8), gal(-1.5 * u, 1.0)], 'hull', cap_mat=('dark', 'hull'))    # the landing gallery in the tail, its mouth aft
+        p.box('glow', 0.3 * u, 0.02 * u, 0.03 * u, (cx, y - 0.1 * u, -3.29 * u))
+        p.loft([gal(1.85 * u, 1.0), gal(2.5 * u, 0.7)], 'hull', cap_mat=('hull', 'dark'))      # launch mouths over the bow
+        flight_deck(p, u, cx - 0.32 * u, cx + 0.42 * u, -3.7 * u, 3.3 * u, y)
+        p.marker('hp.hg', (cx + w * u, 0.0, -2.4 * u))
         return p
 
 
