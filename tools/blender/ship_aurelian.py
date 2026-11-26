@@ -73,12 +73,15 @@ class Aurelian(K.Style):
             p.marker('hp.pr', (0, -0.02 * u, zm - 0.62 * B.S))
         muzzles(p, B, [x for x in marks if x], -0.06 * u, zm, ln=0.6, n=10, tubes=B.id == 'C')
 
-    def lobes(self, p, B, hf, z0, z1, zu, lo, hi):      # the cruiser: a lance emitter on the lower lobe, ahead of the upper
+    def lobes(self, p, B, hf, z0, z1, zu, lo, hi, floor):   # the cruiser: a lance emitter laid on the lower lobe, ahead of the upper
         u = B.W
-        y, za = lo + 0.11 * u, zu - 0.35 * u
-        p.tube([(0.0, 0.15 * u), (0.3 * u, 0.15 * u), (0.42 * u, 0.1 * u), (z1 - za - 0.3 * u, 0.08 * u), (z1 - za - 0.16 * u, 0.1 * u)], (0, y, za), 'z', 10, 'hull', cap_mat=('hull', 'dark'))
-        p.tube([(0.3 * u, 0.165 * u), (0.36 * u, 0.165 * u)], (0, y, za), 'z', 10, 'trim')
-        p.tube([(z1 - za - 0.17 * u, 0.075 * u), (z1 - za - 0.1 * u, 0.06 * u), (z1 - za - 0.03 * u, 0.015 * u)], (0, y, za), 'z', 8, 'glow')
+        P = lambda z, r: ((0, floor(z) + r * 0.8, z), r)
+        za = zu - 0.12 * u
+        body = [P(za, 0.12 * u), P(za + 0.1 * u, 0.12 * u), P(za + 0.16 * u, 0.08 * u), P(z1 - 0.12 * u, 0.07 * u)]
+        p.sweep([c for c, _ in body], [r for _, r in body], 10, 'hull', cap_mat=('hull', 'dark'))
+        p.sweep([P(za + 0.1 * u, 0.12 * u)[0], P(za + 0.14 * u, 0.12 * u)[0]], [0.13 * u, 0.13 * u], 10, 'trim')
+        tip = [P(z1 - 0.13 * u, 0.07 * u), P(z1 - 0.07 * u, 0.07 * u), P(z1 - 0.02 * u, 0.07 * u)]
+        p.sweep([c for c, _ in tip], [0.065 * u, 0.05 * u, 0.012 * u], 8, 'glow')
 
     # ---- the body: every part a smooth compressed-oval loft, swept (no facets, no boxes)
     wellrim = ((-0.5, 0.96), (-0.03, 0.8), (0.035, 0.7), (0.035, 0.6))    # turrets in domed blisters

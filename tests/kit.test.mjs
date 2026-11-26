@@ -9,7 +9,7 @@ import { hullPlan, sideProfile } from '../src/game/ship/hullPlan.js';
 import { KIT_PROFILES } from '../src/game/ship/kitProfiles.js';
 import { BANDS, CLASS_LAYOUT, YARDS, layoutFor, PITCH_FLOOR, STRETCH, bandFor, indexKit, planHull, bakePlan, shieldLevel, waistFill, pickSpread, isCommand, kitSideProfile } from '../src/game/ship/kitPlan.js';
 import * as KP from '../src/game/ship/kitPlan.js';
-import { visibleOpenEdges, loosePieces, mountMargins, fanBlock, backFaces } from './support/hullGeom.mjs';
+import { visibleOpenEdges, loosePieces, mountMargins, fanBlock, backFaces, prowArc } from './support/hullGeom.mjs';
 
 const load = (lang) => indexKit(JSON.parse(fs.readFileSync(new URL(`../assets/ships/kits/${lang}.json`, import.meta.url))));
 const KITS = Object.fromEntries(YARDS.map((y) => [y, load(y)]));      // the six player yards
@@ -323,6 +323,16 @@ test('broadside fans: no class blocks its guns much more than the Velscour hull 
     assert.ok(f.mean <= r.mean + 0.12, `${c.id}: ${(f.mean * 100).toFixed(0)}% of broadside rays blocked (Velscour ${(r.mean * 100).toFixed(0)}%)`);
     // and mount by mount: no battery row worse than the Velscour hull's same row by more than a few of the 45 rays
     for (const [t, n] of Object.entries(f.byTier)) assert.ok(n <= (r.byTier[t] || 0) + 4, `${c.id}: ${n} of 45 rays blocked at a tier ${t} mount (Velscour ${r.byTier[t] || 0})`);
+  }
+});
+
+test("prow guns keep their arc: no class walls in its prow traverse much more than the Velscour hull of its class", () => {
+  const ref = {};
+  for (const { c, plan } of built) if (c.yard === 'velscour') ref[c.tier] = prowArc(KP, plan);
+  for (const { c, plan } of built) {
+    const r = ref[c.tier], f = prowArc(KP, plan);
+    if (!r) continue;
+    assert.ok(f.mean <= r.mean + 0.25, `${c.id}: ${(f.mean * 100).toFixed(0)}% of prow rays blocked (Velscour ${(r.mean * 100).toFixed(0)}%)`);
   }
 });
 

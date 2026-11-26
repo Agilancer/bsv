@@ -158,14 +158,32 @@ Read this first when picking the work up (new session or another model). Then `C
       cup of its own, which the outward winding turned inside out, so from the front it was culled and the launchers
       inside showed (the orange bar); it is now lofted with the snout, and a new test (`hullGeom.backFaces`: rays from
       the six axis directions must meet a face from its front) catches any face that opens a hole that way.
+    - Iteration 3 (review/iter3): both critics APPROVE; the critic loop is done (iteration 1 reject / reject, iteration 2
+      reject (art) / approve (technical), iteration 3 approve / approve). Wrap-up fixes after the verdicts: the T6 split
+      head keeps its prow guns' arc (the lower lobe runs 0.35 W past the upper, the upper lobe's tip lifts and the lower
+      lobe's floor falls away toward the mouth, `HEAD_LIFT` / `HEAD_DROP`, the launchers 0.2 W inside the mouth, the
+      dress follows the floor; Hollow's open maw keeps them 0.8 W deep, `Style.prow_sink`), so its traverse is blocked
+      no more than Velscour's (0-16% of rays against 17%); Corsair's fork tines splay clear of the tubes' arc (as far as
+      the shield allows at the bow) and its armour over the tubes is short; a new test (`hullGeom.prowArc`, kit-spec
+      section 9) holds every class within +25% of the Velscour class. Corsair's gallery roofs sit inside their flight
+      decks (no coincident faces). Polish: the T10 inboard edges are lit only in short segments at the crossways;
+      Hollow's T4 face is dark with a ring of eight maw lights; Hollow's T6 maw is lit red along the mandibles' lips and
+      framed by two side mandibles hooked in at their tips.
   All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
   session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 
 ## Next, in order
-1. The critic loop (fourth pass above): in progress. Still open from the earlier passes: Tidewright / Ironhold /
-   Corsair main sections are six-point prisms; band S hulls of the curved yards are faceted.
-2. Run the critic loop on renders per yard (`tools/kitshots.cjs`, viewer `?yard=<lang>&fit&webgl&guns`).
-   Known weak classes: cutter, frigate, destroyer and cruiser read alike; destroyer snout is short.
+1. The critic loop (fourth pass above): DONE, both critics approved at iteration 3. Left over, minor: the technical
+   critic's B3-B5 (fixed detail cut by the triangle caps on hollow_7, corsair_6, aurelian_7, hollow_10 near its cap;
+   thin shield margins on tidewright_10, ironhold_10 at 0.996 and ironhold_1 at 0.995; Tidewright command structures
+   0.75 s from the neighbouring turret pivots against the 1.2 s rule), the harmless culled faces it found (the short
+   well collar's foot disc on Aurelian / Hollow T5, a 0.005 W seam pinhole dead astern on Aurelian / Hollow T8), and
+   the art director's polish 1 and 4 (Hollow's T8 wing still has a straight leading edge and a square tip; Ironhold's
+   T6 head reads as a rounded capsule, squarer chamfers would suit it). The T6 launchers now sit at the slot's mouth,
+   so their muzzles show there, as on the other classes' tube faces. Still open from the earlier passes: Tidewright /
+   Ironhold / Corsair main sections are six-point prisms; band S hulls of the curved yards are faceted.
+2. Re-run the critics when a kit changes (prompts in design-brief section 4 / kit-spec section 9; renders with
+   `tools/viewer.html?yard=<lang>&webgl&guns`).
 3. Gameplay gates: done for the rework. Measured on commit 34ec6b0 (main + the `?nokit` flag), the same code with and
    without kit hulls (`QS='&nokit' node tools/duel.cjs ...`). Duel, kit hulls (you-kill / it-kills, x target): small
    0.89/0.76, mid 0.98/1.02, large 1.04/1.02, epic 0.89/1.17, legendary 1.23/1.46, gargantuan 0.96/1.65 OUT. Old

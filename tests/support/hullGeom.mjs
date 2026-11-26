@@ -293,3 +293,33 @@ export function backFaces(K, plan, n = 32) {
   }
   return out;
 }
+
+// The prow guns' arcs (after the technical review): from each prow pivot, 35 rays over the prow traverse (yaw +-0.5,
+// pitch +-0.3) out to 3.3 x the prow gun's scale (1.2 s); a ray is blocked when, after it first leaves the hull (the
+// tube face, or the launcher's throat), it meets the hull again more than 0.05 W further on. Returns the mean
+// blocked share and the most rays blocked at one mount.
+export function prowArc(K, plan) {
+  const W = plan.dims.W, s = 0.72 * W * 1.2, { P } = triangles(K, plan), nT = P.length / 9;
+  let tot = 0, blk = 0, worst = 0;
+  for (const h of plan.hardpoints) {
+    if (h.type !== 'prow') continue;
+    const o = h.pos;
+    let mb = 0;
+    for (let a = 0; a < 7; a++) for (let e = 0; e < 5; e++) {
+      const yaw = -0.5 + a / 6, pit = -0.3 + 0.15 * e, d = [Math.cos(pit) * Math.sin(yaw), Math.sin(pit), Math.cos(pit) * Math.cos(yaw)];
+      const hs = [];
+      for (let t = 0; t < nT; t++) {
+        const i = t * 9, r = rayTri(o, d, P, i);
+        if (r <= 0 || r >= 3.3 * s) continue;
+        const ux = P[i + 3] - P[i], uy = P[i + 4] - P[i + 1], uz = P[i + 5] - P[i + 2], vx = P[i + 6] - P[i], vy = P[i + 7] - P[i + 1], vz = P[i + 8] - P[i + 2];
+        hs.push([r, (uy * vz - uz * vy) * d[0] + (uz * vx - ux * vz) * d[1] + (ux * vy - uy * vx) * d[2] < 0]);   // [distance, faces the ray]
+      }
+      hs.sort((p, q) => p[0] - q[0]);
+      const out = hs.find(([, f]) => !f);
+      tot++;
+      if (out && hs.some(([r, f]) => f && r > out[0] + 0.05 * W)) { blk++; mb++; }
+    }
+    worst = Math.max(worst, mb);
+  }
+  return { mean: tot ? blk / tot : 0, worst };
+}

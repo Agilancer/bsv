@@ -320,7 +320,9 @@ already in the scene keep their mesh until they respawn.
     lofted as a hollow cup on its own is turned inside out by the outward winding, so a recessed face is lofted with
     its body); no piece of structure floats; broadside gunhouses within 0.03 W of their warped housing and prow
     housings within 0.18 W of the hull section; no class blocks its broadside fans more than the Velscour hull of the
-    class (+12% of the rays), nor any battery row more than the same Velscour row (+4 of 45 rays)
+    class (+12% of the rays), nor any battery row more than the same Velscour row (+4 of 45 rays); no class walls in
+    its prow guns' traverse (yaw +-0.5, pitch +-0.3, rays from the pivot that meet the hull again after leaving it)
+    more than the Velscour hull of its class (+25% of the rays)
 - **Review set:** all ten player classes for the six player yards; for enemy use, one design per size
   band and per role kit of each faction (`tools/viewer.html?enemy=<size>&faction=<f>`).
 - **Renders:** `tools/viewer.html?yard=<lang>&fit&webgl`, the play camera and the title camera, reviewed

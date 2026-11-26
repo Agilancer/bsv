@@ -104,12 +104,13 @@ class Tidewright(K.Style):
             xr = h[3][0] if variant != 'lobes' else 1.0 * u + 0.36 * (h[3][0] - 1.0 * u)      # (the split head is still flaring there)
             array(p, B, (xr - 0.03 * u, h[3][1], z0 * 0.55), {'C': 0.8, 'L': 0.7}.get(B.id, 0.5), min(z0 / u * 0.8, 2.0) if B.id == 'C' else min(z0 / u * 0.7, 1.5), 0.2)
 
-    def lobes(self, p, B, hf, z0, z1, zu, lo, hi):      # the cruiser: a sensor housing on the lower lobe, ahead of the upper
+    def lobes(self, p, B, hf, z0, z1, zu, lo, hi, floor):   # the cruiser: a sensor housing laid on the lower lobe, ahead of the upper
         u = B.W
-        y, za = lo + 0.1 * u, zu - 0.3 * u
-        p.tube([(0.0, 0.07 * u), (0.12 * u, 0.12 * u), (z1 - za - 0.3 * u, 0.12 * u), (z1 - za - 0.08 * u, 0.06 * u)], (0, y, za), 'z', 8, 'dark', cap_mat=('dark', 'glow'))
-        p.tube([(0.2 * u, 0.13 * u), (0.26 * u, 0.13 * u)], (0, y, za), 'z', 8, 'trim')
-        p.tube([(z1 - za - 0.45 * u, 0.128 * u), (z1 - za - 0.39 * u, 0.128 * u)], (0, y, za), 'z', 8, 'glow')
+        P = lambda z: (0, floor(z) + 0.08 * u, z)
+        za = zu - 0.05 * u
+        p.sweep([P(za), P(za + 0.08 * u), P(z1 - 0.12 * u), P(z1 - 0.03 * u)], [0.05 * u, 0.1 * u, 0.1 * u, 0.05 * u], 8, 'dark', cap_mat=('dark', 'glow'))
+        p.sweep([P(za + 0.1 * u), P(za + 0.14 * u)], [0.11 * u, 0.11 * u], 8, 'trim')
+        p.sweep([P(z1 - 0.1 * u), P(z1 - 0.06 * u)], [0.105 * u, 0.105 * u], 8, 'glow')
 
     # ---- the body: slender lozenges with fine ends
     block_fore = ((0.05, 1.8), (0.5, 1.0), (0.85, 0.4))

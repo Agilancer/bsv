@@ -35,6 +35,7 @@ class Style:
     hangars5, side5 = (0.72,), None             # the five-nozzle block's hangar mouths and side socket
     collars = True              # gold collars and top plates on battery blocks and side hulls
     slotlit = True              # the cruiser's split head: its slot's floor lit in the yard's glow
+    prow_sink = None            # the split head's prow mounts this far (x W) behind the upper lobe's tip, when not PROW_SINK
     def extra_parts(self): return []
     def blockp(self, u, xi, xo): return None    # a battery block's section, when not the faceted one
     def app(self, p, B, variant): pass          # dress an appendage the yard takes from the ladder
@@ -70,7 +71,7 @@ class Style:
     def fins(self, variant, fins): return fins
     def pod(self, p, B, k, X, hangar): pass
     def head(self, p, B, hf, z0, z1, zu, lo, hi): return False     # the cruiser's split head grown by the yard (True: done)
-    def lobes(self, p, B, hf, z0, z1, zu, lo, hi): pass            # dress on the split head's lobes
+    def lobes(self, p, B, hf, z0, z1, zu, lo, hi, floor): pass     # dress on the split head's lobes (floor(z): the lower lobe's floor)
     def details(self): return details()
 
 
@@ -1103,7 +1104,9 @@ def sidehull(B=C):
     if ki < 1 and sd.get('lit', True):     # the gap to the body: the side hull's inboard crown edge lit between the crossways
         hin = [hfull[0]] + [(-x, y, 'hull') for x, y in inb(hfull)[::-1]] + [hfull[-1]]
         yE = hfull[0][1] * 0.86
-        p.box('glow', 0.025 * u, 0.025 * u, 2.5 * u, (cx - xat(hin, yE) + 0.006 * u, yE, zc0))
+        for zz in (zc0 - 1.4 * u, zc0 + 1.4 * u):  # (short segments at the crossways: no hull-length glow strip)
+            for dz in (-0.55, 0.55):
+                p.box('glow', 0.025 * u, 0.025 * u, 0.3 * u, (cx - xat(hin, yE) + 0.006 * u, yE, zz + dz * u))
     det(p, 'pd', (cx, hfull[0][1] + 0.07 * u, za_ + 0.3 * u), zf - za_ - 0.6 * u, side='this')
     det(p, 'light', (xo, hfull[2][1], zf + 0.3 * u), 0, side='this')
     det(p, 'light', (xo - 0.12 * u, hfull[2][1], za_ - 0.6 * u), 0, side='this')
@@ -1302,39 +1305,50 @@ def spod(B, variant, hangar, ln=1.0, deep=1.0, e=0.75, n=9, fore=None, aft=None,
     return p
 
 
-PROW_SINK = 0.8     # x W: how much deeper than the face a split head's prow mounts sit (the launchers' muzzles stay deep in the slot)
+HEAD_LIFT = (0.0, 0.0, 0.05, 0.18)      # x W, at the split head's lobe stations: the upper lobe lifts toward its tip
+HEAD_DROP = (0.0, 0.0, -0.12, -0.3)     # and the lower lobe falls away toward its tip
+PROW_SINK = 0.2     # x W: how much deeper than the upper lobe's tip a split head's prow mounts sit (muzzles just inside the slot's mouth;
+                    # a yard whose maw is open all round may sink them further, Style.prow_sink)
 
 
 def split_head(p, B, hh, z0, z1, marks):
     """The cruiser's split head (the other yards): the head's section is cut level into an upper and a lower lobe round a
-    deep sensor slot open at the prow face; the lower lobe runs on past the upper, a stepped double prow. A yard may
-    grow its own lobes (Y.head: Hollow's mandibles) and dresses their tips (Y.lobes: an emitter, a sensor housing, a
-    visor, tines). The slot is lit in the yard's glow, along its floor and at its back; the prow mounts are sunk deep in
-    it, their tubes in its throat."""
+    deep sensor slot open at the prow face; the lower lobe runs on 0.35 W past the upper, a stepped double prow. The slot
+    flares toward its mouth (the upper lobe's tip lifts, the lower lobe's floor falls away ahead of the launchers), so the
+    prow guns at its mouth keep their arc. A yard may grow its own lobes (Y.head: Hollow's mandibles) and dresses their
+    tips (Y.lobes: an emitter, a sensor housing, a visor, tines; floor(z) is the lower lobe's floor). The slot is lit in
+    the yard's glow, along its floor and at its back; the launchers' tubes stand in its throat."""
     u = B.W
     hf = shiplib.fair(hh, B.id)
     lo, hi = -0.13 * u, 0.15 * u
-    zu = z1 - 0.8 * u
+    zu = z1 - 0.35 * u
     grown = Y.head(p, B, hf, z0, z1, zu, lo, hi)
+    ks = [(0, 1, 1), (0.45, 0.95, 0.96), (0.78, 0.8, 0.86), (1.0, 0.44, 0.6)]
+    lift, drop = [d * u for d in HEAD_LIFT], [d * u for d in HEAD_DROP]
     if not grown:
         up, dn = shiplib.cut_bot(hf, hi), shiplib.cut_top(hf, lo)
-        ks = [(0, 1, 1), (0.45, 0.95, 0.96), (0.78, 0.8, 0.86), (1.0, 0.44, 0.6)]
-        lobe = lambda prof, ye, za, zb: [([(x * kx, ye + (y - ye) * ky, t) for x, y, t in prof], za + f * (zb - za)) for f, kx, ky in ks]
-        p.hloft(lobe(up, hi, z0, zu), caps=(False, True))
-        p.hloft(lobe(dn, lo, z0, z1), caps=(False, True))
+        lobe = lambda prof, ye, za, zb, dys: [([(x * kx, ye + (y - ye) * ky + dy, t) for x, y, t in prof], za + f * (zb - za)) for (f, kx, ky), dy in zip(ks, dys)]
+        p.hloft(lobe(up, hi, z0, zu, lift), caps=(False, True))
+        p.hloft(lobe(dn, lo, z0, z1, drop), caps=(False, True))
     xs = xat(hf, 0.0) * 0.9
     yc = (lo + hi) / 2
     p.box('glow', xs * 1.2, (hi - lo) * 0.45, 0.02 * u, (0, yc, z0 + 0.012 * u))      # the slot, lit at its back
+    def floor(z):                       # the lower lobe's floor at z
+        f = (z - z0) / (z1 - z0)
+        for (fa, *_), (fb, *_), da, db in zip(ks, ks[1:], drop, drop[1:]):
+            if f <= fb:
+                return lo + da + (db - da) * max(0.0, f - fa) / (fb - fa)
+        return lo + drop[-1]
     for sx in (-1, 1) if Y.slotlit and not grown else ():                               # and along its floor, out onto the lower lobe
-        za, zb = z0 + 0.1 * u, z1 - 0.3 * u
-        p.box('glow', 0.03 * u, 0.012 * u, zb - za, (sx * xs * 0.42, lo + 0.004 * u, (za + zb) / 2))
+        zz = [z0 + 0.1 * u, z0 + 0.78 * (z1 - z0), z1 - 0.3 * u]
+        p.sweep([(sx * xs * 0.42, floor(z) + 0.002 * u, z) for z in zz], [0.016 * u] * 3, 4, 'glow', squash=0.5)
     if not grown:
         det(p, 'dome', (xs * 0.72, lo + 0.005 * u, z0 + 0.4 * u), (zu - z0) * 0.45)
     for x in marks:
-        p.marker('hp.pr', (x * u, yc, zu - 0.62 * B.S - PROW_SINK * u))
+        p.marker('hp.pr', (x * u, yc, zu - 0.62 * B.S - (Y.prow_sink or PROW_SINK) * u))
         if not grown:
-            p.tube([(-0.3 * u, 0.15 * u), (0.0, 0.15 * u)], (x * u, yc, zu - PROW_SINK * u), 'z', 8, 'hull', cap_mat='dark')
-    Y.lobes(p, B, hf, z0, z1, zu, lo, hi)
+            p.tube([(-1.1 * u, 0.15 * u), (0.0, 0.15 * u)], (x * u, yc, zu - PROW_SINK * u), 'z', 8, 'hull', cap_mat='dark')     # (back to where the slot is level)
+    Y.lobes(p, B, hf, z0, z1, zu, lo, hi, floor)
 
 
 def split_prow(p, B, h, z0, z1, marks):

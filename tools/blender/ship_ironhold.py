@@ -123,15 +123,16 @@ class Ironhold(K.Style):
         p.box('hull', 1.3 * u, 0.16 * u, 0.5 * u, (0, bot + 0.06 * u, z1 - 0.35 * u))         # jaw
         K._belts(p, B, h, z0 + 0.06 * u, z0 + (zf - z0) * 0.5, (2,), 0.05, 0.08, None)
 
-    def lobes(self, p, B, hf, z0, z1, zu, lo, hi):      # the cruiser: a brow and a bolted visor on the upper lobe, a jaw on the lower
+    def lobes(self, p, B, hf, z0, z1, zu, lo, hi, floor):   # the cruiser: a brow and a bolted visor on the upper lobe, a jaw on the lower
         u = B.W
         top = hf[0][1]
-        yt = hi + (top - hi) * 0.6         # the upper lobe's tip, its top
+        hi += K.HEAD_LIFT[-1] * u           # (the upper lobe's tip is lifted)
+        yt = hi + (top - hi + K.HEAD_LIFT[-1] * u) * 0.6         # the upper lobe's tip, its top
         p.box('hull', 1.0 * u, 0.16 * u, 0.9 * u, (0, yt - 0.02 * u, zu - 0.5 * u))                     # brow
         p.box('hull', 0.86 * u, 0.2 * u, 0.06 * u, (0, (hi + yt) / 2, zu + 0.01 * u))                  # the visor over the slot
         for x in (-0.3, 0.0, 0.3):
             p.box('trim', 0.05 * u, 0.05 * u, 0.03 * u, (x * u, (hi + yt) / 2, zu + 0.05 * u))
-        yb = lo + (hf[-1][1] - lo) * 0.6
+        yb = floor(z1) + (hf[-1][1] - lo) * 0.6
         p.box('hull', 0.9 * u, 0.14 * u, 0.7 * u, (0, yb + 0.04 * u, z1 - 0.4 * u))                     # jaw
 
     def command(self, B, variant):
