@@ -1,5 +1,5 @@
 // The explorer's dropship on the surface: the Blender model (assets/vehicles/lander.glb, tools/blender/f_lander.py)
-// with its moving parts (four folding legs, the stern ramp, body flaps, intake fans, two rail turrets), the effects
+// with its moving parts (four folding legs, the stern ramp, body flaps, intake fans, two ventral gun pods), the effects
 // that ride on it (retro and main engine flames, the plasma sheath of an atmospheric entry, the glowing heat
 // shield) and the turrets' fire. Landing.js flies it; PlanetMode keeps it as `mode.lander` (the root group,
 // feet at y = 0) and `mode.landerCtl` (this object).
@@ -36,8 +36,9 @@ export function landerScale(dims) {
   return clamp(Math.max(dims.W / LANDER.fitW, dims.L / LANDER.fitL, (dims.H || 0) / LANDER.fitH), 1, LANDER.maxScale);
 }
 
-// the twin rails: reach (3D), cadence per turret, slug speed, share of the expected explorer's DPS per turret
-export const TURRET_RANGE = 230, TURRET_CD = 0.3, TURRET_SPEED = 360, TURRET_SHARE = 0.35;
+// the ventral gun pods (two short square barrels each): reach (3D), cadence per pod, slug speed, share of the
+// expected explorer's DPS per pod; how far the barrels depress (down to the ground under a descending lander) and lift
+export const TURRET_RANGE = 230, TURRET_CD = 0.3, TURRET_SPEED = 360, TURRET_SHARE = 0.35, TURRET_DEPRESS = -1.45, TURRET_LIFT = 0.3;
 
 const dpsAt = new Map();
 const explorerDps = (L) => { let d = dpsAt.get(L); if (d == null) dpsAt.set(L, d = expectedExplorer(L).dps); return d; };
@@ -207,7 +208,7 @@ export class Lander {
       for (const k of Object.keys(turrets)) {
         const t = turrets[k], g = guns[k];
         if (g) t.attach(g);              // the gun traverses with its turret
-        this.turrets.push({ node: t, gun: g, muzzle: muzzles[k], side: Math.sign(t.position.x) || 1, yaw: 0, pitch: 0, cd: 0.4 + k * 0.17, barrel: 0, recoil: 0, rest: g ? g.position.clone() : null, target: null });
+        this.turrets.push({ node: t, gun: g, muzzle: muzzles[k], side: Math.sign(t.position.x) || 1, yaw: 0, pitch: 0, cd: 0.4 + k * 0.17, barrel: 0, recoil: 0, rest: g ? g.position.clone() : null, gunY: g ? g.position.y : -0.55, target: null });
       }
       this.att.add(model);
     } else {
@@ -280,7 +281,7 @@ export class Lander {
   }
 
   // ---------------------------------------------------------------- turrets
-  // the twin rails cover the drop and the pickup: nearest hostile in reach of the landing zone
+  // the belly guns cover the drop and the pickup: nearest hostile in reach of the landing zone
   updateTurrets(dt, armed) {
     const M = this.mode, C = M.creatures, t = this.engine.time;
     if (!this.turrets.length) return;
@@ -299,14 +300,13 @@ export class Lander {
         T.aimAt.copy(_w);
         _w.applyMatrix4(inv).sub(T.node.position);
         yaw = Math.atan2(_w.x, _w.z);
-        pitch = Math.atan2(_w.y - 0.62, Math.hypot(_w.x, _w.z));
+        pitch = Math.atan2(_w.y - T.gunY, Math.hypot(_w.x, _w.z));
       } else {
         yaw = Math.sin(t * 0.35 + i * 2.1) * 0.55 + T.side * 0.15;
-        pitch = 0.08 + Math.sin(t * 0.5 + i) * 0.05;
+        pitch = -0.12 + Math.sin(t * 0.5 + i) * 0.05;
       }
-      // traverse limits: outboard round to the quarter, inboard short of the other turret
-      const lo = T.side > 0 ? -1.0 : -2.2, hi = T.side > 0 ? 2.2 : 1.0;
-      const want = clamp(wrap(yaw), lo, hi), pw = clamp(pitch, -0.62, 1.05);
+      // hanging under the belly, the pods traverse all the way round; only the barrels' depression is limited
+      const want = wrap(yaw), pw = clamp(pitch, TURRET_DEPRESS, TURRET_LIFT);
       T.yaw += clamp(wrap(want - T.yaw), -3.2 * dt, 3.2 * dt);
       T.pitch += clamp(pw - T.pitch, -2.4 * dt, 2.4 * dt);
       T.node.rotation.y = T.yaw;
@@ -315,8 +315,8 @@ export class Lander {
         T.recoil = Math.max(0, T.recoil - dt * 3.2);
         if (T.rest) T.gun.position.copy(T.rest).addScaledVector(_v.set(0, 0, -1).applyAxisAngle(X, -T.pitch), T.recoil * 0.5);
       }
-      // on bearing (the rails can't depress far, but the slug flies straight at what they lay on)
-      if (e) aimed = Math.abs(wrap(want - T.yaw)) < 0.12 && Math.abs(wrap(yaw) - want) < 0.05;
+      // on bearing, and the barrels laid within reach of the shot
+      if (e) aimed = Math.abs(wrap(want - T.yaw)) < 0.12 && Math.abs(pitch - T.pitch) < 0.3;
       if (aimed && T.cd <= 0) { T.cd = TURRET_CD; this.fire(T, e); }
     }
   }
@@ -324,10 +324,10 @@ export class Lander {
     const M = this.mode;
     T.barrel ^= 1;
     T.recoil = 1;
-    // muzzle: the twin rails sit 0.26 either side of the gun's centre line
+    // muzzle: the two barrels sit 0.24 either side of the pod's centre line
     this.root.updateMatrixWorld(true);
     const mz = (T.muzzle ? T.muzzle.getWorldPosition(_v) : T.node.getWorldPosition(_v));
-    _w.set(T.barrel ? 0.26 : -0.26, 0, 0).applyQuaternion(T.node.getWorldQuaternion(_q)).multiplyScalar(this.s);
+    _w.set(T.barrel ? 0.24 : -0.24, 0, 0).applyQuaternion(T.node.getWorldQuaternion(_q)).multiplyScalar(this.s);
     mz.add(_w);
     const dir = _w.copy(T.aimAt).sub(mz);
     const dist = dir.length(); dir.divideScalar(dist || 1);

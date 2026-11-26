@@ -4,7 +4,7 @@
 // and a fire trail behind (airless worlds: a deorbit burn on the retros instead) -> the dropship punches down
 // through the cloud deck and booms past the camera -> retro burn, legs down, dust storm, touchdown -> ramp down and
 // the explorer drives out, the camera settling into the play camera. A hot landing zone is cleared by the
-// dropship's two rail turrets on the way down.
+// dropship's two belly gun pods on the way down.
 // Ascent (~10 s): the explorer drives up the ramp, the ramp seals, the retros lift it, legs fold, it pitches over,
 // lights the main engines, breaks the sound barrier and climbs through the clouds. The turrets cover the pickup.
 // Extraction (the dropship called to the explorer) flies a short powered approach under the play camera.
