@@ -19,14 +19,15 @@ export const bandFor = (W) => BANDS.find((b) => W < b.max);
 // Class layouts by tier (design-brief section 2): which variants make the class, where its keyed masses go
 // (u: 0 stern .. 1 bow), how many battery rows it has (facet tiers, plus the row on side hulls or battery
 // blocks) and how many nozzles it shows. `sections` fixes the number of battery sections when the mounts are
-// not on them (the heavy cruiser's battery blocks). A tier without a layout keeps the procedural builder.
+// not on them (the heavy cruiser's battery blocks). `broad`: the end(s) whose breadth is the class's gesture, which
+// the whole-ship profile leaves at full beam. A tier without a layout keeps the procedural builder.
 const HANGAR = (u) => ({ part: 'hangar', variant: 'mouth', sock: 'sock.side', u, mirror: true });
 export const CLASS_LAYOUT = {
   // cutter: an engine with a nose
-  1: { bow: 'wedge', battery: 'blister', stern: 'cutter', rows: 1, nozzles: 3,
+  1: { bow: 'wedge', battery: 'blister', stern: 'cutter', rows: 1, nozzles: 3, broad: 'aft',
     keyed: [{ part: 'command', variant: 'blister', sock: 'sock.top', u: 0.8 }] },
   // corvette: broad shoulders, two nacelles faired into the flanks
-  2: { bow: 'wedge', battery: 'blister', stern: 'shoulder', rows: 1, nozzles: 3,
+  2: { bow: 'wedge', battery: 'blister', stern: 'shoulder', rows: 1, nozzles: 3, broad: 'aft',
     keyed: [{ part: 'command', variant: 'block', sock: 'sock.top', u: 0.42 }, { part: 'appendage', variant: 'nacelle', sock: 'sock.side', u: 0.2, mirror: true }] },
   // frigate: deep belly
   3: { bow: 'bastion', battery: 'trench1', stern: 'block', rows: 1, nozzles: 4,
@@ -35,17 +36,17 @@ export const CLASS_LAYOUT = {
   4: { bow: 'snout', battery: 'trenchc', stern: 'tri', rows: 1, nozzles: 3,
     keyed: [{ part: 'command', variant: 'keep', sock: 'sock.top', u: 0.4 }, HANGAR(0.1)] },
   // light cruiser: waisted hull, the bridge in the head
-  5: { bow: 'head', battery: 'waist2', stern: 'mass', rows: 2, nozzles: 4,
+  5: { bow: 'head', battery: 'waist2', stern: 'mass', rows: 2, nozzles: 4, broad: 'both',
     keyed: [{ part: 'command', variant: 'keep', sock: 'sock.top', u: 0.85 }, HANGAR(0.22)] },
   // cruiser: split head
-  6: { bow: 'lobes', battery: 'deck2', stern: 'block5', rows: 2, nozzles: 5,
+  6: { bow: 'lobes', battery: 'deck2', stern: 'block5', rows: 2, nozzles: 5, broad: 'fore',
     keyed: [{ part: 'command', variant: 'keep', sock: 'sock.top', u: 0.46 }, HANGAR(0.19)] },
   // heavy cruiser: wide body, the broadside on battery blocks
   7: { bow: 'bastion', battery: 'core', stern: 'block5', sections: 3, rows: 2, nozzles: 5,
     keyed: [{ part: 'command', variant: 'tower', sock: 'sock.top', u: 0.57 }, { part: 'appendage', variant: 'blocks', sock: 'sock.side', u: 0.57, mirror: true },
       { part: 'ventral', variant: 'keel', sock: 'sock.bottom', u: 0.57 }, HANGAR(0.2)] },
   // battlecruiser: delta wings and a reactor bulge
-  8: { bow: 'lance', battery: 'deck2', stern: 'delta', rows: 2, nozzles: 6,
+  8: { bow: 'lance', battery: 'deck2', stern: 'delta', rows: 2, nozzles: 6, broad: 'aft',
     keyed: [{ part: 'command', variant: 'rake', sock: 'sock.top', u: 0.48 }, { part: 'appendage', variant: 'delta', sock: 'sock.side', u: 0.15, mirror: true },
       { part: 'ventral', variant: 'reactor', sock: 'sock.bottom', u: 0.13 }, HANGAR(0.23)] },
   // battleship: gun spine and split prow
@@ -62,11 +63,18 @@ export const CLASS_LAYOUT = {
 // are shuttered). LANG_LAYOUT holds what a language does differently: `sections`, and `add` (more keyed parts).
 export const YARDS = ['velscour', 'aurelian', 'tidewright', 'ironhold', 'corsair', 'hollow'];
 const SECTIONS = { 3: 3, 4: 4, 5: 2, 6: 3, 8: 3, 9: 3, 10: 3 };
+// The destroyer of a yard with three broadside mounts a side runs on three battery sections, so its snout can be
+// nearly half the ship (Ironhold's has four mounts, four sections and a shorter snout).
+const DD = { 4: { sections: 3 } };
 export const LANG_LAYOUT = {
   // the turret yard: one more section where the class carries more turrets than the ladder has wells
-  aurelian: { 7: { sections: 4 }, 9: { sections: 4 } },
+  aurelian: { ...DD, 7: { sections: 4 }, 9: { sections: 4 } },
   // carriers: flight-deck pontoons on the cruiser, a second pair of hangar mouths on the heavy cruiser
-  corsair: { 6: { add: [{ part: 'appendage', variant: 'deck', sock: 'sock.side', u: 0.13, mirror: true }] }, 7: { add: [HANGAR(0.15)] } },
+  corsair: { ...DD, 6: { add: [{ part: 'appendage', variant: 'deck', sock: 'sock.side', u: 0.13, mirror: true }] }, 7: { add: [HANGAR(0.15)] } },
+  // the long-range yard: a belly truss amidships on the battleship carries its biggest collector arrays (the shield is
+  // widest there)
+  tidewright: { ...DD, 9: { add: [{ part: 'ventral', variant: 'keel', sock: 'sock.bottom', u: 0.5 }] } },
+  hollow: DD,
 };
 export function layoutFor(lang, tier) {
   const base = CLASS_LAYOUT[tier];
@@ -160,13 +168,17 @@ export function profileAt(pr, u, out) {
   return out;
 }
 // A yard's curve for one hull: the full section holds over every broadside mount and half a casemate past it, so
-// the profile draws the hull in toward its ends and never closes a casemate round its gunhouse.
-export function profileFor(pr, hardpoints, L, W) {
+// the profile draws the hull in toward its ends and never closes a casemate round its gunhouse; and an end whose
+// breadth is the class's gesture (the cutter's engine block, the corvette's nacelles, the light cruiser's head and
+// engine masses, the cruiser's split head, the battlecruiser's wings: `broad`) keeps its beam.
+export function profileFor(pr, hardpoints, L, W, broad = null) {
   let a = Infinity, b = -Infinity;
   for (const h of hardpoints) if (h.type === 'broadside') { const u = h.pos[2] / L + 0.5; a = Math.min(a, u); b = Math.max(b, u); }
-  if (a > b) return pr;
-  const m = (0.6 * W) / L;
-  return { ...pr, p0: Math.max(0.05, Math.min(pr.p0, a - m)), p1: Math.min(0.95, Math.max(pr.p1, b + m)) };
+  const out = { ...pr };
+  if (a <= b) { const m = (0.6 * W) / L; out.p0 = Math.max(0.05, Math.min(pr.p0, a - m)); out.p1 = Math.min(0.95, Math.max(pr.p1, b + m)); }
+  if (broad === 'aft' || broad === 'both') out.aft = [0, ...pr.aft.slice(1)];
+  if (broad === 'fore' || broad === 'both') out.fore = [0, ...pr.fore.slice(1)];
+  return out;
 }
 const KP = [1, 1, 1];
 // warp a point of the placed ship in place (p: array, o: offset)
@@ -335,7 +347,7 @@ export function planHull(chassis, kit) {
   // ---- bounds of the art (step 8): top for dims; the hull's own top (without the command structure, which may
   // be a tall tower) and bottom for the depth test
   let top = -Infinity, bottom = Infinity, hullTop = -Infinity;
-  const warp = PROFILE[kit.lang] ? { pr: profileFor(PROFILE[kit.lang], hardpoints, L, W), z0: -L / 2, len: L, core: W / 2 } : null;
+  const warp = PROFILE[kit.lang] ? { pr: profileFor(PROFILE[kit.lang], hardpoints, L, W, lay.broad), z0: -L / 2, len: L, core: W / 2 } : null;
   if (warp) {
     for (const h of hardpoints) { h.pos = h.pos.slice(); warpAt(warp, h.pos); }
     for (const e of engines) { e.pos = e.pos.slice(); warpAt(warp, e.pos); }

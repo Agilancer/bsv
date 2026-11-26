@@ -27,8 +27,8 @@ export const YARDS = {
   },
   ironhold: {
     name: 'Ironhold Foundry', short: 'IRH', blurb: 'Brick-hulled foundry ships. Thick armour, slow turns, enormous broadsides.',
-    hull: 'hull_dropship', trim: 'hull_apc', dark: 'hull_graphite', tint: 0xd8d2c4, trimTint: 0xd8c070,
-    glow: 0xffc040, window: 0xffd070, engine: 0xffa030,
+    hull: 'hull_dropship', trim: 'hull_apc', dark: 'hull_graphite', tint: 0xd8d2c4, trimTint: 0xd8c070, tintMul: 1.5,
+    glow: 0xffc040, window: 0xffd070, engine: 0xffa030, windowDensity: 0.34,
     prow: 'blunt', castle: 'block', spires: 0, sails: 0, buttress: true, keel: 0.4, sponsons: 1.0, hullRound: 0.0, glowMul: 0.7,
     names: ['Anvil', 'Bulwark', 'Crucible', 'Rampart', 'Smelter', 'Bastion', 'Forgeheart', 'Juggernaut', 'Citadel', 'Mountain of Ironhold'],
   },

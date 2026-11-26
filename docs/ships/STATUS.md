@@ -93,13 +93,32 @@ Read this first when picking the work up (new session or another model). Then `C
        bands M and L (was 1), Hollow on band M (was 1); band S stays faceted (aurelian_2 would leave no room for its
        running lights). Tidewright array frames are a little thinner (trim share of tidewright_5 was 10.1%: the hidden
        caps had counted in the total area).
+  - Fourth pass (session 5): the critic loop (design-brief section 4, kit-spec section 9), at most 4 iterations.
+    Review sets in the session scratchpad `review/iter<N>/` (per yard: `_classes` play camera, `_black` silhouettes,
+    `_lineup` true scale play / side, `_close` T3 T6 T10, `_clay` normals; `numbers.txt`).
+    Before the first iteration, the known weak spots:
+    - Destroyer snout about 45% of L (was 35%): Aurelian, Tidewright, Corsair and Hollow destroyers (three broadside
+      mounts) run on three battery sections (`LANG_LAYOUT` `DD`) and a 38-unit snout; Ironhold keeps four sections
+      and a 33-unit snout (38%). Aurelian, Hollow and Tidewright, whose noses come to a point, end the destroyer's
+      snout in a flat tube face instead (`shipkit.snout_face`; a lance emitter, a lit maw, a sensor housing), so the
+      torpedo housing is buried. Aurelian's destroyer has its third turret well on the engine block.
+    - Class gestures from the play camera: the whole-ship profile leaves the beam of a class's broad end alone
+      (`CLASS_LAYOUT` `broad`: cutter and corvette aft, light cruiser both, cruiser fore, battlecruiser aft); the
+      cutter's engine block carries a thruster cowl on each flank (`engine(cowl=)`); the frigate's belly pod is 1.25x
+      wider than before, so it shows past the flanks from above; the cruiser's split head is wider (1.3 W) with taller
+      lobes (rounded on the smooth yards).
+    - Corsair: its own belly pods (a raked-hexagon hull section, patched to starboard), and the dreadnought's flight
+      decks stand over the body's crown on a hangar gallery along each side hull, bays lit on its outboard wall.
+    - Tidewright: capital arrays as big as the shield allows (stern, bow and belly), and the battleship gets a belly
+      truss amidships, where the shield is widest, with the biggest pair.
+    - Ironhold: a lighter plate (tintMul 1.5) and fewer window lights (0.34, was 0.6): the brief asks for a light
+      armour tint and little glow.
   All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
   session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 
 ## Next, in order
-1. Body shapes: what the second pass left: Tidewright / Ironhold / Corsair main sections are unchanged; band S hulls of
-   the curved yards are faceted; Corsair T10 decks; destroyer snout length; Tidewright arrays small on T9/T10; Corsair
-   still uses the ladder's pods. None of the second pass has been through the critic loop.
+1. The critic loop (fourth pass above): in progress. Still open from the earlier passes: Tidewright / Ironhold /
+   Corsair main sections are six-point prisms; band S hulls of the curved yards are faceted.
 2. Run the critic loop on renders per yard (`tools/kitshots.cjs`, viewer `?yard=<lang>&fit&webgl&guns`).
    Known weak classes: cutter, frigate, destroyer and cruiser read alike; destroyer snout is short.
 3. Gameplay gates: done for the rework. Measured on commit 34ec6b0 (main + the `?nokit` flag), the same code with and

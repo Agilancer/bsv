@@ -72,6 +72,12 @@ class Hollow(K.Style):
 
     def nose(self, p, B, h, z0, z1, marks, variant, zm):
         u, ln = B.W, z1 - z0
+        if variant == 'snout':              # the destroyer: a long carapace snout to a lit maw, short mandibles framing it
+            zf, yc, hn = K.snout_face(p, B, h, z0, z1, marks, face='glow', tubes=False)
+            P = lambda x, y, t: (x * u, y * u, z0 + t * ln)
+            xm = hn[2][0] / u
+            p.sweep([P(xm - 0.1, -0.06, 0.78), P(xm + 0.06, -0.1, 0.88), P(xm - 0.02, -0.14, 0.95), P(xm - 0.2, -0.16, 0.995)], [0.13 * u, 0.12 * u, 0.08 * u, 0.02 * u], 6, 'hull', squash=1.3, mirror=True)
+            return
         # the body closes round a maw, lit red from within, that holds the prow weapons
         taper(p, h, z0, ln, [(0, 1, 1, 0), (0.25, 0.92, 0.94, 0), (0.5, 0.7, 0.76, 0), (0.68, 0.42, 0.5, 0), (0.72, 0.3, 0.36, 0), (0.66, 0.2, 0.24, 0)], over={4: 'dark'}, cap_mat=('hull', 'glow'))
         for x in marks:
@@ -110,8 +116,8 @@ class Hollow(K.Style):
             p.sweep([(-0.25 * u, -0.16 * u, z - 0.1 * u), (0.12 * u, -0.34 * u, z), (cx - 0.3 * w, -0.3 * u, z + 0.1 * u), (cx, -0.1 * u, z + 0.15 * u)], [0.3 * u, 0.26 * u, 0.22 * u, 0.16 * u], 8, 'hull', squash=0.8)
         return True
 
-    def podpart(self, B, variant, hangar, ln, deep):    # an egg sac
-        return K.spod(B, variant, hangar, ln, deep, e=0.85, n=11, fore=lambda t: math.sqrt(1 - 0.95 * t ** 2.4), aft=lambda t: math.sqrt(1 - 0.93 * t * t),
+    def podpart(self, B, variant, hangar, ln, deep, wide=1.0):    # an egg sac
+        return K.spod(B, variant, hangar, ln, deep, wide=wide, e=0.85, n=11, fore=lambda t: math.sqrt(1 - 0.95 * t ** 2.4), aft=lambda t: math.sqrt(1 - 0.93 * t * t),
                       full=None if hangar else (-3.0 * ln, 2.0 * ln))
 
     def pod(self, p, B, k, X, hangar):      # ribs round the sac

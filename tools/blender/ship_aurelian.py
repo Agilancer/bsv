@@ -11,10 +11,10 @@ from shipkit import Part, prof, ell, det, muzzles, taper
 class Aurelian(K.Style):
     lang, hood, collars = 'aurelian', False, False
     prow_n = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2, 9: 2, 10: 3}
-    # the turret yard: a fourth gun-spine section on the battleship, wells on the frigate's and the light cruiser's
-    # engine blocks and at the root of the battlecruiser's needle
+    # the turret yard: a fourth gun-spine section on the battleship, wells on the frigate's, the destroyer's and the
+    # light cruiser's engine blocks and at the root of the battlecruiser's needle
     lens = {'spine3': 1.5, 'split': 3.1}
-    wells = {'block': 0.5, 'mass': (0.3, 0.62), 'lance': True}
+    wells = {'block': 0.5, 'tri': 0.45, 'mass': (0.3, 0.62), 'lance': True}
 
     def section(self, W, HT, HB, yo):
         return prof([(0, HT + yo), (0.5 * W, 0.88 * HT + yo), (W, 0.14 * HT + yo), (0.97 * W, -0.22 * HB + yo), (0.5 * W, -0.9 * HB + yo), (0, -HB + yo)], K.shiplib.SKIN)
@@ -59,6 +59,12 @@ class Aurelian(K.Style):
 
     def nose(self, p, B, h, z0, z1, marks, variant, zm):
         u, ln = B.W, z1 - z0
+        if variant == 'snout':              # the destroyer: a long smooth snout to an oval tube face, the lance emitter in it
+            zf, yc, hn = K.snout_face(p, B, h, z0, z1, marks, tubes=False)
+            for x in marks:
+                p.tube([(-0.14 * u, 0.2 * u), (0.0, 0.2 * u)], (x * u, yc, zf - 0.12 * u), 'z', 10, 'trim', cap_mat='dark')
+                p.tube([(0.0, 0.11 * u), (0.02 * u, 0.11 * u)], (x * u, yc, zf - 0.12 * u), 'z', 10, 'glow')
+            return
         taper(p, h, z0, ln, [(0, 1, 1, 0), (0.2, 0.9, 0.92, 0), (0.42, 0.7, 0.76, -0.01 * u), (0.64, 0.46, 0.54, -0.02 * u), (0.82, 0.25, 0.32, -0.03 * u), (0.94, 0.1, 0.14, -0.04 * u)])
         zt, r = z0 + 0.94 * ln, 0.14 * B.HT
         p.tube([(-0.12 * u, r * 1.25), (0.03 * u, r * 1.25)], (0, -0.04 * u, zt), 'z', 10, 'trim')      # lance emitter
@@ -89,8 +95,8 @@ class Aurelian(K.Style):
             p.loft([rg(-0.2 * u, 1.2, 0.34 * u), rg(0.08 * u, 0.98, 0.16 * u), rg(cx - w * 0.6, 1.0, 0.0)], 'hull')
         return True
 
-    def podpart(self, B, variant, hangar, ln, deep):
-        return K.spod(B, variant, hangar, ln, deep, e=0.7, n=11)
+    def podpart(self, B, variant, hangar, ln, deep, wide=1.0):
+        return K.spod(B, variant, hangar, ln, deep, wide=wide, e=0.7, n=11)
 
     def pod(self, p, B, k, X, hangar):
         if not hangar:                      # lit gills low on the flanks, a gold line along the keel

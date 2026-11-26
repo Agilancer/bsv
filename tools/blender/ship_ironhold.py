@@ -12,6 +12,7 @@ class Ironhold(K.Style):
     lang, hood, blk, t6m = 'ironhold', False, 1.04, True
     tower_k = (0.94, 0.93, 0.16)
     prow_n = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2, 9: 2, 10: 3}
+    lens = {'snout': 4.6}          # (the foundry's destroyer keeps four battery sections for its four mounts)
 
     def section(self, W, HT, HB, yo):
         return prof([(0, HT + yo), (0.8 * W, HT + yo), (W, 0.72 * HT + yo), (W, -0.7 * HB + yo), (0.8 * W, -HB + yo), (0, -HB + yo)])
@@ -76,9 +77,9 @@ class Ironhold(K.Style):
         elif variant == 'sidehull':
             self.radiators(p, B, 0.5 * u, 0.62 * B.HT, -1.2 * u, 1.6 * u, 0.3, mirror=False)
 
-    def podpart(self, B, variant, hangar, ln, deep):    # a smelter block under the hull
+    def podpart(self, B, variant, hangar, ln, deep, wide=1.0):    # a smelter block under the hull
         brick = lambda X, a, b: prof([(0, a), (X - 0.4, a), (X, a - 0.5), (X, b + 0.9), (X - 0.9, b), (0, b)])
-        return K.spod(B, variant, hangar, ln, deep, shape=brick, fore=lambda t: 1 - 0.45 * t ** 2, aft=lambda t: 1 - 0.45 * t ** 2, N=2,
+        return K.spod(B, variant, hangar, ln, deep, wide=wide, shape=brick, fore=lambda t: 1 - 0.45 * t ** 2, aft=lambda t: 1 - 0.45 * t ** 2, N=2,
                       full=None if hangar else (-11.0 * ln, 10.0 * ln))
 
     def pod(self, p, B, k, X, hangar):
