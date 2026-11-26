@@ -13,22 +13,40 @@ class Hollow(K.Style):
     prow_n = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2, 9: 2, 10: 3}
 
     def section(self, W, HT, HB, yo):
-        return prof([(0, HT + yo), (0.52 * W, 0.87 * HT + yo), (W, 0.16 * HT + yo), (0.95 * W, -0.3 * HB + yo), (0.5 * W, -0.9 * HB + yo), (0, -HB + yo)])
+        return prof([(0, HT + yo), (0.52 * W, 0.87 * HT + yo), (W, 0.16 * HT + yo), (0.95 * W, -0.3 * HB + yo), (0.5 * W, -0.9 * HB + yo), (0, -HB + yo)], K.shiplib.SKIN)
+
+    # the body: a bulging carapace. The section is a smooth curve whose plates overlap downward like scales (a lip
+    # at every other point of the flanks), and every section swells amidships: a segmented shell
+    swell = 0.04                # (the body's bulge is the whole ship's: kitPlan.js PROFILE.hollow)
+    wellrim = ((-0.5, 1.0), (-0.04, 0.9), (0.01, 0.86), (-0.01, 0.76), (0.075, 0.71), (0.075, 0.61))   # two overlapping scale lips
+    spinerim = ((-0.4, 0.76), (-0.03, 0.73), (0.01, 0.7), (-0.01, 0.66), (0.06, 0.64), (0.06, 0.58))   # the same on the gun spine
+
+    @staticmethod
+    def fair(h, band):
+        s = K.shiplib.smooth(h, {'S': 0, 'M': 2}.get(band, 1))
+        X = max(x for x, _, _ in s)
+        out = []
+        for i, (x, y, t) in enumerate(s):
+            if band in 'LC' and i in ((3, 7) if band == 'L' else (3, 5, 7)):
+                out += [(x + 0.045 * X, y, t), (x, y - 0.012 * X, t)] if y > 0 else [(x, y, t), (x + 0.045 * X, y - 0.012 * X, t)]
+            else:
+                out.append((x, y, t))
+        return out
 
     def mouth(self, tier, kind):            # a weapon blister between the scales
-        return dict(proud=0.05, lip=0.08, sh=0.2, long=False, trim=None)
+        return dict(proud=0.05, lip=0.08, sh=0.2, long=False, trim=None, ends=0.42)
 
     def belts(self, p, B, h, z0, z1, edges, t, inset, cut):
         u = B.W
-        for i in edges:                     # carapace scales: two rows, overlapping like tiles
+        for i in (edges if B.id != 'M' else [e for e in edges if e == 1]):     # carapace scales (band M: the upper flank only): two rows, overlapping like tiles
             q = edge(h, i, z0, z1)
             if cut:
                 q = subquad(q, cut[0], cut[1], 0, 1)
-            n = max(1, round((z1 - z0) / (0.7 * u))) if B.id != 'S' else 1
+            n = max(1, round((z1 - z0) / ({'M': 1.8, 'L': 1.4}.get(B.id, 1.0) * u))) if B.id != 'S' else 1
             for j in range(n):
-                for r, (a, b) in enumerate(((0.0, 0.56), (0.44, 1.0)) if B.id != 'S' else ((0.0, 1.0),)):
+                for r, (a, b) in enumerate(((0.0, 0.56), (0.44, 1.0)) if B.id in 'LC' else ((0.0, 1.0),)):
                     o = 0.5 / n * r
-                    p.slab(subquad(q, a, b, max(0, j / n - o), min(1, (j + 1.15) / n - o)), 0.05 * u, inset=0.01 * u, embed=0.02 * u, bevel=0.09 * u, mirror=True)
+                    p.slab(subquad(q, a, b, max(0, j / n - o), min(1, (j + 1.15) / n - o)), 0.1 * u, inset=0.01 * u, embed=0.02 * u, bevel=0.09 * u, mirror=True)
 
     def strake(self, p, B, z0, z1, hw, t, y, mat):
         u = B.W
@@ -40,7 +58,7 @@ class Hollow(K.Style):
 
     def nozzle(self, p, x, y, r, z, n):     # a vent organ: a flared trumpet of carapace
         m = x > 1e-6
-        p.tube([(1.7 * r, 0.55 * r), (0.9 * r, 0.8 * r), (0.2 * r, 1.12 * r)], (x, y, z), 'z', 10, 'hull', mirror=m, cap_mat=('hull', 'dark'))
+        p.tube([(max(1.7 * r, K.NOZ_DEPTH), 0.55 * r), (0.9 * r, 0.8 * r), (0.2 * r, 1.12 * r)], (x, y, z), 'z', 10, 'hull', mirror=m, cap_mat=('hull', 'dark'))
         p.tube([(0.5 * r, 0.74 * r), (0.12 * r, 0.86 * r)], (x, y, z), 'z', 10, 'engine', mirror=m)
 
     def fins(self, variant, fins):
@@ -54,10 +72,16 @@ class Hollow(K.Style):
 
     def nose(self, p, B, h, z0, z1, marks, variant, zm):
         u, ln = B.W, z1 - z0
+        if variant == 'snout':              # the destroyer: a long carapace snout to a lit maw, short mandibles framing it
+            zf, yc, hn = K.snout_face(p, B, h, z0, z1, marks, face='glow', tubes=False)
+            P = lambda x, y, t: (x * u, y * u, z0 + t * ln)
+            xm = hn[2][0] / u
+            p.sweep([P(xm - 0.1, -0.06, 0.78), P(xm + 0.06, -0.1, 0.88), P(xm - 0.02, -0.14, 0.95), P(xm - 0.2, -0.16, 0.995)], [0.13 * u, 0.12 * u, 0.08 * u, 0.02 * u], 6, 'hull', squash=1.3, mirror=True)
+            return
         # the body closes round a maw, lit red from within, that holds the prow weapons
         taper(p, h, z0, ln, [(0, 1, 1, 0), (0.25, 0.92, 0.94, 0), (0.5, 0.7, 0.76, 0), (0.68, 0.42, 0.5, 0), (0.72, 0.3, 0.36, 0), (0.66, 0.2, 0.24, 0)], over={4: 'dark'}, cap_mat=('hull', 'glow'))
         for x in marks:
-            p.marker('hp.pr', (x * u, 0, z0 + 0.66 * ln - 0.62 * B.S))
+            p.marker('hp.pr', (x * u, 0, z0 + 0.42 * ln - 0.62 * B.S))      # (buried where the body is still full)
         P = lambda x, y, t: (x * u, y * u, z0 + t * ln)
         p.sweep([P(0.72, -0.12, 0.3), P(0.98, -0.16, 0.55), P(0.86, -0.2, 0.8), P(0.4, -0.22, 1.0)], [0.2 * u, 0.24 * u, 0.16 * u, 0.03 * u], 6, 'hull', squash=1.3, mirror=True)    # mandibles
         p.sweep([P(0, 0.6, 0.3), P(0, 0.56, 0.6), P(0, 0.3, 0.86)], [0.3 * u, 0.24 * u, 0.04 * u], 6, 'hull', squash=0.7)       # the rostrum over the maw
@@ -65,7 +89,7 @@ class Hollow(K.Style):
     # ---- the body: bulging carapace lofts, ribs and limbs (no boxes, no straight edges)
     block_fore = ((0.06, 1.35), (0.4, 1.0), (0.75, 0.6), (0.95, 0.25))
     block_aft = ((0.1, 1.1), (0.5, 0.75), (0.85, 0.4), (0.98, 0.14))
-    side = dict(w=0.42, bow=((1.07, 0.4, 0.0), (1.0, 0.9, -0.03), (0.8, 1.35, -0.1), (0.5, 1.7, -0.2), (0.18, 1.95, -0.32)),
+    side = dict(w=0.36, gap=0.24, bow=((1.07, 0.4, 0.0), (1.0, 0.9, -0.03), (0.8, 1.35, -0.1), (0.5, 1.7, -0.2), (0.18, 1.95, -0.32)),
                 stern=((1.06, -0.5, -0.02), (0.95, -1.2, -0.12), (0.78, -2.0, -0.3), (0.62, -3.1, -0.5)))
 
     def blockp(self, u, xi, xo):            # a swollen brood flank
@@ -78,7 +102,7 @@ class Hollow(K.Style):
                 p.sweep([(-0.2 * u, 0.6 * u, z + 0.1 * u), (0.22 * u, 0.74 * u, z), (0.56 * u, 0.5 * u, z - 0.05 * u), (0.7 * u, 0.12 * u, z - 0.2 * u)], [0.16 * u, 0.15 * u, 0.11 * u, 0.02 * u], 6, 'hull')
                 p.sweep([(-0.2 * u, -0.56 * u, z + 0.1 * u), (0.22 * u, -0.7 * u, z), (0.56 * u, -0.46 * u, z - 0.05 * u), (0.68 * u, -0.1 * u, z - 0.2 * u)], [0.15 * u, 0.14 * u, 0.1 * u, 0.02 * u], 6, 'hull')
         elif variant == 'sidehull':         # a dorsal crest of spines along the brood hull
-            cx = 0.5 * u
+            cx = K.side_cx()[0] * u
             for z in (-1.1, -0.3, 0.5, 1.3):
                 p.sweep([(cx, 0.36 * u, (z + 0.3) * u), (cx + 0.02 * u, 0.62 * u, z * u), (cx + 0.05 * u, 0.8 * u, (z - 0.5) * u)], [0.16 * u, 0.1 * u, 0.02 * u], 5, 'hull')
 
@@ -92,8 +116,8 @@ class Hollow(K.Style):
             p.sweep([(-0.25 * u, -0.16 * u, z - 0.1 * u), (0.12 * u, -0.34 * u, z), (cx - 0.3 * w, -0.3 * u, z + 0.1 * u), (cx, -0.1 * u, z + 0.15 * u)], [0.3 * u, 0.26 * u, 0.22 * u, 0.16 * u], 8, 'hull', squash=0.8)
         return True
 
-    def podpart(self, B, variant, hangar, ln, deep):    # an egg sac
-        return K.spod(B, variant, hangar, ln, deep, e=0.85, n=11, fore=lambda t: math.sqrt(1 - 0.95 * t ** 2.4), aft=lambda t: math.sqrt(1 - 0.93 * t * t),
+    def podpart(self, B, variant, hangar, ln, deep, wide=1.0):    # an egg sac
+        return K.spod(B, variant, hangar, ln, deep, wide=wide, e=0.85, n=11, fore=lambda t: math.sqrt(1 - 0.95 * t ** 2.4), aft=lambda t: math.sqrt(1 - 0.93 * t * t),
                       full=None if hangar else (-3.0 * ln, 2.0 * ln))
 
     def pod(self, p, B, k, X, hangar):      # ribs round the sac
@@ -120,13 +144,13 @@ class Hollow(K.Style):
         p.tube([(-0.25 * hx, 0.025 * u), (0, 0.05 * u), (0.25 * hx, 0.025 * u)], (0, dome * 0.5, hz * 0.93), 'x', 6, 'glow')
         return p
 
-    def wing(self, B):
+    def wing(self, B):                      # a carapace fin, two sickle ribs grown over it and hooked past its edge
         u = B.W
-        p = Part('appendage', 'delta', B.id)
-        for zo, k in ((0.2, 1.0), (-0.7, 0.8)):         # sickle limbs reaching forward
-            p.sweep([(-0.2 * u, 0, (zo - 0.5) * u), (0.35 * u * k, -0.05 * u, (zo + 0.1) * u), (0.64 * u * k, -0.14 * u, (zo + 0.9) * u), (0.58 * u * k, -0.26 * u, (zo + 1.7) * u)],
-                    [0.3 * u, 0.26 * u, 0.16 * u, 0.03 * u], 6, 'hull', squash=0.6)
-        det(p, 'light', (0.64 * u, -0.1 * u, 1.1 * u), 0, side='this')
+        p, st = K.delta(B)
+        for f, k in ((0.3, 1.0), (0.68, 0.9)):
+            pts = [(x * u, (yc + th * 0.42) * u, (zr + (zf - zr) * f) * u) for x, zr, zf, yc, th in st[:-1]]
+            pts.append((st[-1][0] * u * k, (st[-1][3] - 0.02) * u, (st[-1][1] + 0.02) * u))
+            p.sweep(pts, [0.12 * u, 0.11 * u, 0.09 * u, 0.06 * u, 0.015 * u], 6, 'hull', squash=0.6)
         return p
 
 

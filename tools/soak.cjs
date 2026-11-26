@@ -13,7 +13,7 @@ const { chromium } = require('playwright');
   const errs = [];
   p.on('pageerror', (e) => errs.push(e.message));
   p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 240)); });
-  await p.goto(`http://localhost:${process.env.PORT || 8420}/index.html?play&new&webgl&q=low`);
+  await p.goto(`http://localhost:${process.env.PORT || 8420}/index.html?play&new&webgl&q=low${process.env.QS || ''}`);
   await p.waitForTimeout(12000);
   await p.evaluate((keepPlanet) => {
     const g = __game;

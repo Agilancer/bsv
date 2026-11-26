@@ -267,6 +267,18 @@ optional mirror; parts are never rotated.
 7. **Instance fixed detail** along each `det` run at the detail's own pitch, merged into the same
    per-material meshes, capped by the triangle budget (shutters shown over spare mounts count against it).
 8. **Set `dims`** (`top` measured from the placed parts' bounds, shutters excluded) and `userData`.
+9. **The whole-ship profile** (`PROFILE`, `profileFor`, `warpAt`): after steps 1-8, every vertex, hardpoint and nozzle
+   of a yard with a profile (Aurelian, Hollow, Tidewright, Corsair; Velscour and Ironhold have none) is moved by a curve
+   over the length: the beam outboard of a core of W / 2, and the hull above and below the centreline, each scaled by a
+   factor that is never above 1, so dims, the shield and the mount contract hold. Invariants:
+   - the full section holds over every broadside mount and 0.6 W past it (`profileFor`), so no casemate closes on its
+     gunhouse;
+   - a class's `broad` end (`CLASS_LAYOUT`: cutter and corvette aft, light cruiser both, cruiser fore, battlecruiser
+     aft) keeps its beam;
+   - no yard warps its stern: nozzles stay round and match `engines[].r`;
+   - fixed-size parts (detail, hangar mouths) are not scaled: they move rigidly with the warp at their anchor.
+   It is applied in `planHull` (top, bottom, hullTop), `bakePlan` and `kitSideProfile`; turret wells and prow mounts
+   inside the core keep their shape.
 
 **Availability and caching.** `hullFor` is synchronous and caches per chassis id. `buildHull` uses the
 assembler for a chassis when its language's kit is loaded and `planHull` succeeds (a layout for the tier,
@@ -302,6 +314,10 @@ already in the scene keep their mesh until they respawn.
   - at least 40% of hull depth below the centreline (design brief section 0): `-minY / (maxY - minY)` of
     the baked art
   - triangle and glow budgets met (glow share = `glow` area over the area of all baked faces)
+  - geometry (`tests/support/hullGeom.mjs`): no open edge shows (each lies on another face or is enclosed: hidden caps
+    are left out of the kits, `shiplib.Part.body`); no piece of structure floats; broadside gunhouses within 0.03 W of
+    their warped housing and prow housings within 0.2 W of the hull section; no class blocks its broadside fans more
+    than the Velscour hull of the class (+12% of the rays)
 - **Review set:** all ten player classes for the six player yards; for enemy use, one design per size
   band and per role kit of each faction (`tools/viewer.html?enemy=<size>&faction=<f>`).
 - **Renders:** `tools/viewer.html?yard=<lang>&fit&webgl`, the play camera and the title camera, reviewed

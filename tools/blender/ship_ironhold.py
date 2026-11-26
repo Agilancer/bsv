@@ -12,12 +12,14 @@ class Ironhold(K.Style):
     lang, hood, blk, t6m = 'ironhold', False, 1.04, True
     tower_k = (0.94, 0.93, 0.16)
     prow_n = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2, 9: 2, 10: 3}
+    split_taper = [(0, 1, 1, 0), (0.8, 0.97, 0.97, 0), (1.0, 0.86, 0.86, 0)]    # the battleship's prow halves: two blunt blocks
+    lens = {'snout': 4.6}          # (the foundry's destroyer keeps four battery sections for its four mounts)
 
     def section(self, W, HT, HB, yo):
         return prof([(0, HT + yo), (0.8 * W, HT + yo), (W, 0.72 * HT + yo), (W, -0.7 * HB + yo), (0.8 * W, -HB + yo), (0, -HB + yo)])
 
     def mouth(self, tier, kind):
-        return dict(proud=0.1, lip=0.09, sh=0.0, long=False, trim='dark', posts='hull')
+        return dict(proud=0.2, lip=0.09, sh=0.0, long=False, trim='dark', posts='hull')     # boxy sponsons, proud of the belt
 
     def belts(self, p, B, h, z0, z1, edges, t, inset, cut):
         u = B.W
@@ -26,6 +28,20 @@ class Ironhold(K.Style):
         q, n = edge(h, 0, z0, z1), max(1, round((z1 - z0) / (0.8 * u))) if B.id != 'S' else 0
         for j in range(n):
             p.slab(subquad(q, 0.74, 0.98, j / n, (j + 1) / n), 0.045 * u, inset=0.035 * u, bevel=0.015 * u, out=(0, 1, 0), mirror=True)
+        if B.id in 'LC' and not cut:        # a second, lower course inboard of it, laid half a brick along: stepped
+            for j in range(n - 1):
+                p.slab(subquad(q, 0.5, 0.73, (j + 0.5) / n, (j + 1.5) / n), 0.022 * u, inset=0.03 * u, bevel=0.012 * u, out=(0, 1, 0), mirror=True)
+
+    def plate(self, p, B, h, q, length):    # the flank: two courses of armour brick in running bond, the lower one proud
+        u = B.W
+        if B.id == 'S':
+            return False
+        n = max(1, round(length / (0.5 * u)))
+        for j in range(n):
+            p.slab(subquad(q, 0.0, 0.5, j / n, (j + 1) / n), 0.03 * u, inset=0.03 * u, bevel=0.02 * u, mirror=True)
+        for j in range(n + 1):
+            p.slab(subquad(q, 0.5, 1.0, max(0.0, (j - 0.5) / n), min(1.0, (j + 0.5) / n)), 0.06 * u, inset=0.03 * u, bevel=0.02 * u, mirror=True)
+        return True
 
     def strake(self, p, B, z0, z1, hw, t, y, mat):
         K._strake(p, B, z0, z1, hw * 1.5, t * 1.2, y, mat)
@@ -39,7 +55,7 @@ class Ironhold(K.Style):
     # ---- the body: chamfered-rectangle armour bricks, blunt at both ends, radiator banks on every roof
     block_fore = ((0.55, 0.3), (0.94, 0.1))
     block_aft = ((0.6, 0.24), (0.95, 0.08))
-    side = dict(bow=((0.96, 0.3, 0.0), (0.74, 0.55, -0.03)), stern=((0.98, -0.6, -0.04), (0.9, -1.25, -0.14), (0.86, -3.1, -0.3)))
+    side = dict(w=0.33, gap=0.36, bow=((0.96, 0.3, 0.0), (0.74, 0.55, -0.03)), stern=((0.98, -0.6, -0.04), (0.9, -1.25, -0.14), (0.86, -3.1, -0.3)))
 
     def radiators(self, p, B, x, y, z0, z1, w=0.2, mirror=True):
         """A radiator bank: a long low block with a row of dark fins standing in it."""
@@ -60,11 +76,11 @@ class Ironhold(K.Style):
         if variant == 'blocks':
             self.radiators(p, B, -0.02 * u, 0.7 * u, -2.2 * u, 2.2 * u, 0.18, mirror=False)
         elif variant == 'sidehull':
-            self.radiators(p, B, 0.5 * u, 0.62 * B.HT, -1.2 * u, 1.6 * u, 0.3, mirror=False)
+            self.radiators(p, B, K.side_cx()[0] * u, 0.62 * B.HT, -1.2 * u, 1.6 * u, 0.26, mirror=False)
 
-    def podpart(self, B, variant, hangar, ln, deep):    # a smelter block under the hull
+    def podpart(self, B, variant, hangar, ln, deep, wide=1.0):    # a smelter block under the hull
         brick = lambda X, a, b: prof([(0, a), (X - 0.4, a), (X, a - 0.5), (X, b + 0.9), (X - 0.9, b), (0, b)])
-        return K.spod(B, variant, hangar, ln, deep, shape=brick, fore=lambda t: 1 - 0.45 * t ** 2, aft=lambda t: 1 - 0.45 * t ** 2, N=2,
+        return K.spod(B, variant, hangar, ln, deep, wide=wide, shape=brick, fore=lambda t: 1 - 0.45 * t ** 2, aft=lambda t: 1 - 0.45 * t ** 2, N=2,
                       full=None if hangar else (-11.0 * ln, 10.0 * ln))
 
     def pod(self, p, B, k, X, hangar):
@@ -119,8 +135,11 @@ class Ironhold(K.Style):
         return p
 
 
-    def wing(self, B):                      # the bigger block carries the wings further out: root them deeper
-        return K.wing(B).shift(dx=-0.07 * B.W)
+    def wing(self, B):                      # a brick delta, a radiator bank along its root (rooted deeper: the block is bigger)
+        u = B.W
+        p, st = K.delta(B)
+        self.radiators(p, B, 0.22 * u, 0.05 * u, -1.1 * u, 0.55 * u, 0.22, mirror=False)
+        return p.shift(dx=-0.07 * u)
 
 if __name__ == '__main__':
     K.main(Ironhold())

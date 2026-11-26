@@ -11,7 +11,7 @@
 import bpy, bmesh, math, json, os
 from mathutils import Vector, Matrix, Euler
 
-MATS = ['hull', 'trim', 'dark', 'glow', 'lamp', 'glass', 'tire', 'chrome']
+MATS = ['hull', 'trim', 'dark', 'glow', 'lamp', 'glass', 'tire', 'chrome', 'heat']
 EMISSIVE = {'glow', 'lamp'}
 
 

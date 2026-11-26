@@ -19,14 +19,15 @@ export const bandFor = (W) => BANDS.find((b) => W < b.max);
 // Class layouts by tier (design-brief section 2): which variants make the class, where its keyed masses go
 // (u: 0 stern .. 1 bow), how many battery rows it has (facet tiers, plus the row on side hulls or battery
 // blocks) and how many nozzles it shows. `sections` fixes the number of battery sections when the mounts are
-// not on them (the heavy cruiser's battery blocks). A tier without a layout keeps the procedural builder.
+// not on them (the heavy cruiser's battery blocks). `broad`: the end(s) whose breadth is the class's gesture, which
+// the whole-ship profile leaves at full beam. A tier without a layout keeps the procedural builder.
 const HANGAR = (u) => ({ part: 'hangar', variant: 'mouth', sock: 'sock.side', u, mirror: true });
 export const CLASS_LAYOUT = {
   // cutter: an engine with a nose
-  1: { bow: 'wedge', battery: 'blister', stern: 'cutter', rows: 1, nozzles: 3,
+  1: { bow: 'wedge', battery: 'blister', stern: 'cutter', rows: 1, nozzles: 3, broad: 'aft',
     keyed: [{ part: 'command', variant: 'blister', sock: 'sock.top', u: 0.8 }] },
   // corvette: broad shoulders, two nacelles faired into the flanks
-  2: { bow: 'wedge', battery: 'blister', stern: 'shoulder', rows: 1, nozzles: 3,
+  2: { bow: 'wedge', battery: 'blister', stern: 'shoulder', rows: 1, nozzles: 3, broad: 'aft',
     keyed: [{ part: 'command', variant: 'block', sock: 'sock.top', u: 0.42 }, { part: 'appendage', variant: 'nacelle', sock: 'sock.side', u: 0.2, mirror: true }] },
   // frigate: deep belly
   3: { bow: 'bastion', battery: 'trench1', stern: 'block', rows: 1, nozzles: 4,
@@ -35,17 +36,17 @@ export const CLASS_LAYOUT = {
   4: { bow: 'snout', battery: 'trenchc', stern: 'tri', rows: 1, nozzles: 3,
     keyed: [{ part: 'command', variant: 'keep', sock: 'sock.top', u: 0.4 }, HANGAR(0.1)] },
   // light cruiser: waisted hull, the bridge in the head
-  5: { bow: 'head', battery: 'waist2', stern: 'mass', rows: 2, nozzles: 4,
+  5: { bow: 'head', battery: 'waist2', stern: 'mass', rows: 2, nozzles: 4, broad: 'both',
     keyed: [{ part: 'command', variant: 'keep', sock: 'sock.top', u: 0.85 }, HANGAR(0.22)] },
   // cruiser: split head
-  6: { bow: 'lobes', battery: 'deck2', stern: 'block5', rows: 2, nozzles: 5,
+  6: { bow: 'lobes', battery: 'deck2', stern: 'block5', rows: 2, nozzles: 5, broad: 'fore',
     keyed: [{ part: 'command', variant: 'keep', sock: 'sock.top', u: 0.46 }, HANGAR(0.19)] },
   // heavy cruiser: wide body, the broadside on battery blocks
   7: { bow: 'bastion', battery: 'core', stern: 'block5', sections: 3, rows: 2, nozzles: 5,
     keyed: [{ part: 'command', variant: 'tower', sock: 'sock.top', u: 0.57 }, { part: 'appendage', variant: 'blocks', sock: 'sock.side', u: 0.57, mirror: true },
       { part: 'ventral', variant: 'keel', sock: 'sock.bottom', u: 0.57 }, HANGAR(0.2)] },
   // battlecruiser: delta wings and a reactor bulge
-  8: { bow: 'lance', battery: 'deck2', stern: 'delta', rows: 2, nozzles: 6,
+  8: { bow: 'lance', battery: 'deck2', stern: 'delta', rows: 2, nozzles: 6, broad: 'aft',
     keyed: [{ part: 'command', variant: 'rake', sock: 'sock.top', u: 0.48 }, { part: 'appendage', variant: 'delta', sock: 'sock.side', u: 0.15, mirror: true },
       { part: 'ventral', variant: 'reactor', sock: 'sock.bottom', u: 0.13 }, HANGAR(0.23)] },
   // battleship: gun spine and split prow
@@ -62,11 +63,18 @@ export const CLASS_LAYOUT = {
 // are shuttered). LANG_LAYOUT holds what a language does differently: `sections`, and `add` (more keyed parts).
 export const YARDS = ['velscour', 'aurelian', 'tidewright', 'ironhold', 'corsair', 'hollow'];
 const SECTIONS = { 3: 3, 4: 4, 5: 2, 6: 3, 8: 3, 9: 3, 10: 3 };
+// The destroyer of a yard with three broadside mounts a side runs on three battery sections, so its snout can be
+// nearly half the ship (Ironhold's has four mounts, four sections and a shorter snout).
+const DD = { 4: { sections: 3 } }, KEEL = { part: 'ventral', variant: 'keel', sock: 'sock.bottom', u: 0.5 };
 export const LANG_LAYOUT = {
   // the turret yard: one more section where the class carries more turrets than the ladder has wells
-  aurelian: { 7: { sections: 4 }, 9: { sections: 4 } },
+  aurelian: { ...DD, 7: { sections: 4 }, 9: { sections: 4 } },
   // carriers: flight-deck pontoons on the cruiser, a second pair of hangar mouths on the heavy cruiser
-  corsair: { 6: { add: [{ part: 'appendage', variant: 'deck', sock: 'sock.side', u: 0.13, mirror: true }] }, 7: { add: [HANGAR(0.15)] } },
+  corsair: { ...DD, 6: { add: [{ part: 'appendage', variant: 'deck', sock: 'sock.side', u: 0.13, mirror: true }] }, 7: { add: [HANGAR(0.15)] } },
+  // the long-range yard: belly trusses amidships carry a long pair of collector arrays under the broadside (light
+  // cruiser and cruiser; the heavy cruiser and the dreadnought have their keels), the battleship's its biggest two pairs
+  tidewright: { ...DD, 5: { add: [KEEL] }, 6: { add: [KEEL] }, 9: { add: [{ part: 'ventral', variant: 'truss', sock: 'sock.bottom', u: 0.5 }] } },
+  hollow: DD,
 };
 export function layoutFor(lang, tier) {
   const base = CLASS_LAYOUT[tier];
@@ -133,6 +141,64 @@ export function pickSpread(m, n) {
 // starboard copy of a port-side part.
 const place = (part, s, sz, t, sx = 1, pair = false) => ({ part, s, sz, t, sx, pair });
 const at = (pl, p) => [pl.sx * pl.s * p[0] + pl.t[0], pl.s * p[1] + pl.t[1], pl.sz * p[2] + pl.t[2]];
+
+// The whole-ship profile (design-brief section 3): each yard's hull reads as one form, not a row of sections. After
+// the parts are placed, every point of the ship (vertices, hardpoints, nozzles alike, so mounts stay seated in
+// their housings) is scaled about the centreline by a curve over the length: beam (x, outboard of a core of W / 2), the hull above the
+// centreline and the hull below it. u runs 0 at the stern .. 1 at the bow; the curve is 1 between p0 and p1 and
+// falls to 1 - a at the ends as t^e ([beam, above, below, e]), so it never grows a hull: dims, the shield
+// ellipsoid and the hardpoint contract hold. Smooth yards ease in (e > 1: their sections are cut into stations by the
+// generator); faceted yards are straight between joints, so they taper or rake linearly. Velscour and Ironhold
+// keep a constant section.
+// The plateau [p0, p1] is widened per hull to cover its broadside mounts (profileFor), so the curve works on the bow
+// (and could on the stern); the beam amplitude is kept low where a yard has outboard dress at its ends (Hollow's
+// mandibles, Tidewright's collector arrays), which the beam warp would draw in with the hull. No yard warps its stern:
+// the nozzles there must stay round and match engines[].r. Fixed-size parts (detail, hangar mouths) only move with the
+// warp at their anchor; they are never scaled.
+export const PROFILE = {
+  aurelian: { p0: 0.4, p1: 0.5, fore: [0.16, 0.12, 0.12, 1.6], aft: [0, 0, 0, 1] },         // drawn in to the needle
+  hollow: { p0: 0.4, p1: 0.5, fore: [0.16, 0.14, 0.12, 1.6], aft: [0, 0, 0, 1] },           // a bulging body
+  tidewright: { p0: 0.12, p1: 0.3, fore: [0.06, 0.18, 0.18, 1], aft: [0, 0, 0, 1] },        // a long fine taper to the stem
+  corsair: { p0: 0.3, p1: 0.3, fore: [0.05, 0.2, 0, 1], aft: [0, 0, 0, 1] },                // raked: the crown falls to the bow
+};
+// the three scales at height u, into out = [kx, ky above, ky below]
+export function profileAt(pr, u, out) {
+  const side = u > pr.p1 ? pr.fore : u < pr.p0 ? pr.aft : null;
+  if (!side) { out[0] = out[1] = out[2] = 1; return out; }
+  const t = Math.min(1, Math.max(0, u > pr.p1 ? (u - pr.p1) / (1 - pr.p1) : (pr.p0 - u) / pr.p0)), q = side[3] === 1 ? t : side[3] === 2 ? t * t : Math.pow(t, side[3]);
+  out[0] = 1 - side[0] * q; out[1] = 1 - side[1] * q; out[2] = 1 - side[2] * q;
+  return out;
+}
+// A yard's curve for one hull: the full section holds over every broadside mount and half a casemate past it, so
+// the profile draws the hull in toward its ends and never closes a casemate round its gunhouse; and an end whose
+// breadth is the class's gesture (the cutter's engine block, the corvette's nacelles, the light cruiser's head and
+// engine masses, the cruiser's split head, the battlecruiser's wings: `broad`) keeps its beam.
+export function profileFor(pr, hardpoints, L, W, broad = null) {
+  let a = Infinity, b = -Infinity;
+  for (const h of hardpoints) if (h.type === 'broadside') { const u = h.pos[2] / L + 0.5; a = Math.min(a, u); b = Math.max(b, u); }
+  const out = { ...pr };
+  if (a <= b) { const m = (0.6 * W) / L; out.p0 = Math.max(0.05, Math.min(pr.p0, a - m)); out.p1 = Math.min(0.95, Math.max(pr.p1, b + m)); }
+  if (broad === 'aft' || broad === 'both') out.aft = [0, ...pr.aft.slice(1)];
+  if (broad === 'fore' || broad === 'both') out.fore = [0, ...pr.fore.slice(1)];
+  return out;
+}
+const KP = [1, 1, 1];
+// how far the warp moves a fixed-size part's anchor: the part moves with it, rigid
+function warpShift(w, t) {
+  if (!w) return null;
+  const q = t.slice();
+  warpAt(w, q);
+  return [q[0] - t[0], q[1] - t[1], q[2] - t[2]];
+}
+// warp a point of the placed ship in place (p: array, o: offset)
+function warpAt(w, p, o = 0) {
+  profileAt(w.pr, (p[o + 2] - w.z0) / w.len, KP);
+  // the beam is drawn in outboard of a core half as wide as the hull: what stands on the centreline (turret wells,
+  // prow tubes, the command structure) keeps its shape and its pitch, and the flanks close on it
+  const x = p[o], ax = x < 0 ? -x : x;
+  if (ax > w.core) { KP[0] = 2 * KP[0] - 1; p[o] = (x < 0 ? -1 : 1) * (w.core + (ax - w.core) * KP[0]); } else KP[0] = 1;
+  p[o + 1] *= p[o + 1] >= 0 ? KP[1] : KP[2];
+}
 
 // The plan for a chassis: where every part goes, the hardpoints and engines read off the markers, and dims.
 // Returns { ok: false, why } when the kit cannot build this chassis (the caller keeps the old builder).
@@ -258,24 +324,31 @@ export function planHull(chassis, kit) {
   let tris = placements.reduce((a, pl) => a + pl.part.tris, 0);
   // shutters over spare mounts count too (a part's own count leaves them out)
   for (const ms of shown) for (const m of ms) if (m.shut) for (const g of Object.values(m.geo)) tris += (g.idx ? g.idx.length : g.pos.length / 3) / 3;
+  // Running lights go first (they mark the extremities), then the rest in order. A port-side run is placed with its
+  // starboard twin, and a mirrored part's detail with its starboard copy's, so the budget never cuts one side only.
   const structure = placements.length;
-  for (let i = 0; i < structure; i++) {
+  for (const lights of [true, false]) for (let i = 0; i < structure; i++) {
     const pl = placements[i];
+    if (pl.pair && pl.sx < 0) continue;          // (placed with its port twin, the placement after it)
+    const mates = pl.pair ? [pl, placements[i + 1]] : [pl];
     for (const m of marks(pl.part, 'det')) {
+      if ((m.kind === 'light') !== lights) continue;
       const d = find(kit, band.id, 'detail', m.kind);
       if (!d) continue;
       const ax = m.ax === 'x' ? 0 : m.ax === 'y' ? 1 : 2, k = ax === 2 ? pl.sz : pl.s;
       const run = (m.run || 0) * k, pitch = d.pitch || 3, n = Math.max(1, Math.floor(run / pitch) + 1), lead = (run - (n - 1) * pitch) / 2;
-      const p0 = at(pl, m.p), twin = m.side === 'port' && !pl.pair && Math.abs(p0[0]) > 1e-6;
+      const twin = m.side === 'port' && !pl.pair && Math.abs(at(pl, m.p)[0]) > 1e-6, each = d.tris * (twin ? 2 : 1) * mates.length;
       for (let j = 0; j < n; j++) {
-        if (tris + d.tris * (twin ? 2 : 1) > band.tris) break;
-        const t = p0.slice();
-        t[ax] += (lead + j * pitch) * (ax === 0 ? pl.sx : 1);
-        const cmd = pl.part.part === 'command';
-        placements.push({ ...place(d, 1, 1, t, pl.sx), cmd });
-        shown.push(d.meshes);
-        if (twin) { placements.push({ ...place(d, 1, 1, [-t[0], t[1], t[2]], -pl.sx), cmd }); shown.push(d.meshes); }
-        tris += d.tris * (twin ? 2 : 1);
+        if (tris + each > band.tris) break;
+        for (const q of mates) {
+          const t = at(q, m.p);
+          t[ax] += (lead + j * pitch) * (ax === 0 ? q.sx : 1);
+          const cmd = q.part.part === 'command';
+          placements.push({ ...place(d, 1, 1, t, q.sx), cmd });
+          shown.push(d.meshes);
+          if (twin) { placements.push({ ...place(d, 1, 1, [-t[0], t[1], t[2]], -q.sx), cmd }); shown.push(d.meshes); }
+        }
+        tris += each;
       }
     }
   }
@@ -283,13 +356,28 @@ export function planHull(chassis, kit) {
   // ---- bounds of the art (step 8): top for dims; the hull's own top (without the command structure, which may
   // be a tall tower) and bottom for the depth test
   let top = -Infinity, bottom = Infinity, hullTop = -Infinity;
-  for (const pl of placements) {
+  const warp = PROFILE[kit.lang] ? { pr: profileFor(PROFILE[kit.lang], hardpoints, L, W, lay.broad), z0: -L / 2, len: L, core: W / 2 } : null;
+  if (warp) {
+    for (const h of hardpoints) { h.pos = h.pos.slice(); warpAt(warp, h.pos); }
+    for (const e of engines) { e.pos = e.pos.slice(); warpAt(warp, e.pos); }
+    const q = [0, 0, 0];
+    placements.forEach((pl, i) => {
+      const cmd = isCommand(pl), d = pl.part.fixed ? warpShift(warp, pl.t) : null;
+      for (const m of shown[i]) for (const g of Object.values(m.geo)) for (let k = 0; k < g.pos.length; k += 3) {
+        q[1] = pl.s * g.pos[k + 1] + pl.t[1]; q[2] = pl.sz * g.pos[k + 2] + pl.t[2];
+        if (d) q[1] += d[1]; else warpAt(warp, q);
+        if (q[1] > top) top = q[1];
+        if (!cmd && q[1] > hullTop) hullTop = q[1];
+        if (q[1] < bottom) bottom = q[1];
+      }
+    });
+  } else for (const pl of placements) {
     const y1 = pl.s * pl.part.bounds.max[1] + pl.t[1];
     top = Math.max(top, y1);
     if (!isCommand(pl)) hullTop = Math.max(hullTop, y1);
     bottom = Math.min(bottom, pl.s * pl.part.bounds.min[1] + pl.t[1]);
   }
-  return { ok: true, band, scale: s, stretch, chain: chain.map((p) => `${p.part}/${p.variant}`), placements, shown, hardpoints, engines, dims: { ...dims, top }, bottom, hullTop };
+  return { ok: true, band, scale: s, stretch, chain: chain.map((p) => `${p.part}/${p.variant}`), placements, shown, hardpoints, engines, dims: { ...dims, top }, bottom, hullTop, warp };
 }
 
 // Step 5: apply each placement to its part's geometry and merge per material. Returns flat, non-indexed
@@ -309,7 +397,7 @@ export function bakePlan(plan, only = null) {
   let tris = 0;
   plan.placements.forEach((pl, i) => {
     if (only && !only(pl)) return;
-    const { s, sz, t, sx } = pl, kx = sx * s;
+    const { s, sz, t, sx } = pl, kx = sx * s, dw = pl.part.fixed ? warpShift(plan.warp, t) : null, warp = dw ? null : plan.warp;
     for (const m of plan.shown[i]) for (const [mat0, g] of Object.entries(m.geo)) {
       const mat = matOf(pl, mat0);
       const P = out[mat].position, N = out[mat].normal, { pos, nrm, idx } = g;
@@ -320,9 +408,11 @@ export function bakePlan(plan, only = null) {
         for (let c = 0; c < 3; c++) {
           const src = v + (sx < 0 ? (c === 1 ? 2 : c === 2 ? 1 : 0) : c), k = (idx ? idx[src] : src) * 3, d = o + c * 3;
           P[d] = kx * pos[k] + t[0]; P[d + 1] = s * pos[k + 1] + t[1]; P[d + 2] = sz * pos[k + 2] + t[2];
+          let wx = 1, wy = 1;
+          if (warp) { warpAt(warp, P, d); wx = KP[0]; wy = P[d + 1] >= 0 ? KP[1] : KP[2]; } else if (dw) { P[d] += dw[0]; P[d + 1] += dw[1]; P[d + 2] += dw[2]; }     // (a fixed-size part moves rigid)
           if (nrm) {
-            // normals go by the inverse transpose of the scale
-            const nx = nrm[k] / kx, ny = nrm[k + 1] / s, nz = nrm[k + 2] / sz, l = Math.hypot(nx, ny, nz) || 1;
+            // normals go by the inverse transpose of the scale (the profile's slope along z is small: left out)
+            const nx = nrm[k] / (kx * wx), ny = nrm[k + 1] / (s * wy), nz = nrm[k + 2] / sz, l = Math.hypot(nx, ny, nz) || 1;
             N[d] = nx / l; N[d + 1] = ny / l; N[d + 2] = nz / l;
           }
         }
@@ -381,17 +471,21 @@ export function shieldLevel(dims, x, y, z) {
 // split prow's notch (the open gap between an upper and a lower blade: first station and the gap's upper and
 // lower edge from there to the last station that has one) and the command structure's span and height.
 // tools/kitprofiles.mjs writes this for every kit hull into kitProfiles.js, so the cutaway needs no kit loaded.
+const WQ = [0, 0, 0];
 export function kitSideProfile(plan, n = 96) {
   const r2 = (v) => Math.round(v * 100) / 100;
   const tri = [];       // [z0, y0, z1, y1, z2, y2, isCommand]
   let zMin = Infinity, zMax = -Infinity;
   plan.placements.forEach((pl, i) => {
     if (pl.part.part === 'detail') return;
-    const cmd = isCommand(pl) ? 1 : 0;
+    const cmd = isCommand(pl) ? 1 : 0, dw = pl.part.fixed ? warpShift(plan.warp, pl.t) : null;
     for (const m of plan.shown[i]) for (const g of Object.values(m.geo)) {
       const { pos, idx } = g, cnt = idx ? idx.length : pos.length / 3, t = [];
       for (let v = 0; v < cnt; v++) {
-        const k = (idx ? idx[v] : v) * 3, z = pl.sz * pos[k + 2] + pl.t[2], y = pl.s * pos[k + 1] + pl.t[1];
+        const k = (idx ? idx[v] : v) * 3, z = pl.sz * pos[k + 2] + pl.t[2];
+        let y = pl.s * pos[k + 1] + pl.t[1];
+        if (dw) y += dw[1];
+        else if (plan.warp) { WQ[1] = y; WQ[2] = z; warpAt(plan.warp, WQ); y = WQ[1]; }
         t.push(z, y); zMin = Math.min(zMin, z); zMax = Math.max(zMax, z);
         if (t.length === 6) { tri.push([...t, cmd]); t.length = 0; }
       }
@@ -441,7 +535,8 @@ export function kitSideProfile(plan, n = 96) {
   let cmd = null;
   for (const pl of plan.placements) {
     if (pl.part.part !== 'command') continue;
-    const y1 = pl.s * pl.part.bounds.max[1] + pl.t[1];
+    let y1 = pl.s * pl.part.bounds.max[1] + pl.t[1];
+    if (plan.warp) { WQ[1] = y1; WQ[2] = pl.sz * (pl.part.bounds.min[2] + pl.part.bounds.max[2]) / 2 + pl.t[2]; warpAt(plan.warp, WQ); y1 = WQ[1]; }
     if (!cmd || y1 > cmd[2]) cmd = [r2(pl.sz * pl.part.bounds.min[2] + pl.t[2]), r2(pl.sz * pl.part.bounds.max[2] + pl.t[2]), r2(y1)];
   }
   return { z: zs.map(r2), t, b, ht, hb, notch, cmd };

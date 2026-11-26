@@ -91,10 +91,11 @@ cam.position.set(cx + d * Math.cos(pitch) * Math.sin(yaw), d * Math.sin(pitch), 
 sky.follow = new THREE.Vector3(cx, 0, cz);
 const info = document.getElementById('info');
 e.add({ update() { info.textContent = `${e.backend} ${e.fps.toFixed(0)} fps  ${list.length} hulls`; } });
-// For scripted review renders (tools/kitshots.cjs): move the camera, show one hull, switch to black silhouettes.
+// For scripted review renders (tools/kitshots.cjs): move the camera, show one hull, switch to black silhouettes or to
+// normals (clay).
 const placed = [];
 e.scene.traverse((o) => { if (o.userData && o.userData.len && o.parent === e.scene) placed.push(o); });
-const BLACK = new THREE.MeshBasicMaterial({ color: 0x000000 });
+const BLACK = new THREE.MeshBasicMaterial({ color: 0x000000 }), NORMALS = new THREE.MeshNormalMaterial();
 window.__viewer = {
   hulls: () => placed.map((g, i) => ({ i, x: g.position.x, z: g.position.z, len: g.userData.len, W: g.userData.W, top: g.userData.top })),
   cam(cx, cy, cz, d, yaw, pitch) { cam.position.set(cx + d * Math.cos(pitch) * Math.sin(yaw), cy + d * Math.sin(pitch), cz + d * Math.cos(pitch) * Math.cos(yaw)); cam.lookAt(cx, cy, cz); sky.follow.set(cx, 0, cz); },
@@ -104,6 +105,12 @@ window.__viewer = {
     for (const g of placed) g.traverse((o) => { if (!o.isMesh) return; if (on) { o.userData.lit ??= o.material; o.material = BLACK; } else if (o.userData.lit) o.material = o.userData.lit; });
     e.scene.traverse((o) => { if (o.parent === e.scene && !placed.includes(o) && !o.isLight) o.visible = !on; });
     e.scene.background = on ? new THREE.Color(0x5a6068) : null;
+  },
+  // normals instead of the yard's materials, on a dark ground: a hole or an inside-out face shows at once
+  clay(on) {
+    for (const g of placed) g.traverse((o) => { if (!o.isMesh) return; if (on) { o.userData.lit2 ??= o.material; o.material = NORMALS; } else if (o.userData.lit2) o.material = o.userData.lit2; });
+    e.scene.traverse((o) => { if (o.parent === e.scene && !placed.includes(o) && !o.isLight) o.visible = !on; });
+    e.scene.background = on ? new THREE.Color(0x24282c) : null;
   },
 };
 e.start();

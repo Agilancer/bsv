@@ -13,6 +13,8 @@ export const TELEGRAPH_HIT = 0.22;
 export const TELEGRAPH = { crit: -0.05, unique: [], telegraph: true };
 
 const RETRIBUTION_R = 300;
+// detonation sound pitch by look: energy warheads ring higher, plasma and gravity lower
+const DET_PITCH = { photic: 1.12, quantal: 1.3, phase: 1.2, chronal: 1.15, implode: 0.8, rift: 0.75, nova: 0.7, plasma: 0.9, ion: 1.25, flak: 1.4 };
 export const FACINGS = ['fore', 'aft', 'port', 'starboard'];
 
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c1 = new THREE.Vector3(), _c2 = new THREE.Vector3(), _l = new THREE.Vector3();
@@ -106,8 +108,10 @@ export class Combat {
   splash(p, point, direct) {
     const W = this.world;
     const r = p.splash || 20;
-    W.fx.explosion(point, Math.max(0.25, r / 90), p.kind === 'torpedo' ? 0xff8a40 : p.color.getHex());
-    if (W.audio) W.audio.play(r > 40 ? 'explosion' : 'hit', point, Math.min(1, 0.3 + r / 80));
+    // each warhead goes off in its own style and colour (data/ordnance.js DET)
+    const st = p.style, det = st ? st.det : 'burst';
+    W.fx.detonate(det, point, r, p.color.getHex(), p.hot ? p.hot.getHex() : 0xffffff);
+    if (W.audio) W.audio.play(r > 40 ? 'explosion' : 'hit', point, Math.min(1, 0.3 + r / 80), DET_PITCH[det] || 1);
     if (r > 40) W.cam.addShake(r / 40 * (W.player && point.distanceTo(W.player.position) < 400 ? 1 : 0.2));
     for (const s of W.ships) {
       if (!s.alive || s.team === p.team) continue;
@@ -258,9 +262,10 @@ export class Combat {
     const r = target.hitRadius();
     const dir = _c2.copy(to).sub(from); const len = dir.length(); dir.normalize();
     const end = _l.copy(from).addScaledVector(dir, Math.max(0, len - r * 0.8));
-    W.beams.add(from, end, color, width, ws.beamT || (ws.kind === 'beam' && ws.dmg > 150 ? 0.6 : 0.3));
+    // the beam draws out, holds on both ships and sprays where it cuts (Beams); the damage lands now
+    const shield = target.shieldsUp();
+    const b = W.beams.add(from, end, color, width, ws.beamT || (ws.kind === 'beam' && ws.dmg > 150 ? 0.6 : 0.3), { style: ws.beam || 'phaser', owner, target, shield });
     this.damage(target, ws.dmg, ws.dmgType, end, owner, ws);
-    W.fx.impact(end, color, 1.3, target.shieldsUp());
     if (ws.unique && ws.unique.includes('chainLance')) {
       let from2 = end.clone(), hit = new Set([target]);
       for (let k = 0; k < 2; k++) {
@@ -268,10 +273,11 @@ export class Combat {
         for (const s of W.ships) if (s.alive && s.team !== owner.team && !hit.has(s)) { const d = s.position.distanceToSquared(from2); if (d < bd) { bd = d; best = s; } }
         if (!best) break;
         hit.add(best);
-        W.beams.add(from2, best.position, 0xbfe8ff, width * 0.6, 0.3);
+        W.beams.add(from2, best.position, 0xbfe8ff, width * 0.6, 0.3, { style: 'arc', target: best });
         this.damage(best, ws.dmg * 0.5, ws.dmgType, best.position, owner, null);
         from2 = best.position.clone();
       }
     }
+    return b;
   }
 }
