@@ -14,6 +14,12 @@ const cache = new Map();
 let engineRef = null;
 export function initMaterials(engine) { engineRef = engine; }
 
+// a plating sheet drawn with its own glow mask (the light inside a grown hull, lined up with its plates);
+// any other plating under `alienGlow` takes the old alien glow sheet
+const GLOW_SHEET = { hull_chitin: 'glow_chitin' };
+// a sheet drawn at its own size (world units per tile) whatever the yard's: the carapace scales are drawn large
+const SHEET_TILE = { hull_chitin: 40 };
+
 function hdr(hex, mul) { const c = new THREE.Color(hex); return vec3(c.r * mul, c.g * mul, c.b * mul); }
 
 export function windowsNode(winHex, density = 0.45, scale = 1) {
@@ -27,6 +33,23 @@ export function windowsNode(winHex, density = 0.45, scale = 1) {
   // a few windows flicker
   const flick = step(0.97, hash(cz.add(cy.mul(3.0)))).mul(sin(engineRef.uTime.mul(9).add(cz)).mul(0.5).add(0.5));
   return hdr(winHex, 2.2).mul(win).mul(on.add(flick).min(1)).mul(side);
+}
+
+// A grown hull's windows: rows of round pores along its decks, lit in clusters of two or three (scattered
+// as other yards' windows are), in the yard's window colour with a hot core, breathing with the light
+// inside the hull. Flanks only.
+export function poresNode(winHex, density = 0.4) {
+  const p = positionLocal;
+  const side = smoothstep(0.7, 0.9, abs(normalLocal.x));
+  const fz = p.z.mul(0.8), fy = p.y.mul(0.42);
+  const cz = floor(fz), cy = floor(fy);
+  const d = length(vec2(fract(fz).sub(0.5), fract(fy).sub(0.5).mul(2.2)));
+  const pore = smoothstep(0.25, 0.15, d), core = smoothstep(0.13, 0.03, d);
+  const run = floor(cz.div(3).add(hash(cy.add(3000).mul(29.0)).mul(3)));   // clusters of 3, split at a different place on each deck
+  const on = step(1 - density, hash(run.add(9000).mul(13.0).add(cy.add(7000).mul(71.0)).add(step(0, p.x).mul(7.0))));
+  const gap = step(0.25, hash(cz.add(cy.mul(57.0)).add(4000)));             // the odd pore in a lit cluster stays dark
+  const breathe = sin(engineRef.uTime.mul(1.7).add(p.z.mul(0.08))).mul(0.2).add(0.9);
+  return hdr(winHex, 2.2).mul(pore).add(vec3(1.4, 1.0, 0.95).mul(core)).mul(on).mul(gap).mul(side).mul(breathe);
 }
 
 export function hullMaterialsKey(yardKey, glowOverride = null, liveryKey = null, paint = null) {
@@ -47,9 +70,9 @@ export function hullMaterials(yardKey, glowOverride = null, liveryKey = null, pa
   let y = lv ? { ...YARDS[yardKey], ...lv.palette } : YARDS[yardKey];
   if (glowOverride != null) y = { ...y, glow: glowOverride, window: lv?.palette.window ?? glowOverride, engine: glowOverride };
   if (pk) y = paintPalette(y, paint);
-  const scale = float(1 / (y.texTile || 16));     // plate texture: one tile per 16 units, or the yard's own size
   const plate = (name, tint, rough, metal, windows = false, plain = false) => {
     const m = new THREE.MeshStandardNodeMaterial();
+    const scale = float(1 / (SHEET_TILE[name] || y.texTile || 16));   // one tile per 16 units, or the sheet's / yard's own size
     const base = triplanarTexture(texture(tex(name)), null, null, scale);
     const t = new THREE.Color(tint);
     // large-scale grime/variation so long hulls don't tile visibly
@@ -61,8 +84,13 @@ export function hullMaterials(yardKey, glowOverride = null, liveryKey = null, pa
     m.metalnessNode = float(metal);
     if (windows) m.emissiveNode = windowsNode(y.window, y.windowDensity ?? (yardKey === 'ironhold' ? 0.6 : yardKey === 'silent' ? 0.2 : 0.42));
     if (y.alienGlow && name === y.hull && !plain) {
-      const g = triplanarTexture(texture(tex('glow_alien')), null, null, scale);
+      const g = triplanarTexture(texture(tex(GLOW_SHEET[name] ?? 'glow_alien')), null, null, scale);
       m.emissiveNode = g.rgb.mul(hdr(y.glow, 3.5)).mul(sin(engineRef.uTime.mul(1.7).add(positionLocal.z.mul(0.08))).mul(0.35).add(0.75));
+      if (GLOW_SHEET[name]) {
+        // carapace sheen: the curve of a grown hull catches a little wine-violet light at a glancing angle
+        const fres = pow(float(1).sub(clamp(abs(dot(normalView, positionViewDirection)), 0, 1)), 2.5);
+        m.emissiveNode = m.emissiveNode.add(poresNode(y.window, y.windowDensity ?? 0.4)).add(base.rgb.mul(hdr(0xb070c0, 1.6)).mul(fres));
+      }
     }
     return m;
   };
