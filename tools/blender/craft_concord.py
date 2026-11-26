@@ -2,23 +2,27 @@
 # and the Tidewright Yards (clippers of the void: long, narrow and fast, under great solar sails). See craftlib.py.
 # The language: smooth swept lofts in pale pearl plate, compressed ovals with a soft chine carrying a gold line,
 # long needle and lance prows, teardrop canopies set in gold bezels, lance barrels banded in gold, halo drives
-# (each nozzle inside a free-standing ring cowl on gilt struts), crown rings round the bigger engine blocks, thin
-# canted vanes that always carry something (guns, pods, sails), crescents and arcs. Paint runs in swept stripes and
-# chevrons along the spine so a wing reads from above.
+# (each nozzle inside a free-standing ring cowl on gilt struts), crown collars (a gilt band standing off the hull
+# on brackets) round the bigger engine blocks, thin canted vanes that always carry something (guns, pods, sails),
+# crescents and arcs. Paint runs in swept stripes and chevrons along the spine so a wing reads from above.
+# Helpers below: hull() lofts compressed ovals (separate half-heights above and below), patch()/band() lay plates,
+# stripes and collars that follow a hull's surface, lathe()/sweep()/blade()/slab() for everything else.
 #   fighter   bow-and-lance interceptor: a needle fuselage shot through a drooping crescent vane whose horns carry
 #             the two lance cannons; one big halo drive astern
 #   bomber    a deep teardrop hull with two heavy lance torpedoes slung in gold cradles along its flanks, a belly
-#             bay and chin turret, three nozzles inside a crown ring
+#             bay (the release point) and chin turret, three nozzles behind a crown collar
 #   drone     a pearl seed with a halo drive, two caliper arms reaching forward round its green mending lens
 #   decoy     an emitter spindle carrying a great tilted phased-array disc, a long antenna lance forward and
 #             jammer pods on its flanks: a mirror on a staff, nothing like a fighter
-#   gunship   a swept lance hull with a raked bridge, two dorsal and a chin lance turret, missile pods on canted
-#             pylon vanes, a crown-ringed engine bank
+#   gunship   a swept lance hull with a raked bridge, two dorsal lance turrets (the aft one superfiring), missile
+#             pods on canted pylon vanes with their own halo drives, a crown-collared engine bank
 #   torpboat  the longbow: a needle hull built round its spinal tube (a gilt trumpet mouth, glowing coils), two
 #             drum magazines along its flanks, a raised crew fairing, framed solar-collector sails aft, twin halos
 #   tender    a lotus: a teardrop hull with four curving arms, a beam dish at each tip, manipulators under the bow
-#   frigate   a clipper: a long swept hull ending in a spinal lance, a raked two-tier bridge, superfiring lance
-#             turrets, point defence on the chine, two great solar sails on canted masts, a crown-ringed engine bank
+#   frigate   a clipper: a long swept hull ending in a spinal lance, blade strakes that widen aft into an
+#             arrowhead (point defence on them), lance batteries on the bow shoulders, superfiring and ventral lance
+#             turrets, a spine deck to a raked two-tier bridge with a yarded mast, framed solar sails on gilt booms
+#             amidships, a crown-collared engine bank
 import math, random
 from craftlib import *
 import bmesh, vlib
@@ -255,10 +259,9 @@ def ring_shell(P, at, ri, ro, L, mat='hull', tint=PEARL, n=24, rot=None):
 
 
 def halo(P, at, r, flame=2.6, segs=16, k=1.5, struts=4, paint=True, L=None, th=None):
-    """a halo drive: the nozzle (exit plane at `at`), its glowing mouth, and a free ring cowl round it on gilt struts"""
+    """a halo drive: the nozzle (exit plane at `at`) and a free ring cowl round it on gilt struts"""
     x, y, z = at
     nozzle(P, at, r, flame=flame, segs=segs, ring=GOLD)
-    P.cyl(r * 0.62, 0.02, (x, y, z - 0.012), 'z', 'glow', WHITE, max(8, segs // 2))
     R, L, th = r * k, L or r * 1.05, th or max(0.035, r * 0.13)
     zc = z + L * 0.42
     ns = max(12, segs)
@@ -510,10 +513,8 @@ def bomber(P):
     band(P, S, -3.3, -3.05, 'paint', WHITE)
     crown(P, S, -3.5, 0.42, 0.15, 0.07, 8, 20)
     nozzle(P, (0, 0.08, -4.45), 0.5, flame=3.0, segs=18, ring=GOLD)
-    P.cyl(0.31, 0.02, (0, 0.08, -4.462), 'z', 'glow', WHITE, 12)
     for sx in (1, -1):
         nozzle(P, (sx * 0.62, -0.28, -4.42), 0.28, flame=2.6, segs=12, ring=GOLD)
-        P.cyl(0.17, 0.02, (sx * 0.62, -0.28, -4.432), 'z', 'glow', WHITE, 8)
     lamp(P, (0, -0.62, -3.7), STROBE, 0.05)
     greebles(P, rng, -0.25, 0.25, 0.7, -1.6, -1.15, 3, 0.05, 0.14)
     P.empty('gun', (0, -0.66, 2.55))
@@ -675,10 +676,8 @@ def gunship(P):
     band(P, S, -5.2, -4.95, 'paint', WHITE, 18)
     crown(P, S, -5.75, 0.5, 0.2, 0.09, 8, 22)
     nozzle(P, (0, 0.05, -6.75), 0.62, flame=3.0, segs=18, ring=GOLD)
-    P.cyl(0.38, 0.02, (0, 0.05, -6.762), 'z', 'glow', WHITE, 12)
     for sx in (1, -1):
         nozzle(P, (sx * 1.05, -0.05, -6.65), 0.40, flame=2.8, segs=12, ring=GOLD)
-        P.cyl(0.25, 0.02, (sx * 1.05, -0.05, -6.662), 'z', 'glow', WHITE, 10)
     lamp(P, (0, -0.8, -5.8), STROBE, 0.07)
     # underside: hatch, keel strake, a sensor blister
     P.box(1.2, 0.04, 1.6, (0, -0.79, -1.8), 'dark', DARK2, 0.0)
@@ -930,11 +929,9 @@ def frigate(P):
     # engine bank inside the crown collar
     crown(P, S, -13.0, 0.7, 0.22, 0.12, 10, 24)
     nozzle(P, (0, 0.2, -14.95), 0.9, flame=3.0, segs=16, ring=GOLD)
-    P.cyl(0.56, 0.02, (0, 0.2, -14.962), 'z', 'glow', WHITE, 14)
     for sx in (1, -1):
         for (x, y, r) in ((1.75, 0.35, 0.6), (0.95, -1.05, 0.5)):
             nozzle(P, (sx * x, y, -14.9), r, flame=2.8, segs=10, ring=GOLD)
-            P.cyl(r * 0.62, 0.02, (sx * x, y, -14.912), 'z', 'glow', WHITE, 10)
     lamp(P, (0, -1.6, -13.5), STROBE, 0.1)
     # underside: keel, hangar door, sensor blisters
     P.box(0.6, 0.35, 20.0, (0, -1.6, -1.5), 'trim', PEARL3, 0.0)

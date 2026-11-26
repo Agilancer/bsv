@@ -309,7 +309,7 @@ def orb_turret(P, at, r, flip=1, L=2.0):
     P.cyl(r * 0.95, r * 0.3, (x, y + flip * r * 0.15, z), 'y', 'dark', OBS, 16)
     P.torus(r * 0.98, r * 0.09, (x, y + flip * r * 0.32, z), 'y', 'chrome', EDGE, 16, 4)
     oc = (x, y + flip * r * 0.85, z)
-    P.sphere(r, oc, 'hull', OBS3, (1, 0.82, 1), segs=14)
+    P.sphere(r, oc, 'hull', OBS3, (1, 0.82, 1), segs=12)
     P.torus(r * 1.0, r * 0.045, oc, 'y', 'glow', WHITE, 18, 4)
     P.cyl(r * 0.42, 0.02, (x, oc[1] + flip * r * 0.82, z - r * 0.1), 'y', 'paint', WHITE, 12)
     eye(P, (x, oc[1] + flip * r * 0.35, z + r * 0.78), r * 0.16, (0, flip * 0.5, 1))
@@ -380,7 +380,7 @@ def fighter(P):
             P.box(0.02, 0.2, 0.06, tuple(p + nn * 0.01), 'glow', WHITE, 0.0)
     for phi in (0, 120, 240):
         halo_nozzle(P, tuple(radial(phi, 0.35, -3.2)), 0.27, flame=2.4, segs=12, halo=0)
-    halo(P, (0, 0, -3.36), 0.84, 0.028, [(60, 0.62, -3.12), (180, 0.62, -3.12), (300, 0.62, -3.12)])
+    halo(P, (0, 0, -3.36), 0.84, 0.022, [(60, 0.62, -3.12), (180, 0.62, -3.12), (300, 0.62, -3.12)])
     spike(P, (0, 0.64, -1.75), (0, 1.18, -2.65), 0.06, 0.01, 'chrome', EDGE, 4)
     lamp(P, (0, 1.2, -2.68), STROBE, 0.04)
     # three crescent claws closing ahead of the prow like pincers; a gun needle at each tip
@@ -507,13 +507,13 @@ def decoy(P):
 def gunship(P):
     C, R, S = (0, 0, 0.6), 1.3, (1.22, 0.74, 4.3)
     # the ovoid: a faceted aft course, then four pointed petals that part round the eye like an iris
-    P.sphere(R * 0.78, (0, 0, 0.0), 'glow', WHITE, scale=(1.22, 0.74, 3.7), segs=16)
+    P.sphere(R * 0.72, (0, 0, 0.2), 'glow', WHITE, scale=(1.22, 0.74, 3.8), segs=16)
     for k in range(4):
         lc = 45 + k * 90
         upper = lc in (45, 315)
         shell(P, C, R, (lc - 42.5, lc + 42.5), (-52, -8), 0.12, S, 'hull', OBS2, 4, 6, angle=15)
-        fc = V(C) + radial(lc, 0.12, 0)
-        shell(P, fc, R * 1.03, (lc - 42, lc + 42), (-10, 68), 0.12, S, 'hull', OBS3 if upper else OBS2, 4, 9, pinch=(1, 0.5), angle=15)
+        fc = V(C) + radial(lc, 0.06, 0)
+        shell(P, fc, R * 1.03, (lc - 42.5, lc + 42.5), (-10, 68), 0.12, S, 'hull', OBS3 if upper else OBS2, 4, 9, pinch=(1, 0.66), angle=15)
         if upper:   # paint inlays along the upper petals' backs
             shell(P, fc, R * 1.03 + 0.012, (lc - 5, lc + 5), (-8, 60), 0.02, S, 'paint', WHITE, 1, 8, pinch=(1, 0.55))
             shell(P, C, R + 0.012, (lc - 4, lc + 4), (-48, -12), 0.02, S, 'paint', WHITE, 1, 4)
@@ -560,7 +560,7 @@ def gunship(P):
         inlay(P, STERN[1:], 6, 0.5, i, 0.2)
     for phi in (60, 180, 300):
         halo_nozzle(P, tuple(radial(phi, 0.4, -4.75)), 0.34, flame=2.8, segs=12, halo=0)
-    halo(P, (0, 0, -4.95), 1.2, 0.045, [(0, 0.66, -4.6), (120, 0.66, -4.6), (240, 0.66, -4.6)])
+    halo(P, (0, 0, -4.95), 1.2, 0.035, [(0, 0.66, -4.6), (120, 0.66, -4.6), (240, 0.66, -4.6)])
     spike(P, (0, 0.74, -3.7), (0, 1.55, -4.4), 0.07, 0.015, 'chrome', EDGE, 4)
     lamp(P, (0, 1.57, -4.42), STROBE, 0.07)
 
@@ -673,73 +673,87 @@ def tender(P):
 
 # ---------------------------------------------------------------- frigate (large)
 def frigate(P):
-    BOW = [(5.6, 1.7, 1.25, 0, 2), (9.0, 1.35, 1.0, -0.05, 2), (12.0, 0.75, 0.6, -0.1, 2), (13.4, 0.4, 0.35, -0.1, 2)]
-    MID = [(-6.0, 1.9, 1.4, 0, 2), (-2.0, 2.05, 1.5, 0, 2), (2.5, 1.95, 1.45, 0, 2), (5.2, 1.75, 1.3, 0, 2)]
-    AFT = [(-13.2, 2.4, 1.6, 0, 2), (-11.0, 2.2, 1.55, 0, 2), (-8.0, 1.9, 1.4, 0, 2), (-6.4, 1.8, 1.32, 0, 2)]
+    BOW = [(5.6, 2.0, 1.4, 0, 2), (9.0, 1.6, 1.15, -0.05, 2), (12.0, 0.9, 0.7, -0.1, 2), (13.4, 0.45, 0.4, -0.1, 2)]
+    MID = [(-6.0, 2.3, 1.55, 0, 2), (-2.0, 2.5, 1.65, 0, 2), (2.5, 2.4, 1.6, 0, 2), (5.2, 2.1, 1.45, 0, 2)]
+    AFT = [(-13.2, 2.7, 1.75, 0, 2), (-11.0, 2.5, 1.7, 0, 2), (-8.0, 2.25, 1.55, 0, 2), (-6.4, 2.2, 1.5, 0, 2)]
     # the main gun first: a spinal lance between three crescent prongs
     P.empty('gun', (0, -0.1, 18.05), {'heavy': 1})
-    spike(P, (0, -0.1, 12.4), (0, -0.1, 17.4), 0.32, 0.15, 'chrome', EDGE, 8)
+    spike(P, (0, -0.1, 12.4), (0, -0.1, 17.4), 0.36, 0.17, 'chrome', EDGE, 8)
     for z in (13.6, 14.8, 16.0):
-        ring(P, (0, -0.1, z), (0, 0, 1), 0.34 - (z - 13) * 0.03, 0.06, 0.1, 'glow', WHITE, 10)
-    crystal(P, (0, -0.1, 17.4), (0, 0, 1), 0.2, 0.6, 0.1, 'glow', WHITE, 6)
+        ring(P, (0, -0.1, z), (0, 0, 1), 0.38 - (z - 13) * 0.035, 0.06, 0.1, 'glow', WHITE, 10)
+    crystal(P, (0, -0.1, 17.4), (0, 0, 1), 0.22, 0.6, 0.1, 'glow', WHITE, 6)
     for phi in (0, 120, 240):
         Rd, N = radial(phi, 1, 0), tangent(phi)
-        claw(P, [Rd * 1.05 + V((0, -0.1, 8.6)), Rd * 2.8 + V((0, -0.1, 10.8)), Rd * 2.5 + V((0, -0.1, 14.6)), Rd * 0.95 + V((0, -0.1, 16.4))],
-             N, 0.78, 0.36, OBS3, 16, paint=1 if phi == 0 else None, knuckle=0.4)
+        claw(P, [Rd * 1.25 + V((0, -0.1, 8.4)), Rd * 3.3 + V((0, -0.1, 10.6)), Rd * 3.0 + V((0, -0.1, 14.8)), Rd * 1.05 + V((0, -0.1, 16.6))],
+             N, 0.95, 0.42, OBS3, 12, paint=1 if phi == 0 else None, knuckle=0.45)
     # the spine in three segments, lit gaps between
     for secs in (BOW, MID, AFT):
         P.loft(secs, 'hull', OBS, 8, phase=0.5)
-    for z, (hw, hh) in ((5.4, (1.6, 1.18)), (-6.2, (1.72, 1.26))):
+    for z, (hw, hh) in ((5.4, (1.9, 1.32)), (-6.2, (2.1, 1.42))):
         band(P, z - 0.06, z + 0.06, hw, hh, 'glow', WHITE, 8)
-    for z, hw, hh in ((5.62, 1.73, 1.28), (5.18, 1.78, 1.33), (-5.98, 1.93, 1.43), (-6.42, 1.83, 1.35), (-13.15, 2.43, 1.63)):
+    for z, hw, hh in ((5.62, 2.03, 1.43), (5.18, 2.13, 1.48), (-5.98, 2.33, 1.58), (-6.42, 2.23, 1.53), (-13.15, 2.73, 1.78)):
         band(P, z - 0.08, z + 0.08, hw, hh, 'chrome', EDGE, 8)
     for secs in (BOW[:3], AFT):
-        inlay(P, secs, 8, 0.5, 1, 0.55)
+        inlay(P, secs, 8, 0.5, 1, 0.6)
         for i in (0, 2):
-            inlay(P, secs, 8, 0.5, i, 0.04, 'glow', WHITE, lift=0.01)
-    # ribbed flanks below the heart
-    for z in (-5.0, -3.2, -1.4, 0.4, 2.2, 4.0):
+            inlay(P, secs, 8, 0.5, i, 0.045, 'glow', WHITE, lift=0.01)
+    # a ribcage along the flanks below the heart
+    for z in (-4.9, -2.75, -0.6, 1.55, 3.7):
         for sx in (1, -1):
-            fl = 2.5 + 0.55 * (1 - abs(z + 0.5) / 4.5)   # the cage swells amidships
-            rib = [(sx * 1.7, 0.75, z), (sx * fl, 1.0, z), (sx * fl, -0.95, z), (sx * 1.6, -1.0, z)]
-            pts = claw(P, rib, (0, 0, 1), 0.3, 0.62, OBS3, 10, taper=lambda t: 0.5 + 0.5 * math.sin(math.pi * t), lit=False)
-            sweep(P, bez(rib, 6, 0.25, 0.75), (0, 0, 1), 0.03, 0.08, 'glow', WHITE, shift=(side(pts, (0, 0, 1), (sx, 0, 0)) * 0.16, 0))
+            fl = 3.0 + 0.45 * (1 - abs(z + 0.6) / 4.3)   # the cage swells amidships
+            rib = [(sx * 2.15, 0.5, z), (sx * fl, 0.75, z), (sx * fl, -1.1, z), (sx * 2.05, -1.15, z)]
+            pts = claw(P, rib, (0, 0, 1), 0.32, 0.62, OBS3, 10, taper=lambda t: 0.5 + 0.5 * math.sin(math.pi * t), lit=False)
+            sweep(P, bez(rib, 4, 0.25, 0.75), (0, 0, 1), 0.03, 0.08, 'glow', WHITE, shift=(side(pts, (0, 0, 1), (sx, 0, 0)) * 0.17, 0))
     # the command heart: six petals round a great lit core, a half-ring crest over it
-    C = (0, 1.7, -1.6)
-    P.sphere(2.05, C, 'glow', WHITE, scale=(1, 0.88, 1.12), segs=18)
-    heart(P, C, 2.6, 6, (1, 1.12, 0.88), gap=6, lat=(-22, 82), phase=30, nu=4, nv=9, th=0.2, pinch=(1, 0.72),
+    C = (0, 1.85, -1.6)
+    P.sphere(2.2, C, 'glow', WHITE, scale=(1, 0.88, 1.12), segs=14)
+    heart(P, C, 2.8, 6, (1, 1.12, 0.88), gap=6, lat=(-22, 82), phase=30, nu=3, nv=9, th=0.22, pinch=(1, 0.72),
           paint=(0, 7), frame=((1, 0, 0), (0, 0, 1), (0, 1, 0)))
-    P.torus(2.45, 0.14, (0, 1.32, -1.6), 'y', 'chrome', EDGE, 28, 4)
-    crest = arcpts((0, 1.3, -1.6), (0, 0, 1), (0, 1, 0), 3.65, -4, 184, 26)
-    sweep(P, crest, (1, 0, 0), 0.42, 0.85, 'hull', OBS3, taper=lambda t: 0.5 + 0.5 * math.sin(math.pi * t), prof=BLADE_H)
-    sweep(P, arcpts((0, 1.3, -1.6), (0, 0, 1), (0, 1, 0), 3.46, 10, 170, 20), (1, 0, 0), 0.04, 0.1, 'glow', WHITE)
-    sweep(P, arcpts((0, 1.3, -1.6), (0, 0, 1), (0, 1, 0), 3.87, 40, 140, 12), (1, 0, 0), 0.02, 0.36, 'paint', WHITE)
-    lamp(P, (0, 1.3 + 3.9, -1.6), STROBE, 0.12)
+    P.torus(2.62, 0.15, (0, 1.5, -1.6), 'y', 'chrome', EDGE, 28, 4)
+    crest = arcpts((0, 1.45, -1.6), (0, 0, 1), (0, 1, 0), 4.0, -4, 184, 26)
+    sweep(P, crest, (1, 0, 0), 0.44, 0.9, 'hull', OBS3, taper=lambda t: 0.5 + 0.5 * math.sin(math.pi * t), prof=BLADE_H)
+    sweep(P, arcpts((0, 1.45, -1.6), (0, 0, 1), (0, 1, 0), 3.8, 10, 170, 20), (1, 0, 0), 0.04, 0.1, 'glow', WHITE)
+    sweep(P, arcpts((0, 1.45, -1.6), (0, 0, 1), (0, 1, 0), 4.225, 40, 140, 12), (1, 0, 0), 0.02, 0.38, 'paint', WHITE)
+    lamp(P, (0, 1.45 + 4.26, -1.6), STROBE, 0.12)
     # turrets fore, aft and below
-    orb_turret(P, (0, 1.12, 7.2), 0.72, 1, 2.4)
-    orb_turret(P, (0, 1.32, -9.6), 0.72, 1, 2.4)
-    orb_turret(P, (0, -1.38, 1.6), 0.66, -1, 2.2)
-    # point defence: crystal nodes on spines
+    orb_turret(P, (0, 1.18, 7.2), 0.78, 1, 2.5)
+    orb_turret(P, (0, 1.5, -9.6), 0.78, 1, 2.5)
+    orb_turret(P, (0, -1.5, 1.6), 0.7, -1, 2.3)
+    # two drive nacelles aft in half-ring clamps
     for sx in (1, -1):
-        for (x0, y0, z) in ((1.75, 0.35, 3.2), (2.1, 0.3, -9.2)):
-            a, b = V((sx * x0, y0, z)), V((sx * (x0 + 1.0), y0 + 0.55, z))
+        nx, ny = sx * 3.85, -0.3
+        P.loft([(-12.6, 0.6, 0.6, 0, 2), (-12.2, 0.72, 0.72, 0, 2), (-8.4, 0.72, 0.72, 0, 2), (-7.7, 0.58, 0.58, 0, 2)], 'hull', OBS3, 10, at=(nx, ny, 0))
+        P.loft([(-7.7, 0.56, 0.56, 0, 2), (-7.2, 0.3, 0.3, 0, 2), (-6.9, 0.04, 0.04, 0, 2)], 'glass', LENS, 10, at=(nx, ny, 0))
+        P.torus(0.58, 0.035, (nx, ny, -7.72), 'z', 'glow', WHITE, 14, 4)
+        for z in (-8.9, -9.2):
+            P.torus(0.73, 0.045, (nx, ny, z), 'z', 'paint', WHITE, 14, 4)
+        halo_nozzle(P, (nx, ny, -12.65), 0.5, flame=2.6, segs=14, halo=1.36)
+        for z in (-8.6, -11.6):
+            sweep(P, arcpts((nx, ny, z), (-sx, 0, 0), (0, 1, 0), 0.82, -115, 115, 10), (0, 0, 1), 0.12, 0.36, 'chrome', EDGE,
+                  taper=lambda t: 0.55 + 0.45 * math.sin(math.pi * t))
+            spike(P, (sx * 2.0, ny, z), (sx * 3.08, ny, z), 0.17, 0.14, 'dark', OBS2, 4, 0.5)
+    # point defence: crystal nodes on spines, fore on the flanks and aft on the nacelles
+    for sx in (1, -1):
+        for a, b in (((sx * 2.15, 0.35, 3.1), (sx * 3.25, 1.0, 3.1)), ((sx * 3.85, 0.38, -9.9), (sx * 4.3, 1.25, -9.9))):
+            a, b = V(a), V(b)
             spike(P, a, b, 0.12, 0.07, 'chrome', EDGE, 6)
             crystal(P, b, b - a, 0.22, 0.4, 0.25, 'glass', LENS, 6)
             ring(P, b, b - a, 0.25, 0.04, 0.04, 'glow', WHITE, 10)
             P.empty('pd', tuple(b + (b - a).normalized() * 0.4))
-        lamp(P, (sx * 1.56, 0.1, 8.5), NAV_P if sx > 0 else NAV_S, 0.14)
+        lamp(P, (sx * 1.6, 0.1, 8.5), NAV_P if sx > 0 else NAV_S, 0.14)
     # the drive cluster inside a floating stern ring
-    halo_nozzle(P, (0, 0, -13.3), 0.78, flame=3.0, segs=18, halo=0)
+    halo_nozzle(P, (0, 0, -13.3), 0.85, flame=3.0, segs=16, halo=0)
     for k in range(6):
         a = math.radians(k * 60)
-        halo_nozzle(P, (math.cos(a) * 1.55, math.sin(a) * 0.98, -13.3), 0.5, flame=2.6, segs=14, halo=0)
-    P.torus(2.75, 0.24, (0, 0, -14.0), 'z', 'hull', OBS3, 32, 6)
-    P.torus(2.52, 0.05, (0, 0, -14.0), 'z', 'glow', WHITE, 32, 4)
-    sweep(P, arcpts((0, 0, -14.0), (0, 1, 0), (1, 0, 0), 2.75, -40, 40, 8), (0, 0, 1), 0.08, 0.3, 'paint', WHITE, shift=(-0.25, 0))
+        halo_nozzle(P, (math.cos(a) * 1.75, math.sin(a) * 1.08, -13.3), 0.52, flame=2.6, segs=12, halo=0)
+    P.torus(3.0, 0.25, (0, 0, -14.0), 'z', 'hull', OBS3, 28, 5)
+    P.torus(2.76, 0.05, (0, 0, -14.0), 'z', 'glow', WHITE, 32, 4)
+    top = arcpts((0, 0, -14.0), (0, 1, 0), (1, 0, 0), 3.0, -40, 40, 8)
+    sweep(P, top, (0, 0, 1), 0.06, 0.3, 'paint', WHITE, shift=(side(top, (0, 0, 1), (0, 1, 0)) * 0.24, 0))
     for phi in (30, 90, 150, 210, 270, 330):
-        spike(P, radial(phi, 1.35, -13.0), radial(phi, 2.55, -14.0), 0.12, 0.08, 'chrome', EDGE, 4)
-    lamp(P, (0, 3.02, -14.0), STROBE, 0.12)
-    lamp(P, (0, -3.02, -14.0), STROBE, 0.12)
+        spike(P, radial(phi, 1.45, -13.0), radial(phi, 2.8, -14.0), 0.13, 0.09, 'chrome', EDGE, 4)
+    lamp(P, (0, 3.28, -14.0), STROBE, 0.12)
+    lamp(P, (0, -3.28, -14.0), STROBE, 0.12)
 
 
 BUILD = {'fighter': fighter, 'bomber': bomber, 'drone': drone, 'decoy': decoy, 'gunship': gunship,
