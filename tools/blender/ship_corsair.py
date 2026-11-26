@@ -106,22 +106,29 @@ class Corsair(K.Style):
             p.marker('hp.pr', (x * u, yc, zf - dp - 0.62 * B.S))
             p.tube([(0, 0.1 * u), (dp + 0.12 * u, 0.1 * u)], (x * u, yc, zf - dp), 'z', 8, 'trim', cap_mat='dark')
 
+        xm, pz = max([abs(x) for x in marks] + [0.0]) * u, zf - dp - 0.62 * B.S
+        clear = lambda z: min(1.12 * u, max(0.41 * u, xm + 0.55 * (z - pz) + 0.06 * u))     # (a tine's inner edge outside the tubes' arc, 0.5 rad
+        # either side, as far as the shield allows at the bow)
+
         def blade(sx, tip):
             rg = lambda z, xc, hw, hh, yo=0.0: [(sx * (xc - hw), yo + hh, z), (sx * (xc + hw), yo + hh * 0.6, z), (sx * (xc + hw), yo - hh * 0.6, z), (sx * (xc - hw), yo - hh, z)]
-            p.loft([rg(z0 + 0.15 * ln, 0.7 * u, 0.2 * u, 0.5 * u), rg(zf, 0.62 * u, 0.17 * u, 0.44 * u), rg(zf + (tip - zf) * 0.6, 0.52 * u, 0.11 * u, 0.3 * u, -0.02 * u), rg(tip, 0.44 * u, 0.03 * u, 0.08 * u, -0.06 * u)], 'hull')
+            zm = zf + (tip - zf) * 0.6
+            p.loft([rg(z0 + 0.15 * ln, 0.7 * u, 0.2 * u, 0.5 * u), rg(zf, max(0.62 * u, clear(zf) + 0.17 * u), 0.17 * u, 0.44 * u), rg(zm, clear(zm) + 0.11 * u, 0.11 * u, 0.3 * u, -0.02 * u), rg(tip, clear(tip) + 0.03 * u, 0.03 * u, 0.08 * u, -0.06 * u)], 'hull')
         blade(1, z1)
         blade(-1, z1 - 0.14 * ln)           # the starboard tine was shot short and never rebuilt
-        d = (z1 - zf) * 0.5                 # solid armour between the tines, above and below the tubes
-        p.box('hull', 1.0 * u, 0.16 * u, d + 0.2 * u, (0, hn[0][1] - 0.1 * u, zf - 0.2 * u + (d + 0.2 * u) / 2))
-        p.box('hull', 0.9 * u, 0.14 * u, d * 0.6 + 0.2 * u, (0, hn[-1][1] + 0.09 * u, zf - 0.2 * u + (d * 0.6 + 0.2 * u) / 2))
-        p.box('dark', 0.5 * u, 0.05 * u, d * 0.7, (0.1 * u, hn[0][1] - 0.01 * u, zf + d * 0.4))
+        d = (z1 - zf) * 0.5                 # solid armour between the tines, above and below the tubes (the upper short: the tubes elevate)
+        p.box('hull', 1.0 * u, 0.16 * u, 0.22 * u, (0, hn[0][1] - 0.1 * u, zf - 0.1 * u))
+        p.box('hull', 0.9 * u, 0.14 * u, 0.22 * u, (0, hn[-1][1] + 0.09 * u, zf - 0.1 * u))
+        p.box('dark', 0.5 * u, 0.05 * u, 0.16 * u, (0.1 * u, hn[0][1] - 0.01 * u, zf - 0.1 * u))
 
-    def lobes(self, p, B, hf, z0, z1, zu, lo, hi):      # the cruiser: the fork's two tines along the lower lobe (starboard shot short)
+    def lobes(self, p, B, hf, z0, z1, zu, lo, hi, floor):   # the cruiser: the fork's two tines along the lower lobe (starboard shot short)
         u = B.W
         X0 = K.xat(hf, lo - 0.1 * u, True)      # the lower lobe's half-width at the root; it tapers to 0.44 of that at its tip
-        for sx, tip in ((1, z1), (-1, z1 - 0.5 * u)):
+        for sx, tip in ((1, z1), (-1, z1 - 0.2 * u)):
             rg = lambda z, xc, hw, hh, yo: [(sx * (xc - hw), yo + hh, z), (sx * (xc + hw), yo + hh * 0.6, z), (sx * (xc + hw), yo - hh * 0.6, z), (sx * (xc - hw), yo - hh, z)]
-            p.loft([rg(zu - 1.0 * u, 0.86 * X0, 0.14 * u, 0.24 * u, lo - 0.12 * u), rg(zu, 0.82 * X0, 0.13 * u, 0.2 * u, lo - 0.1 * u), rg(tip - 0.3 * u, 0.7 * X0, 0.08 * u, 0.12 * u, lo - 0.1 * u), rg(tip, 0.64 * X0, 0.02 * u, 0.04 * u, lo - 0.12 * u)], 'hull')
+            zs = (zu - 1.0 * u, zu - 0.2 * u, tip - 0.12 * u, tip)
+            p.loft([rg(zs[0], 0.86 * X0, 0.14 * u, 0.24 * u, floor(zs[0]) - 0.12 * u), rg(zs[1], 0.8 * X0, 0.12 * u, 0.2 * u, floor(zs[1]) - 0.1 * u),
+                    rg(zs[2], 0.7 * X0, 0.06 * u, 0.1 * u, floor(zs[2]) - 0.1 * u), rg(tip, 0.66 * X0, 0.02 * u, 0.04 * u, floor(tip) - 0.12 * u)], 'hull')
 
     def command(self, B, variant):
         u = B.W
@@ -161,7 +168,7 @@ class Corsair(K.Style):
         p, st = K.delta(B)
         yd, xo = 0.36 * u, 0.36 * u         # the gallery stands on the wing's root, inside its planform (clear of the broadside's fan)
         z0, z1 = st[0][1] + 0.1, st[0][1] + 1.42
-        gal = lambda z, k: [(-0.3 * u, yd, z), (xo * k, yd, z), (xo * k, -0.02 * u, z), (-0.3 * u, -0.02 * u, z)]
+        gal = lambda z, k: [(-0.3 * u, yd + 0.05, z), (xo * k, yd + 0.05, z), (xo * k, -0.02 * u, z), (-0.3 * u, -0.02 * u, z)]
         p.loft([gal(z0 * u, 0.9), gal((z0 + 0.15) * u, 1.0), gal((z1 - 0.3) * u, 1.0), gal(z1 * u, 0.7)], 'hull', cap_mat=('dark', 'dark'))
         for z in (z0 + 0.42, z0 + 0.92):     # hangar bays on the gallery's outboard wall, lit like doorways
             z *= u
@@ -180,7 +187,7 @@ class Corsair(K.Style):
         cx, w = K.side_cx()
         cx, y = cx * u, self.side['ht'] * B.HT + 0.02 * u      # (on the side hull's own crown, clear of the gap to the body)
         wi = self.side['wi']
-        gal = lambda z, k: [(cx - 0.8 * wi * u * k, y, z), (cx + 0.8 * w * u * k, y, z), (cx + 0.7 * w * u * k, 0.12 * u, z), (cx - 0.7 * wi * u * k, 0.12 * u, z)]
+        gal = lambda z, k: [(cx - 0.8 * wi * u * k, y + 0.05, z), (cx + 0.8 * w * u * k, y + 0.05, z), (cx + 0.7 * w * u * k, 0.12 * u, z), (cx - 0.7 * wi * u * k, 0.12 * u, z)]
         p.loft([gal(-3.3 * u, 0.8), gal(-1.5 * u, 1.0)], 'hull', cap_mat=('dark', 'hull'))    # the landing gallery in the tail, its mouth aft
         p.box('glow', 0.3 * u, 0.02 * u, 0.03 * u, (cx, y - 0.1 * u, -3.29 * u))
         p.loft([gal(1.85 * u, 1.0), gal(2.5 * u, 0.7)], 'hull', cap_mat=('hull', 'dark'))      # launch mouths over the bow

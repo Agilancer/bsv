@@ -10,6 +10,7 @@ from shipkit import Part, prof, subquad, edge, ell, det, taper
 
 class Hollow(K.Style):
     lang, hood, collars = 'hollow', False, False
+    prow_sink = 0.8             # (the maw is open all round: the cruiser's launchers sit deep in it)
     prow_n = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2, 9: 2, 10: 3}
 
     def section(self, W, HT, HB, yo):
@@ -73,7 +74,10 @@ class Hollow(K.Style):
     def nose(self, p, B, h, z0, z1, marks, variant, zm):
         u, ln = B.W, z1 - z0
         if variant == 'snout':              # the destroyer: a long carapace snout to a lit maw, short mandibles framing it
-            zf, yc, hn = K.snout_face(p, B, h, z0, z1, marks, face='glow', tubes=False)
+            zf, yc, hn = K.snout_face(p, B, h, z0, z1, marks, tubes=False)
+            for i in range(8):              # a ring of maw lights in the dark face, not one lit disc
+                a = (i + 0.5) / 8 * math.tau
+                p.tube([(-0.12 * u - 0.01 * u, 0.04 * u), (-0.12 * u + 0.012 * u, 0.04 * u)], (0.3 * u * math.cos(a), yc + 0.19 * u * math.sin(a), zf), 'z', 8, 'glow')
             P = lambda x, y, t: (x * u, y * u, z0 + t * ln)
             xm = hn[2][0] / u
             p.sweep([P(xm - 0.1, -0.06, 0.78), P(xm + 0.06, -0.1, 0.88), P(xm - 0.02, -0.14, 0.95), P(xm - 0.2, -0.16, 0.995)], [0.13 * u, 0.12 * u, 0.08 * u, 0.02 * u], 6, 'hull', squash=1.3, mirror=True)
@@ -89,16 +93,22 @@ class Hollow(K.Style):
     def head(self, p, B, hf, z0, z1, zu, lo, hi):       # the cruiser: two curved mandibles over the maw, hooked in at their tips
         u = B.W
         top, bot = hf[0][1], hf[-1][1]
-        ym, hm = (hi + top) / 2, (top - hi) / 2
-        xm = K.xat(hf, ym) * 1.02
-        L = zu - z0
-        p.sweep([(0, ym, z0 - 0.25 * u), (0, ym + 0.02 * u, z0 + 0.35 * L), (0, ym - 0.04 * u, z0 + 0.72 * L), (0, hi + 0.14 * u, zu - 0.08 * u), (0, hi + 0.02 * u, zu + 0.3 * u)],
-                [xm, xm * 0.96, xm * 0.78, xm * 0.46, xm * 0.12], 12, 'hull', squash=hm / xm)
-        ym, hm = (lo + bot) / 2, (lo - bot) / 2
-        xm = K.xat(hf, ym, True) * 1.02
-        L = z1 - z0
-        p.sweep([(0, ym, z0 - 0.25 * u), (0, ym - 0.02 * u, z0 + 0.35 * L), (0, ym + 0.03 * u, z0 + 0.7 * L), (0, lo - 0.14 * u, z1 - 0.38 * u), (0, lo - 0.03 * u, z1 - 0.03 * u)],
-                [xm, xm * 0.95, xm * 0.74, xm * 0.42, xm * 0.1], 12, 'hull', squash=hm / xm)
+        for up in (True, False):
+            ym, hm = ((hi + top) / 2, (top - hi) / 2) if up else ((lo + bot) / 2, (lo - bot) / 2)
+            xm = K.xat(hf, ym, not up) * 1.02
+            L, s = (zu - z0, 1) if up else (z1 - z0, -1)
+            path = [(0, ym, z0 - 0.25 * u), (0, ym + s * 0.02 * u, z0 + 0.35 * L), (0, ym - s * 0.04 * u, z0 + 0.72 * L),
+                    (0, (hi + 0.14 * u) if up else (lo - 0.14 * u), (zu - 0.08 * u) if up else (z1 - 0.3 * u)), (0, (hi + 0.02 * u) if up else (lo - 0.03 * u), (zu + 0.3 * u) if up else (z1 - 0.03 * u))]
+            k = [1.0, 0.96, 0.78, 0.46, 0.12] if up else [1.0, 0.95, 0.74, 0.42, 0.1]
+            p.sweep(path, [xm * f for f in k], 12, 'hull', squash=hm / xm)
+            # the maw lit red along each mandible's inner lip
+            lip = [(0, yy - s * xm * f * hm / xm + s * 0.012 * u, zz) for (_, yy, zz), f in zip(path[2:4], k[2:4])]
+            p.sweep(lip, [0.03 * u, 0.025 * u], 6, 'glow')
+        # two curved mandibles at the maw's sides, hooked in at their tips
+        Xh, L = K.xat(hf, (lo + hi) / 2), z1 - z0
+        yc = (lo + hi) / 2
+        p.sweep([(0.8 * Xh, yc, z0 - 0.15 * u), (0.97 * Xh, yc - 0.02 * u, z0 + 0.45 * L), (0.85 * Xh, yc - 0.03 * u, zu - 0.1 * u), (0.5 * Xh, yc - 0.02 * u, z1 - 0.12 * u), (0.3 * Xh, yc, z1 - 0.04 * u)],
+                [0.2 * u, 0.17 * u, 0.12 * u, 0.06 * u, 0.015 * u], 6, 'hull', squash=1.2, mirror=True)
         return True
 
     # ---- the body: bulging carapace lofts, ribs and limbs (no boxes, no straight edges)

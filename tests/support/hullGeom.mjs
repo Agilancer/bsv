@@ -243,3 +243,83 @@ export function fanBlock(K, plan) {
   }
   return { mean: n ? sum / n : 0, worst, byTier };
 }
+
+// Faces wound inside out where they show: from each of the six axis directions, a grid of rays (n x n over the
+// hull's extent). Drawn with back faces culled, a ray shows the first face it meets that faces it; when the first face
+// it meets faces away and no face facing the ray lies within 0.25 W behind it, the hull shows a hole there (a face
+// wound inside out, and the hull's far side culled behind it). A stray face across an opening, with the true surface
+// just behind it, passes. Triangles are bucketed on the grid, so each ray tests only its cell. Returns the holes
+// [{ at: point in W, dir, part }].
+export function backFaces(K, plan, n = 32) {
+  const W = plan.dims.W, { P, who } = triangles(K, plan, () => true, true), nT = P.length / 9, eps = 1e-3 * W;
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < P.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], P[i + k]); hi[k] = Math.max(hi[k], P[i + k]); }
+  const out = [];
+  for (let a = 0; a < 3; a++) {
+    const b = (a + 1) % 3, c = (a + 2) % 3;
+    const cell = (v, k) => Math.max(0, Math.min(n - 1, Math.floor(((v - lo[k]) / (hi[k] - lo[k] || 1)) * n)));
+    const grid = Array.from({ length: n * n }, () => []);
+    for (let t = 0; t < nT; t++) {
+      const i = t * 9;
+      const bs = [P[i + b], P[i + 3 + b], P[i + 6 + b]], cs = [P[i + c], P[i + 3 + c], P[i + 6 + c]];
+      for (let u = cell(Math.min(...bs), b); u <= cell(Math.max(...bs), b); u++) for (let v = cell(Math.min(...cs), c); v <= cell(Math.max(...cs), c); v++) grid[u * n + v].push(i);
+    }
+    for (let u = 0; u < n; u++) for (let v = 0; v < n; v++) {
+      const pb = lo[b] + ((u + 0.5) / n) * (hi[b] - lo[b]), pc = lo[c] + ((v + 0.5) / n) * (hi[c] - lo[c]);
+      const hits = [];
+      for (const i of grid[u * n + v]) {
+        const x0 = P[i + b], y0 = P[i + c], x1 = P[i + 3 + b], y1 = P[i + 3 + c], x2 = P[i + 6 + b], y2 = P[i + 6 + c];
+        const d = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
+        if (Math.abs(d) < 1e-12) continue;
+        const l0 = ((y1 - y2) * (pb - x2) + (x2 - x1) * (pc - y2)) / d, l1 = ((y2 - y0) * (pb - x2) + (x0 - x2) * (pc - y2)) / d, l2 = 1 - l0 - l1;
+        if (l0 < 0 || l1 < 0 || l2 < 0) continue;
+        const depth = l0 * P[i + a] + l1 * P[i + 3 + a] + l2 * P[i + 6 + a];
+        // the face's normal along the axis (sign of the projected winding)
+        hits.push([depth, Math.sign(d), i]);
+      }
+      if (!hits.length) continue;
+      for (const s of [1, -1]) {        // looking from +axis (the highest hit first), then from -axis
+        let best = -Infinity;
+        for (const [z] of hits) best = Math.max(best, s * z);
+        const near = hits.filter(([z]) => s * z > best - eps);
+        // the projected winding's sign is the normal's sign along the axis a (b, c, a is right-handed)
+        if (near.some(([, w]) => w === s) || hits.some(([z, w]) => w === s && s * z > best - 0.25 * W)) continue;
+        const part = who[near[0][2] / 9];
+        const at = [0, 0, 0];
+        at[a] = s * best; at[b] = pb; at[c] = pc;
+        out.push({ at: at.map((q) => +(q / W).toFixed(2)), dir: ['x', 'y', 'z'][a] + (s > 0 ? '+' : '-'), part });
+      }
+    }
+  }
+  return out;
+}
+
+// The prow guns' arcs (after the technical review): from each prow pivot, 35 rays over the prow traverse (yaw +-0.5,
+// pitch +-0.3) out to 3.3 x the prow gun's scale (1.2 s); a ray is blocked when, after it first leaves the hull (the
+// tube face, or the launcher's throat), it meets the hull again more than 0.05 W further on. Returns the mean
+// blocked share and the most rays blocked at one mount.
+export function prowArc(K, plan) {
+  const W = plan.dims.W, s = 0.72 * W * 1.2, { P } = triangles(K, plan), nT = P.length / 9;
+  let tot = 0, blk = 0, worst = 0;
+  for (const h of plan.hardpoints) {
+    if (h.type !== 'prow') continue;
+    const o = h.pos;
+    let mb = 0;
+    for (let a = 0; a < 7; a++) for (let e = 0; e < 5; e++) {
+      const yaw = -0.5 + a / 6, pit = -0.3 + 0.15 * e, d = [Math.cos(pit) * Math.sin(yaw), Math.sin(pit), Math.cos(pit) * Math.cos(yaw)];
+      const hs = [];
+      for (let t = 0; t < nT; t++) {
+        const i = t * 9, r = rayTri(o, d, P, i);
+        if (r <= 0 || r >= 3.3 * s) continue;
+        const ux = P[i + 3] - P[i], uy = P[i + 4] - P[i + 1], uz = P[i + 5] - P[i + 2], vx = P[i + 6] - P[i], vy = P[i + 7] - P[i + 1], vz = P[i + 8] - P[i + 2];
+        hs.push([r, (uy * vz - uz * vy) * d[0] + (uz * vx - ux * vz) * d[1] + (ux * vy - uy * vx) * d[2] < 0]);   // [distance, faces the ray]
+      }
+      hs.sort((p, q) => p[0] - q[0]);
+      const out = hs.find(([, f]) => !f);
+      tot++;
+      if (out && hs.some(([r, f]) => f && r > out[0] + 0.05 * W)) { blk++; mb++; }
+    }
+    worst = Math.max(worst, mb);
+  }
+  return { mean: tot ? blk / tot : 0, worst };
+}
