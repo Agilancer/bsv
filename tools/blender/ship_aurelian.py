@@ -20,7 +20,7 @@ class Aurelian(K.Style):
         return prof([(0, HT + yo), (0.5 * W, 0.88 * HT + yo), (W, 0.14 * HT + yo), (0.97 * W, -0.22 * HB + yo), (0.5 * W, -0.9 * HB + yo), (0, -HB + yo)], K.shiplib.SKIN)
 
     # the body: a smooth compressed oval through the section's six points, the whole hull swelling amidships (kitPlan.js PROFILE)
-    fair = staticmethod(lambda h, band: K.shiplib.smooth(h, {'S': 0, 'C': 2}.get(band, 1)))
+    fair = staticmethod(lambda h, band: K.shiplib.smooth(h, {'S': 0, 'M': 2, 'L': 2, 'C': 2}.get(band, 1)))
     swell = 0.0                 # one form: the swell amidships is the whole ship's (kitPlan.js PROFILE.aurelian)
 
     def mouth(self, tier, kind):
@@ -69,6 +69,7 @@ class Aurelian(K.Style):
 
     # ---- the body: every part a smooth compressed-oval loft, swept (no facets, no boxes)
     wellrim = ((-0.5, 0.96), (-0.03, 0.8), (0.035, 0.7), (0.035, 0.6))    # turrets in domed blisters
+    spinerim = ((-0.4, 0.74), (-0.02, 0.72), (0.035, 0.68), (0.035, 0.6))  # a round collar on the gun spine
     long_stag = True            # staggered batteries share one long flank fairing
     block_fore = ((0.04, 1.7), (0.3, 1.25), (0.6, 0.8), (0.85, 0.4), (0.97, 0.12))
     block_aft = ((0.1, 1.2), (0.45, 0.8), (0.8, 0.4), (0.96, 0.12))

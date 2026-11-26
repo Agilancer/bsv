@@ -151,6 +151,40 @@ def cut_wellb(h, yw, xm, tag='dark'):
     return cut_bot(h, yw, tag)
 
 
+def _ring2(h):
+    """The closed outline of a half profile mirrored across x: [(x, y)]."""
+    pts = [(x, y) for x, y, _ in h]
+    return pts + [(-x, y) for x, y in pts[-2:0:-1]]
+
+
+def _inside(pt, poly, eps):
+    x, y = pt
+    c = False
+    for i in range(len(poly)):
+        (x0, y0), (x1, y1) = poly[i], poly[(i + 1) % len(poly)]
+        dx, dy = x1 - x0, y1 - y0
+        l2 = dx * dx + dy * dy
+        t = max(0.0, min(1.0, ((x - x0) * dx + (y - y0) * dy) / l2)) if l2 else 0.0
+        if (x0 + t * dx - x) ** 2 + (y0 + t * dy - y) ** 2 < eps * eps:
+            return True                 # on the outline
+        if (y0 > y) != (y1 > y) and x < x0 + (y - y0) * dx / dy:
+            c = not c
+    return c
+
+
+def within(a, b, sym=True):
+    """Does half profile a's section lie inside b's? Then a's cap against a run of b is hidden in b's solid.
+    sym=False: the profiles are whole outlines (an appendage's), not mirrored."""
+    A, P = (_ring2(a), _ring2(b)) if sym else ([(x, y) for x, y, _ in a], [(x, y) for x, y, _ in b])
+    eps = 1e-3 * max(1.0, max(abs(v) for p in P for v in p))
+    for i in range(len(A)):
+        p, q = A[i], A[(i + 1) % len(A)]
+        for t in (0.0, 0.25, 0.5, 0.75):
+            if not _inside((p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t), P, eps):
+                return False
+    return True
+
+
 def pring(h, z, sym=True):
     """Ring of game points and the material of each ring edge. sym: mirror the half profile across x."""
     if not sym:
@@ -185,12 +219,26 @@ class Solid:
         self.faces.append((tuple(ids), mat))
 
     def volume(self):
+        """Signed volume. A solid left open where its cap is hidden (Part.body) is closed for the count by a cone from
+        the centre of its open rims, so it still reads positive when wound outward, wherever it stands."""
+        if not self.verts:
+            return 0.0
+        edges = {}
+        for ids, _ in self.faces:
+            for k in range(len(ids)):
+                e = (ids[k], ids[(k + 1) % len(ids)])
+                if (e[1], e[0]) in edges:
+                    del edges[(e[1], e[0])]
+                else:
+                    edges[e] = True
+        rim = {v for e in edges for v in e}
+        c = mul(tuple(sum(self.verts[v][k] for v in rim) for k in range(3)), 1.0 / len(rim)) if rim else (0.0, 0.0, 0.0)
         vol = 0.0
         for ids, _ in self.faces:
-            a = self.verts[ids[0]]
+            a = sub(self.verts[ids[0]], c)
             for i in range(1, len(ids) - 1):
-                vol += dot(a, cross(self.verts[ids[i]], self.verts[ids[i + 1]]))
-        return vol / 6.0
+                vol += dot(a, cross(sub(self.verts[ids[i]], c), sub(self.verts[ids[i + 1]], c)))
+        return vol / 6.0          # (the cone over the open rims from c adds nothing about c)
 
     def outward(self):
         if self.volume() < 0:
@@ -260,17 +308,37 @@ class Part:
         over = over or {}
         return self.loft(rings, lambda r, i: over.get(r, tags[r][i]), caps=caps, cap_mat=cap_mat or 'hull', mirror=mirror, shut=shut)
 
-    def body(self, h, z0, z1, feats=()):
-        """A run of prisms of profile h from z0 to z1; feats = [(za, zb, fn)] apply fn(profile) over [za, zb]."""
+    def body(self, h, z0, z1, feats=(), caps=(None, None)):
+        """A run of prisms of profile h from z0 to z1; feats = [(za, zb, fn)] apply fn(profile) over [za, zb].
+        Hidden caps are left out: between two prisms, the cap of the one whose section lies inside the other's; at a
+        section's joint (z = 0 or len), the bare section's cap, which meets the neighbour's (only where joints are
+        flush: ZSEG yards, whose waists keep their full section to the joint). caps: force the end caps."""
         zs = sorted({round(z0, 4), round(z1, 4), *[round(min(max(z, z0), z1), 4) for f in feats for z in f[:2]]})
+        plain = len(h) == 6 and all(isinstance(t, Skin) for _, _, t in h)
         h = fair(h, self.band)
+        runs = []
         for a, b in zip(zs, zs[1:]):
-            hh = h
+            hh, cut = h, False
             for fa, fb, fn in feats:
                 if fa <= a + 1e-3 and fb >= b - 1e-3:
-                    hh = fn(hh)
+                    hh, cut = fn(hh), True
+            runs.append((a, b, hh, cut))
+        joint = bool(ZSEG) and plain and self.role in ('battery', 'waist', 'bow', 'stern', 'fore')
+        for k, (a, b, hh, cut) in enumerate(runs):
+            if k:
+                c0 = not within(hh, runs[k - 1][2])
+            elif caps[0] is not None:
+                c0 = caps[0]
+            else:
+                c0 = not (joint and not cut and abs(a) < 1e-6)
+            if k < len(runs) - 1:
+                c1 = not within(hh, runs[k + 1][2])
+            elif caps[1] is not None:
+                c1 = caps[1]
+            else:
+                c1 = not (joint and not cut and self.len is not None and abs(b - self.len) < 1e-3)
             n = max(1, math.ceil((b - a) / (ZSEG * {'M': 1.8, 'L': 1.5}.get(self.band, 1.0) * max(x for x, _, _ in hh)))) if ZSEG and self.band != 'S' else 1
-            self.hloft([(hh, a + (b - a) * i / n) for i in range(n + 1)])
+            self.hloft([(hh, a + (b - a) * i / n) for i in range(n + 1)], caps=(c0, c1))
 
     def box(self, mat, w, h, d, at, mirror=False, shut=None):
         x, y, z = at

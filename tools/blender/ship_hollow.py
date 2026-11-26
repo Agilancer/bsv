@@ -19,10 +19,11 @@ class Hollow(K.Style):
     # at every other point of the flanks), and every section swells amidships: a segmented shell
     swell = 0.04                # (the body's bulge is the whole ship's: kitPlan.js PROFILE.hollow)
     wellrim = ((-0.5, 1.0), (-0.04, 0.9), (0.01, 0.86), (-0.01, 0.76), (0.075, 0.71), (0.075, 0.61))   # two overlapping scale lips
+    spinerim = ((-0.4, 0.76), (-0.03, 0.73), (0.01, 0.7), (-0.01, 0.66), (0.06, 0.64), (0.06, 0.58))   # the same on the gun spine
 
     @staticmethod
     def fair(h, band):
-        s = K.shiplib.smooth(h, 0 if band == 'S' else 1)
+        s = K.shiplib.smooth(h, {'S': 0, 'M': 2}.get(band, 1))
         X = max(x for x, _, _ in s)
         out = []
         for i, (x, y, t) in enumerate(s):

@@ -77,17 +77,29 @@ Read this first when picking the work up (new session or another model). Then `C
        mandibles and tail spines), Corsair rake 0.2 crown / 0.18 keel, Tidewright beam 0.06 fore (its fine taper is in
        height, 0.18). The effect stays modest: the bow and stern sections already taper on their own, and most of a hull's
        length is mounts. Viewer: `__viewer.clay(true)` shows normals on a dark ground (holes and inside-out faces).
-    3. Square mounts on Aurelian / Hollow (band S, ventral wells, T9 spine wells): NOT started.
-    4. Triangle budget (hollow_3 5954/6000, hollow_7 9994/10000, corsair_6 6000/6000): NOT started.
+    3. Square mounts on Aurelian / Hollow: DONE. `rim()` now goes on band S wells too and on every ventral well
+       (mirrored under the keel); the T9 gun spine's wells are octagonal pits (a 0.57 W middle and 0.4 W ends, so the
+       turret's foot clears them) under a slim round collar on the ridge (`Style.spinerim`). No square pit shows on
+       either yard.
+    4. Triangle budget: DONE without raising any cap. Hidden faces are left out of the kits: `Part.body` drops the cap of
+       a prism whose section lies inside its neighbour's (`shiplib.within`) and, on the smooth yards (flush joints: their
+       waists no longer shrink 1.5% at the ends), the caps on section joints; the engine block, prow and nose drop the
+       caps inside their own lofts, the battery blocks those between bays. `Solid.volume` now measures about the centre
+       of a solid's open rims, so an open solid is still turned outward (the old origin-based count flipped some).
+       `kitPlan.js`: running lights are placed before other detail, and a mirrored part's detail with its starboard
+       copy, so the budget never cuts one side only. Structure triangles: hollow_3 5574 -> 4712 (all its detail fits),
+       hollow_7 8662 -> 7960 (50 of 62 detail parts, was 33), corsair_6 5216 -> 4968 (26 of 36, was 22; it is the only
+       band M carrier). The headroom bought smoother curved yards: Aurelian sections have 2 more points per edge on
+       bands M and L (was 1), Hollow on band M (was 1); band S stays faceted (aurelian_2 would leave no room for its
+       running lights). Tidewright array frames are a little thinner (trim share of tidewright_5 was 10.1%: the hidden
+       caps had counted in the total area).
   All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
   session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 
 ## Next, in order
-1. Body shapes: third pass items 3 and 4 above; then what the second pass left: Tidewright / Ironhold / Corsair main sections
-   are unchanged; band S and M hulls of the curved yards are faceted or coarse (triangle budgets: several hulls sit
-   at the band cap, so any new geometry there drops fixed-size detail and fails the running-lights test; raising
-   `BANDS[].tris` is the owner's call); Corsair T10 decks; destroyer snout length; Tidewright arrays small on T9/T10;
-   Corsair still uses the ladder's pods. None of the second pass has been through the critic loop.
+1. Body shapes: what the second pass left: Tidewright / Ironhold / Corsair main sections are unchanged; band S hulls of
+   the curved yards are faceted; Corsair T10 decks; destroyer snout length; Tidewright arrays small on T9/T10; Corsair
+   still uses the ladder's pods. None of the second pass has been through the critic loop.
 2. Run the critic loop on renders per yard (`tools/kitshots.cjs`, viewer `?yard=<lang>&fit&webgl&guns`).
    Known weak classes: cutter, frigate, destroyer and cruiser read alike; destroyer snout is short.
 3. Gameplay gates: done for the rework. Measured on commit 34ec6b0 (main + the `?nokit` flag), the same code with and

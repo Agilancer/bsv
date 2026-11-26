@@ -20,10 +20,10 @@ def array(p, B, root, span, chord, droop, mirror=True):
         p.sweep([P(-0.1, dz), P(1.0, dz)], [0.035 * u, 0.028 * u], 4, 'hull', mirror=mirror)
     q, out = (P(0.16, -1), P(1.0, -1), P(1.0, 1), P(0.16, 1)), (s, c, 0)
     p.slab(q, 0.012 * u, 'dark', embed=0.012 * u, out=out, mirror=mirror)
-    for v0, v1 in ((0, 0.05), (0.475, 0.525), (0.95, 1.0)):
+    for v0, v1 in ((0, 0.035), (0.483, 0.517), (0.965, 1.0)):
         p.slab(subquad(q, 0, 1, v0, v1), 0.02 * u, 'trim', embed=0.02 * u, out=out, mirror=mirror)
     for t in (0.34, 0.67, 0.97):            # the frame: cross members, and a truss brace at the root
-        p.slab(subquad(q, t - 0.025, min(1.0, t + 0.025), 0, 1), 0.02 * u, 'trim', embed=0.02 * u, out=out, mirror=mirror)
+        p.slab(subquad(q, t - 0.02, min(1.0, t + 0.02), 0, 1), 0.02 * u, 'trim', embed=0.02 * u, out=out, mirror=mirror)
     p.sweep([P(-0.05, -0.5), P(0.16, 0.5)], [0.022 * u, 0.022 * u], 4, 'hull', mirror=mirror)
     p.slab(subquad(q, 0, 0.04, 0, 1), 0.022 * u, 'glow', embed=0.022 * u, out=out, mirror=mirror)
     return P(1.0, 0)

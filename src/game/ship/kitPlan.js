@@ -303,24 +303,31 @@ export function planHull(chassis, kit) {
   let tris = placements.reduce((a, pl) => a + pl.part.tris, 0);
   // shutters over spare mounts count too (a part's own count leaves them out)
   for (const ms of shown) for (const m of ms) if (m.shut) for (const g of Object.values(m.geo)) tris += (g.idx ? g.idx.length : g.pos.length / 3) / 3;
+  // Running lights go first (they mark the extremities), then the rest in order. A port-side run is placed with its
+  // starboard twin, and a mirrored part's detail with its starboard copy's, so the budget never cuts one side only.
   const structure = placements.length;
-  for (let i = 0; i < structure; i++) {
+  for (const lights of [true, false]) for (let i = 0; i < structure; i++) {
     const pl = placements[i];
+    if (pl.pair && pl.sx < 0) continue;          // (placed with its port twin, the placement after it)
+    const mates = pl.pair ? [pl, placements[i + 1]] : [pl];
     for (const m of marks(pl.part, 'det')) {
+      if ((m.kind === 'light') !== lights) continue;
       const d = find(kit, band.id, 'detail', m.kind);
       if (!d) continue;
       const ax = m.ax === 'x' ? 0 : m.ax === 'y' ? 1 : 2, k = ax === 2 ? pl.sz : pl.s;
       const run = (m.run || 0) * k, pitch = d.pitch || 3, n = Math.max(1, Math.floor(run / pitch) + 1), lead = (run - (n - 1) * pitch) / 2;
-      const p0 = at(pl, m.p), twin = m.side === 'port' && !pl.pair && Math.abs(p0[0]) > 1e-6;
+      const twin = m.side === 'port' && !pl.pair && Math.abs(at(pl, m.p)[0]) > 1e-6, each = d.tris * (twin ? 2 : 1) * mates.length;
       for (let j = 0; j < n; j++) {
-        if (tris + d.tris * (twin ? 2 : 1) > band.tris) break;
-        const t = p0.slice();
-        t[ax] += (lead + j * pitch) * (ax === 0 ? pl.sx : 1);
-        const cmd = pl.part.part === 'command';
-        placements.push({ ...place(d, 1, 1, t, pl.sx), cmd });
-        shown.push(d.meshes);
-        if (twin) { placements.push({ ...place(d, 1, 1, [-t[0], t[1], t[2]], -pl.sx), cmd }); shown.push(d.meshes); }
-        tris += d.tris * (twin ? 2 : 1);
+        if (tris + each > band.tris) break;
+        for (const q of mates) {
+          const t = at(q, m.p);
+          t[ax] += (lead + j * pitch) * (ax === 0 ? q.sx : 1);
+          const cmd = q.part.part === 'command';
+          placements.push({ ...place(d, 1, 1, t, q.sx), cmd });
+          shown.push(d.meshes);
+          if (twin) { placements.push({ ...place(d, 1, 1, [-t[0], t[1], t[2]], -q.sx), cmd }); shown.push(d.meshes); }
+        }
+        tris += each;
       }
     }
   }
