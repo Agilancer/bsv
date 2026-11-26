@@ -86,10 +86,25 @@ class Hollow(K.Style):
         p.sweep([P(0.72, -0.12, 0.3), P(0.98, -0.16, 0.55), P(0.86, -0.2, 0.8), P(0.4, -0.22, 1.0)], [0.2 * u, 0.24 * u, 0.16 * u, 0.03 * u], 6, 'hull', squash=1.3, mirror=True)    # mandibles
         p.sweep([P(0, 0.6, 0.3), P(0, 0.56, 0.6), P(0, 0.3, 0.86)], [0.3 * u, 0.24 * u, 0.04 * u], 6, 'hull', squash=0.7)       # the rostrum over the maw
 
+    def head(self, p, B, hf, z0, z1, zu, lo, hi):       # the cruiser: two curved mandibles over the maw, hooked in at their tips
+        u = B.W
+        top, bot = hf[0][1], hf[-1][1]
+        ym, hm = (hi + top) / 2, (top - hi) / 2
+        xm = K.xat(hf, ym) * 1.02
+        L = zu - z0
+        p.sweep([(0, ym, z0 - 0.25 * u), (0, ym + 0.02 * u, z0 + 0.35 * L), (0, ym - 0.04 * u, z0 + 0.72 * L), (0, hi + 0.14 * u, zu - 0.08 * u), (0, hi + 0.02 * u, zu + 0.3 * u)],
+                [xm, xm * 0.96, xm * 0.78, xm * 0.46, xm * 0.12], 12, 'hull', squash=hm / xm)
+        ym, hm = (lo + bot) / 2, (lo - bot) / 2
+        xm = K.xat(hf, ym, True) * 1.02
+        L = z1 - z0
+        p.sweep([(0, ym, z0 - 0.25 * u), (0, ym - 0.02 * u, z0 + 0.35 * L), (0, ym + 0.03 * u, z0 + 0.7 * L), (0, lo - 0.14 * u, z1 - 0.38 * u), (0, lo - 0.03 * u, z1 - 0.03 * u)],
+                [xm, xm * 0.95, xm * 0.74, xm * 0.42, xm * 0.1], 12, 'hull', squash=hm / xm)
+        return True
+
     # ---- the body: bulging carapace lofts, ribs and limbs (no boxes, no straight edges)
     block_fore = ((0.06, 1.35), (0.4, 1.0), (0.75, 0.6), (0.95, 0.25))
     block_aft = ((0.1, 1.1), (0.5, 0.75), (0.85, 0.4), (0.98, 0.14))
-    side = dict(w=0.36, gap=0.24, bow=((1.07, 0.4, 0.0), (1.0, 0.9, -0.03), (0.8, 1.35, -0.1), (0.5, 1.7, -0.2), (0.18, 1.95, -0.32)),
+    side = dict(w=0.36, gap=0.24, wi=0.28, ht=0.5, hb=0.55, bow=((1.07, 0.4, 0.0), (1.0, 0.9, -0.03), (0.8, 1.35, -0.1), (0.5, 1.7, -0.2), (0.18, 1.95, -0.32)),
                 stern=((1.06, -0.5, -0.02), (0.95, -1.2, -0.12), (0.78, -2.0, -0.3), (0.62, -3.1, -0.5)))
 
     def blockp(self, u, xi, xo):            # a swollen brood flank

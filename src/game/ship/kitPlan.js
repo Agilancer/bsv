@@ -473,7 +473,7 @@ export function shieldLevel(dims, x, y, z) {
 // tools/kitprofiles.mjs writes this for every kit hull into kitProfiles.js, so the cutaway needs no kit loaded.
 const WQ = [0, 0, 0];
 export function kitSideProfile(plan, n = 96) {
-  const r2 = (v) => Math.round(v * 100) / 100;
+  const r2 = (v) => Math.round(v * 100) / 100 || 0;      // (no -0: the profiles file is written as JSON)
   const tri = [];       // [z0, y0, z1, y1, z2, y2, isCommand]
   let zMin = Infinity, zMax = -Infinity;
   plan.placements.forEach((pl, i) => {

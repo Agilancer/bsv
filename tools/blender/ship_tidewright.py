@@ -65,29 +65,34 @@ class Tidewright(K.Style):
         array(p, B, (hb[3][0] - 0.03 * B.W, hb[3][1], z0 + (zf - z0) * at), span, (zf - z0) / B.W * chord, droop)
 
     def pod(self, p, B, k, X, hangar):
-        if not hangar and p.variant == 'keel':
-            array(p, B, (X * k - 0.03 * B.W, (-1.0 if B.id == 'C' else -1.6) * k, 0), 0.8 if B.id == 'C' else 0.78, 1.9 if B.id == 'C' else 2.5, 0.06 if B.id == 'C' else 0.2)     # a belly truss: a long pair out past the beam, under the broadside's fan
-        elif not hangar and p.variant == 'truss':     # the battleship's, amidships where the shield is widest: the biggest pair
-            for dz in (-0.95, 0.95):
-                array(p, B, (X * k - 0.03 * B.W, -1.5 * k, dz * B.W), 0.92, 1.8, 0.15)
+        # a belly truss: a narrow keel, its arrays hung steeply (55 degrees) from the keel's flanks, the outer edge inboard
+        # of the lowest battery's gun faces, so they stay out of the broadside's arcs (the waisted light cruiser's are
+        # closer in); the battleship's keel carries two pairs
+        if hangar or p.variant not in ('keel', 'truss'):
+            return
+        u, droop = B.W, 0.96
+        x0, lim = X * k - 0.02 * u, (0.56 if B.id == 'M' else 0.85) * u
+        span = (lim - x0) / (math.cos(droop) * u)
+        for dz in ((-0.95, 0.95) if p.variant == 'truss' else (0,)):
+            array(p, B, (x0, -1.65 * k, dz * u), span, 1.8 if p.variant == 'truss' else 1.9 if B.id == 'C' else 2.5, droop)
 
     def extra_parts(self):
         return [K.ypod(K.C, 'truss', hangar=False, ln=1.1), K.ypod(K.M, 'keel', hangar=False, ln=0.8)]      # (+ the light cruiser's belly truss)
 
     def app(self, p, B, variant):
         if variant == 'blocks':
-            array(p, B, (0.3 * B.W, -0.5 * B.W, 0), 0.62, 2.3, 0.3, mirror=False)     # one long array under each battery block
+            array(p, B, (0.1 * B.W, -0.55 * B.W, 0), 0.5, 2.3, 1.0, mirror=False)     # one long array hung steeply under each battery block, inboard of its guns
 
     def wing(self, B):                      # a lozenge delta, a long collector array stowed flat along its top
         u = B.W
         p, st = K.delta(B)
-        array(p, B, (0.0, (st[1][3] + st[1][4] / 2 + 0.03) * u, -0.2 * u), 0.56, 1.5, 0.33, mirror=False)
+        array(p, B, (0.0, (st[1][3] + st[1][4] / 2 + 0.04) * u, (st[0][1] + 0.68) * u), 0.6, 1.1, 0.12, mirror=False)
         return p
 
     def nose(self, p, B, h, z0, z1, marks, variant, zm):
         u, ln = B.W, z1 - z0
         if variant == 'snout':              # the destroyer: the slender lozenge runs on to a flat tube face, the sensor under it
-            zf, yc, hn = K.snout_face(p, B, h, z0, z1, marks, kx=0.96, ky=0.76)     # (two prow mounts: a broad face)
+            zf, yc, hn = K.snout_face(p, B, h, z0, z1, marks, kx=0.96, ky=0.76, lit=True)     # (two prow mounts: a broad face)
             p.tube([(-0.6 * u, 0.04 * u), (-0.3 * u, 0.13 * u), (0.0, 0.13 * u), (0.12 * u, 0.05 * u)], (0, hn[-1][1] + 0.02 * u, zf - 0.1 * u), 'z', 8, 'dark')
             return
         taper(p, h, z0, ln, [(0, 1, 1, 0), (0.3, 0.78, 0.86, 0), (0.6, 0.5, 0.66, 0), (0.85, 0.24, 0.44, 0), (0.97, 0.08, 0.3, 0)])
@@ -99,6 +104,13 @@ class Tidewright(K.Style):
             xr = h[3][0] if variant != 'lobes' else 1.0 * u + 0.36 * (h[3][0] - 1.0 * u)      # (the split head is still flaring there)
             array(p, B, (xr - 0.03 * u, h[3][1], z0 * 0.55), {'C': 0.8, 'L': 0.7}.get(B.id, 0.5), min(z0 / u * 0.8, 2.0) if B.id == 'C' else min(z0 / u * 0.7, 1.5), 0.2)
 
+    def lobes(self, p, B, hf, z0, z1, zu, lo, hi):      # the cruiser: a sensor housing on the lower lobe, ahead of the upper
+        u = B.W
+        y, za = lo + 0.1 * u, zu - 0.3 * u
+        p.tube([(0.0, 0.07 * u), (0.12 * u, 0.12 * u), (z1 - za - 0.3 * u, 0.12 * u), (z1 - za - 0.08 * u, 0.06 * u)], (0, y, za), 'z', 8, 'dark', cap_mat=('dark', 'glow'))
+        p.tube([(0.2 * u, 0.13 * u), (0.26 * u, 0.13 * u)], (0, y, za), 'z', 8, 'trim')
+        p.tube([(z1 - za - 0.45 * u, 0.128 * u), (z1 - za - 0.39 * u, 0.128 * u)], (0, y, za), 'z', 8, 'glow')
+
     # ---- the body: slender lozenges with fine ends
     block_fore = ((0.05, 1.8), (0.5, 1.0), (0.85, 0.4))
     block_aft = ((0.15, 1.2), (0.7, 0.5))
@@ -108,14 +120,17 @@ class Tidewright(K.Style):
         return prof([(xi, 0.62 * u), (xo - 0.36 * u, 0.62 * u), (xo, 0.22 * u), (xo, -0.22 * u), (xo - 0.36 * u, -0.6 * u), (xi, -0.6 * u)])
 
     def podpart(self, B, variant, hangar, ln, deep, wide=1.0):    # a lozenge keel drawn out fine at both ends
+        if not hangar and variant in ('keel', 'truss'):             # (the array trusses: a narrow keel)
+            wide = 0.45 if B.id == 'M' else 0.6
         loz = lambda X, a, b: prof([(0, a), (X * 0.7, a), (X, (a + b) / 2 + 0.6), (X, (a + b) / 2 - 0.6), (X * 0.45, b), (0, b)])
         return K.spod(B, variant, hangar, ln, deep, wide=wide, shape=loz, fore=lambda t: 1 - 0.92 * t ** 1.3, aft=lambda t: 1 - 0.8 * t ** 1.5, N=3)
 
     def command(self, B, variant):
         p, u, hx, hz, hy = K.command(B, variant)
         hy = min(hy, 0.95 * u if B.id != 'C' else 1.1 * u)       # the capitals carry a real tower, a faired lozenge in three tiers, as tall as dims.top allows
-        tiers = [(hx, hz * 1.2, hy)] if hy <= 0.6 * u else [(hx, hz * 1.3, hy * 0.5), (hx * 0.62, hz * 0.75, hy * 0.5)] if B.id != 'C' else \
-            [(hx * 1.1, hz * 1.35, hy * 0.38), (hx * 0.78, hz * 0.95, hy * 0.34), (hx * 0.55, hz * 0.66, hy * 0.28)]
+        # (kept short fore and aft, clear of the neighbouring turret wells)
+        tiers = [(hx, hz * 1.0, hy)] if hy <= 0.6 * u else [(hx, hz * 1.05, hy * 0.5), (hx * 0.62, hz * 0.68, hy * 0.5)] if B.id != 'C' else \
+            [(hx * 1.1, hz * 1.1, hy * 0.38), (hx * 0.78, hz * 0.8, hy * 0.34), (hx * 0.55, hz * 0.56, hy * 0.28)]
         y = zo = 0.0
         for a, b, c in tiers:
             p.loft([octp(y - 0.05 * u, a, b, zo, 0.45), octp(y + c * 0.7, a * 0.92, b * 0.94, zo, 0.45), octp(y + c, a * 0.6, b * 0.72, zo - 0.1 * b, 0.45)], 'hull')

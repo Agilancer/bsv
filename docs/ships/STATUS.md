@@ -135,6 +135,24 @@ Read this first when picking the work up (new session or another model). Then `C
       side-hull lips and hangar sockets on the real face; nozzle housings reach the nozzle plate (`NOZ_DEPTH`); no stern
       warp and fixed parts move rigidly (`warpShift`); new tests (`tests/support/hullGeom.mjs`: holes, floating pieces,
       mount margins, fan blockage against Velscour) and kit-spec section 7 step 9.
+    - Iteration 2 (review/iter2): technical APPROVE (minor: tighten the fan and prow tests); art director REJECT on
+      five items: T8 still a club, Tidewright belly arrays in the broadside's fire, every yard's T6 ends in the same
+      head (Hollow lost its mandibles; launcher muzzles show as an orange bar on T6 and the T4 tube faces), Ironhold
+      reads dark with bright amber collar lines, the T10 gap of Ironhold / Corsair / Hollow is hidden from the play
+      camera. Fixed for iteration 3: the fan test checks every battery row against the same Velscour row (+4 of 45
+      rays) and the prow margin is 0.18 W; `shipkit.delta` is an arrowhead (straight leading edge swept from the
+      battery's aft end, square tip with a running light at 1.7 W, straight trailing edge across the stern with two
+      nozzles, a faceted wedge with a ridge, rounded on Aurelian / Hollow) and the battlecruiser's block is drawn in to
+      0.8 W behind the battery collar (`DELTA_W`, an engine neck), its hangar mouth behind the wings; Tidewright's belly
+      trusses are narrow keels whose arrays hang at 55 degrees inboard of the lowest gun faces (the T7 block arrays
+      too); `split_head` sinks the prow launchers 0.8 W into the slot (`PROW_SINK`), lights the slot's floor in the
+      yard's glow out onto the lower lobe, and takes yard dress (`Style.lobes`: Aurelian a lance emitter, Tidewright a
+      sensor housing, Ironhold a brow, bolted visor and jaw, Corsair two tines, the starboard one short; `Style.head`:
+      Hollow grows two curved mandibles round its maw); the T4 tube faces sink their launchers 0.35 W behind the face
+      (Tidewright's tube mouths lit teal); Ironhold plate is light steel (`hull_glacier` tinted, no tintMul), its trim
+      dull bronze on graphite, window lights pale; T10 side hulls of Ironhold / Corsair / Hollow are lower (crown below
+      the body's beam line on Ironhold) with their inboard halves drawn in (`side.wi`: gap 0.34-0.39 W, the trench
+      still 0.55 W deep for the gunhouse) and a lit inboard crown edge. `kitSideProfile` writes no -0.
   All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
   session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 

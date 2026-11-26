@@ -116,6 +116,13 @@ class Corsair(K.Style):
         p.box('hull', 0.9 * u, 0.14 * u, d * 0.6 + 0.2 * u, (0, hn[-1][1] + 0.09 * u, zf - 0.2 * u + (d * 0.6 + 0.2 * u) / 2))
         p.box('dark', 0.5 * u, 0.05 * u, d * 0.7, (0.1 * u, hn[0][1] - 0.01 * u, zf + d * 0.4))
 
+    def lobes(self, p, B, hf, z0, z1, zu, lo, hi):      # the cruiser: the fork's two tines along the lower lobe (starboard shot short)
+        u = B.W
+        X0 = K.xat(hf, lo - 0.1 * u, True)      # the lower lobe's half-width at the root; it tapers to 0.44 of that at its tip
+        for sx, tip in ((1, z1), (-1, z1 - 0.5 * u)):
+            rg = lambda z, xc, hw, hh, yo: [(sx * (xc - hw), yo + hh, z), (sx * (xc + hw), yo + hh * 0.6, z), (sx * (xc + hw), yo - hh * 0.6, z), (sx * (xc - hw), yo - hh, z)]
+            p.loft([rg(zu - 1.0 * u, 0.86 * X0, 0.14 * u, 0.24 * u, lo - 0.12 * u), rg(zu, 0.82 * X0, 0.13 * u, 0.2 * u, lo - 0.1 * u), rg(tip - 0.3 * u, 0.7 * X0, 0.08 * u, 0.12 * u, lo - 0.1 * u), rg(tip, 0.64 * X0, 0.02 * u, 0.04 * u, lo - 0.12 * u)], 'hull')
+
     def command(self, B, variant):
         u = B.W
         hx, hz, hy = K.CMD[f'{B.id}.{variant}']
@@ -126,6 +133,8 @@ class Corsair(K.Style):
         hz = max(hz + 0.08, 0.66) * u       # the shoulder it is sunk in
         p.loft([octp(-0.3 * u, 0.66 * u, hz), octp(0.05 * u, 0.66 * u, hz), octp(0.1 * u, 0.58 * u, hz * 0.92)], 'hull')
         return p
+
+    side = dict(wi=0.28, ht=0.5, hb=0.55)     # the dreadnought's side hulls: low, their inboard halves drawn in (the gap shows from above)
 
     # ---- the body: raked hexagons; T6, T8 and T10 are carriers
     block_fore = ((0.1, 1.2), (0.8, 0.35))
@@ -150,14 +159,16 @@ class Corsair(K.Style):
     def wing(self, B):                      # the carrier's delta: a hangar gallery and its flight deck on the wing's root
         u = B.W
         p, st = K.delta(B)
-        yd = 0.42 * u                       # the deck, clear of the aftmost broadside's fan (its front stops at z 0.4)
-        gal = lambda z, k: [(-0.3 * u, yd, z), (0.42 * u * k, yd, z), (0.42 * u * k, -0.02 * u, z), (-0.3 * u, -0.02 * u, z)]
-        p.loft([gal(-1.55 * u, 0.9), gal(-1.35 * u, 1.0), gal(0.15 * u, 1.0), gal(0.3 * u, 0.85)], 'hull', cap_mat=('dark', 'dark'))
-        for z in (-0.95 * u, -0.25 * u):                 # hangar bays on the gallery's outboard wall, lit like doorways
-            p.slab(((0.42 * u, yd - 0.06 * u, z - 0.25 * u), (0.42 * u, 0.06 * u, z - 0.25 * u), (0.42 * u, 0.06 * u, z + 0.25 * u), (0.42 * u, yd - 0.06 * u, z + 0.25 * u)), 0.01 * u, 'dark', embed=0.02 * u, out=(1, 0, 0))
-            p.box('glow', 0.02 * u, 0.02 * u, 0.4 * u, (0.425 * u, yd - 0.08 * u, z))
-        flight_deck(p, u, -0.32 * u, 0.55 * u, -1.72 * u, 0.4 * u, yd)
-        p.marker('hp.hg', (0.42 * u, (yd - 0.02 * u) / 2, -0.6 * u))
+        yd, xo = 0.36 * u, 0.36 * u         # the gallery stands on the wing's root, inside its planform (clear of the broadside's fan)
+        z0, z1 = st[0][1] + 0.1, st[0][1] + 1.42
+        gal = lambda z, k: [(-0.3 * u, yd, z), (xo * k, yd, z), (xo * k, -0.02 * u, z), (-0.3 * u, -0.02 * u, z)]
+        p.loft([gal(z0 * u, 0.9), gal((z0 + 0.15) * u, 1.0), gal((z1 - 0.3) * u, 1.0), gal(z1 * u, 0.7)], 'hull', cap_mat=('dark', 'dark'))
+        for z in (z0 + 0.42, z0 + 0.92):     # hangar bays on the gallery's outboard wall, lit like doorways
+            z *= u
+            p.slab(((xo, yd - 0.06 * u, z - 0.2 * u), (xo, 0.06 * u, z - 0.2 * u), (xo, 0.06 * u, z + 0.2 * u), (xo, yd - 0.06 * u, z + 0.2 * u)), 0.01 * u, 'dark', embed=0.02 * u, out=(1, 0, 0))
+            p.box('glow', 0.02 * u, 0.02 * u, 0.32 * u, (xo + 0.005 * u, yd - 0.08 * u, z))
+        flight_deck(p, 0.75 * u, -0.32 * u, 0.44 * u, (z0 - 0.06) * u, (z1 + 0.06) * u, yd)
+        p.marker('hp.hg', (xo, (yd - 0.02 * u) / 2, (z0 + 0.67) * u))
         return p
 
     def extra_parts(self):
@@ -167,12 +178,13 @@ class Corsair(K.Style):
         u = B.W
         p = K.sidehull(B)
         cx, w = K.side_cx()
-        cx, y = cx * u, 0.62 * B.HT + 0.02 * u      # (on the side hull's own crown: a raised gallery walls in the body's upper battery)
-        gal = lambda z, k: [(cx - 0.8 * w * u * k, y, z), (cx + 0.8 * w * u * k, y, z), (cx + 0.7 * w * u * k, 0.12 * u, z), (cx - 0.7 * w * u * k, 0.12 * u, z)]
+        cx, y = cx * u, self.side['ht'] * B.HT + 0.02 * u      # (on the side hull's own crown, clear of the gap to the body)
+        wi = self.side['wi']
+        gal = lambda z, k: [(cx - 0.8 * wi * u * k, y, z), (cx + 0.8 * w * u * k, y, z), (cx + 0.7 * w * u * k, 0.12 * u, z), (cx - 0.7 * wi * u * k, 0.12 * u, z)]
         p.loft([gal(-3.3 * u, 0.8), gal(-1.5 * u, 1.0)], 'hull', cap_mat=('dark', 'hull'))    # the landing gallery in the tail, its mouth aft
         p.box('glow', 0.3 * u, 0.02 * u, 0.03 * u, (cx, y - 0.1 * u, -3.29 * u))
         p.loft([gal(1.85 * u, 1.0), gal(2.5 * u, 0.7)], 'hull', cap_mat=('hull', 'dark'))      # launch mouths over the bow
-        flight_deck(p, u, cx - 0.32 * u, cx + 0.42 * u, -3.7 * u, 3.3 * u, y)
+        flight_deck(p, u, cx - 0.22 * u, cx + 0.42 * u, -3.7 * u, 3.3 * u, y)
         p.marker('hp.hg', (cx + w * u, 0.0, -2.4 * u))
         return p
 
