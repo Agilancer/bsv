@@ -39,6 +39,11 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     `ship.yard` so trails and effects follow. `game.setPaint({scheme, accent})` repaints in place and saves
     `data.ship.paint` (per hull; `data.paint` = last choice, which a new hull takes). UI: `ui/paint.js`, folded in the
     Ship window. Enemies, PvP captains, derelicts and the title line keep their own colours.
+  - Hollow plating: `hull_chitin` + `glow_chitin` (`python3 tools/tex/build_chitin.py`, seeded and tileable: rebuild,
+    don't hand-edit), overlapping carapace scales with red light under some lips. `materials.js` `GLOW_SHEET` pairs a
+    plating sheet with its own glow mask (other `alienGlow` plating keeps `glow_alien`) and adds `poresNode` (deck rows of
+    lit pores, the Hollow's windows) and a glancing sheen. `hull_alien` (a parts atlas, not a plate sheet) stays for the
+    brood, creatures, hive dungeons and liveries.
   - Title backdrop (`TitleScene.js`): `TITLE_LINE`, led by the Velscour battleship (battleships, not dreadnoughts: the
     T10 side hulls, pylons and fairings sit in front of their broadside housings). Every ship carries ONE gun, a
     title-only triple cannon (not WeaponModels): turrets on the turret mounts, seated on the skin by raycast and

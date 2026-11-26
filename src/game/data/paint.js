@@ -96,7 +96,7 @@ export function paintPalette(yard, p) {
 }
 
 // rough mean colour of each plating texture, to show a tint as it reads on the hull
-const TEX_TONE = { hull_alien: 0x1e1715, hull_apc: 0x3a3734, hull_dropship: 0x353330, hull_glacier: 0xcbd4dd, hull_gold: 0xc7a467, hull_graphite: 0x424245, hull_mech: 0x756964, hull_naval: 0x21324f };
+const TEX_TONE = { hull_alien: 0x1e1715, hull_chitin: 0x261d1f, hull_apc: 0x3a3734, hull_dropship: 0x353330, hull_glacier: 0xcbd4dd, hull_gold: 0xc7a467, hull_graphite: 0x424245, hull_mech: 0x756964, hull_naval: 0x21324f };
 const mul = (a, b, k = 1) => {
   const ch = (s) => Math.min(255, Math.round(((a >> s) & 255) * ((b >> s) & 255) / 255 * k));
   return (ch(16) << 16) | (ch(8) << 8) | ch(0);

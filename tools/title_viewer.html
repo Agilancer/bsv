@@ -16,7 +16,7 @@ import { loadKits } from './src/game/ship/kitAssembler.js';
 import { TitleScene } from './src/fx/TitleScene.js';
 const q = new URLSearchParams(location.search);
 const e = await new Engine(document.body).init();
-await Promise.all([preload(['hull_naval', 'hull_graphite', 'hull_gold', 'hull_glacier', 'hull_dropship', 'hull_apc', 'hull_mech', 'hull_alien', 'glow_alien']), loadKits()]);
+await Promise.all([preload(['hull_naval', 'hull_graphite', 'hull_gold', 'hull_glacier', 'hull_dropship', 'hull_apc', 'hull_mech', 'hull_alien', 'glow_alien', 'hull_chitin', 'glow_chitin']), loadKits()]);
 initMaterials(e);
 const title = new TitleScene(e, q.get('line') ? { line: q.get('line').split(',') } : {});
 const start = title.ships.map((s) => s.g.position.z);

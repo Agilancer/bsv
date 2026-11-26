@@ -21,7 +21,7 @@ import { ENEMIES } from './src/game/data/enemies.js';
 import { enemyChassis } from './src/game/enemyFactory.js';
 const e = await new Engine(document.body).init();
 initMaterials(e);
-await preload(['hull_naval','hull_graphite','hull_gold','hull_glacier','hull_dropship','hull_apc','hull_mech','hull_alien','glow_alien']);
+await preload(['hull_naval','hull_graphite','hull_gold','hull_glacier','hull_dropship','hull_apc','hull_mech','hull_alien','glow_alien','hull_chitin','glow_chitin']);
 const sky = e.add(new SpaceBackdrop(e));
 new SpaceLights(e.scene);
 const q = new URLSearchParams(location.search);
