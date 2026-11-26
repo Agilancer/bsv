@@ -647,30 +647,37 @@ def tender(P):
     P.sphere(1.05, tuple(C), 'glow', WHITE, scale=(1, 0.85, 1), segs=16)
     heart(P, C, 1.35, 3, (1, 1, 0.85), gap=11, lat=(-8, 84), phase=0, nu=6, nv=8, paint=(0, 22), tint=OB3, frame=POLE)
     heart(P, C, 1.3, 6, (1, 1, 0.85), gap=7, lat=(-80, -16), phase=30, nu=3, nv=5, tint=OB1, frame=POLE)
-    # six long blades opened flat round the heart, painted along their backs
+    # six broad paddle blades opened flat round the heart; five carry great green beam dishes, the aft one the drives
     for th in range(0, 360, 60):
-        reach = 3.2 if th == 180 else 4.6
-        pts, d, N, tp = blade(P, C + V((0, -0.13, 0)), th, 1.05, reach, 1.25, 0.2, ys=(0.0, -0.2, -0.08, 0.3), tint=OB2,
-                              taper=lambda t: 1 - 0.55 * t, paint=0.38, n=14)
+        reach = 3.2 if th == 180 else 4.3
+        pts, d, N, tp = blade(P, C + V((0, -0.13, 0)), th, 1.05, reach, 1.25, 0.22, ys=(0.0, -0.2, -0.08, 0.2), tint=OB2,
+                              taper=lambda t: 1 - 0.3 * t, paint=0.38, n=12, prof=BLADE_W)
         tip = pts[-1]
-        if th in (0, 120, 240):   # a green beam dish
-            D = (d + V((0, -0.25, 0))).normalized()
-            a, b = tip - D * 0.15, tip + D * 0.34
-            spike(P, a, b, 0.26, 0.64, 'obsidian', OB3, 14)
-            ring(P, b, D, 0.64, 0.08, 0.08, 'chrome', EDGE, 14)
-            spike(P, b - D * 0.07, b - D * 0.05, 0.54, 0.54, 'mend', GREEN, 14)
-            crystal(P, b - D * 0.05, D, 0.12, 0.4, 0.04, 'mend', GREEN, 6)
-            P.empty('gun', tuple(b + D * 0.38))
-        elif th in (60, 300):     # mending claws
-            P.sphere(0.18, tuple(tip), 'obsidian', RIM, segs=8)
-            for s in (1, -1):
-                fp = [tip, tip + d * 0.45 + N * s * 0.42, tip + d * 1.05 + N * s * 0.32, tip + d * 1.28 + N * s * 0.06]
-                f = claw(P, fp, UP, 0.16, 0.15, OB3, 8, taper=lambda t: 1 - 0.5 * t)
-                P.sphere(0.06, tuple(f[-1]), 'mend', GREEN, segs=6)
-            lamp(P, tuple(pts[9] + N * (0.42 if th == 60 else -0.42) + V((0, 0.08, 0))), NAV_P if th == 60 else NAV_S, 0.08)
-        else:                     # the drive stem: a boss with three rays of vents
+        if th != 180:   # a beam dish facing out and down from the blade tip
+            D = (d + V((0, -0.35, 0))).normalized()
+            a, b = tip - D * 0.1, tip + D * 0.5
+            spike(P, a, b, 0.4, 0.98, 'obsidian', OB3, 16)
+            ring(P, b, D, 0.98, 0.1, 0.1, 'chrome', EDGE, 16)
+            spike(P, b - D * 0.08, b - D * 0.06, 0.86, 0.86, 'mend', GREEN, 16)
+            crystal(P, b - D * 0.06, D, 0.16, 0.52, 0.05, 'mend', GREEN, 6)
+            P.empty('gun', tuple(b + D * 0.5))
+            if th in (60, 300):
+                lamp(P, tuple(pts[6] + N * (0.5 if th == 60 else -0.5) + V((0, 0.08, 0))), NAV_P if th == 60 else NAV_S, 0.08)
+        else:           # the drive stem: a boss with three rays of vents
             P.loft([(-2.75, 0.75, 0.5, 0.2, 2), (-3.2, 0.9, 0.62, 0.2, 2), (-3.6, 0.85, 0.58, 0.2, 2)], 'obsidian', OB1, 10)
             rays(P, (0, 0.2, -3.62), 3, 0.33, 0.48, 0.15, phase=60, flame=1.8)
+    # three jointed manipulators hanging under the hub, crescent claws with green tips
+    for az in (90, 210, 330):
+        d, N = azd(az), azn(az)
+        sh, el = C + d * 0.75 + V((0, -0.85, 0)), C + d * 1.75 + V((0, -1.55, 0))
+        P.sphere(0.16, tuple(sh), 'obsidian', RIM, segs=10)
+        sweep(P, [sh, el], N, 0.2, 0.2, 'obsidian', OB2)
+        P.sphere(0.14, tuple(el), 'obsidian', RIM, segs=10)
+        for s in (1, -1):
+            f = claw(P, [el, el + d * 0.35 + N * s * 0.3 + V((0, -0.45, 0)), el - d * 0.15 + N * s * 0.28 + V((0, -1.0, 0)),
+                         el - d * 0.45 + N * s * 0.08 + V((0, -1.15, 0))], d, 0.15, 0.14, OB3, 8,
+                     taper=lambda t: 1 - 0.5 * t)
+            P.sphere(0.07, tuple(f[-1]), 'mend', GREEN, segs=6)
     # a crystal spire on the crown
     P.cyl(0.3, 0.14, (0, 1.3, 0), 'y', 'chrome', EDGE, 6, r2=0.18)
     spike(P, (0, 1.3, 0), (0, 2.5, 0), 0.09, 0.04, 'chrome', EDGE, 6)
