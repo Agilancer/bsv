@@ -1,7 +1,7 @@
 # The explorer's dropship: a smooth, broad-nosed lifting body in overlapping curved armour that comes in
 # belly-first behind an ablative heat shield, brakes on four retro-rockets, stands on four folding legs and
 # lowers a stern ramp for the explorer. Ducted-fan pods on the flanks carry the main engines back to orbit, and
-# two rail turrets on the forward shoulders cover the drop and the pickup. One model (built at the size of a Mk I hold);
+# two ventral gun pods under the forward belly cover the drop and the pickup. One model (built at the size of a Mk I hold);
 # the game scales it to the explorer it carries.
 #   python3 tools/blender/build.py lander      -> assets/vehicles/lander.glb + lander.json
 # Moving parts (groups, each about its pivot):
@@ -9,8 +9,8 @@
 #   ramp       the stern ramp, modelled closed (upright); opens about x by -facts.rampOpen degrees
 #   flap_0..1  body flaps under the nacelles, deflect about x during entry
 #   fan_0..1   intake fans in the pods, spin about z
-#   turret_0..1 dorsal turrets, traverse about y; gun_0..1 their twin barrels, elevate about x (the game
-#              re-parents gun_i under turret_i); muzzle_0..1 ride on gun_i
+#   turret_0..1 ventral gun pods, traverse about y; gun_0..1 their two short square barrels, elevate about x
+#              (the game re-parents gun_i under turret_i); muzzle_0..1 ride on gun_i
 # Points (empties): retro_i (exit of a downward retro nozzle), main_i (exit of an aft main engine),
 #   rcs_i (attitude thruster quads), light_i, beacon_0, hold_0 (floor centre of the hold), heat_0 (nose cap)
 import math
@@ -150,29 +150,33 @@ def build(m):
     for sx in (1, -1):
         M.box(0.06, 0.3, 1.6, (sx * 2.05, 7.5, dz - 0.3), 'glass', 0x0a1420, 0.0, rot=(0, 0, sx * -22))
 
-    # ------------------------------------------------------------ twin rail turrets on the forward shoulders
+    # ------------------------------------------------------------ ventral gun pods under the forward belly
+    # Each hangs from a race ring in the heat shield: a low squared housing that traverses, and a pod of two short
+    # square barrels that depresses to cover the ground below as the lander comes down.
     for i, sx in enumerate((1, -1)):
-        tx, ty, tz = sx * 1.95, 6.2, 4.6
+        tx, ty, tz = sx * 1.6, 1.78, 5.4
         g, gg = f'turret_{i}', f'gun_{i}'
-        M.cyl(1.05, 0.3, (tx, ty, tz), 'y', 'dark', DARK, 28, r2=1.0)            # race ring (static)
+        M.cyl(0.95, 0.22, (tx, ty + 0.05, tz), 'y', 'dark', DARK, 28, r2=1.02)        # race ring (static)
         M.pivot(g, (tx, ty, tz))
-        M.loft([(tz - 1.35, 0.5, 0.25, ty + 0.55, 2.4), (tz - 1.0, 0.95, 0.5, ty + 0.62, 2.8), (tz + 0.2, 1.05, 0.55, ty + 0.62, 2.8),
-                (tz + 0.9, 0.8, 0.42, ty + 0.55, 2.6), (tz + 1.25, 0.35, 0.18, ty + 0.5, 2.2)], 'hull', HULL, n=32, group=g, x0=tx)
-        M.box(1.5, 0.06, 0.6, (tx, ty + 1.15, tz - 0.4), 'dark', DARK, 0.02, group=g)             # sensor slit
-        M.box(0.5, 0.05, 0.08, (tx, ty + 1.19, tz - 0.4), 'glow', GLOW, 0.0, group=g)
-        M.sphere(0.2, (tx + sx * 0.75, ty + 0.85, tz + 0.6), (1, 1, 1.3), 'dark', DARK, 12, group=g)  # optic
-        M.box(0.12, 0.06, 0.12, (tx + sx * 0.75, ty + 0.85, tz + 0.86), 'glow', GLOW, 0.0, group=g)
-        # the gun: mantlet + twin rails, elevating about the trunnion
-        M.pivot(gg, (tx, ty + 0.62, tz + 0.9))
-        M.box(1.1, 0.55, 0.5, (tx, ty + 0.62, tz + 1.05), 'trim', TRIM, 0.08, group=gg, taper=(0.85, 0.8))
-        for bx in (-0.26, 0.26):
+        M.box(1.5, 0.55, 1.6, (tx, ty - 0.32, tz - 0.1), 'hull', HULL, 0.12, group=g, taper=(0.82, 0.86))
+        M.box(1.3, 0.06, 0.16, (tx, ty - 0.04, tz + 0.7), 'glow', GLOW, 0.0, group=g)
+        M.box(0.22, 0.2, 0.22, (tx + sx * 0.62, ty - 0.42, tz + 0.55), 'dark', DARK, 0.03, group=g)   # optic block
+        M.box(0.12, 0.1, 0.04, (tx + sx * 0.62, ty - 0.42, tz + 0.67), 'glow', GLOW, 0.0, group=g)
+        # the gun pod: squared mantlet, two short square barrels, elevating about the trunnion
+        M.pivot(gg, (tx, ty - 0.55, tz + 0.55))
+        M.box(1.0, 0.5, 0.6, (tx, ty - 0.55, tz + 0.75), 'trim', TRIM, 0.07, group=gg)
+        for bx in (-0.24, 0.24):
             x = tx + bx
-            M.box(0.26, 0.3, 3.0, (x, ty + 0.62, tz + 2.7), 'dark', DARK, 0.04, group=gg, taper=(0.85, 1))
-            M.box(0.08, 0.06, 2.6, (x, ty + 0.79, tz + 2.75), 'glow', GLOW, 0.0, group=gg)
-            M.cyl(0.11, 0.6, (x, ty + 0.62, tz + 4.45), 'z', 'chrome', CHROME, 10, group=gg)
-            for k in range(3):
-                M.box(0.34, 0.36, 0.08, (x, ty + 0.62, tz + 1.6 + k * 0.85), 'trim', TRIM, 0.01, group=gg)
-        M.empty(f'muzzle_{i}', (tx, ty + 0.62, tz + 4.8), {'_parent': gg})
+            M.box(0.3, 0.3, 0.95, (x, ty - 0.55, tz + 1.45), 'dark', DARK, 0.03, group=gg)
+            M.box(0.36, 0.36, 0.18, (x, ty - 0.55, tz + 1.95), 'trim', TRIM, 0.02, group=gg)              # squared muzzle
+            M.box(0.16, 0.16, 0.04, (x, ty - 0.55, tz + 2.05), 'glow', GLOW, 0.0, group=gg)
+            M.box(0.32, 0.04, 0.6, (x, ty - 0.38, tz + 1.4), 'glow', GLOW, 0.0, group=gg)
+        M.empty(f'muzzle_{i}', (tx, ty - 0.55, tz + 2.1), {'_parent': gg})
+
+    # the forward deck, where the old shoulder turrets sat: a low sensor fairing with a scanner slit
+    M.sphere(1.0, (0, 6.3, 4.5), (1.5, 0.42, 1.9), 'hull', HULL, 24)
+    M.box(1.6, 0.05, 0.22, (0, 6.7, 5.1), 'dark', DARK, 0.02, rot=(-14, 0, 0))
+    M.box(1.0, 0.04, 0.08, (0, 6.73, 5.12), 'glow', GLOW, 0.0, rot=(-14, 0, 0))
 
     # sensor strip along each cheek, behind the nose
     for sx in (1, -1):
@@ -283,6 +287,6 @@ def build(m):
     M.facts = {
         'kind': 'lander', 'rampHinge': [hingeY, hingeZ], 'rampLen': rampLen,
         'rampOpen': round(90 + math.degrees(math.asin(hingeY / rampLen)), 2),
-        'gearFold': 88, 'holdW': 5.4, 'holdH': 3.9, 'holdL': round(hz1 - hz0, 2), 'holdFloor': 2.6,
+        'gearFold': 88, 'turretMount': 'ventral', 'turretY': 1.78, 'gunDrop': -0.55, 'holdW': 5.4, 'holdH': 3.9, 'holdL': round(hz1 - hz0, 2), 'holdFloor': 2.6,
     }
     return M

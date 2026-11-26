@@ -11,17 +11,18 @@ import { gunMaterials, hotMaterial } from './materials.js';
 import { CHASSIS_BY_ID, YARDS } from '../game/data/chassis.js';
 import { makePlanet } from './Celestial.js';
 
-// The battle line, lead first. The lead fills the screen: the Hollow Star Covenant battleship (Void Cantor), a
-// chitin hull with a crest of claw spines and a red-lit bow, picked to look nothing like the white Aurelian that
-// led before. It is a battleship, not a dreadnought, because every one of its gun mounts has open space outboard:
-// the dreadnoughts' side hulls, pylons and flank fairings sit right in front of their broadside housings, where
-// guns run into them. The escorts are other yards' line ships, again chosen with clear flanks; the guns' lit
-// muzzles and trim keep the dark hulls readable against space.
+// The battle line, lead first. The lead fills the screen: the Velscour Dominion battleship, a cathedral hull with a
+// stepped command spire, its flanks lit by rows of windows and its drives burning orange. It took the lead from the
+// Hollow Star Covenant battleship (now second in the line), which read as a dark blur up close. It is a battleship,
+// not a dreadnought, because every one of its gun mounts has open space outboard: the dreadnoughts' side hulls,
+// pylons and flank fairings sit right in front of their broadside housings, where guns run into them. The escorts
+// are other yards' line ships, again chosen with clear flanks; the guns' lit muzzles and trim keep the dark hulls
+// readable against space.
 // `new TitleScene(engine, { line: [...] })` tries another line (tools/title_viewer.html?line=...).
-export const TITLE_LINE = ['hollow_9', 'velscour_9', 'corsair_9', 'ironhold_8', 'hollow_7', 'corsair_7', 'velscour_7'];
+export const TITLE_LINE = ['velscour_9', 'hollow_9', 'corsair_9', 'ironhold_8', 'hollow_7', 'corsair_7', 'velscour_7'];
 // Where each place in the line sails, from the lead. The camera circles the lead at 330 x the framing
 // scale (below), 40-100 above it, so every hull keeps well clear of that path (outside the ring or
-// under it). The opening shot: the Velscour battleship crossing above the logo, the Corsair low on the
+// under it). The opening shot: the Hollow battleship crossing above the logo, the Corsair low on the
 // right against the planet's ring; the rest come round as the camera does.
 const FORMATION = [[0, 0, 0], [-550, 75, -420], [-100, -200, -650], [-560, 0, -1050], [620, -110, -1200], [-200, -150, -1600], [300, 70, -2000]];
 const LEAD_LEN = 195;   // the camera's framing was set on a hull this long; it backs off for longer ones

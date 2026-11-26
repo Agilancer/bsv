@@ -39,7 +39,7 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     `ship.yard` so trails and effects follow. `game.setPaint({scheme, accent})` repaints in place and saves
     `data.ship.paint` (per hull; `data.paint` = last choice, which a new hull takes). UI: `ui/paint.js`, folded in the
     Ship window. Enemies, PvP captains, derelicts and the title line keep their own colours.
-  - Title backdrop (`TitleScene.js`): `TITLE_LINE`, led by the Hollow battleship (battleships, not dreadnoughts: the
+  - Title backdrop (`TitleScene.js`): `TITLE_LINE`, led by the Velscour battleship (battleships, not dreadnoughts: the
     T10 side hulls, pylons and fairings sit in front of their broadside housings). Every ship carries ONE gun, a
     title-only triple cannon (not WeaponModels): turrets on the turret mounts, seated on the skin by raycast and
     superfiring over each other; gunhouses sized to fit inside the broadside housings, barrels abeam. A mount whose
@@ -143,7 +143,8 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   - The dropship (`planet/Lander.js` + `planet/Landing.js`): a Blender model (`tools/blender/f_lander.py`, built with
     `python3 tools/blender/build.py lander` -> `assets/vehicles/lander.glb` + `lander.json`; `vlib.py` has a `heat` slot
     for the ablative shield) with folding legs `gear_i`, a stern `ramp`, body `flap_i`, intake `fan_i` and two dorsal
-    rail turrets (`turret_i` traverses, `gun_i` elevates, `muzzle_i`). `LANDER` in Lander.js mirrors the model's facts
+    ventral gun pods under the nose, two short square barrels each (`turret_i` traverses, `gun_i` elevates and
+    depresses to the ground below a descending lander, `TURRET_DEPRESS`, `muzzle_i`). `LANDER` in Lander.js mirrors the model's facts
     (`tests/lander.test.mjs`). The lander is scaled to the explorer it carries (`landerScale`, hold of a Mk I = 1).
     `mode.lander` is its root (feet at y 0, yaw), `mode.landerCtl` the object (poses, flames, plasma, `updateTurrets`).
     `Landing.js` flies the planetfall (~14 s: entry in a plasma sheath with the shield glowing, through the cloud

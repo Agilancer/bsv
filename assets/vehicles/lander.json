@@ -1,6 +1,6 @@
 {
  "lander": {
-  "bytes": 334908,
+  "bytes": 320016,
   "dims": {
    "H": 10.71,
    "L": 19.75,
@@ -35,6 +35,7 @@
    "turret_0",
    "turret_1"
   ],
+  "gunDrop": -0.55,
   "hardpoints": [],
   "holdFloor": 2.6,
   "holdH": 3.9,
@@ -47,6 +48,8 @@
   ],
   "rampLen": 4.35,
   "rampOpen": 125.08,
-  "tris": 43664
+  "tris": 41632,
+  "turretMount": "ventral",
+  "turretY": 1.78
  }
 }
