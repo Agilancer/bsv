@@ -538,7 +538,7 @@ def drone(P):
     # the big grapple claw to starboard, a mending lamp on its wrist
     sh, el, wr = (-0.6, 0.02, 0.2), (-1.22, -0.06, 0.58), (-0.98, -0.12, 1.12)
     P.sphere(0.14, sh, 'dark', DARK, segs=8)
-    seg(P, sh, el, (0.12, 0.11), (0.10, 0.10), 'trim', STEEL)
+    seg(P, sh, el, (0.12, 0.11), (0.10, 0.10), 'paint', WHITE)
     P.strut((sh[0], sh[1] - 0.12, sh[2]), (el[0] + 0.05, el[1] - 0.1, el[2] - 0.05), 0.07, 0.07, 'chrome', CHROME)
     P.sphere(0.11, el, 'dark', DARK, segs=8)
     seg(P, el, wr, (0.10, 0.10), (0.09, 0.09), 'hull', OXIDE)
@@ -650,7 +650,7 @@ def gunship(P):
     rf, rb = Vector((-0.35, -0.62, 7.7)), Vector((-0.25, 0.44, 5.5))
     for s2, fo, bo in ((1, Vector((2.6, -0.62, 6.45)), Vector((2.3, 0.42, 5.0))), (-1, Vector((-2.05, -0.62, 6.55)), Vector((-1.9, 0.42, 5.05)))):
         q = (rf, fo, bo, rb) if s2 > 0 else (fo, rf, rb, bo)
-        slab(P, q, 0.28, 'paint', WHITE)
+        slab(P, q, 0.28, 'paint' if s2 > 0 else 'trim', WHITE if s2 > 0 else STEEL)
         n = ((q[1] - q[0]).cross(q[3] - q[0])).normalized()
         P.strut(tuple(rf + n * 0.1), tuple(fo + n * 0.1), 0.26, 0.26, 'trim', STEEL)
         for t in (0.35, 0.72):
@@ -829,7 +829,8 @@ def tender(P):
     rng = random.Random(601)
     H = [(-3.0, 1.55, 1.10, 0.0), (-0.8, 1.80, 1.22, 0.05), (1.8, 1.70, 1.10, 0.0), (3.1, 1.25, 0.78, -0.10)]
     hexhull(P, H)
-    patchwork(P, H, rng, -3.0, 3.1, faces=(0, 2, 3, 5), step=(0.9, 1.6))
+    patchwork(P, H, rng, -3.0, 3.1, faces=(0, 2, 3, 5), step=(0.9, 1.6), keep=lambda f, a, b: f != 0 or a > -0.2)
+    patch(P, H, 0, -2.95, -0.25, 0.1, 0.92, 'paint', WHITE, t=0.05)
     patchwork(P, H, rng, -3.0, 3.1, faces=(1,), step=(0.8, 1.4), keep=lambda f, a, b: b < -1.0 or a > -0.05)
     patchwork(P, H, rng, -3.0, 3.1, faces=(4,), step=(1.2, 2.0), tones=UNDER)
     patch(P, H, 1, -0.98, -0.08, 0.03, 0.97, 'paint', WHITE, t=0.05)
@@ -924,18 +925,23 @@ def frigate(P):
     P.torus(0.45, 0.07, (0.3, 0.0, 15.6), 'z', 'glow', WHITE, 14, 4)
     hexhull(P, H)
     tz = -10.8
-    patchwork(P, H, rng, -14.0, 12.4, faces=(0, 2), step=(1.6, 3.0))
+    patchwork(P, H, rng, -14.0, 12.4, faces=(0, 2), step=(1.6, 3.0), keep=lambda f, a, b: b < 2.45 or a > (7.25 if f == 2 else 8.85))
+    patch(P, H, 2, 2.5, 7.2, 0.05, 0.95, 'paint', WHITE, t=0.06)
+    patch(P, H, 0, 2.5, 8.8, 0.05, 0.6, 'paint', WHITE, t=0.06)
+    patch(P, H, 0, 2.5, 8.8, 0.64, 0.95, 'hull', OXIDE, t=0.05)
+    patch(P, H, 1, -13.95, -12.9, 0.03, 0.97, 'paint', WHITE, t=0.06)
     patchwork(P, H, rng, -14.0, 12.4, faces=(3, 5), step=(2.6, 4.4))
-    patchwork(P, H, rng, -14.0, 12.4, faces=(1,), step=(1.4, 2.6), keep=lambda f, a, b: (b < tz - 1.3 or a > tz + 1.3) and b < 10.1)
+    patchwork(P, H, rng, -12.85, 12.4, faces=(1,), step=(1.4, 2.6), keep=lambda f, a, b: (b < tz - 1.3 or a > tz + 1.3) and b < 10.1)
     patchwork(P, H, rng, -14.0, 12.4, faces=(4,), step=(3.4, 5.0), tones=UNDER)
     patch(P, H, 1, 10.15, 12.35, 0.03, 0.97, 'paint', WHITE, t=0.06)
     slashes(P, (-0.4, 0, 11.2), 1.5, ang=40, w=0.24, gap=0.5, secs=H, mat='dark', tint=WELD, dy=0.065)
     # the hammerhead: a transverse armoured head, its port arm longer, its top the wing's colour, breaching spikes
     # on its face, braced to the hull on bare girders
     hz, hy = 13.5, -0.05
-    seg(P, (-4.4, hy, hz), (6.0, hy, hz), (1.25, 1.15), (1.05, 0.95), 'hull', PALE2)
+    seg(P, (-4.4, hy, hz), (6.0, hy, hz), (1.25, 1.15), (1.05, 0.95), 'paint', WHITE)
     yt = lambda x: hy + 0.866 * (1.15 - 0.2 * (x + 4.4) / 10.4)
-    P.strut((-4.25, yt(-4.25) + 0.02, hz), (5.85, yt(5.85) + 0.02, hz), 1.0, 0.05, 'paint', WHITE)
+    P.strut((-4.25, yt(-4.25) + 0.02, hz), (5.85, yt(5.85) + 0.02, hz), 0.5, 0.05, 'trim', STEEL2)
+    bolts(P, (-4.0, yt(-4.0) + 0.06, hz + 0.33), (5.6, yt(5.6) + 0.06, hz + 0.33), 12, s=0.09)
     for x0, x1, tint, mat in ((-4.1, -1.2, OXIDE, 'hull'), (1.4, 3.6, STEEL, 'trim'), (3.8, 5.7, OLIVE, 'hull')):
         hh = 1.15 - 0.2 * ((x0 + x1) / 2 + 4.4) / 10.4
         hw = 1.25 - 0.2 * ((x0 + x1) / 2 + 4.4) / 10.4

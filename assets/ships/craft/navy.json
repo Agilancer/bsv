@@ -347,7 +347,7 @@
  },
  "tender": {
   "size": "M",
-  "tris": 5242,
+  "tris": 5194,
   "plume_tris": 512,
   "dims": {
    "L": 11.198,

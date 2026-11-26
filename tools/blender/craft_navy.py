@@ -13,7 +13,7 @@
 #   bomber    deep hull with an integral dorsal cradle (two torpedoes, warm warheads, clamp bands), engine nacelles
 #             hugging the lower flanks, chin turret, four-bell wall
 #   drone     octagonal core in an octagonal gyro ring, repair emitter, two arms with weld heads, work lights
-#   decoy     spindle carrying an octagonal emitter drum: small glow tiles in dark frames, wing-colour tiles between
+#   decoy     spindle carrying an octagonal emitter drum: a sparse pattern of small glow cells in dark frames
 #   gunship   wide stance: hull and two side pods joined by open girders, two big twin turrets on the deck, a missile
 #             launcher on each pod, six bells across the stern
 #   torpboat  one long launcher spine: big painted muzzle, torpedoes on a dorsal loading rail, two box magazines
@@ -238,7 +238,6 @@ BOMBER = [(-3.75, 1.3, 0.72, 0.0), (-1.2, 1.42, 0.78, 0.0), (2.4, 1.36, 0.76, 0.
 
 
 def bomber(P):
-    rng = random.Random(23)
     H = BOMBER
     octo(P, H, 'hull', PLATE)
     octo(P, H, 'paint', WHITE, z0=4.45, z1=5.12, grow=0.025)                                # prow cap
@@ -284,7 +283,6 @@ def bomber(P):
     drive(P, -4.1, [(-0.45, -0.38, 0.3), (0.45, -0.38, 0.3)], 1.3, 0.72, 0.0, L=0.7)
     for sx in (1, -1):
         drive(P, -4.1, [(0, 0, 0.46)], 0.64, 0.64, -0.4, L=0.7, x0=sx * 1.4, flame=2.8, segs=16)
-    greebles(P, rng, -0.4, 0.4, bot(H, 0.0) - 0.01, -2.5, 1.5, 0, 0.05, 0.2)
 
 
 # ---------------------------------------------------------------- repair drone
@@ -345,8 +343,8 @@ def decoy(P):
     S = [(-2.7, 0.3, 0.3, 0), (-2.1, 0.42, 0.42, 0), (1.2, 0.44, 0.44, 0), (2.1, 0.3, 0.3, 0), (2.55, 0.17, 0.17, 0)]
     octo(P, S, 'hull', PLATE2)
     octo(P, S, 'paint', WHITE, z0=1.75, z1=2.57, grow=0.02)                                  # prow cap
-    plate(P, S, -2.45, -1.55, 0.0, 3.0, 'paint')                                               # saddle
-    # the emitter drum: eight framed facets, small glow cells set in a pattern with wing-colour tiles between
+    plate(P, S, -2.45, -1.6, 0.6, 2.4, 'paint')                                                # saddle
+    # the emitter drum: eight framed facets, a third of the cells lit (small glow tiles), machinery tiles between
     D = [(-1.45, 0.52, 0.52, 0), (-1.18, 0.86, 0.86, 0), (0.68, 0.86, 0.86, 0), (0.95, 0.52, 0.52, 0)]
     octo(P, D, 'trim', MACH, p=2.0)
     for zz in ((-1.45, -1.18), (0.68, 0.95)):
@@ -528,15 +526,14 @@ TENDER = [(-5.0, 1.75, 1.15, 0.25), (-2.6, 1.9, 1.25, 0.25), (0.2, 1.8, 1.2, 0.2
 
 
 def tender(P):
-    rng = random.Random(53)
     H = TENDER
     octo(P, H, 'hull', PLATE)
     plate(P, H, -4.7, -3.0, 0.0, 3.0, 'paint')                                                 # aft saddle
     for va in (7.0, 3.0):
         plate(P, H, -4.6, 0.4, va, va + 1.0, 'trim', PLATE3, off=0.03)
-    for k in range(6):
+    for k in range(4):
         for sx in (1, -1):
-            P.box(0.05, 0.12, 0.22, (sx * (side(H, -3.8 + k * 0.7) + 0.04), 0.45, -3.8 + k * 0.7), 'lamp', WIN, 0.0)
+            P.box(0.05, 0.1, 0.18, (sx * (side(H, -3.6 + k * 0.9) + 0.04), 0.5, -3.6 + k * 0.9), 'lamp', WIN, 0.0)
     # bridge cab amidships, looking over the cradle
     cab(P, -2.9, -0.4, 1.0, 0.45, top(H, -1.6) + 0.18)
     P.cyl(0.05, 0.5, (-0.6, top(H, -2.6) + 0.5, -2.6), 'y', 'chrome', CHROME, 6)
@@ -579,7 +576,6 @@ def tender(P):
         P.sphere(0.1, (wr[0], wr[1] - 0.4, wr[2]), 'mend', GREEN, segs=8)
         lamp(P, (bx + sx * 0.5, by, 1.8), NAV_P if sx > 0 else NAV_S, 0.09)
         rcs(P, (bx, by + 0.62, 0.5), 0.2, sx)
-    greebles(P, rng, -0.8, 0.8, top(H, -4.0), -4.5, -3.2, 0, 0.12, 0.3)
     vents(P, (0, top(H, -3.8) + 0.06, -3.8), 1.0, 0.8, 4)
     # the engine wall: four bells in a row
     drive(P, -5.7, [(-1.32, 0.15, 0.4), (-0.44, 0.15, 0.4), (0.44, 0.15, 0.4), (1.32, 0.15, 0.4)], 1.82, 1.2, 0.25, L=0.9, flame=2.8)
