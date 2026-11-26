@@ -1,7 +1,7 @@
 // Review renders of the hangar craft from one page load of tools/craft_viewer.html:
 //   node tools/craftshots.cjs <out dir> [flags]   (dev server on PORT, default 8420)
 // Writes lineup_<team>.png (every craft, play camera), <kind>_<team>.png (close, play camera) and
-// <kind>_<team>_low.png (close, a low three-quarter view from ahead) for the captain's and a hostile wing.
+// <kind>_<team>_low.png (close, a low rear three-quarter view) for the captain's and a hostile wing.
 const { chromium } = require('playwright');
 (async () => {
   const [, , out = 'craftshots', flags = ''] = process.argv;

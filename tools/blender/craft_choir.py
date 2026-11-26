@@ -3,30 +3,31 @@
 # radial layouts (three, four or six-fold, from above and from ahead), crescent claws and half-rings, long
 # emitter needles tipped with crystals, engines wrapped in floating halo rings. No windows: nothing aboard
 # needs to see out. Paint runs as inlays along the petals' backs, so a wing still reads its side from above.
-#   fighter   "thorn": a hexagonal spindle in three segments (prow, heart, drive collar) held apart by lit
-#             gaps; three crescent claws (two high, one low) sweep forward from the collar and close ahead
-#             of the prow like pincers, a gun needle at each tip; three drives inside one floating halo
+#   fighter   "thorn": a hexagonal spindle in three segments (faceted prow with three sensor eyes, the heart,
+#             the drive collar) held apart by lit gaps; three crescent claws (two high, one low) sweep forward
+#             from the collar and close ahead of the prow like pincers, a gun needle at each tip; three drives
+#             inside one floating halo
 #   bomber    "reliquary": an octagonal core with a four-petal bud for a bow, four fat ordnance seeds in an X
-#             round it in crescent clamps, glass warheads forward; an octagonal crown ring frames the seeds'
-#             tails; the seeds drop from a lit bay under the belly (the last gun)
+#             round it in half-ring clamps, glass warheads forward; an octagonal crown ring frames the seeds'
+#             tails; five drives in one halo; the seeds drop from a lit bay under the belly (the last gun)
 #   drone     "mote": a heart in three petals, a horizontal crescent cradling its back with the nav lights at
 #             its horns, three thin crescent fingers curled under the chin, a green mending lens on a needle
 #   decoy     "tuning spire": a thin spindle threaded through three segmented resonator rings that widen
 #             forward like a horn, a crown of six antenna needles splayed ahead, the centre one its emitter
-#   gunship   "iris": a long ovoid of four great petals parted along the seams, the heart staring out of an
-#             open iris at the bow; orb turrets above and below, two crescent tusks with emitter needles,
-#             and two hexagonal missile pods carried in half-ring brackets port and starboard
+#   gunship   "iris": a broad ovoid of black-glass petals, a faceted aft course and four pointed fore petals
+#             parted round a glass eye; four crescent mandibles close round the eye with emitter needles, orb
+#             turrets above and below, thorns along the seams, two hexagonal missile pods in half-ring brackets
 #   torpboat  "lance": one long hexagonal tube is the boat; five segmented accelerator rings along it, three
-#             crescent prongs cradle the lit mouth, two seed magazines in clamps amidships, a heart and three
-#             drives aft
-#   tender    "lotus": a heart under a three-petal crown with six long blades opened flat round it (a
-#             six-point star from above); three end in green beam dishes, two in mending claws, the aft one
-#             carries the drives
+#             crescent prongs cradle the lit mouth (the main tube), two seed magazines in clamps amidships,
+#             a heart and three drives aft
+#   tender    "lotus": a heart under a three-petal crown and a crystal spire, six long blades opened flat
+#             round it (a six-point star from above); three end in green beam dishes, two in mending claws,
+#             the aft one carries the drives
 #   frigate   "precentor": a segmented spine; three crescent prongs round the spinal lance at the bow (the main
-#             gun), a great six-petal heart amidships under a half-ring crest (the command), ribbed flanks,
-#             orb turrets fore, aft and below, crystal point-defence nodes on spines, a drive cluster inside a
-#             floating stern ring
-import math, random
+#             gun), a great six-petal heart amidships under a half-ring crest (the command), a ribcage along
+#             the flanks, orb turrets fore, aft and below, crystal point-defence nodes on spines, two seed
+#             drive nacelles in clamps aft and a drive cluster inside a floating stern ring
+import math
 from craftlib import *
 import bmesh                      # after craftlib: bpy has to be loaded first
 from mathutils import Vector
@@ -38,7 +39,6 @@ OBS = 0x2a2e38
 OBS2 = 0x353946
 OBS3 = 0x434857
 EDGE = 0x6a7180
-EDGE2 = 0x8a92a4
 LENS = 0x9fb4c8
 RECT = ((-1, -1), (1, -1), (1, 1), (-1, 1))
 BLADE_W = ((-1, 0), (-0.5, -1), (0.5, -1), (1, 0), (0.5, 1), (-0.5, 1))   # flat hexagon, sharp across w (u = +-1)
@@ -300,7 +300,7 @@ def eye(P, at, r, D=(0, 0, 1)):
     """a sensor lens: a dark glass dome in a lit ring"""
     at, D = V(at), V(D).normalized()
     P.sphere(r, tuple(at), 'glass', LENS, segs=10)
-    ring(P, at + D * r * 0.2, D, r * 1.08, r * 0.2, r * 0.2, 'glow', WHITE, 10)
+    ring(P, at + D * r * 0.2, D, r * 1.08, r * 0.2, r * 0.2, 'glow', WHITE, 8)
 
 
 def orb_turret(P, at, r, flip=1, L=2.0):
@@ -310,7 +310,7 @@ def orb_turret(P, at, r, flip=1, L=2.0):
     P.torus(r * 0.98, r * 0.09, (x, y + flip * r * 0.32, z), 'y', 'chrome', EDGE, 16, 4)
     oc = (x, y + flip * r * 0.85, z)
     P.sphere(r, oc, 'hull', OBS3, (1, 0.82, 1), segs=12)
-    P.torus(r * 1.0, r * 0.045, oc, 'y', 'glow', WHITE, 18, 4)
+    P.torus(r * 1.0, r * 0.045, oc, 'y', 'glow', WHITE, 14, 4)
     P.cyl(r * 0.42, 0.02, (x, oc[1] + flip * r * 0.82, z - r * 0.1), 'y', 'paint', WHITE, 12)
     eye(P, (x, oc[1] + flip * r * 0.35, z + r * 0.78), r * 0.16, (0, flip * 0.5, 1))
     for sx in (1, -1):
@@ -517,9 +517,12 @@ def gunship(P):
         if upper:   # paint inlays along the upper petals' backs
             shell(P, fc, R * 1.03 + 0.012, (lc - 5, lc + 5), (-8, 60), 0.02, S, 'paint', WHITE, 1, 8, pinch=(1, 0.55))
             shell(P, C, R + 0.012, (lc - 4, lc + 4), (-48, -12), 0.02, S, 'paint', WHITE, 1, 4)
-    for z in (-1.4, -2.3, -3.2):   # dorsal spines along the top seam
-        y = 0.74 * R * math.cos(math.asin((z - 0.6) / (R * 4.3)))
+    for z in (-1.4, -2.3, -3.2):   # thorns along the top and side seams
+        c = math.cos(math.asin((z - 0.6) / (R * 4.3)))
+        y, x = 0.74 * R * c, 1.22 * R * c
         spike(P, (0, y - 0.05, z + 0.25), (0, y + 0.42, z - 0.35), 0.09, 0.0, 'chrome', EDGE, 4, 0.5)
+        for sx in (1, -1):
+            spike(P, (sx * (x - 0.05), 0, z + 0.3), (sx * (x + 0.5), 0, z - 0.4), 0.1, 0.0, 'chrome', EDGE, 4, 0.5)
     # the eye deep in the iris, a lit ring round it
     P.sphere(0.42, (0, 0, 5.0), 'glass', LENS, segs=14)
     ring(P, (0, 0, 5.24), (0, 0, 1), 0.44, 0.05, 0.05, 'glow', WHITE, 16)
@@ -527,12 +530,12 @@ def gunship(P):
     # turrets above and below
     orb_turret(P, (0, 0.95, 2.0), 0.5, 1, 1.7)
     orb_turret(P, (0, -0.9, -1.3), 0.44, -1, 1.5)
-    # two crescent tusks under the bow with emitter needles
-    for phi in (135, 225):
+    # four crescent mandibles closing round the eye, an emitter needle at each tip
+    for phi in (45, 315, 135, 225):
         Rd, N = radial(phi, 1, 0), tangent(phi)
-        pts = claw(P, [Rd * 0.72 + V((0, 0, 3.9)), Rd * 1.4 + V((0, 0, 5.1)), Rd * 1.2 + V((0, 0, 6.5)), Rd * 0.72 + V((0, 0, 7.2))],
-                   N, 0.34, 0.14, OBS3, 12, knuckle=0.12)
-        needle(P, pts[-1] + V((0, 0, -0.1)), 1.1, 0.055)
+        pts = claw(P, [Rd * 0.85 + V((0, 0, 3.5)), Rd * 1.62 + V((0, 0, 4.9)), Rd * 1.35 + V((0, 0, 6.6)), Rd * 0.62 + V((0, 0, 7.3))],
+                   N, 0.4, 0.15, OBS3, 12, paint=(1 if N.y > 0 else -1) if phi in (45, 315) else None, knuckle=0.13)
+        needle(P, pts[-1] + V((0, 0, -0.1)), 0.9, 0.055)
     # missile pods in half-ring brackets, port and starboard
     for sx in (1, -1):
         px, pz = sx * 2.85, 1.0
@@ -722,11 +725,11 @@ def frigate(P):
     # two drive nacelles aft in half-ring clamps
     for sx in (1, -1):
         nx, ny = sx * 3.85, -0.3
-        P.loft([(-12.6, 0.6, 0.6, 0, 2), (-12.2, 0.72, 0.72, 0, 2), (-8.4, 0.72, 0.72, 0, 2), (-7.7, 0.58, 0.58, 0, 2)], 'hull', OBS3, 10, at=(nx, ny, 0))
-        P.loft([(-7.7, 0.56, 0.56, 0, 2), (-7.2, 0.3, 0.3, 0, 2), (-6.9, 0.04, 0.04, 0, 2)], 'glass', LENS, 10, at=(nx, ny, 0))
-        P.torus(0.58, 0.035, (nx, ny, -7.72), 'z', 'glow', WHITE, 14, 4)
+        P.loft([(-12.6, 0.6, 0.6, 0, 2), (-12.2, 0.72, 0.72, 0, 2), (-8.4, 0.72, 0.72, 0, 2), (-7.7, 0.58, 0.58, 0, 2)], 'hull', OBS3, 8, at=(nx, ny, 0), phase=0.5)
+        P.loft([(-7.7, 0.56, 0.56, 0, 2), (-7.2, 0.3, 0.3, 0, 2), (-6.9, 0.04, 0.04, 0, 2)], 'glass', LENS, 8, at=(nx, ny, 0), phase=0.5)
+        P.torus(0.58, 0.035, (nx, ny, -7.72), 'z', 'glow', WHITE, 8, 4, rot=(0, 0, 22.5))
         for z in (-8.9, -9.2):
-            P.torus(0.73, 0.045, (nx, ny, z), 'z', 'paint', WHITE, 14, 4)
+            P.torus(0.73, 0.045, (nx, ny, z), 'z', 'paint', WHITE, 8, 4, rot=(0, 0, 22.5))
         halo_nozzle(P, (nx, ny, -12.65), 0.5, flame=2.6, segs=14, halo=1.36)
         for z in (-8.6, -11.6):
             sweep(P, arcpts((nx, ny, z), (-sx, 0, 0), (0, 1, 0), 0.82, -115, 115, 10), (0, 0, 1), 0.12, 0.36, 'chrome', EDGE,
