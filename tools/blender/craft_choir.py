@@ -4,9 +4,9 @@
 # Petal faces carry the wing's paint in solid blocks; drives are slot vents set radially (rays of light), never
 # nozzles in rings; emitters are crystal-tipped needles; claws and prongs are crescents with body. No windows:
 # nothing aboard needs to see out.
-#   fighter   "thorn star": five pointed blades round a five-petal dome (its gaps a star of light from above),
-#             a long crystal lance forward and needles on the two forward blades; a three-ray vent under the
-#             aft blade
+#   fighter   "dart": a hexagonal spindle, its nose a three-petal bud lit through the gaps; three leaf blades 120
+#             degrees apart (one dorsal, two ventral-lateral) raked forward round the guns at their tips, barbed
+#             aft: an arrowhead from above, a three-point star from ahead; three rays of vents astern
 #   bomber    "seed bud": a five-petal bud round a dark core; five ordnance seeds lie in the grooves between the
 #             petals (three of them on top), strapped by crescent clasps, warm warheads out at the bow; a
 #             five-ray drive astern; the seeds drop from a lit bay under the belly (the last gun)
@@ -20,9 +20,9 @@
 #   torpboat  "fletched lance": one long hexagonal launcher spine with a flared muzzle (a warm warhead in its
 #             lit mouth) held in three crescent prongs, thick tri-segment collars along it; astern a five-petal
 #             rosette round a dome: two petals carry the magazines, three the drives
-#   tender    "lotus": a heart under a three-petal crown and a crystal spire, six long blades opened flat round
-#             it (a six-point star from above); three end in green beam dishes, two in mending claws, the aft
-#             one carries the drives
+#   tender    "lotus": a heart under a three-petal crown and a crystal spire, six broad blades opened flat round
+#             it (a six-point star from above, the line's mark of a healer); five end in great green beam dishes,
+#             the aft one carries the drives; three jointed manipulators with crescent claws hang under the hub
 #   frigate   "precentor": a hexagonal spine dressed in three leaf-shaped keel strakes (two high, one under);
 #             three crescent prongs round the spinal lance at the bow (the main gun); amidships a stepped lotus
 #             on a plinth (five broad petals, five rising crown petals, a five-petal heart and a spire); rows
@@ -356,7 +356,7 @@ def vane(P, phi, inner, outer, thick, tint=OB2, paint=0, n_up=None):
     if paint:
         sides = (1, -1) if abs(N.y) < 0.3 else ((1,) if N.y > 0 else (-1,))
         for sd in sides:
-            plate((0.2, 0.45, 0.7), lambda f, sd=sd: sd * (thick / 2 * k_at(f) + 0.016), lambda f: 0.0125, 'paint', WHITE, range(1, n - 1))
+            plate((0.3, 0.46, 0.62), lambda f, sd=sd: sd * (thick / 2 * k_at(f) + 0.016), lambda f: 0.0125, 'paint', WHITE, range(1, n - 2))
 
 
 def rays(P, c, n, rho, w, h, phase=0.0, flame=1.6):
@@ -435,8 +435,8 @@ def seed(P, at, L, r, tint=OB3):
 # ---------------------------------------------------------------- fighter
 def fighter(P):
     K = 1.12
-    IN = [(r * K, z * K) for r, z in ((0.42, -2.9), (0.52, -1.9), (0.54, -0.7), (0.48, 0.5), (0.42, 1.4), (0.52, 2.2), (0.86, 2.86))]
-    OUT = [(r * K, z * K) for r, z in ((0.6, -3.05), (1.45, -2.45), (1.92, -1.25), (1.9, 0.1), (1.62, 1.35), (1.25, 2.3), (0.92, 2.92))]
+    IN = [(r * K, z * K) for r, z in ((0.42, -3.0), (0.52, -2.6), (0.54, -2.0), (0.52, -0.8), (0.46, 0.6), (0.48, 1.9), (0.86, 2.86))]
+    OUT = [(r * K, z * K) for r, z in ((0.7, -3.1), (1.7, -2.95), (2.02, -2.2), (1.73, -0.8), (1.42, 0.6), (1.14, 1.9), (0.92, 2.92))]
     # a hexagonal spindle, its nose a three-petal bud lit through the gaps (the focal glow)
     SP = [(-3.4, 0.38, 0.38, 0, 2), (-2.7, 0.62, 0.62, 0, 2), (0.6, 0.58, 0.58, 0, 2), (1.5, 0.44, 0.44, 0, 2)]
     P.loft(SP, 'obsidian', OB1, 6, phase=0.5)

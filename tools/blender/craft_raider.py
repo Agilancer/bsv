@@ -1013,13 +1013,13 @@ def frigate(P):
         P.box(1.8, 0.24, 0.16, (1.4, top(H, tz) + 0.12, tz - 1.0 + k * 0.5), 'trim', STEEL2, 0.0)
     P.cyl(0.13, 2.6, (1.0, top(H, tz) + 0.1, tz), 'z', 'chrome', CHROME, 8)
     P.cyl(0.1, 2.6, (1.8, top(H, tz) + 0.09, tz), 'z', 'hull', OXIDE, 8)
-    greebles(P, rng, 0.4, 2.0, top(H, -13.0), -13.9, -12.4, 4, 0.25, 0.5, (MACH, DARK2, STEEL))
+    greebles(P, rng, 0.4, 2.0, top(H, -13.0), -13.9, -12.4, 2, 0.25, 0.5, (MACH, DARK2, STEEL))
     # engine bank: one huge drive can in the wing's colour to port, a foundry slot block and a can half its size
     # to starboard
     P.box(7.8, 4.2, 0.7, (0, 0.3, -14.3), 'dark', DARK2, 0.06)
     salvage_engine(P, (1.5, 0.6, -16.4), 1.6, 2.3, cowl=True, segs=18)
     slot_grid(P, (-2.3, 1.05, -15.3), 2, 2, 0.72, 0.46, L=1.0)
-    salvage_engine(P, (-2.3, -1.15, -15.3), 0.8, 1.1, tint=STEEL2, ribs=2, segs=16)
+    salvage_engine(P, (-2.3, -1.15, -15.3), 0.8, 1.1, tint=STEEL2, ribs=2, segs=14)
     lamp(P, (-2.3, 2.0, -14.4), STROBE, 0.13)
     rcs(P, (2.6, 0.7, 10.6), 0.3, 1)
     rcs(P, (-3.6, 1.0, -13.2), 0.3, -1)
