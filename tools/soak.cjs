@@ -1,5 +1,5 @@
 // Autoplay soak: a fresh captain on autoplay for N simulated minutes. Reports kills per minute,
-// time share per autoplay state, the longest a single goal ran, and errors. Exits non-zero when
+// time share per autoplay state, the longest a single goal ran, how much of the loot dropped was recovered, and errors. Exits non-zero when
 // the pacing contract is broken (used as a gate: `node tools/soak.cjs 10 --gate`).
 //   node tools/soak.cjs [minutes=10] [--gate] [--space]   (dev server on PORT, default 8420)
 //   the shipped configuration (planet runs included); --space removes the planet goal
@@ -19,7 +19,8 @@ const { chromium } = require('playwright');
     const g = __game;
     if (!keepPlanet && g.planetAuto) g.planetAuto.score = () => 0;
     g.toggleAutoplay();
-    window.__soak = { states: {}, goalRun: {}, goalMax: {}, kills0: g.data.kills, perMin: [], lastKills: g.data.kills, t: 0, warps: 0, warping: false, chase: 0 };
+    const S = window.__soak = { states: {}, goalRun: {}, goalMax: {}, kills0: g.data.kills, perMin: [], lastKills: g.data.kills, t: 0, warps: 0, warping: false, chase: 0, dropped: { item: 0, mote: 0 }, got: { item: 0, mote: 0 } };
+    g.world.events.on('collect', (d) => { if (d._soak) S.got[d.type === 'item' ? 'item' : 'mote']++; });
   }, keepPlanet);
   const step = 5;
   for (let t = 0; t < minutes * 60; t += step) {
@@ -27,6 +28,7 @@ const { chromium } = require('playwright');
       const g = __game, S = window.__soak;
       for (let k = 0; k < step * 4; k++) {
         __engine.simulate(0.25);
+        for (const d of g.world.loot.drops) if (!d._soak) { d._soak = 1; S.dropped[d.type === 'item' ? 'item' : 'mote']++; }
         const A = g.autoplay; if (!A) continue;
         // the drive is for real distances: count the autopilot's warps; and time spent trailing a ship that is running
         const wp = !!(g.isWarping && g.isWarping()); if (wp && !S.warping) { S.warps++; const ws = g.warpState && g.warpState(); const why = (ws && ws.kind === 'jump' ? 'jump · ' : '') + (A.state === 'goal' && A.goal ? A.goal.name : A.state); S.warpWhy = S.warpWhy || {}; S.warpWhy[why] = (S.warpWhy[why] || 0) + 1; } S.warping = wp;
@@ -51,11 +53,14 @@ const { chromium } = require('playwright');
   const r = await p.evaluate(() => {
     const g = __game, S = window.__soak;
     for (const [k, v] of Object.entries(S.goalRun)) S.goalMax[k] = Math.max(S.goalMax[k] || 0, v);
-    return { warps: S.warps, warpWhy: S.warpWhy, chase: S.chase, patrol: S.patrol, kills: g.data.kills - S.kills0, perMin: S.perMin, states: S.states, goalMax: S.goalMax, level: g.data.level, credits: g.data.credits, system: g.data.system, deaths: g.data.deaths || 0 };
+    for (const d of g.world.loot.drops) if (d._soak) S.dropped[d.type === 'item' ? 'item' : 'mote']--;   // still floating: not lost yet
+    return { dropped: S.dropped, got: S.got, warps: S.warps, warpWhy: S.warpWhy, chase: S.chase, patrol: S.patrol, kills: g.data.kills - S.kills0, perMin: S.perMin, states: S.states, goalMax: S.goalMax, level: g.data.level, credits: g.data.credits, system: g.data.system, deaths: g.data.deaths || 0 };
   });
   const total = Object.values(r.states).reduce((a, b) => a + b, 0) || 1;
   console.log(`soak ${minutes} min · kills ${r.kills} (${(r.kills / minutes).toFixed(1)}/min) · rank ${r.level} · ${r.credits} ¢ · system ${r.system} · deaths ${r.deaths}`);
   console.log('kills per minute:', r.perMin.join(' '));
+  const pct = (a, b) => (b ? `${Math.round(100 * a / b)}%` : '-');
+  console.log(`loot recovered: pods ${r.got.item}/${r.dropped.item} (${pct(r.got.item, r.dropped.item)}) · motes ${r.got.mote}/${r.dropped.mote} (${pct(r.got.mote, r.dropped.mote)})`);
   console.log(`warps: ${r.warps} (${(r.warps / minutes).toFixed(2)} per minute) ${JSON.stringify(r.warpWhy || {})} · trailing a runner: ${Math.round(r.chase)} s`);
   console.log('time share:', Object.entries(r.states).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(100 * v / total).toFixed(0)}%`).join(' · '));
   if (r.patrol) console.log('patrol breakdown (s):', JSON.stringify(Object.fromEntries(Object.entries(r.patrol).map(([k, v]) => [k, Math.round(v)]))));

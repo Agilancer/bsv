@@ -294,6 +294,14 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - Targets (`Autoplay.mark` / `pickTarget`): ships firing at the captain come first; a ship opening the range is a
   runner: ranked last, and let go for 25 s once it has been out of reach for a few seconds (never bosses, story or PvP
   ships; a fight-only captain with nothing else to shoot sees a lone runner through, which is what the duel tools use).
+- Loot (`Autoplay.pickDrop`): every drop is wanted, junk included (it sells). All within 2500 are fetched, farther ones
+  when the stop is worth the sailing (`dropWorth`: a pod by rarity, motes less, a cluster counts together; up to 50 s),
+  never past `DROP_LIFE` or into a hazard. The sweep comes before any goal (a paused goal resumes without a new log
+  line) unless the helm is taken (`lootFree`: drive, docking / docked, arena match, planet scan, off in another mode).
+  With hostiles about that are neither firing on the captain nor within 1200 (and no hit in 4 s), drops within 1300
+  come first (not for a fight-only captain: the duel tools). A pod it circles without catching is left for 45 s. With a
+  station in the system `holdTriage` breaks up only what keeps a pod from being refused (from 59 items): the resupply
+  goal sells the rest. `tools/soak.cjs` reports pods / motes recovered.
 - The drive (nav/index.js) never spools with a hostile within 1800 (`WARP_CLEAR`), and breaks off (jump fuel refunded)
   if one closes in or the captain takes the helm. Phases: align (the helm comes round at the ship's own turn rate, up
   to 9 s) -> spool (4 s of building effects) -> go (fast eased transit). The Game helm stands down while warping.

@@ -5,6 +5,8 @@ import * as THREE from 'three/webgpu';
 import { vec3, float, positionLocal, smoothstep, sin, uv } from 'three/tsl';
 import { RARITY } from './data/items.js';
 
+export const DROP_LIFE = 240;   // s an untouched drop floats before it drifts off (the autopilot plans its sweep by it)
+
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _c = new THREE.Color();
 
 export class Loot {
@@ -68,7 +70,7 @@ export class Loot {
         if (dist < P.dims.W * 2 + 8) { W.collect(d); this.drops.splice(i, 1); continue; }
       }
       d.pos.addScaledVector(d.vel, dt);
-      if (d.t > 240 && !d.pulled) { this.drops.splice(i, 1); continue; }
+      if (d.t > DROP_LIFE && !d.pulled) { this.drops.splice(i, 1); continue; }
       if (d.type === 'item') {
         _e.set(d.t * 0.7, d.t * 1.1 + d.spin, 0); _q.setFromEuler(_e);
         _s.setScalar(1 + Math.sin(t * 4 + d.spin) * 0.08);
