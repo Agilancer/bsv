@@ -98,6 +98,17 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     `assets/ships/craft/<line>.glb` + `.json`; `tests/craft.test.mjs` holds every line to the bands, budgets and mounts.
     `combat/craftModels.js` bakes a line into one instanced geometry per craft (slot code `mk`, per-instance `team`:
     wing colour + hull tone) with one shared material, plus an additive plume geometry; stand-ins draw until it loads.
+    Flight (Hangars.js header): nothing orbits. Fighters fly in pairs (lead + wingman) and make strafing runs (in,
+    burst, break past the flank, extend, come about; the guns bank `CHARGE` s of fire out of the run and spend it at
+    `BURST` x rof, so a wing's damage is its sheet's); bombers (paired) and torpedo boats run in, release, break away
+    climbing and go home to rearm; gunships take firing stations off the target's flank, nose on, moving every few
+    seconds; escort frigates screen on the carrier-target line, broadside on. Drones ride over the deck and hop between
+    work sites on the hull while it needs mending, the tender over the stern, a decoy toward the threat. With nothing
+    to fight a wing forms an echelon off its bay's quarter (`data/craft.js` `formSlot`, outside the shield bubble),
+    holds `FORM_HOLD` s, then recovers lead first, abeam the bay mouth and in (a frigate stays on escort). Formation
+    craft station-keep (arrive on a point moving with the carrier: `fly`), so they match its course. Do not bring back
+    orbiting (craft circling a ship fast was removed on request). Measure: `node tools/wingprobe.cjs [yard] [tier]
+    [fight s] [idle s] --trace=out.png [--bays=]` (deg/s of bearing round the ship worked, distance, wing damage; tracks).
     Craft are drawn larger than life (`DRAW` by class). Review: `tools/craft_viewer.html?line=` (+ `tools/craftshots.cjs
     <dir> "&line="`), in game `tools/craftscene.cjs <out.png> <yard> <tier> <faction>`.
   - Shields you can see: `fx/materials.js` `shieldMaterial` lights each of the four facings by its own charge (`facing`
