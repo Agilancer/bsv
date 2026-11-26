@@ -4,7 +4,7 @@
 //   survival  -> break off and let shields recover when the hull is low or outgunned
 //   combat    -> pick the best target, hold broadside range, turn the strong shield
 //                facing toward the enemy, fire abilities by priority
-//   loot      -> sweep up drops when the field is clear
+//   loot      -> sweep up every drop in reach, junk included (it sells): ahead of errands, and between enemy groups
 //   logistics -> equip upgrades, salvage junk, (with stations) sell, repair, buy hulls
 //   ambition  -> (with the galaxy) move on to harder systems as the ship outgrows them
 // Other modules extend it by pushing goals onto `extra` (dock, travel, explore...).
@@ -14,8 +14,16 @@ import { ABILITY_BY_KEY } from './data/abilities.js';
 import { pickMine } from './data/mines.js';
 import { buildFor, spendTalentPoints, describeTalents } from './autoplay/build.js';
 import { holdTriage } from './autoplay/refit.js';
+import { RARITY } from './data/items.js';
+import { DROP_LIFE } from './Loot.js';
 
 const _v = new THREE.Vector3();
+
+// Loot sweep. Everything within LOOT_NEAR is fetched; past that, a stop is worth so many seconds of sailing (a pod by
+// its rarity, a mote less, and half of each drop close enough to sweep up with it), up to LOOT_SAIL. With hostiles about
+// that are neither shooting at the captain nor within 1200, drops within LOOT_FIGHT_R are fetched before closing in.
+const LOOT_NEAR = 2500, LOOT_SAIL = 50, LOOT_FIGHT_R = 1300, LOOT_CLUSTER = 350;
+const dropWorth = (d) => (d.type === 'item' ? 18 + 7 * RARITY[d.item.rarity].i : d.type === 'salvage' ? 12 : 6 + Math.min(14, d.amount / 25));
 
 export class Autoplay {
   constructor(game) {
@@ -47,7 +55,7 @@ export class Autoplay {
     if (g.mode === 'space' && this.dodgeWarnings()) { s.autoFire = true; return; }
     this.act(dt, t);
     // on passage with nothing near and nothing landing on the hull: engines to cruise (Ship.update reads cruiseUntil)
-    if (g.mode === 'space' && (this.state === 'goal' || this.state === 'patrol') && s.throttle > 0.9 && t - s.lastHit > 6 && !this.cruiseBlock) s.cruiseUntil = t + 0.4;
+    if (g.mode === 'space' && (this.state === 'goal' || this.state === 'patrol' || (this.state === 'loot' && this.lootFar)) && s.throttle > 0.9 && t - s.lastHit > 6 && !this.cruiseBlock) s.cruiseUntil = t + 0.4;
   }
 
   // telegraphed strikes: standing in a warning beats everything else — sail out first.
@@ -155,6 +163,7 @@ export class Autoplay {
     const near = foes.filter((o) => o.position.distanceTo(s.position) < 1200);
     const threat = near.reduce((a, o) => a + o.maxHull * (1 + o.elite) * (o.hull / o.maxHull), 0);
     const might = s.maxHull * hp + s.shieldTotal();
+    const drop = this.pickDrop(foes);
     // extension goals (docking, travel, exploring) get a say when nothing is shooting
     if (!near.length) {
       let best = null, bscore = 0;
@@ -164,26 +173,69 @@ export class Autoplay {
         if (mode === 'hold' && x.name.startsWith('Advance')) continue;
         const sc = x.score(g); if (sc > bscore) { bscore = sc; best = x; }
       }
-      // a goal needs a real score to start (0.5+); one already under way only needs to stay positive
-      if (best && (this.goal === best ? bscore > 0 : bscore >= 0.5 && (!this.goal || bscore > 1))) { if (this.goal !== best) this.log(`Objective: ${best.name}`); this.goal = best; this.state = 'goal'; return; }
+      // a goal needs a real score to start (0.5+); one already under way (or waiting on the loot) only needs to stay positive
+      const cur = this.goal || this.paused;
+      if (best && (cur === best ? bscore > 0 : bscore >= 0.5 && (!cur || bscore > 1))) {
+        // the cargo first: a goal waits while there is a drop in reach (pickDrop: only with the helm free for it)
+        if (drop) return this.toLoot(drop, best);
+        if (cur !== best) this.log(`Objective: ${best.name}`);
+        this.goal = best; this.paused = null; this.state = 'goal'; return;
+      }
     }
     this.goal = null;
-    if (hp < 0.22 && near.length && threat > might * 0.6) { if (this.state !== 'retreat') this.log('Hull critical — breaking off'); this.state = 'retreat'; return; }
+    if (hp < 0.22 && near.length && threat > might * 0.6) { if (this.state !== 'retreat') this.log('Hull critical — breaking off'); this.paused = null; this.state = 'retreat'; return; }
     if (this.state === 'retreat' && hp < 0.5 && near.length) return;
+    if (drop) return this.toLoot(drop);   // with hostiles about, only when none of them is engaging
+    this.paused = null;
     if (foes.length) { this.state = 'combat'; s.target = this.pickTarget(foes); return; }
-    const drop = this.nearestDrop();
-    if (drop) { this.state = 'loot'; this.drop = drop; return; }
     this.state = 'patrol';
   }
 
-  nearestDrop() {
-    const g = this.game, s = g.player;
-    let best = null, bd = 1600 * 1600;
-    for (const d of g.world.loot.drops) {
-      if (d.type === 'item' && !g.canCollect(d)) continue;
-      if (g.phenomena && g.phenomena.hazardAt(d.pos, 60)) continue;   // not into a black hole or a pulsar's sweep
-      const dd = d.pos.distanceToSquared(s.position);
-      if (dd < bd) { bd = dd; best = d; }
+  toLoot(d, goal) {
+    if (goal) this.paused = goal;    // resumed (without a fresh log line) once the field is swept
+    if (this.state !== 'loot' || this.drop !== d) { this.drop = d; this.dropT = 0; this.dropEta = d.pos.distanceTo(this.game.player.position) / Math.max(20, this.game.player.maxSpeed); }
+    this.goal = null; this.state = 'loot';
+  }
+
+  // The helm is free for a detour: in open space, not on the drive, not docking or docked, not in an arena match
+  // (the arena steers between fights), not over a planet's scan or landing.
+  lootFree() {
+    const g = this.game;
+    if (g.mode !== 'space' || g.docked || g.dockingTarget || (g.isWarping && g.isWarping())) return false;
+    if (g.guild && g.guild.arena && g.guild.arena.match) return false;
+    return !(g.planet && g.planet.scanner && g.planet.scanner.state !== 'idle');
+  }
+
+  // The drop most worth fetching, or null. Every pod and mote is wanted (junk sells at a station): all within LOOT_NEAR,
+  // farther ones when the stop is worth the sailing (dropWorth, clusters count together), never past a drop's lifetime,
+  // into a hazard, or with the hold full for a pod. With hostiles about: only when none is shooting at the captain or
+  // within 1200, then only drops close by (a fight-only captain finishes the fight first: the duel tools measure that).
+  pickDrop(foes) {
+    const g = this.game, s = g.player, drops = g.world.loot.drops, now = g.engine.time;
+    if (!drops.length || !this.lootFree()) return null;
+    let maxD = Infinity;
+    if (foes.length) {
+      if (((g.data.autoplay && g.data.autoplay.mode) || 'full') === 'combat') return null;
+      if (now - s.lastHit < 4 || foes.some((o) => o._atk || o._d < 1200)) return null;   // (lastHit: fire from past 1500)
+      maxD = LOOT_FIGHT_R;
+    }
+    const v = Math.max(20, s.maxSpeed) * (foes.length ? 1 : 1.6);   // under way: on cruise for most of a clear leg
+    let best = null, bs = Infinity;
+    for (const d of drops) {
+      if (d._skip > now || (d.type === 'item' && !g.canCollect(d))) continue;
+      const dist = Math.hypot(d.pos.x - s.position.x, d.pos.z - s.position.z);
+      if (dist > maxD) continue;
+      const eta = dist / v;
+      if (!d.pulled && d.t + eta > DROP_LIFE - 3) continue;   // it drifts off before we get there
+      let worth = dropWorth(d);
+      for (const e of drops) {
+        if (e === d || Math.abs(e.pos.x - d.pos.x) > LOOT_CLUSTER || Math.abs(e.pos.z - d.pos.z) > LOOT_CLUSTER) continue;
+        if (e.type !== 'item' || g.canCollect(e)) worth += dropWorth(e) * 0.5;
+      }
+      if (dist > LOOT_NEAR && eta > Math.min(LOOT_SAIL, worth)) continue;
+      const sc = eta - worth * 0.25 - (d === this.drop ? 2 : 0);   // nearest first, leaning to the valuable; and keep to the one in hand
+      if (sc >= bs || (g.phenomena && g.phenomena.hazardAt(d.pos, 60))) continue;   // not into a black hole or a pulsar's sweep
+      bs = sc; best = d;
     }
     return best;
   }
@@ -212,10 +264,16 @@ export class Autoplay {
     }
     if (this.state === 'combat' && s.target && s.target.alive) return this.fight(dt, t);
     if (this.state === 'loot' && this.drop) {
-      if (!g.world.loot.drops.includes(this.drop)) { this.state = 'patrol'; return; }
-      s.steerTo(this.drop.pos, 10, 0.75);
+      const d = this.drop;
+      // aboard (or gone): choose the next one now, before patrol could spool the drive away from the rest
+      if (!g.world.loot.drops.includes(d)) { this.think = 0; this.lootFar = false; return; }
+      this.dropT += dt;
+      // circling it inside the turn without the tractor catching it: leave that one for a while
+      if (this.dropT > this.dropEta * 2 + 15) { d._skip = g.engine.time + 45; this.think = 0; this.lootFar = false; return; }
+      this.lootFar = s.steerTo(d.pos, 10, 1) > 600;   // cruise on the way (update), full helm for the pick-up
       return;
     }
+    this.lootFar = false;
     // patrol: head for the nearest zone with a garrison under sail; the drive is for real distances (game.autoWarp).
     // Nothing live? Check an unexplored signal, else wait just outside the zone that wakes first
     // (the lanes are where intercept patrols find you).

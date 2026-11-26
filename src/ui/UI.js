@@ -550,7 +550,7 @@ export class UI {
     const as = document.getElementById('autoStatus');
     const ap = g.autoplay;
     if (ap) {
-      const what = !ap.active ? `manual override ${Math.ceil(ap.yieldT)}s` : ap.goal ? ap.goal.name : ap.state === 'combat' && s && s.target ? `engaging ${s.target.name}` : ap.state;
+      const what = !ap.active ? `manual override ${Math.ceil(ap.yieldT)}s` : ap.goal ? ap.goal.name : ap.state === 'combat' && s && s.target ? `engaging ${s.target.name}` : ap.state === 'loot' ? 'recovering cargo' : ap.state;
       const txt = `AUTOPLAY · ${what}`;
       if (as.textContent !== txt) as.textContent = txt;
       as.style.display = 'block';
