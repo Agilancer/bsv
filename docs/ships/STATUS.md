@@ -152,7 +152,8 @@ Read this first when picking the work up (new session or another model). Then `C
       (Tidewright's tube mouths lit teal); Ironhold plate is light steel (`hull_glacier` tinted, no tintMul), its trim
       dull bronze on graphite, window lights pale; T10 side hulls of Ironhold / Corsair / Hollow are lower (crown below
       the body's beam line on Ironhold) with their inboard halves drawn in (`side.wi`: gap 0.34-0.39 W, the trench
-      still 0.55 W deep for the gunhouse; Ironhold's inboard beam drawn in too, `side.kb`) and a lit inboard crown edge.
+      still 0.55 W deep for the gunhouse; Ironhold's inboard beam and shoulders drawn in too and its side hulls hung 0.1 W
+      lower, `side.kb` / `ks` / `dy`) and a lit inboard crown edge (not on Ironhold: amber stays on lights and gun mouths).
       `kitSideProfile` writes no -0. Found on the way: the T4 tube face (Aurelian, Tidewright, Hollow) was lofted as a
       cup of its own, which the outward winding turned inside out, so from the front it was culled and the launchers
       inside showed (the orange bar); it is now lofted with the snout, and a new test (`hullGeom.backFaces`: rays from

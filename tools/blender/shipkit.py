@@ -1043,8 +1043,8 @@ def sidehull(B=C):
     cx = cx * u                                    # centreline of the side hull, relative to the socket on the beam
     ki = sd.get('wi', w) / w                       # the inboard half drawn in (a wider gap to the body), the outboard as drawn
     hs = lambda k=1.0, ky=None: pscale(B.std(w, sd.get('ht', 0.62), sd.get('hb', 0.66)), k, ky)
-    kb = sd.get('kb', 1.0)                         # and its beam drawn in toward the waterline: the inboard face is short
-    inb = lambda hh: [(-x * ki, y * (kb if j in (1, 2) else 1.0)) for j, (x, y, _) in enumerate(hh[-2:0:-1])]
+    kb, ks = sd.get('kb', 1.0), sd.get('ks', 1.0)  # and its beam drawn in toward the waterline, its shoulders chamfered: a short inboard face
+    inb = lambda hh: [(-x * ki * (ks if j in (0, 3) else 1.0), y * (kb if j in (1, 2) else 1.0)) for j, (x, y, _) in enumerate(hh[-2:0:-1])]
     ring = lambda hh, z, dx=0.0: [(x + cx + dx, y, z) for x, y, _ in hh] + [(x + cx + dx, y, z) for x, y in inb(hh)]
     xo = cx + w * u
     td = min(0.6, w * (1 + ki) - (0.12 if ki == 1 else 0.08)) * u     # the trench's depth: the gunhouse inside, a wall left inboard
@@ -1100,7 +1100,7 @@ def sidehull(B=C):
     strake(p, B, za_ + 0.1 * u, zf - 0.1 * u, hw=0.1, y=hfull[0][1])
     for sm in p.solids[-1:]:
         sm[0].verts[:] = [(x + cx, y, z) for x, y, z in sm[0].verts]
-    if ki < 1:              # the gap to the body: the side hull's inboard crown edge lit between the crossways
+    if ki < 1 and sd.get('lit', True):     # the gap to the body: the side hull's inboard crown edge lit between the crossways
         hin = [hfull[0]] + [(-x, y, 'hull') for x, y in inb(hfull)[::-1]] + [hfull[-1]]
         yE = hfull[0][1] * 0.86
         p.box('glow', 0.025 * u, 0.025 * u, 2.5 * u, (cx - xat(hin, yE) + 0.006 * u, yE, zc0))
@@ -1108,7 +1108,7 @@ def sidehull(B=C):
     det(p, 'light', (xo, hfull[2][1], zf + 0.3 * u), 0, side='this')
     det(p, 'light', (xo - 0.12 * u, hfull[2][1], za_ - 0.6 * u), 0, side='this')
     Y.app(p, B, 'sidehull')
-    return p
+    return p.shift(dy=sd.get('dy', 0.0) * u)       # (a yard may hang its side hulls lower: the gap shows from above)
 
 
 # ------------------------------------------------------------------ fixed-size detail (instanced along `det` runs)
