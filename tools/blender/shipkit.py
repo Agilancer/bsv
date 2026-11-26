@@ -68,6 +68,8 @@ class Style:
     def stern(self, p, B, hb, z0, zf, variant): pass
     def fins(self, variant, fins): return fins
     def pod(self, p, B, k, X, hangar): pass
+    def head(self, p, B, hf, z0, z1, zu, lo, hi): return False     # the cruiser's split head grown by the yard (True: done)
+    def lobes(self, p, B, hf, z0, z1, zu, lo, hi): pass            # dress on the split head's lobes
     def details(self): return details()
 
 
@@ -655,6 +657,10 @@ def engine(B, variant, length, noz, blk=(1.0, 1.07, 1.07), fins=((1, 0.35), (3, 
         # a narrower hull meets the block: flare out to it
         p.hloft([(h, length), (h, length - 0.25 * u), (hb, length - 0.95 * u)], caps=(jc, False))
         zf = length - 0.95 * u + 0.11 * u
+    elif blk[0] < 0.88:
+        # a block narrower than the hull it meets (the battlecruiser's, between its wings): a collar, then a neck in
+        p.hloft([(h, length), (h, zf), (pscale(h, 0.9), zf), (pscale(h, 0.9), zf - 0.11 * u), (hb, zf - 0.41 * u)], over={2: 'dark'}, caps=(jc, False))
+        zf -= 0.3 * u
     else:
         p.hloft([(h, length), (h, zf), (pscale(h, 0.9), zf), (pscale(h, 0.9), zf - 0.11 * u)], over={2: 'dark'}, caps=(jc, False))
     z0 = 0.45 * u
@@ -975,20 +981,44 @@ def wing(B=L):
     return p
 
 
+DELTA_W, DELTA_LEN, DELTA_SIDE = 0.8, 44.0 / 13.0, 0.52     # the battlecruiser's engine block: half-width, length (x W), wing socket
+
+
 def delta(B=L, kx=1.0):
-    """The other yards' battlecruiser wing: a thick delta lofted from the yard's own section (its width laid along the
-    chord, its height as the thickness), the root chord about 0.28 L aft of the battery, the leading edge swept back
-    hard and the trailing edge forward, so the tip stays inside the shield; angled about 7 degrees down. Port side,
-    origin on the engine block's beam socket. Returns the part and the stations [(x, z rear, z front, y centre,
-    thickness) x W] for a yard's dress."""
+    """The other yards' battlecruiser wing, an arrowhead in plan: a straight leading edge swept back hard from the
+    battery's aft corner (where the hull's collar ends) to a tip cropped square, a straight trailing edge across the
+    stern carrying a pair of nozzles, the block between the wings drawn in to DELTA_W, so the wings stand out against
+    it. The wing is a faceted wedge (a ridge at 38% chord, a crisp crease where it meets the block), thinning from
+    about 0.3 of the body's depth at the root to a blade at the tip. Port side, origin on the engine block's beam
+    socket. Returns the part and the stations [(x, z rear, z front, y centre, thickness) x W] for a yard's dress."""
     u = B.W
     p = Part('appendage', 'delta', B.id)
-    hs = shiplib.fair(Y.section(1.0, 1.0, 1.0, 0.0), B.id)
-    ring = [(x, y) for x, y, _ in hs] + [(-x, y) for x, y, _ in hs[-2:0:-1]]
-    X = max(abs(x) for x, _ in ring)
-    st = [(-0.35, -1.75, 1.6, 0.0, 0.44), (0.0, -1.64, 1.38, -0.05, 0.4), (0.3, -1.28, 0.78, -0.09, 0.3), (0.55, -0.8, 0.2, -0.12, 0.18), (0.68 * kx, -0.4, -0.1, -0.14, 0.07)]
-    rg = lambda x, zr, zf, yc, th: [(x * u, (yc + py * th / 2) * u, ((zr + zf) / 2 + px / X * (zf - zr) / 2) * u) for px, py in ring]
-    p.loft([rg(*q) for q in st], 'hull', cap_mat=('hull', 'trim'))
+    xs, zs, te = DELTA_W, DELTA_SIDE * DELTA_LEN, 1.35      # (the tip's trailing corner stays inside the shield)
+    # (x from the centreline, leading edge z from the stern, thickness, y centre) x W: the root buried in the block,
+    # the block's face, the collar's flank (where the leading edge leaves the hull, at the battery's aft end), the tip
+    S_ = [(0.55, 3.36, 0.52, 0.0), (0.8, 3.34, 0.46, 0.0), (1.0, 3.3, 0.4, 0.01), (1.0 + 0.68 * kx, 2.0, 0.12, 0.02)]
+    st = [(x - xs, te - zs, zl - zs, yc, th) for x, zl, th, yc in S_]
+    smooth = Y.fair is not None         # (the smooth yards: a rounded blade, no facets)
+    fs = (0.04, 0.14, 0.38, 0.7) if smooth else (0.38,)    # upper / lower surface stations, as chord shares from the leading edge
+    ts = lambda f: math.sin(math.pi / 2 * min(1.0, f / 0.38)) * (1 - 0.2 * max(0.0, f - 0.38) / 0.62) if smooth else 1.0
+    def rg(x, zr, zf, yc, th):
+        c = zf - zr
+        up = [(x * u, (yc + ts(f) * th / 2) * u, (zf - f * c) * u) for f in fs]
+        dn = [(x * u, (yc - ts(f) * th / 2) * u, (zf - f * c) * u) for f in fs]
+        return [(x * u, yc * u, zf * u)] + up + [(x * u, (yc + 0.4 * th) * u, zr * u), (x * u, (yc - 0.4 * th) * u, zr * u)] + dn[::-1]
+    R = [rg(*q) for q in st]
+    k = len(fs) + 1                     # the trailing edge face: from ring point k to k + 1
+    p.loft(R, lambda r, i: 'dark' if i == k else 'hull', cap_mat=('hull', 'hull'))
+    for a, b in ((1, 2), (2, 3)) if not smooth else ():       # armour plates on the upper rear facet
+        p.slab((R[a][1], R[a][2], R[b][2], R[b][1]), 0.02 * u, inset=0.05 * u, bevel=0.015 * u, out=(0, 1, 0))
+    for xa in (0.24, 0.48):             # two nozzles in the trailing edge
+        f = xa / (st[3][0] - st[2][0])
+        x = st[2][0] + xa
+        th = st[2][4] + (st[3][4] - st[2][4]) * f
+        q = Part('appendage', 'tmp', B.id)
+        Y.nozzle(q, 0.0, (st[2][3] + (st[3][3] - st[2][3]) * f) * u, min(0.1, 0.36 * th) * u, (te - zs) * u - 0.05 * u, 10)
+        q.shift(dx=x * u)
+        p.solids += q.solids
     tip = st[-1]
     det(p, 'light', (tip[0] * u, tip[3] * u, (tip[1] + tip[2]) / 2 * u), 0, side='this')
     return p, st
@@ -996,7 +1026,8 @@ def delta(B=L, kx=1.0):
 
 def side_cx():
     """The dreadnought side hull's centreline and half-width (x W, from the socket on the body's beam): an open gap of
-    Y.side['gap'] between it and the body, so the tri-hull reads in silhouette."""
+    Y.side['gap'] between it and the body, so the tri-hull reads in silhouette (wider by w - wi where the yard slims
+    the side hull's inboard half to Y.side['wi'])."""
     w = Y.side.get('w', 0.36)
     return Y.side.get('gap', 0.26) + w, w
 
@@ -1009,10 +1040,11 @@ def sidehull(B=C):
     sd = Y.side
     cx, w = side_cx()
     cx = cx * u                                    # centreline of the side hull, relative to the socket on the beam
+    ki = sd.get('wi', w) / w                       # the inboard half drawn in (a wider gap to the body), the outboard as drawn
     hs = lambda k=1.0, ky=None: pscale(B.std(w, sd.get('ht', 0.62), sd.get('hb', 0.66)), k, ky)
-    ring = lambda hh, z, dx=0.0: [(x + cx + dx, y, zz) for x, y, zz in shiplib.pring(hh, z)[0]]
+    ring = lambda hh, z, dx=0.0: [(x * (ki if x < 0 else 1.0) + cx + dx, y, zz) for x, y, zz in shiplib.pring(hh, z)[0]]
     xo = cx + w * u
-    td = min(0.6, 2 * w - 0.12) * u                 # the trench's depth: the gunhouse inside, a wall left inboard
+    td = min(0.6, w * (1 + ki) - (0.12 if ki == 1 else 0.08)) * u     # the trench's depth: the gunhouse inside, a wall left inboard
     xb = xo - td
     pitch, n = 1.6 * u, 2
     half = n * pitch / 2
@@ -1033,7 +1065,7 @@ def sidehull(B=C):
             # a bay: the trench is cut on the outboard side only
             hh = cutp(hfull)
             pts_a, tags = shiplib.pring(hfull, a)
-            ra = [(x + cx, y, a) for x, y, _ in hh] + [(-x + cx, y, a) for x, y, _ in hfull[-2:0:-1]]
+            ra = [(x + cx, y, a) for x, y, _ in hh] + [(-x * ki + cx, y, a) for x, y, _ in hfull[-2:0:-1]]
             rb = [(x, y, b) for x, y, _ in ra]
             tg = [t for _, _, t in hh[:-1]] + ['hull'] * (len(hfull) - 1)
             p.loft([ra, rb], lambda r, i: tg[i])
@@ -1065,6 +1097,9 @@ def sidehull(B=C):
     strake(p, B, za_ + 0.1 * u, zf - 0.1 * u, hw=0.1, y=hfull[0][1])
     for sm in p.solids[-1:]:
         sm[0].verts[:] = [(x + cx, y, z) for x, y, z in sm[0].verts]
+    if ki < 1:              # the gap to the body: the side hull's inboard crown edge lit between the crossways
+        yE = hfull[0][1] * 0.86
+        p.box('glow', 0.025 * u, 0.025 * u, 2.5 * u, (cx - xat(hfull, yE) * ki + 0.006 * u, yE, zc0))
     det(p, 'pd', (cx, hfull[0][1] + 0.07 * u, za_ + 0.3 * u), zf - za_ - 0.6 * u, side='this')
     det(p, 'light', (xo, hfull[2][1], zf + 0.3 * u), 0, side='this')
     det(p, 'light', (xo - 0.12 * u, hfull[2][1], za_ - 0.6 * u), 0, side='this')
@@ -1199,7 +1234,7 @@ def taper(p, h, z0, ln, ks, **kw):
     return p.hloft([(pscale(h, kx, ky, yo), z0 + t * ln) for t, kx, ky, yo in ks], **kw)
 
 
-def snout_face(p, B, h, z0, z1, marks, kx=0.8, ky=0.8, face='dark', tubes=True):
+def snout_face(p, B, h, z0, z1, marks, kx=0.8, ky=0.8, face='dark', tubes=True, lit=False):
     """The destroyer's snout for a yard whose nose comes to a point: the slender section (h) runs on, drawn in a
     little, to a flat tube face a little short of z1 under a collar, the prow mounts buried behind it. Returns the face
     station, its centre height and its profile."""
@@ -1209,10 +1244,12 @@ def snout_face(p, B, h, z0, z1, marks, kx=0.8, ky=0.8, face='dark', tubes=True):
     taper(p, h, z0, ln, [(0, 1, 1, 0), (0.5, 0.93, 0.93, -0.01 * u), (0.82, 0.86, 0.87, -0.015 * u), ((zf - z0) / ln, kx, ky, -0.02 * u)], caps=(False, False))
     p.hloft([(hn, zf), (pscale(hn, 0.84), zf), (pscale(hn, 0.84), zf - dp)], over={0: 'trim', 1: 'dark'}, cap_mat=('hull', face), caps=(False, True))
     yc = (hn[0][1] + hn[-1][1]) / 2
-    for x in marks:
-        p.marker('hp.pr', (x * u, yc, zf - dp - 0.62 * B.S))
+    for x in marks:         # (the launchers sunk behind the face: their muzzles never show through it)
+        p.marker('hp.pr', (x * u, yc, zf - dp - 0.62 * B.S - 0.35 * u))
         if tubes:
             p.tube([(-0.02 * u, 0.12 * u), (0.03 * u, 0.12 * u)], (x * u, yc, zf - dp), 'z', 10, 'trim', cap_mat='dark')
+            if lit:         # each tube's mouth lit in the yard's glow
+                p.tube([(0.025 * u, 0.06 * u), (0.036 * u, 0.06 * u)], (x * u, yc, zf - dp), 'z', 10, 'glow')
     # torpedo-tube casings along the snout's flanks, in the yard's section, swelling to the face (they house the tubes'
     # magazines and widen the face round the buried mounts)
     hc = shiplib.fair(B.std(0.2, 0.36, 0.36), B.id)
@@ -1259,25 +1296,39 @@ def spod(B, variant, hangar, ln=1.0, deep=1.0, e=0.75, n=9, fore=None, aft=None,
     return p
 
 
+PROW_SINK = 0.8     # x W: how much deeper than the face a split head's prow mounts sit (the launchers' muzzles stay deep in the slot)
+
+
 def split_head(p, B, hh, z0, z1, marks):
     """The cruiser's split head (the other yards): the head's section is cut level into an upper and a lower lobe round a
-    deep sensor slot open at the prow face; the lower lobe runs on past the upper, a stepped double prow. The prow
-    mounts are buried in the head with their tubes in the slot."""
+    deep sensor slot open at the prow face; the lower lobe runs on past the upper, a stepped double prow. A yard may
+    grow its own lobes (Y.head: Hollow's mandibles) and dresses their tips (Y.lobes: an emitter, a sensor housing, a
+    visor, tines). The slot is lit in the yard's glow, along its floor and at its back; the prow mounts are sunk deep in
+    it, their tubes in its throat."""
     u = B.W
     hf = shiplib.fair(hh, B.id)
     lo, hi = -0.13 * u, 0.15 * u
-    up, dn = shiplib.cut_bot(hf, hi), shiplib.cut_top(hf, lo)
     zu = z1 - 0.8 * u
-    ks = [(0, 1, 1), (0.45, 0.95, 0.96), (0.78, 0.8, 0.86), (1.0, 0.44, 0.6)]
-    lobe = lambda prof, ye, za, zb: [([(x * kx, ye + (y - ye) * ky, t) for x, y, t in prof], za + f * (zb - za)) for f, kx, ky in ks]
-    p.hloft(lobe(up, hi, z0, zu), caps=(False, True))
-    p.hloft(lobe(dn, lo, z0, z1), caps=(False, True))
+    grown = Y.head(p, B, hf, z0, z1, zu, lo, hi)
+    if not grown:
+        up, dn = shiplib.cut_bot(hf, hi), shiplib.cut_top(hf, lo)
+        ks = [(0, 1, 1), (0.45, 0.95, 0.96), (0.78, 0.8, 0.86), (1.0, 0.44, 0.6)]
+        lobe = lambda prof, ye, za, zb: [([(x * kx, ye + (y - ye) * ky, t) for x, y, t in prof], za + f * (zb - za)) for f, kx, ky in ks]
+        p.hloft(lobe(up, hi, z0, zu), caps=(False, True))
+        p.hloft(lobe(dn, lo, z0, z1), caps=(False, True))
     xs = xat(hf, 0.0) * 0.9
-    p.box('glow', xs * 1.6, 0.025 * u, 0.02 * u, (0, (lo + hi) / 2, z0 + 0.012 * u))       # the sensor slot, lit at its back
-    det(p, 'dome', (xs * 0.5, lo + 0.005 * u, z0 + 0.4 * u), (zu - z0) * 0.6)
+    yc = (lo + hi) / 2
+    p.box('glow', xs * 1.2, (hi - lo) * 0.45, 0.02 * u, (0, yc, z0 + 0.012 * u))      # the slot, lit at its back
+    for sx in (-1, 1) if not grown else ():                                             # and along its floor, out onto the lower lobe
+        za, zb = z0 + 0.1 * u, z1 - 0.3 * u
+        p.box('glow', 0.03 * u, 0.012 * u, zb - za, (sx * xs * 0.42, lo + 0.004 * u, (za + zb) / 2))
+    if not grown:
+        det(p, 'dome', (xs * 0.72, lo + 0.005 * u, z0 + 0.4 * u), (zu - z0) * 0.45)
     for x in marks:
-        p.marker('hp.pr', (x * u, (lo + hi) / 2, zu - 0.62 * B.S))
-        p.tube([(-0.3 * u, 0.15 * u), (0.0, 0.15 * u)], (x * u, (lo + hi) / 2, zu - 0.25 * u), 'z', 8, 'hull', cap_mat='dark')
+        p.marker('hp.pr', (x * u, yc, zu - 0.62 * B.S - PROW_SINK * u))
+        if not grown:
+            p.tube([(-0.3 * u, 0.15 * u), (0.0, 0.15 * u)], (x * u, yc, zu - PROW_SINK * u), 'z', 8, 'hull', cap_mat='dark')
+    Y.lobes(p, B, hf, z0, z1, zu, lo, hi)
 
 
 def split_prow(p, B, h, z0, z1, marks):
@@ -1379,7 +1430,8 @@ def yard_parts():
     ps += [yprow(L, 'bastion', Ln(L, 'bastion', 32.0 / 13), MK[n[7]], zr=Y.zr.get('bastion', 0.3)),
            yprow(L, 'lance', 49.0, MK[n[8]], zr=0.34 if 'lance' in wl else 0.14, with_well='lance' in wl),
            battery(L, 'core', 20.0, (), ventral=True, side=True), *two(L),
-           engine(L, 'delta', 44.0, [(0, 0.2, 0.22), (0.5, 0.2, 0.22), (0, -0.36, 0.16), (0.44, -0.36, 0.16)], with_well=0.62, hangars=(0.8,), fins=((1, 0.3),), side=(0.52, 0.02), bottom=0.56),
+           engine(L, 'delta', DELTA_LEN * L.W, [(0, 0.18, 0.2), (0.4, 0.18, 0.19), (0, -0.32, 0.15), (0.36, -0.32, 0.14)], blk=(DELTA_W / Y.blk, 0.92, 0.92), with_well=0.5, hangars=(0.14,),
+                  fins=((1, 0.3),), side=(DELTA_SIDE, 0.02), bottom=0.56),      # (the block drawn in between the wings; the hangar mouth behind them)
            Y.command(L, 'keep'), Y.command(L, 'tower'), Y.command(L, 'rake'),
            (Y.blocks or blocks)(L), (Y.wing or wing)(L), ypod(L, 'reactor', hangar=False, ln=0.6, deep=0.85), ypod(L, 'keel', hangar=False)]
     # ---- band C: battleship (T9), dreadnought (T10)

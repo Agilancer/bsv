@@ -222,11 +222,12 @@ export function mountMargins(K, plan) {
 }
 
 // The broadside fans: from each port broadside mount, 45 rays over its yaw (+-0.95) and pitch (+-0.45) out to 2.1 s; a ray
-// is blocked by any face it meets outboard of the gunhouse (0.75 s from the pivot). Returns the mean blocked share and
-// the most rays blocked at one mount.
+// is blocked by any face it meets outboard of the gunhouse (0.75 s from the pivot). Returns the mean blocked share, the
+// most rays blocked at one mount, and the most per battery row (tier).
 export function fanBlock(K, plan) {
   const W = plan.dims.W, s = 0.72 * W, { P } = triangles(K, plan), nT = P.length / 9;
   let sum = 0, n = 0, worst = 0;
+  const byTier = {};
   for (const h of plan.hardpoints) {
     if (h.type !== 'broadside' || h.side !== 'port') continue;
     const o = [h.pos[0] + 0.45 * s, h.pos[1], h.pos[2]], near = [];
@@ -238,6 +239,7 @@ export function fanBlock(K, plan) {
       for (const i of near) { const r = rayTri(o, d, P, i); if (r > 0 && r < 2.1 * s && o[0] + d[0] * r > h.pos[0] + 0.75 * s) { mb++; break; } }
     }
     sum += mb / 45; n++; worst = Math.max(worst, mb);
+    byTier[h.tier] = Math.max(byTier[h.tier] || 0, mb);
   }
-  return { mean: n ? sum / n : 0, worst };
+  return { mean: n ? sum / n : 0, worst, byTier };
 }

@@ -73,6 +73,13 @@ class Aurelian(K.Style):
             p.marker('hp.pr', (0, -0.02 * u, zm - 0.62 * B.S))
         muzzles(p, B, [x for x in marks if x], -0.06 * u, zm, ln=0.6, n=10, tubes=B.id == 'C')
 
+    def lobes(self, p, B, hf, z0, z1, zu, lo, hi):      # the cruiser: a lance emitter on the lower lobe, ahead of the upper
+        u = B.W
+        y, za = lo + 0.11 * u, zu - 0.35 * u
+        p.tube([(0.0, 0.15 * u), (0.3 * u, 0.15 * u), (0.42 * u, 0.1 * u), (z1 - za - 0.3 * u, 0.08 * u), (z1 - za - 0.16 * u, 0.1 * u)], (0, y, za), 'z', 10, 'hull', cap_mat=('hull', 'dark'))
+        p.tube([(0.3 * u, 0.165 * u), (0.36 * u, 0.165 * u)], (0, y, za), 'z', 10, 'trim')
+        p.tube([(z1 - za - 0.17 * u, 0.075 * u), (z1 - za - 0.1 * u, 0.06 * u), (z1 - za - 0.03 * u, 0.015 * u)], (0, y, za), 'z', 8, 'glow')
+
     # ---- the body: every part a smooth compressed-oval loft, swept (no facets, no boxes)
     wellrim = ((-0.5, 0.96), (-0.03, 0.8), (0.035, 0.7), (0.035, 0.6))    # turrets in domed blisters
     spinerim = ((-0.4, 0.74), (-0.02, 0.72), (0.035, 0.68), (0.035, 0.6))  # a round collar on the gun spine
@@ -109,7 +116,7 @@ class Aurelian(K.Style):
     def wing(self, B):                      # a swept blade: the delta lofted in the oval section, a gold leading edge
         u = B.W
         p, st = K.delta(B)
-        p.sweep([(x * u, (yc + 0.005) * u, (zf - 0.02) * u) for x, zr, zf, yc, th in st[1:]], [0.03 * u, 0.028 * u, 0.022 * u, 0.012 * u], 5, 'trim')
+        p.sweep([(x * u, yc * u, (zf - 0.015) * u) for x, zr, zf, yc, th in st[2:]], [0.028 * u, 0.012 * u], 5, 'trim')
         return p
 
     def command(self, B, variant):

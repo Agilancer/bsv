@@ -302,7 +302,7 @@ test('mounts sit in their armour: gunhouses inside the warped housing, prow hous
     const m = mountMargins(KP, plan);
     assert.ok(m.gun <= 0.03, `${c.id}: a broadside gunhouse stands ${m.gun.toFixed(2)} W proud of its armour`);
     // (the approved Velscour battlecruiser's lance reads 0.18 W: three housings side by side in a fine prow)
-    assert.ok(m.prow <= 0.2, `${c.id}: a prow gun housing stands ${m.prow.toFixed(2)} W outside the hull`);
+    assert.ok(m.prow <= 0.18, `${c.id}: a prow gun housing stands ${m.prow.toFixed(2)} W outside the hull`);
   }
 });
 
@@ -313,7 +313,8 @@ test('broadside fans: no class blocks its guns much more than the Velscour hull 
     if (c.yard === 'velscour') continue;
     const f = fanBlock(KP, plan), r = ref[c.tier];
     assert.ok(f.mean <= r.mean + 0.12, `${c.id}: ${(f.mean * 100).toFixed(0)}% of broadside rays blocked (Velscour ${(r.mean * 100).toFixed(0)}%)`);
-    if (!r.worst) assert.ok(f.worst <= 4, `${c.id}: ${f.worst} of 45 rays blocked at one mount`);
+    // and mount by mount: no battery row worse than the Velscour hull's same row by more than a few of the 45 rays
+    for (const [t, n] of Object.entries(f.byTier)) assert.ok(n <= (r.byTier[t] || 0) + 4, `${c.id}: ${n} of 45 rays blocked at a tier ${t} mount (Velscour ${r.byTier[t] || 0})`);
   }
 });
 
