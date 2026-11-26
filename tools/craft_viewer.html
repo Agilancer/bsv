@@ -36,7 +36,7 @@ new SpaceLights(e.scene);
 const line = q.get('line') || 'navy';
 const models = await loadCraft(line);
 const mats = craftMaterials(e);
-const TEAM = { ally: [new THREE.Color(0x5aa8ff), 1], hostile: [new THREE.Color(+('0x' + (q.get('hex') || 'ff4a3a'))), 0.42] };
+const TEAM = { ally: [new THREE.Color(0x3f8cff), 1], hostile: [new THREE.Color(+('0x' + (q.get('hex') || 'ff4a3a'))), 0.2] };   // as Hangars.js
 
 // the old craft: five boxes, one flat material (Hangars.js before the Blender models)
 function oldCraft() {

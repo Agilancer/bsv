@@ -6,8 +6,8 @@
 // hostile craft with point defence. Each kind is one instanced mesh (craftModels.js: the Blender models).
 import * as THREE from 'three/webgpu';
 import { wrapAngle, clamp } from '../../engine/rng.js';
-import { CRAFT, wingPlan, lineFor } from '../data/craft.js';
-import { craftMaterials, loadCraft, onCraftLoaded, standIn } from './craftModels.js';
+import { CRAFT, wingPlan, lineForShip } from '../data/craft.js';
+import { craftMaterials, loadCraft, onCraftLoaded, standIn, HOSTILE_FIRE } from './craftModels.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _v = new THREE.Vector3(), _e = new THREE.Euler();
 const _h = new THREE.Vector3(), _p = new THREE.Vector3(), _d = new THREE.Vector3();
@@ -18,11 +18,13 @@ const KINDS = Object.keys(CRAFT);
 const CAP = { fighter: 256, bomber: 128, drone: 64, decoy: 24, gunship: 48, torpboat: 32, tender: 24, frigate: 24 };
 // wing colours: the captain's side flies pale plate with blue bands; a hostile wing wears its yard's glow on
 // dark plate; a decoy is violet
-const ALLY = new THREE.Color(0x5aa8ff), DECOY = new THREE.Color(0xc08cff);
+const ALLY = new THREE.Color(0x3f8cff), DECOY = new THREE.Color(0xc08cff);
+const FIRE = HOSTILE_FIRE.getHex();
 // where the guns and engines are until the models' facts load (craft space, nose +z)
 const DEF_GUN = [[0, 0, 3]], DEF_ENG = [[0, 0, -3, 0.3]];
-// craft are drawn larger than life so a wing reads at the play camera (a fighter a third of a cutter's length)
-const DRAW = { S: 1.5, M: 1.25, L: 1.1 };
+// craft are drawn larger than life so a wing reads at the play camera (a fighter about a third of a cutter's
+// length), and so a medium craft leading a wing stands about twice a fighter's size
+const DRAW = { S: 1.4, M: 1.75, L: 1.35 };
 
 function hasDecoy(wing) { if (wing) for (const c of wing) if (c.alive && c.decoy) return true; return false; }
 // index of the weakest shield facing below its cap, or -1
@@ -119,11 +121,11 @@ export class Hangars {
     const small = ws.craft === 'bomber' ? 120 : 70 * (1 + ship.level * 0.05);
     const c = {
       alive: true, owner: ship, team: ship.team, type: ws.craft, kind, def, ws, share: o.share ?? 1, slot: o.slot ?? -1,
-      line: lineFor(ship.chassis && ship.chassis.yard),
+      line: lineForShip(ship), lane: Math.random(),
       pos, vel: side.multiplyScalar(def.cls === 'S' ? 60 : 30).add(ship.velocity), heading: Math.atan2(side.x, side.z), bank: 0,
       hp: decoy ? ship.maxHull * 0.06 : small * def.hp, cd: 1 + Math.random(), state: 'out', t: 0, volley: 0, salvo: 0, pdCd: 0,
       orbit: Math.random() * Math.PI * 2, ally,
-      color: new THREE.Color(decoy ? DECOY : ally ? ALLY : ship.yard.glow), tone: decoy ? 0.75 : ally ? 1 : 0.42,
+      color: new THREE.Color(decoy ? DECOY : ally ? ALLY : ship.yard.glow), tone: decoy ? 0.75 : ally ? 1 : 0.2,
       speed: def.speed, size: DRAW[def.cls] || 1, decoy, weave: U.includes('weavers'), eng: 0,
     };
     // the bolts and beams keep the colours the wings always fired
@@ -218,7 +220,7 @@ export class Hangars {
         // escort frigate: a slow wide orbit with the target on its beam; turret salvoes, or a torpedo pair
         // from a bomber bay every so often; point defence on hostile craft that come close
         c.orbit += dt * 0.11;
-        const R = tg.dims.L * 0.7 + 260;
+        const R = tg.dims.L * 0.7 + 260 + c.lane * 120;
         goal = _v.set(Math.sin(c.orbit) * R, 24, Math.cos(c.orbit) * R).add(tg.position);
         const d = c.pos.distanceTo(tg.position);
         if (c.cd <= 0 && d < R + 220) {
@@ -244,6 +246,7 @@ export class Hangars {
             const f = this.fact(c), pd = f && f.pd.length ? f.pd[(c.volley++) % f.pd.length] : [0, 2, 0];
             this.at(c, pd, _p);
             W.beams.add(_p, e.pos, c.bolt, 0.6, 0.12);
+            this.world.fx.muzzle(_p, _d.copy(e.pos).sub(_p).normalize(), c.bolt, 0.7);
             e.hp -= 40 * (1 + own.level * 0.05);
             if (e.hp <= 0) this.destroy(e);
           }
@@ -251,7 +254,7 @@ export class Hangars {
       } else {
         const fast = kind === 'fighter';
         c.orbit += dt * (fast ? 1.4 : kind === 'gunship' ? 0.35 : 0.5);
-        const R = tg.dims.L * 0.6 + (kind === 'gunship' ? 150 : 40);
+        const R = tg.dims.L * 0.6 + (kind === 'gunship' ? 150 : 40) + c.lane * (kind === 'gunship' ? 80 : 50);
         goal = _v.set(Math.sin(c.orbit) * R, (kind === 'gunship' ? 18 : 10) + Math.sin(c.orbit * 2) * 12, Math.cos(c.orbit) * R).add(tg.position);
         if (c.type === 'bomber') goal = tg.position;   // bombers and torpedo boats run straight in
         const d = c.pos.distanceTo(tg.position);
@@ -320,7 +323,7 @@ export class Hangars {
     this.at(c, e, _p);
     const r = (e[3] || 0.3) * c.size;
     _p.addScaledVector(_d.set(-Math.sin(c.heading), 0, -Math.cos(c.heading)), r * 2);
-    this.world.fx.trailPuff(_p, c.ally ? 0x60c0ff : 0xff6040, Math.max(1.6, r * 6), c.def.cls === 'S' ? 0.3 : 0.45);
+    this.world.fx.trailPuff(_p, c.ally ? 0x4aa8ff : FIRE, Math.max(1.6, r * 6), c.def.cls === 'S' ? 0.3 : 0.45);
   }
 
   // the frigate's spinal gun: one heavy round with a muzzle flash

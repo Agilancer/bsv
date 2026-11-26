@@ -14,7 +14,7 @@ import {
 export const craftUrl = (line) => `assets/ships/craft/${line}.glb`;
 export const craftFactsUrl = (line) => `assets/ships/craft/${line}.json`;
 // material slot -> code in the `mk` attribute (flame is split off into its own geometry)
-export const SLOT = { hull: 0, trim: 0, dark: 0, chrome: 0, tire: 0, paint: 1, glow: 2, lamp: 3, glass: 4, strobe: 5 };
+export const SLOT = { hull: 0, tire: 0, paint: 1, glow: 2, lamp: 3, glass: 4, strobe: 5, trim: 6, dark: 7, chrome: 8, mend: 9, obsidian: 10 };
 // panel lines per unit length by craft class: plates about a metre on a fighter, a few on a frigate
 const PANEL = { S: 1.5, M: 0.85, L: 0.5 };
 // stand-in sizes (length) until the models load: the Blender craft at about these lengths
@@ -120,52 +120,75 @@ export function standIn(kind) {
 
 // ---------------------------------------------------------------- materials (one pair for every craft)
 let mats = null;
+// The wing's colours, per instance (team.xyz = wing colour, team.w = hull tone: 1 the captain's pale plate, low
+// = a hostile wing's dark plate). Friend or foe never rests on hue alone: a hostile wing also flies dark plate,
+// and its engines, plumes and strobes burn warm whatever its faction colour; the captain's burn blue.
+export const HOSTILE_FIRE = new THREE.Color(0xff6a2a);
 export function craftMaterials(engine) {
   if (mats) return mats;
   const vc = attribute('color', 'vec3');
   const mk = attribute('mk', 'float');
   const team = attribute('team', 'vec4');
   const is = (k) => step(k - 0.5, mk).mul(step(mk, k + 0.5));
+  const on = (k) => is(k).greaterThan(0.5);
   const accent = team.xyz, tone = team.w;
-  const glowCol = mix(accent, vec3(1), 0.3);
+  const ally = step(0.6, tone);
+  const fire = vec3(HOSTILE_FIRE.r, HOSTILE_FIRE.g, HOSTILE_FIRE.b);
+  const glowCol = mix(fire, mix(accent, vec3(0.55, 0.85, 1), 0.35), ally);
   const t = engine.uTime;
   // plate: the baked tint x AO, a hostile wing's plate pushed toward dark gunmetal, and panel work drawn from the
   // craft's own coordinates (stable under instancing: positionGeometry is the unmoved vertex): staggered plates
-  // a shade apart with fine recessed seams between them, laid on whichever two axes the face looks across
+  // a shade apart with recessed seams between them, laid on whichever two axes the face looks across
   const ps = attribute('ps', 'float');
   const pg = positionGeometry.mul(ps);
   const ng = abs(normalGeometry);
   const row = pg.z.floor();
   const sx = pg.x.add(hash(row.add(17.3)).mul(0.5)), sy = pg.y.mul(1.4).add(hash(row.add(3.1)).mul(0.5));
-  const seamOf = (v) => { const f = fract(v); return smoothstep(0.0, 0.035, f).mul(smoothstep(1.0, 0.965, f)); };
+  const seamOf = (v) => { const f = fract(v); return smoothstep(0.0, 0.04, f).mul(smoothstep(1.0, 0.96, f)); };
   const lz = seamOf(pg.z), lx = seamOf(sx), ly = seamOf(sy);
   const seam = lz.mul(ly).mul(ng.x).add(lz.mul(lx).mul(ng.y)).add(lx.mul(ly).mul(ng.z)).div(ng.x.add(ng.y).add(ng.z));
   const cell = hash(row.mul(7.1).add(sx.floor().mul(13.7)).add(sy.floor().mul(3.3)));
-  const panel = cell.mul(0.1).add(0.95).mul(seam.mul(0.3).add(0.7));
-  const dark = vec3(0.20, 0.215, 0.25);
-  const plate = vc.mul(mix(dark, vec3(0.78), tone)).mul(panel);
-  const paint = accent.mul(vc.x.mul(0.85).add(0.1));
+  // bigger craft carry bigger plates and deeper seams (ps is plates per unit: 1.5 small .. 0.5 large)
+  const depth = float(0.55).sub(ps.mul(0.15));
+  const panel = cell.mul(0.12).add(0.94).mul(seam.mul(depth).add(float(1).sub(depth)));
+  const dark = vec3(0.075, 0.08, 0.095);
+  // pale plate is held under bloom: albedo capped about 0.65
+  const plate = vc.mul(mix(dark, vec3(0.72), tone)).mul(panel).min(0.65);
+  const paint = accent.mul(vc.x.mul(0.85).add(0.1)).mul(mix(float(0.85), float(1), ally));
   const glass = vec3(0.025, 0.04, 0.07);
+  const obsidian = vc.mul(0.35).mul(panel);
   const black = vec3(0);
+  const plated = mk.lessThan(0.5).or(on(6)).or(on(7)).or(on(8));
   const m = new THREE.MeshStandardNodeMaterial();
-  m.colorNode = select(mk.lessThan(0.5), plate, select(is(1).greaterThan(0.5), paint, select(is(4).greaterThan(0.5), glass, black)));
-  m.roughnessNode = select(is(4).greaterThan(0.5), float(0.08), select(is(1).greaterThan(0.5), float(0.5), float(0.42).add(cell.mul(0.18))));
-  m.metalnessNode = select(is(4).greaterThan(0.5), float(0.9), select(is(1).greaterThan(0.5), float(0.25), float(0.45)));
-  // light: engines and emitters breathe in the wing's colour, nav lights hold, strobes blink out of step
+  m.colorNode = select(plated, plate, select(on(1), paint, select(on(4), glass, select(on(10), obsidian, black))));
+  // each plate slot its own finish: hull satin, trim semi-metal, machinery dull, chrome bright metal
+  m.roughnessNode = select(on(4), float(0.08), select(on(10), float(0.14), select(on(1), float(0.5), select(on(8), float(0.24),
+    select(on(7), float(0.68), select(on(6), float(0.42), float(0.55).add(cell.mul(0.12))))))));
+  m.metalnessNode = select(on(4), float(0.9), select(on(10), float(0.7), select(on(1), float(0.2), select(on(8), float(0.9),
+    select(on(7), float(0.2), select(on(6), float(0.55), float(0.3)))))));
+  // light: engines and emitters breathe in the wing's fire, nav lights hold, strobes blink out of step (red on a
+  // hostile wing), repair marks are green for the captain and the wing colour for a hostile
   const seed = varying(hash(float(instanceIndex).mul(0.37)));
   const breathe = sin(t.mul(3.1).add(seed.mul(30))).mul(0.12).add(1);
   const strobe = step(0.9, fract(t.mul(0.85).add(seed)));
   const rim = float(1).sub(dot(normalView, positionViewDirection).clamp(0, 1)).pow(3);
   const facing = dot(normalView, positionViewDirection).clamp(0, 1);
-  m.emissiveNode = glowCol.mul(is(2).mul(3.4).mul(breathe))
+  const strobeCol = mix(vec3(1, 0.22, 0.12), vc, ally);
+  const mendCol = mix(accent.mul(1.1), vc, ally);
+  m.emissiveNode = glowCol.mul(is(2).mul(3.0).mul(breathe))
     .add(vc.mul(is(3).mul(3.0)))
-    .add(vc.mul(is(5).mul(strobe.mul(6).add(0.15))))
+    .add(strobeCol.mul(is(5).mul(strobe.mul(6).add(0.15))))
+    .add(mendCol.mul(is(9).mul(2.8)))
     .add(mix(accent, vec3(0.75, 0.88, 1), 0.5).mul(is(4).mul(rim.mul(1.1).add(facing.pow(8).mul(0.35)))))
-    .add(accent.mul(rim.mul(0.35).mul(step(mk, 1.5))));
-  // plumes: additive, brightest face-on, flickering
+    // black glass: a cold sheen at the silhouette, a touch of the wing colour
+    .add(mix(vec3(0.5, 0.6, 0.75), accent, 0.35).mul(is(10).mul(rim.mul(0.55))))
+    .add(accent.mul(rim.mul(0.1).mul(select(plated, float(1), float(0)).add(is(1)))));
+  // plumes: additive, graded from the nozzle (vertex colour), brightest face-on, white-hot near the exit
   const f = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
   const flick = sin(t.mul(41).add(seed.mul(60))).mul(0.12).add(sin(t.mul(17.3).add(seed.mul(11))).mul(0.08)).add(0.95);
-  f.colorNode = glowCol.mul(vc.x).mul(abs(dot(normalView, positionViewDirection)).pow(2.2)).mul(flick).mul(0.65);
+  const heat = vc.x;
+  f.colorNode = mix(glowCol, vec3(1, 0.97, 0.92), heat.mul(heat).mul(0.6)).mul(heat)
+    .mul(abs(dot(normalView, positionViewDirection)).pow(1.8)).mul(flick).mul(0.8);
   mats = { body: m, flame: f };
   return mats;
 }

@@ -36,7 +36,7 @@ const { chromium } = require('playwright');
     const ens = [];
     pool.slice(0, 2).forEach((d, k) => {
       const e = W.spawnDesign(d, L, P.position.clone().add({ x: 520 + k * 160, y: 0, z: -200 + k * 380 }), 0);
-      e.persistent = true; e.invuln = true; e.target = P; ens.push(e);
+      e.persistent = true; e.invuln = true; e.provoked = true; e.target = P; ens.push(e);
     });
     P.target = ens[0];
     P.throttle = 0; P.autoFire = false;   // the wings fight; the guns hold so the scene lasts

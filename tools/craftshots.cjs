@@ -26,7 +26,7 @@ const { chromium } = require('playwright');
     await snap(`lineup_${team}`);
     if (process.env.LINEUP) continue;
     for (const c of row) {
-      await page.evaluate(`window.__viewer.only(${JSON.stringify(c.kind)})`);
+      await page.evaluate(`window.__viewer.only(${JSON.stringify(c.kind)}); window.__viewer.labels(false)`);
       await page.evaluate(`window.__viewer.cam(${c.x}, 0, ${c.z}, ${c.L * 1.25 + 4}, 0.75, 0.92)`);
       await snap(`${c.kind}_${team}`, 900);
       await page.evaluate(`window.__viewer.cam(${c.x}, 0, ${c.z}, ${c.L * 1.1 + 4}, 2.45, 0.28)`);

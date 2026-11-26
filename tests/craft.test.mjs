@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { CRAFT, LEAD, BERTH, wingPlan, wingLine, LINES, LINE_BY_YARD, lineFor } from '../src/game/data/craft.js';
+import { CRAFT, LEAD, BERTH, wingPlan, wingLine, LINES, LINE_BY_YARD, LINE_BY_FACTION, lineFor, lineForShip } from '../src/game/data/craft.js';
 import { YARDS } from '../src/game/data/chassis.js';
 import { ENEMY_FACTIONS } from '../src/game/data/enemies.js';
 
@@ -47,6 +47,11 @@ test('every yard and enemy style flies a design line', () => {
   for (const f of Object.values(ENEMY_FACTIONS)) for (const s of f.styles) assert.ok(LINES.includes(lineFor(s)), s);
   for (const l of Object.values(LINE_BY_YARD)) assert.ok(LINES.includes(l), l);
   assert.equal(lineFor('nonesuch'), 'navy');
+  // enemy fleets fly their faction's line, whatever yard built the hull; captains fly their yard's
+  for (const l of Object.values(LINE_BY_FACTION)) assert.ok(LINES.includes(l), l);
+  assert.equal(lineForShip({ faction: 'pirate', chassis: { kind: 'enemy', yard: 'tidewright' } }), 'raider');
+  assert.equal(lineForShip({ faction: 'rival', chassis: { kind: 'enemy', yard: 'ironhold' } }), 'foundry');
+  assert.equal(lineForShip({ faction: 'pirate', chassis: { yard: 'aurelian' } }), 'concord');
 });
 
 const dir = new URL('../assets/ships/craft/', import.meta.url);
@@ -72,6 +77,8 @@ for (const line of built) {
       const [lo, hi] = BAND[k];
       assert.ok(len >= lo && len <= hi, `${line}/${k} is ${len} long, band ${lo}-${hi}`);
       assert.ok(f.tris <= BUDGET[k], `${line}/${k}: ${f.tris} triangles, budget ${BUDGET[k]}`);
+      // the plumes are a cheap additive pass, but not free
+      assert.ok((f.plume_tris || 0) <= BUDGET[k] * 0.3, `${line}/${k}: ${f.plume_tris} plume triangles`);
       assert.ok(f.guns.length >= 1, `${line}/${k} has no gun empty`);
       assert.ok(f.engines.length >= 1 && f.engines.every((e) => e.length === 4 && e[3] > 0), `${line}/${k} engines`);
       // muzzles and engines sit on the craft (inside its bounds, with a little reach for barrels)

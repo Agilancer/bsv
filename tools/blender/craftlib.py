@@ -13,6 +13,9 @@
 #   glow                         engines, emitters, sensors: the wing colour, HDR
 #   lamp / strobe                fixed-colour lights (nav red to port, green to starboard, windows) / white strobes
 #   glass                        canopies and bridge windows
+#   mend                         repair emitters, lenses and marks: green on the captain's side, the wing colour on a
+#                                hostile wing (a hostile medic must not read friendly)
+#   obsidian                     black-glass plate (choir): the tint darkened, glossy, with a cold fresnel sheen
 #   flame                        exhaust plumes behind the nozzles (additive; faded from the nozzle by fade_plumes)
 # Empties the game reads (all optional except one gun and one engine per craft):
 #   gun  muzzles (bolts, beams, torpedo tubes; a repair craft's emitters)   msl  missile / magazine mouths
@@ -30,8 +33,8 @@ sys.path.insert(0, HERE)
 import vlib
 from f_guns import PartsModel, Part, mix
 
-vlib.MATS.extend(['paint', 'flame', 'strobe'])
-vlib.EMISSIVE.update({'flame', 'strobe'})
+vlib.MATS.extend(['paint', 'flame', 'strobe', 'mend', 'obsidian'])
+vlib.EMISSIVE.update({'flame', 'strobe', 'mend'})
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 OUT = os.path.join(ROOT, 'assets', 'ships', 'craft')
@@ -70,10 +73,33 @@ def nozzle(P, at, r, depth=None, flame=2.6, segs=16, mat='dark', tint=DARK2, rin
     P.cyl(r * 0.88, 0.04, (x, y, z + d * 0.55), 'z', 'glow', WHITE, segs)                      # throat, filling the bell
     P.cyl(r * 0.46, 0.05, (x, y, z + d * 0.50), 'z', 'lamp', 0xfff4ff, max(8, segs // 2))     # white-hot core
     if flame:
-        L = r * flame
-        P.cyl(r * 0.74, L, (x, y, z - L / 2 + 0.02), 'z', 'flame', 0x9a9a9a, segs, r2=r * 0.06, caps=False)
-        P.cyl(r * 0.42, L * 0.55, (x, y, z - L * 0.275 + 0.02), 'z', 'flame', WHITE, max(8, segs // 2), r2=r * 0.04, caps=False)
+        plume(P, (x, y, z + 0.02), r, r, r * flame, max(10, segs - 4))
     P.empty('eng', (x, y, z), {'r': round(r, 3), 'fl': round(r * flame, 3) if flame else 0.0})
+
+
+def plume(P, at, hw, hh, L, segs=12, p=2.0):
+    """the exhaust behind an exit at `at` (half-sizes hw x hh): an outer sheath that swells just past the exit and
+    tapers to nothing, and a hot core half its length; fade_plumes grades both from the nozzle to the tip"""
+    o = [(0.0, 0.74, 0.74), (-0.12, 0.84, 0.84), (-0.42, 0.58, 0.58), (-0.72, 0.28, 0.28), (-1.0, 0.04, 0.04)]
+    P.loft([(z * L, hw * a, hh * b, 0.0, p) for z, a, b in o], 'flame', 0x9a9a9a, segs, at=at, caps=False)
+    c = [(0.0, 0.46, 0.46), (-0.1, 0.5, 0.5), (-0.5, 0.24, 0.24), (-1.0, 0.03, 0.03)]
+    P.loft([(z * L * 0.5, hw * a, hh * b, 0.0, p) for z, a, b in c], 'flame', WHITE, max(8, segs - 4), at=at, caps=False)
+
+
+def slot_drive(P, at, w, h, depth=None, flame=2.2, mat='dark', tint=DARK2, ring=CHROME):
+    """a slot-shaped drive vent (w wide, h tall) opening aft at `at`: a framed housing, the glowing slot set flush
+    in its aft face and a flattened plume. Adds the `eng` empty (r = half the smaller side)."""
+    x, y, z = at
+    d = depth or min(w, h) * 1.2
+    P.box(w * 1.22, h * 1.3, d, (x, y, z + d / 2), mat, tint, 0.01)
+    for dy in (1, -1):
+        P.box(w * 1.26, h * 0.12, 0.06, (x, y + dy * h * 0.6, z - 0.02), 'chrome', ring, 0.0)
+    P.box(w, h, 0.05, (x, y, z - 0.02), 'glow', WHITE, 0.0)
+    P.box(w * 0.7, h * 0.4, 0.06, (x, y, z - 0.03), 'lamp', 0xfff4ff, 0.0)
+    if flame:
+        plume(P, (x, y, z - 0.04), w / 2, h / 2, min(w, h) * flame, 10, p=3.0)
+    r = min(w, h) / 2
+    P.empty('eng', (x, y, z), {'r': round(r, 3), 'fl': round(min(w, h) * flame, 3) if flame else 0.0})
 
 
 def barrel(P, a, length, r, tint=CHROME, brake=True, glowtip=False, name='gun'):
@@ -203,10 +229,12 @@ def main(line, BUILD):
         ob = objs[f'craft_{k}']
         lo, hi = solid_bounds(ob)
         ox = i * SPACING
-        tris = sum(len(p.vertices) - 2 for p in ob.data.polygons)
+        fl = {j for j, m in enumerate(ob.data.materials) if m.name == 'flame'}
+        tris = sum(len(p.vertices) - 2 for p in ob.data.polygons if p.material_index not in fl)
+        plume_tris = sum(len(p.vertices) - 2 for p in ob.data.polygons if p.material_index in fl)
         pts = lambda name: [[round(at.x - ox, 3), round(at.y, 3), round(at.z, 3)] + ([round(p['r'], 3)] if 'r' in p else [])
                             for (n, at, p) in M.empties if n == name and p.get('_parent') == f'craft_{k}']
-        facts[k] = {'size': SIZE[k], 'tris': tris,
+        facts[k] = {'size': SIZE[k], 'tris': tris, 'plume_tris': plume_tris,
                     'dims': {'L': round(hi.z - lo.z, 3), 'W': round(hi.x - lo.x, 3), 'H': round(hi.y - lo.y, 3),
                              'minZ': round(lo.z, 3), 'maxZ': round(hi.z, 3), 'minY': round(lo.y, 3), 'maxY': round(hi.y, 3)},
                     'guns': pts('gun'), 'missiles': pts('msl'), 'pd': pts('pd'), 'engines': pts('eng')}

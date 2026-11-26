@@ -53,3 +53,12 @@ export const LINE_BY_YARD = {
   corsair: 'raider', rustborn: 'raider', hollow: 'choir', silent: 'choir', brood: 'choir',
 };
 export const lineFor = (yard) => LINE_BY_YARD[yard] || 'navy';
+// Enemy fleets fly their faction's line whatever yard built the hull (pirates sail captured Tidewright clippers,
+// but their wings are raider craft); Rival Companies keep their yards' lines.
+export const LINE_BY_FACTION = { pirate: 'raider', rustborn: 'raider', covenant: 'choir', silent: 'choir', brood: 'choir' };
+export function lineForShip(ship) {
+  if (!ship) return 'navy';
+  const ch = ship.chassis || {};
+  if (ch.kind === 'enemy' && LINE_BY_FACTION[ship.faction]) return LINE_BY_FACTION[ship.faction];
+  return lineFor(ch.yard);
+}
