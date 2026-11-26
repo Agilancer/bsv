@@ -41,7 +41,7 @@ export const YARDS = {
   },
   hollow: {
     name: 'Hollow Star Covenant', short: 'HSC', blurb: 'Grown, not built. Chitinous hulls lit from within by something red.',
-    hull: 'hull_alien', trim: 'hull_graphite', dark: 'hull_alien', tint: 0xb0a0a8, trimTint: 0xe08a98, tintMul: 2.0,
+    hull: 'hull_chitin', trim: 'hull_graphite', dark: 'hull_chitin', tint: 0xcaa2a4, trimTint: 0xe08a98, tintMul: 2.4,   // carapace scales (tools/tex/build_chitin.py)
     glow: 0xff2040, window: 0xff3050, engine: 0xff1050, alienGlow: true,
     prow: 'fork', castle: 'organic', spires: 6, sails: 0, buttress: true, keel: 1.1, sponsons: 0.4, hullRound: 0.6,
     names: ['Thornmaw', 'Hive Lantern', 'Choir of Teeth', 'Marrowbloom', 'Hollowheart', 'Carrion Psalm', 'Starveling', 'Nest Eternal', 'Void Cantor', 'The Unmaking'],

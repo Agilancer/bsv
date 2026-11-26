@@ -39,6 +39,11 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     `ship.yard` so trails and effects follow. `game.setPaint({scheme, accent})` repaints in place and saves
     `data.ship.paint` (per hull; `data.paint` = last choice, which a new hull takes). UI: `ui/paint.js`, folded in the
     Ship window. Enemies, PvP captains, derelicts and the title line keep their own colours.
+  - Hollow plating: `hull_chitin` + `glow_chitin` (`python3 tools/tex/build_chitin.py`, seeded and tileable: rebuild,
+    don't hand-edit), overlapping carapace scales with red light under some lips. `materials.js` `GLOW_SHEET` pairs a
+    plating sheet with its own glow mask (other `alienGlow` plating keeps `glow_alien`) and adds `poresNode` (deck rows of
+    lit pores, the Hollow's windows) and a glancing sheen. `hull_alien` (a parts atlas, not a plate sheet) stays for the
+    brood, creatures, hive dungeons and liveries.
   - Title backdrop (`TitleScene.js`): `TITLE_LINE`, led by the Velscour battleship (battleships, not dreadnoughts: the
     T10 side hulls, pylons and fairings sit in front of their broadside housings). Every ship carries ONE gun, a
     title-only triple cannon (not WeaponModels): turrets on the turret mounts, seated on the skin by raycast and
@@ -93,6 +98,17 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     `assets/ships/craft/<line>.glb` + `.json`; `tests/craft.test.mjs` holds every line to the bands, budgets and mounts.
     `combat/craftModels.js` bakes a line into one instanced geometry per craft (slot code `mk`, per-instance `team`:
     wing colour + hull tone) with one shared material, plus an additive plume geometry; stand-ins draw until it loads.
+    Flight (Hangars.js header): nothing orbits. Fighters fly in pairs (lead + wingman) and make strafing runs (in,
+    burst, break past the flank, extend, come about; the guns bank `CHARGE` s of fire out of the run and spend it at
+    `BURST` x rof, so a wing's damage is its sheet's); bombers (paired) and torpedo boats run in, release, break away
+    climbing and go home to rearm; gunships take firing stations off the target's flank, nose on, moving every few
+    seconds; escort frigates screen on the carrier-target line, broadside on. Drones ride over the deck and hop between
+    work sites on the hull while it needs mending, the tender over the stern, a decoy toward the threat. With nothing
+    to fight a wing forms an echelon off its bay's quarter (`data/craft.js` `formSlot`, outside the shield bubble),
+    holds `FORM_HOLD` s, then recovers lead first, abeam the bay mouth and in (a frigate stays on escort). Formation
+    craft station-keep (arrive on a point moving with the carrier: `fly`), so they match its course. Do not bring back
+    orbiting (craft circling a ship fast was removed on request). Measure: `node tools/wingprobe.cjs [yard] [tier]
+    [fight s] [idle s] --trace=out.png [--bays=]` (deg/s of bearing round the ship worked, distance, wing damage; tracks).
     Craft are drawn larger than life (`DRAW` by class). Review: `tools/craft_viewer.html?line=` (+ `tools/craftshots.cjs
     <dir> "&line="`), in game `tools/craftscene.cjs <out.png> <yard> <tier> <faction>`.
   - Shields you can see: `fx/materials.js` `shieldMaterial` lights each of the four facings by its own charge (`facing`
@@ -295,6 +311,14 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
 - Targets (`Autoplay.mark` / `pickTarget`): ships firing at the captain come first; a ship opening the range is a
   runner: ranked last, and let go for 25 s once it has been out of reach for a few seconds (never bosses, story or PvP
   ships; a fight-only captain with nothing else to shoot sees a lone runner through, which is what the duel tools use).
+- Loot (`Autoplay.pickDrop`): every drop is wanted, junk included (it sells). All within 2500 are fetched, farther ones
+  when the stop is worth the sailing (`dropWorth`: a pod by rarity, motes less, a cluster counts together; up to 50 s),
+  never past `DROP_LIFE` or into a hazard. The sweep comes before any goal (a paused goal resumes without a new log
+  line) unless the helm is taken (`lootFree`: drive, docking / docked, arena match, planet scan, off in another mode).
+  With hostiles about that are neither firing on the captain nor within 1200 (and no hit in 4 s), drops within 1300
+  come first (not for a fight-only captain: the duel tools). A pod it circles without catching is left for 45 s. With a
+  station in the system `holdTriage` breaks up only what keeps a pod from being refused (from 59 items): the resupply
+  goal sells the rest. `tools/soak.cjs` reports pods / motes recovered.
 - The drive (nav/index.js) never spools with a hostile within 1800 (`WARP_CLEAR`), and breaks off (jump fuel refunded)
   if one closes in or the captain takes the helm. Phases: align (the helm comes round at the ship's own turn rate, up
   to 9 s) -> spool (4 s of building effects) -> go (fast eased transit). The Game helm stands down while warping.

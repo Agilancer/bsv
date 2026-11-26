@@ -22,7 +22,7 @@ window.__step = 'init'; window.addEventListener('error', (ev) => window.__err = 
 const e = await new Engine(document.body).init();
 window.__step = 'engine';
 initMaterials(e);
-await preload(['hull_naval', 'hull_graphite', 'hull_gold', 'hull_glacier', 'hull_dropship', 'hull_apc', 'hull_mech', 'hull_alien', 'glow_alien']);
+await preload(['hull_naval', 'hull_graphite', 'hull_gold', 'hull_glacier', 'hull_dropship', 'hull_apc', 'hull_mech', 'hull_alien', 'glow_alien', 'hull_chitin', 'glow_chitin']);
 e.add(new SpaceBackdrop(e));
 new SpaceLights(e.scene);
 const q = new URLSearchParams(location.search);

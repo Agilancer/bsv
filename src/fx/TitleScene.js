@@ -13,8 +13,7 @@ import { makePlanet } from './Celestial.js';
 
 // The battle line, lead first. The lead fills the screen: the Velscour Dominion battleship, a cathedral hull with a
 // stepped command spire, its flanks lit by rows of windows and its drives burning orange. It took the lead from the
-// Hollow Star Covenant battleship (now second in the line), which read as a dark blur up close. It is a battleship,
-// not a dreadnought, because every one of its gun mounts has open space outboard: the dreadnoughts' side hulls,
+// Hollow Star Covenant battleship, now second in the line. It is a battleship, not a dreadnought, because every one of its gun mounts has open space outboard: the dreadnoughts' side hulls,
 // pylons and flank fairings sit right in front of their broadside housings, where guns run into them. The escorts
 // are other yards' line ships, again chosen with clear flanks; the guns' lit muzzles and trim keep the dark hulls
 // readable against space.

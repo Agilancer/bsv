@@ -22,7 +22,7 @@ const $ = (s) => document.querySelector(s);
 const loadBar = $('#titleLoad .bar i'), loadTxt = $('#titleLoad .ltxt');
 $('#ver').textContent = `v${VERSION}`;
 
-const TEXTURES = ['hull_naval', 'hull_graphite', 'hull_gold', 'hull_glacier', 'hull_dropship', 'hull_apc', 'hull_mech', 'hull_alien', 'glow_alien',
+const TEXTURES = ['hull_naval', 'hull_graphite', 'hull_gold', 'hull_glacier', 'hull_dropship', 'hull_apc', 'hull_mech', 'hull_alien', 'glow_alien', 'hull_chitin', 'glow_chitin',
   'pl_dune', 'pl_redsand', 'pl_clay', 'pl_salt', 'pl_canyon', 'pl_basalt', 'pl_scrub', 'pl_gypsum', 'pl_volcanic', 'pl_ochre', 'pl_shale', 'pl_granite', 'pl_banded', 'pl_grass', 'pl_rock'];
 
 async function boot() {

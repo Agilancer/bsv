@@ -74,12 +74,15 @@ export function triageList(inventory, opts) {
 }
 
 // ---------------------------------------------------------------- applied to the game
+// With a station in the system the resupply goal sells the hold (60% of value; breaking an item up pays 35%), so the
+// junk is kept for the market: only what stops the hold refusing a pod on the way in is broken up.
 export function holdTriage(g, ap) {
   const P = g.data;
-  if (P.inventory.length <= INV_SIZE - 8) return 0;
+  const market = !!(g.stations && g.stations.length);
+  if (P.inventory.length <= INV_SIZE - (market ? 2 : 8)) return 0;
   const tier = CHASSIS_BY_ID[P.ship.chassis].tier;
   const list = triageList(P.inventory, {
-    room: 14, keep: RARITY[(P.autoplay && P.autoplay.keep) || 'rare'].i, tier,
+    room: market ? 4 : 14, keep: RARITY[(P.autoplay && P.autoplay.keep) || 'rare'].i, tier,
     isUpgrade: (it) => { const cur = g.worstEquipped(it.slot); return !cur || itemScore(it) > itemScore(cur); },
   });
   if (!list.length) return 0;
