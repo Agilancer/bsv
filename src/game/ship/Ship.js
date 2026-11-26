@@ -23,6 +23,11 @@ const ALT_SCAN = 0.4;   // s between a gun's looks round for something else to s
 const ARC = { broadside: 0.95, turret: 2.4, prow: 0.5, hangar: Math.PI };   // turret: half-angle from the bow (blind astern)
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
 const _a = new THREE.Vector3();   // aim point (Ship.aim)
+// The shield bubble is fitted to everything the ship carries (fitShield): the hull's own shape, sampled, and every
+// gun at any training (a sphere of its reach round its mount), with SHIELD_ROOM of headroom past the furthest of
+// them; never smaller than the standard bubble (kitPlan.js SHIELD), which the hit model still uses.
+const SHIELD_ROOM = 1.12, HULL_SAMPLES = 2400;
+const _fi = new THREE.Matrix4(), _fm = new THREE.Matrix4(), _fb = new THREE.Box3(), _fp = new THREE.Vector3();
 const MINE_OPT = { dmg: 0, life: 14 };   // Wake of Thorns (reused: Mines.lay copies what it needs)
 let SHIP_ID = 1;
 
@@ -181,6 +186,72 @@ export class Ship {
     for (const w of this.weapons) if (w.hp.type !== 'hangar') wd += w.ws.dmg * Math.max(1, w.ws.barrels) * w.ws.rof * (w.hp.type === 'broadside' ? 0.5 : 1);
     this.rawDps = Math.max(20, wd);   // before the damage multiplier (powers scale off this; combat applies dmgMul)
     this.weaponDps = Math.max(20, wd * (st.dmgMul || 1));
+    this.fitShield();
+  }
+
+  // Size the shield bubble round the whole ship plus some room: the hull (sampled once: points in the body's frame)
+  // and the guns as mounted now, each as far as it reaches from its mount in any direction it can train. The
+  // ellipsoid starts from the standard bubble and grows along whichever axis the worst point leans on until every
+  // point sits inside it with SHIELD_ROOM to spare.
+  fitShield() {
+    const sh = this.shieldMesh;
+    if (!sh) return;
+    const D = this.dims, cy = D.top * 0.25;
+    this.root.updateMatrixWorld(true);
+    _fi.copy(this.body.matrixWorld).invert();
+    if (!this._hullPts) this._hullPts = sampleHull(this.hullGroup, _fi);
+    let ax = D.W * 2.3, ay = (D.Ht + D.top) * 0.9 + 4, az = D.L * 0.62;
+    const P = this._hullPts, G = [];
+    for (const w of this.weapons) {
+      if (!w.object) continue;
+      // the gun's reach from its mount (in the body's frame, so its scale counts): how far out horizontally, how high
+      // and how low, as mounted now
+      const p = _fp.setFromMatrixPosition(w.object.matrixWorld).applyMatrix4(_fi);
+      const t = w.hp.type;
+      let R = 0, top = p.y, bot = p.y;
+      w.object.traverse((o) => {
+        if (!o.isMesh || !o.geometry) return;
+        if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+        _fb.copy(o.geometry.boundingBox).applyMatrix4(_fm.multiplyMatrices(_fi, o.matrixWorld));
+        if (_fb.isEmpty()) return;
+        R = Math.max(R, Math.hypot(Math.max(p.x - _fb.min.x, _fb.max.x - p.x), Math.max(p.z - _fb.min.z, _fb.max.z - p.z)));
+        top = Math.max(top, _fb.max.y); bot = Math.min(bot, _fb.min.y);
+        // a prow gun lies along the keel and keeps pointing ahead: its shape as mounted
+        if (t === 'prow') for (let j = 0; j < 8; j++) G.push(j & 1 ? _fb.max.x : _fb.min.x, j & 2 ? _fb.max.y : _fb.min.y, j & 4 ? _fb.max.z : _fb.min.z);
+      });
+      G.push(p.x, top, p.z, p.x, bot, p.z);
+      if (t === 'prow') continue;
+      // ...and wherever it can train: a turret all the way round, a broadside gun across its arc abeam
+      const n = t === 'turret' ? 8 : 5;
+      const mid = t === 'turret' ? 0 : (p.x < 0 ? -1 : 1) * Math.PI / 2, span = t === 'turret' ? Math.PI : ARC[t] || 0.5;
+      for (let i = 0; i < n; i++) {
+        const a = t === 'turret' ? (i / n) * Math.PI * 2 : mid + span * (i / (n - 1) * 2 - 1);
+        G.push(p.x + Math.sin(a) * R, p.y, p.z + Math.cos(a) * R);
+      }
+    }
+    // centred fore and aft on what it holds (a long prow gun shifts it forward), then grown from the standard bubble
+    // until every point is inside with room to spare: each time the worst point is fixed by stretching whichever one
+    // axis costs the bubble the least volume
+    let z0 = Infinity, z1 = -Infinity;
+    for (const A of [P, G]) for (let i = 2; i < A.length; i += 3) { if (A[i] < z0) z0 = A[i]; if (A[i] > z1) z1 = A[i]; }
+    const cz = isFinite(z0) ? clamp((z0 + z1) / 2, -D.L * 0.15, D.L * 0.15) : 0;
+    const room = SHIELD_ROOM * SHIELD_ROOM, lim = 1 / room;
+    for (let it = 0; it < 60; it++) {
+      let worst = lim * 1.0002, tx = 0, ty = 0, tz = 0;
+      for (const A of [P, G]) for (let i = 0; i < A.length; i += 3) {
+        const x = A[i] / ax, y = (A[i + 1] - cy) / ay, z = (A[i + 2] - cz) / az, l = x * x + y * y + z * z;
+        if (l > worst) { worst = l; tx = x * x; ty = y * y; tz = z * z; }
+      }
+      if (tx + ty + tz === 0) break;
+      // the stretch along each axis that alone would bring the point in (Infinity if that axis cannot)
+      const need = (ti, rest) => (rest < lim * 0.98 ? Math.sqrt(ti / (lim - rest)) : Infinity);
+      const kx = need(tx, ty + tz), ky = need(ty, tx + tz), kz = need(tz, tx + ty);
+      const k = Math.min(kx, ky, kz);
+      if (!isFinite(k)) { const u = Math.sqrt(worst / lim) * 1.001; ax *= u; ay *= u; az *= u; continue; }
+      if (k === kx) ax *= k * 1.001; else if (k === kz) az *= k * 1.001; else ay *= k * 1.001;
+    }
+    sh.scale.set(ax, ay, az);
+    sh.position.set(0, cy, cz);
   }
 
   static slotKey(hp) { return hp.type === 'broadside' ? `broadside:${hp.side[0]}${hp.index}` : `${hp.type}:${hp.index}`; }
@@ -547,4 +618,31 @@ export class Ship {
     this.alive = false;
     this.world.engine.scene.remove(this.root);
   }
+}
+
+// Points on a hull in the body's frame (inv = the body's inverse world matrix), about HULL_SAMPLES of them: every
+// vertex of a small mesh's box, a stride through a big mesh's vertices, the box of each instance of an instanced one
+function sampleHull(group, inv) {
+  const meshes = [];
+  let total = 0;
+  group.traverse((o) => {
+    if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+    const m = o.material;
+    if (m && !Array.isArray(m) && m.blending === THREE.AdditiveBlending) return;   // glows and flames
+    meshes.push(o); total += o.isInstancedMesh ? 8 * Math.min(o.count, 128) : o.geometry.attributes.position.count;
+  });
+  const out = [], step = Math.max(1, Math.ceil(total / HULL_SAMPLES)), mm = new THREE.Matrix4(), im = new THREE.Matrix4(), v = new THREE.Vector3();
+  for (const o of meshes) {
+    const pos = o.geometry.attributes.position;
+    mm.multiplyMatrices(inv, o.matrixWorld);
+    if (o.isInstancedMesh) {
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      const b = o.geometry.boundingBox;
+      for (let k = 0, n = Math.min(o.count, 128); k < n; k++) {
+        o.getMatrixAt(k, im); im.premultiply(mm);
+        for (let j = 0; j < 8; j++) { v.set(j & 1 ? b.max.x : b.min.x, j & 2 ? b.max.y : b.min.y, j & 4 ? b.max.z : b.min.z).applyMatrix4(im); out.push(v.x, v.y, v.z); }
+      }
+    } else for (let k = 0; k < pos.count; k += step) { v.fromBufferAttribute(pos, k).applyMatrix4(mm); out.push(v.x, v.y, v.z); }
+  }
+  return new Float32Array(out);
 }

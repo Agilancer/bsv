@@ -9,6 +9,7 @@ const LIMITS = {
   cannon: 10, heavy: 4, beam: 6, missile: 6, torpedo: 4, explosion: 8, hit: 10, shield: 8,
   phaser: 5, tosPhaser: 4, lance: 4, spinal: 2, pulsePhaser: 8, disruptor: 4, arc: 4, graviton: 3,
   photon: 5, quantal: 5, plasmic: 3, heavyTorp: 2, rail: 4, plasmaShot: 6, ionShot: 5,
+  recall: 1, tractor: 3, dockClamp: 4, deckSecure: 1,
 };
 
 export class Audio {
@@ -227,6 +228,62 @@ export class Audio {
     for (const dt of [0, 0.11]) { this.osc('sine', 90, 26, t + dt, 0.7, 0.8 * g); this.burst(t + dt, 0.25, 0.7 * g, 2400, 0.5, 'lowpass', 160); }
     this.burst(t + 0.15, 2.2, 0.3 * g, 600, 0.4, 'lowpass', 60).connect(this.verb);
     return 1;
+  }
+  // ---- the flight deck (hangar craft coming home) ----
+  // the recall: the carrier's deck call, two rising chimes answered by a lower one over a soft swell, with an echo
+  recall(t, g) {
+    const c = this.ctx;
+    for (const [dt, f, v] of [[0, 660, 0.16], [0.16, 990, 0.16], [0.42, 742, 0.13]]) {
+      this.osc('sine', f, f * 1.003, t + dt, 0.55, v * g).connect(this.verb);
+      this.osc('triangle', f * 2, f * 2.006, t + dt, 0.3, v * 0.25 * g);
+    }
+    const sw = this.hold(t, 1.1, 0.05 * g, 0.25, 0.6); sw.connect(this.sfx);
+    const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(110, t); o.frequency.linearRampToValueAtTime(165, t + 1.1);
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 600;
+    o.connect(lp).connect(sw); o.start(t); o.stop(t + 1.15);
+    return 1.1;
+  }
+  // a tractor beam drawing a craft in (b = seconds): a low field hum climbing as it pulls, a beating shimmer above
+  // it and a band of pink noise flowing upward
+  tractor(t, g, pitch = 1, dur = 2.5) {
+    const D = Math.max(0.6, Math.min(4, dur || 2.5)), P = pitch || 1, c = this.ctx;
+    const out = this.hold(t, D, 0.075 * g, 0.18, 0.45); out.connect(this.sfx); out.connect(this.verb);
+    this.wobble('sine', 52 * P, 78 * P, t, D, 5, 3, out);
+    const tri = c.createGain(); tri.gain.value = 0.35; tri.connect(out);
+    this.wobble('triangle', 104 * P, 156 * P, t, D, 5.5, 5, tri);
+    const sh = c.createGain(); sh.gain.value = 0.08; sh.connect(out);
+    this.wobble('sine', 880 * P, 1040 * P, t, D, 7, 9, sh);
+    this.wobble('sine', 886 * P, 1047 * P, t, D, 7.3, 9, sh);
+    const ng = c.createGain(); ng.gain.value = 0.5; ng.connect(out);
+    this.noiseThrough(this.pink, t, D, 'bandpass', 260 * P, 5, ng, 1400 * P);
+    return D;
+  }
+  // a craft locked home in its bay: the magnetic clamps thump shut (a lighter clank), a pneumatic hiss as the
+  // cradle seals, and a short servo chirp (a = pitch: lower for a bigger craft)
+  dockClamp(t, g, pitch = 1) {
+    const P = pitch || 1;
+    this.osc('sine', 180 * P, 60 * P, t, 0.28, 0.5 * g);
+    this.burst(t, 0.06, 0.4 * g, 3000, 0.8, 'lowpass', 600);
+    const f = 420 * P + Math.random() * 30;
+    [[1, 0.08, 0.5], [2.76, 0.05, 0.35], [5.4, 0.03, 0.22]].forEach(([k, a, d]) => this.osc('sine', f * k, f * k * 0.99, t + 0.005, d, a * g).connect(this.verb));
+    this.osc('sine', 150 * P, 52 * P, t + 0.09, 0.22, 0.32 * g);   // the second clamp
+    this.burst(t + 0.14, 0.5, 0.09 * g, 6500, 1.2, 'bandpass', 3800);   // the hiss
+    this.osc('square', 660 * P, 990 * P, t + 0.3, 0.07, 0.025 * g);  // servo chirp
+    return 0.6;
+  }
+  // the whole wing aboard: the bay doors roll shut (a deep grinding slide ending in a boom) and the deck answers
+  // with a rising three-note all-clear
+  deckSecure(t, g) {
+    const c = this.ctx;
+    const s = c.createBufferSource(), fl = c.createBiquadFilter(), gn = c.createGain();
+    s.buffer = this.noise; s.loop = true; s.playbackRate.value = 0.35;
+    fl.type = 'lowpass'; fl.frequency.setValueAtTime(220, t); fl.frequency.linearRampToValueAtTime(120, t + 0.7); fl.Q.value = 2;
+    gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.32 * g, t + 0.12); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
+    s.connect(fl).connect(gn).connect(this.sfx); s.start(t, Math.random()); s.stop(t + 0.8);
+    this.osc('sine', 62, 40, t + 0.68, 0.7, 0.4 * g).connect(this.verb);   // the doors meet
+    this.burst(t + 0.68, 0.12, 0.3 * g, 1800, 0.6, 'lowpass', 200);
+    for (const [dt, f] of [[0.95, 523.25], [1.08, 659.25], [1.21, 783.99]]) this.osc('sine', f, f, t + dt, 0.5, 0.09 * g).connect(this.verb);
+    return 1.7;
   }
   whoosh(t, g) { this.burst(t, 0.42, 0.22 * g, 500, 1.6, 'bandpass', 3400); this.osc('sawtooth', 70, 160, t, 0.4, 0.04 * g); return 0.3; }
 

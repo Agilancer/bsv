@@ -4,10 +4,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { CRAFT, LEAD, BERTH, wingPlan, wingLine, formSlot, ROLE, LINES, LINE_BY_YARD, LINE_BY_FACTION, lineFor, lineForShip, hostilePaint, hueSat, hueGap, ALLY_PAINT, ALLY_BAND } from '../src/game/data/craft.js';
+import { CRAFT, LEAD, BERTH, DRAW, wingPlan, wingLine, formSlot, ROLE, LINES, LINE_BY_YARD, LINE_BY_FACTION, lineFor, lineForShip, hostilePaint, hueSat, hueGap, ALLY_PAINT, ALLY_BAND } from '../src/game/data/craft.js';
 import { LIVERIES } from '../src/game/data/liveries.js';
 import { YARDS, CHASSIS } from '../src/game/data/chassis.js';
-import { hullDims, SHIELD } from '../src/game/ship/kitPlan.js';
+import { hullDims } from '../src/game/ship/kitPlan.js';
 import { ENEMY_FACTIONS } from '../src/game/data/enemies.js';
 
 const KINDS = Object.keys(CRAFT);
@@ -44,42 +44,50 @@ test('big carriers berth bigger craft at the head of the wing', () => {
   for (const [k, l] of Object.entries(LEAD)) for (const x of l) if (x) assert.notEqual(CRAFT[x].cls, 'S', `${k} lead ${x}`);
 });
 
-test('a wing with nothing to fight keeps station a little way off its carrier, never on top of itself', () => {
+test('a wing with nothing to fight flies a tight formation on its carrier, never on top of itself', () => {
   for (const k of Object.keys(CRAFT)) assert.ok(ROLE[k], `${k} has a formation role`);
   for (const ch of CHASSIS) {
     if (!ch.slots || !ch.slots.hangar) continue;
     const dims = hullDims(ch);
-    dims.top = dims.Ht * 1.6;
-    const shell = (p) => (p.x / (dims.W * SHIELD.x)) ** 2 + (p.z / (dims.L * SHIELD.z)) ** 2;
     for (const side of [1, -1]) for (let row = 0; row < 2; row++) {
-      // strike craft and escorts form outside the shield bubble, near enough to read as the carrier's wing,
-      // on their bay's side, and aft of the beam (escorts abeam)
-      const pts = [];
-      for (const kind of ['gunship', 'fighter', 'bomber', 'frigate']) for (let fi = 0; fi < 6; fi++) {
-        const p = formSlot(kind, fi, side, row, dims);
-        const s = shell(p);
-        assert.ok(s > 1.15, `${ch.id} ${kind} #${fi}: inside the shield bubble (${s.toFixed(2)})`);
-        assert.ok(Math.hypot(p.x, p.z) < dims.L * 0.9 + 420, `${ch.id} ${kind} #${fi}: too far out`);
-        assert.equal(Math.sign(p.x), side, `${ch.id} ${kind}: on its bay's side`);
-        assert.ok(p.z < dims.L * 0.1, `${ch.id} ${kind}: aft of the beam`);
-        if (kind !== 'frigate' || fi < 2) pts.push({ kind, fi, p });
+      for (let fi = 0; fi < 6; fi++) {
+        // strike craft: a close echelon along the stern quarter on their bay's side, just outside the broadside guns
+        // (~2.45 x the half-beam) by default, or just outside whatever the hull measures there
+        const p = formSlot('fighter', fi, side, row, dims);
+        assert.equal(Math.sign(p.x), side, `${ch.id} fighter #${fi}: on its bay's side`);
+        assert.ok(Math.abs(p.x) - 2.3 > dims.W * 2.45, `${ch.id} fighter #${fi}: clear of the guns`);
+        assert.ok(Math.abs(p.x) < dims.W * 2.45 + 60 && p.z < -dims.L * 0.25 && p.z > -dims.L * 0.4 - 80, `${ch.id} fighter #${fi}: close in`);
+        const q = formSlot('fighter', fi, side, row, dims, undefined, (z) => (Math.abs(z) < dims.L * 0.45 ? dims.W * 1.3 : 0));
+        assert.ok(Math.abs(q.x) - 2.3 > dims.W * 1.3 && Math.abs(q.x) < Math.abs(p.x), `${ch.id} fighter #${fi}: hugs a slim hull`);
+        // escort frigates: abeam, outside the broadside guns (they reach ~2.4 x the half-beam), and close
+        const f = formSlot('frigate', fi, side, row, dims);
+        assert.ok(Math.abs(f.x) - 6 > dims.W * 2.45 && Math.abs(f.x) < dims.W * 2.6 + 200, `${ch.id} frigate #${fi}`);
+        assert.equal(Math.sign(f.x), side);
       }
-      // a bay's echelon: consecutive places are at least a fighter's length apart
+      // consecutive places in an echelon are at least a fighter's length apart
       for (const kind of ['fighter', 'frigate']) for (let fi = 1; fi < 6; fi++) {
         const a = formSlot(kind, fi - 1, side, row, dims), b = formSlot(kind, fi, side, row, dims);
-        assert.ok(Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) > 18, `${ch.id} ${kind} #${fi} crowds #${fi - 1}`);
+        assert.ok(Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) > (kind === 'frigate' ? 25 : 9), `${ch.id} ${kind} #${fi} crowds #${fi - 1}`);
       }
     }
+    // a medium lead and the fighter behind it in the echelon do not overlap (drawn sizes: about 10.5 x 7 and 6 x 4)
+    for (const side of [1, -1]) {
+      const g = formSlot('gunship', 0, side, 0, dims), f = formSlot('fighter', 1, side, 0, dims);
+      assert.ok(Math.abs(g.x - f.x) > 3.6 + 2.3 || Math.abs(g.z - f.z) > 5.3 + 3.4, `${ch.id}: the echelon's lead crowds the next`);
+    }
+    // an escort frigate (carriers from BERTH.L) does not sit on the strike echelon
+    const fr = formSlot('frigate', 0, 1, 0, dims), lead = formSlot('gunship', 0, 1, 0, dims);
+    if (dims.L >= BERTH.L) assert.ok(Math.abs(fr.z - lead.z) > 10.5 + 5.3 || Math.abs(fr.x - lead.x) > 4.2 + 3.6, `${ch.id}: frigate on the echelon`);
     // drones ride over the deck, inside the hull's length; a tender over the stern
     for (let fi = 0; fi < 4; fi++) {
       const d = formSlot('drone', fi, 1, 0, dims);
-      assert.ok(d.y > dims.top && Math.abs(d.z) <= dims.L * 0.45 + 1e-9 && Math.abs(d.x) < dims.W, `${ch.id} drone #${fi}`);
+      assert.ok(d.y > dims.Ht && Math.abs(d.z) <= dims.L * 0.45 && Math.abs(d.x) < dims.W, `${ch.id} drone #${fi}`);
     }
     const t = formSlot('tender', 0, -1, 0, dims);
-    assert.ok(t.y > dims.top && t.z < -dims.L * 0.4, `${ch.id} tender`);
+    assert.ok(t.y > dims.Ht && t.z < -dims.L * 0.5, `${ch.id} tender`);
   }
   // nothing moves with time: a slot is a function of the craft's place alone
-  const dims = { L: 140, W: 12.6, Ht: 9.8, top: 22 };
+  const dims = { L: 140, W: 12.6, Ht: 9.8 };
   assert.deepEqual(formSlot('fighter', 2, 1, 0, dims), formSlot('fighter', 2, 1, 0, dims));
 });
 
@@ -110,6 +118,20 @@ test('a hostile wing never paints in the captain\'s blue', () => {
 
 const dir = new URL('../assets/ships/craft/', import.meta.url);
 const built = LINES.filter((l) => fs.existsSync(new URL(`${l}.json`, dir)));
+
+test('craft are drawn small enough to fit their carrier: at most a seventh of the shortest hull that berths them', () => {
+  const minL = Math.min(...CHASSIS.filter((c) => c.slots && c.slots.hangar).map((c) => hullDims(c).L));
+  const shortest = { S: minL, M: BERTH.M, L: BERTH.L };
+  for (const l of built) {
+    const facts = JSON.parse(fs.readFileSync(new URL(`${l}.json`, dir), 'utf8'));
+    for (const [k, def] of Object.entries(CRAFT)) {
+      const len = facts[k].dims.L * DRAW[def.cls];
+      assert.ok(len <= shortest[def.cls] / 7, `${l} ${k}: drawn ${len.toFixed(1)} long on a ${shortest[def.cls]} hull`);
+    }
+  }
+  // a medium craft still reads bigger than a small one, and a frigate bigger than both
+  assert.ok(DRAW.M * 13 > DRAW.S * 8 * 1.4 && DRAW.L * 32 > DRAW.M * 16 * 1.4);
+});
 
 test('every design line is built', () => {
   for (const l of LINES) {

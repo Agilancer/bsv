@@ -1,7 +1,8 @@
 // Hangar wing behaviour, measured: the captain in a big carrier (fighter, bomber and drone bays) fights a target
 // that does not die, then sails on with nothing to shoot. Prints, per craft kind, how far it keeps from what it
 // works round (the target in a fight; its carrier otherwise), how fast it swings round that ship (deg/s of
-// bearing in that ship's own frame: an orbit shows here), its speed relative to it, and the wing's damage.
+// bearing in that ship's own frame: an orbit shows here), its speed relative to it, and the wing's damage; then
+// engages the drive and times the recall (`recall`: craft out, s until the last is aboard, s until the spool starts).
 //   node tools/wingprobe.cjs [yard=velscour] [tier=9] [fight=40] [idle=40] [--trace=out.png] [--bays=fighters,bombers,drones]
 //   (dev server on PORT, default 8420; the hull's hangar slots take the bays in order, repeating)
 // --trace draws every craft's track top-down (fight, then idle), coloured by kind, with the carrier and the target.
@@ -95,8 +96,21 @@ const { chromium } = require('playwright');
     const left = __game.world.hangars.craft.filter((x) => x.owner === __game.player).map((x) => x.kind + ':' + (x.state || ''));
     return { rows, dps, left, tr: pr.tr };
   }, [+fight]);
+  // the drive engaged: how long the wing takes to come aboard before the spool starts
+  const recall = await page.evaluate(() => {
+    const g = __game, P = g.player, H = g.world.hangars, out = H.airborne(P), t0 = __engine.time;
+    if (!g.warpTo(P.position.clone().add({ x: 9000, y: 0, z: 9000 }))) return { out, refused: true };
+    let aboard = null;
+    for (let i = 0; i < 160; i++) {
+      __engine.simulate(0.25);
+      if (aboard == null && !H.airborne(P)) aboard = +(__engine.time - t0).toFixed(1);
+      const w = g.warpState();
+      if (!w || w.phase !== 'align') return { out, aboard, spool: +(__engine.time - t0).toFixed(1) };
+    }
+    return { out, aboard, spool: null };
+  });
   const tr = out.tr; delete out.tr;
-  console.log(JSON.stringify({ craftAfterFight: mid, ...out }, null, 1));
+  console.log(JSON.stringify({ craftAfterFight: mid, ...out, recall }, null, 1));
   if (trace) await draw(browser, tr, trace);
   if (logs.length) console.log(logs.slice(0, 10).join('\n'));
   await browser.close();
