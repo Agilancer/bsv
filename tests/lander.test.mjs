@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const { LANDER, RAMP_FOOT_Z, landerScale, TURRET_SHARE, TURRET_RANGE } = await import('../src/game/planet/Lander.js');
+const { LANDER, RAMP_FOOT_Z, landerScale, TURRET_SHARE, TURRET_RANGE, TURRET_DEPRESS } = await import('../src/game/planet/Lander.js');
 const { herm, DESCENT, EXTRACT } = await import('../src/game/planet/Landing.js');
 
 const facts = JSON.parse(readFileSync(new URL('../assets/vehicles/lander.json', import.meta.url))).lander;
@@ -20,6 +20,9 @@ test('lander model: moving parts, nozzles and numbers the game reads', () => {
   assert.ok(Math.abs(facts.rampOpen - LANDER.rampOpen) < 0.05);
   assert.equal(facts.gearFold, LANDER.gearFold);
   assert.equal(facts.holdFloor, LANDER.holdFloor);
+  // the gun pods hang under the belly, so they can shoot the ground as the lander comes down
+  assert.equal(facts.turretMount, 'ventral');
+  assert.ok(facts.turretY + facts.gunDrop < LANDER.holdFloor && facts.turretY + facts.gunDrop > 0.4);
   // the open ramp reaches the ground behind the stern
   assert.ok(RAMP_FOOT_Z < LANDER.hinge[1] - 3 && RAMP_FOOT_Z > -14);
   assert.ok(facts.tris < 60000, `tris ${facts.tris}`);
@@ -54,4 +57,5 @@ test('descent and extraction paths: above ground, slowing, arriving on the pad',
 test('the turrets support, they do not carry: both together under the explorer\'s own fire', () => {
   assert.ok(2 * TURRET_SHARE < 1 && TURRET_SHARE > 0.1);
   assert.ok(TURRET_RANGE >= 150 && TURRET_RANGE <= 300);
+  assert.ok(TURRET_DEPRESS < -1.2, 'the pods lay on the ground below a lander in its retro burn');
 });

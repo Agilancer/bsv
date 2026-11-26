@@ -143,7 +143,8 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   - The dropship (`planet/Lander.js` + `planet/Landing.js`): a Blender model (`tools/blender/f_lander.py`, built with
     `python3 tools/blender/build.py lander` -> `assets/vehicles/lander.glb` + `lander.json`; `vlib.py` has a `heat` slot
     for the ablative shield) with folding legs `gear_i`, a stern `ramp`, body `flap_i`, intake `fan_i` and two dorsal
-    rail turrets (`turret_i` traverses, `gun_i` elevates, `muzzle_i`). `LANDER` in Lander.js mirrors the model's facts
+    ventral gun pods under the nose, two short square barrels each (`turret_i` traverses, `gun_i` elevates and
+    depresses to the ground below a descending lander, `TURRET_DEPRESS`, `muzzle_i`). `LANDER` in Lander.js mirrors the model's facts
     (`tests/lander.test.mjs`). The lander is scaled to the explorer it carries (`landerScale`, hold of a Mk I = 1).
     `mode.lander` is its root (feet at y 0, yaw), `mode.landerCtl` the object (poses, flames, plasma, `updateTurrets`).
     `Landing.js` flies the planetfall (~14 s: entry in a plasma sheath with the shield glowing, through the cloud
