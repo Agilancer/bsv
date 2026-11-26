@@ -8,20 +8,25 @@
 //    with point defence;
 //  - repair drones ride over their carrier's deck and go to work on the hull (hopping between work sites) while
 //    it needs mending; a tender holds over the stern; a decoy rides between its carrier and the threat.
-// With nothing to fight a wing forms an echelon off its bay's quarter (data/craft.js formSlot), holds it for a
-// while, then recovers one craft at a time into the bay mouth; a frigate stays on escort station. Craft fly a
+// With nothing to fight a wing forms a tight echelon just off the stern on its bay's side (data/craft.js formSlot:
+// port and starboard wings make a V with the carrier at its point), holds it for a while, then recovers: the craft
+// queue along the hull's side abeam their bay mouth, and one at a time each turns its nose into the mouth and is
+// drawn in on a tractor beam (bay lights strobing, the clamps ringing home); a frigate stays on escort station.
+// Before the drive spools (nav/index.js) the carrier recalls everything it has out (`recall`): launches stop, every
+// craft heads home at speed and docks, and the spool waits until the last is aboard. Craft fly a
 // simple model: on the nose at speed, or station-keeping (arrive on a point moving with its ship, nose held to
 // the formation heading, thrusters walking it the last metres), so formation craft match their carrier.
 // Big carriers berth bigger craft at the head of each wing (data/craft.js wingPlan). Each kind is one instanced
 // mesh (craftModels.js: the Blender models).
 import * as THREE from 'three/webgpu';
 import { wrapAngle, clamp } from '../../engine/rng.js';
-import { CRAFT, ROLE, wingPlan, lineForShip, hostilePaint, ALLY_PAINT, formSlot } from '../data/craft.js';
+import { CRAFT, ROLE, DRAW, wingPlan, lineForShip, hostilePaint, ALLY_PAINT, formSlot } from '../data/craft.js';
 import { craftMaterials, loadCraft, onCraftLoaded, standIn, HOSTILE_FIRE } from './craftModels.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _v = new THREE.Vector3(), _e = new THREE.Euler();
 const _h = new THREE.Vector3(), _p = new THREE.Vector3(), _d = new THREE.Vector3();
 const _g = new THREE.Vector3(), _gv = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _slot = { x: 0, y: 0, z: 0 };
+const _im = new THREE.Matrix4(), _mm = new THREE.Matrix4(), _ap = new THREE.Vector3();
 const UP = THREE.Object3D.DEFAULT_UP;
 const NONE = [];
 const KINDS = Object.keys(CRAFT);
@@ -39,9 +44,6 @@ function hostileWingColour(hex, faction) {
 const FIRE = HOSTILE_FIRE.getHex();
 // where the guns and engines are until the models' facts load (craft space, nose +z)
 const DEF_GUN = [[0, 0, 3]], DEF_ENG = [[0, 0, -3, 0.3]];
-// craft are drawn larger than life so a wing reads at the play camera (a fighter about a third of a cutter's
-// length), and so a medium craft leading a wing stands about twice a fighter's size
-const DRAW = { S: 1.4, M: 1.75, L: 1.35 };
 // model lengths (craftModels STAND_IN): how much room a craft needs
 const LEN = { fighter: 7.5, bomber: 9.5, drone: 2.6, decoy: 6, gunship: 14, torpboat: 16, tender: 9, frigate: 32 };
 // flight model by class: acceleration (u/s^2), velocity grip (1/s), station-keeping gain (1/s: how hard a craft
@@ -54,9 +56,18 @@ const RECALL = 2600;       // further than this from its carrier with nothing to
 // what its sheet says (rof x dmg) whatever the pattern: CHARGE seconds of fire banked, fired at BURST x rof
 const CHARGE = 6, BURST = 3.5;
 const STRIKE = new Set(['run', 'break', 'station']);
+// recovery: a craft in the queue waits a length behind the one ahead; the final glide into the mouth (u/s), faster
+// when the carrier is recalling its wing for the drive; how much faster everything flies home on a recall
+const GLIDE = 16, GLIDE_RECALL = 36, HOMEWARD = 1.6;
+// recovery lights: amber strobes either end of the bay mouth, a blue tractor beam drawing the craft in
+const STROBE = new THREE.Color(0xffb050), TRACTOR = 0x7ad8ff;
+// the hull's real shape for station-keeping close to it: PROF_N slices along its length (from -0.6 L to 0.6 L), each
+// the furthest any part reaches out to the side (guns included) and the top of the deck within the beam
+const PROF_N = 32;
 // steering for this frame, set by the craft's behaviour and flown by fly(): keep = station-keeping on _g moving
 // with _gv (else pursuit: on the nose at `top`); face = heading held when crawling; turn = turn-rate scale
-const S = { keep: true, face: NaN, top: 100, turn: 1, gain: 0 };
+// hold = the nose is held on `face` whatever the craft's way (it is being lined up or drawn in)
+const S = { keep: true, face: NaN, top: 100, turn: 1, gain: 0, hold: false };
 // a point in a ship's frame (x port, y up, z bow) to the world, and back
 function toWorld(ship, x, y, z, out) {
   const s = Math.sin(ship.heading), co = Math.cos(ship.heading);
@@ -78,6 +89,9 @@ function hullDist(ship, p) {
   return Math.hypot(_a.x, _a.z - clamp(_a.z, -k, k));
 }
 const bearing = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
+// half a craft's drawn length: the room it needs
+const half = (c) => (LEN[c.kind] || 8) * c.size * 0.5;
+const profBin = (P, z) => Math.floor((z / (P.L * 1.2) + 0.5) * PROF_N);
 
 function hasDecoy(wing) { if (wing) for (const c of wing) if (c.alive && c.decoy) return true; return false; }
 // index of the weakest shield facing below its cap, or -1
@@ -95,6 +109,7 @@ export class Hangars {
     this.facts = {};      // line -> kind -> facts (guns, engines...) once the line's models are in
     this.lines = {};      // line -> kind -> { body, flame, team, cap, n }: made the first time a line flies
     this.mats = craftMaterials(world.engine);
+    this.now = 0;         // the sim clock, for queue order
   }
 
   // the instanced meshes of a design line, made (and its models sent for) the first time it flies
@@ -140,6 +155,7 @@ export class Hangars {
   tick(ship, w, dt, t) {
     w.wing ||= [];
     if (w.wing.some((c) => !c.alive)) w.wing = w.wing.filter((c) => c.alive);
+    if (ship.recalling) return;   // the wing is coming home for the drive: nothing goes out
     const U = w.item.unique;
     if (!w.plan || w.planL !== ship.dims.L || w.planN !== w.ws.count) {
       w.plan = wingPlan(w.ws.craft, w.ws.count || 2, ship.dims.L); w.planL = ship.dims.L; w.planN = w.ws.count;
@@ -249,6 +265,7 @@ export class Hangars {
 
   update(dt, t) {
     const W = this.world;
+    this.now = t;
     for (const L of Object.values(this.lines)) for (const k of KINDS) L[k].n = 0;
     for (let i = this.craft.length - 1; i >= 0; i--) {
       const c = this.craft[i];
@@ -258,6 +275,8 @@ export class Hangars {
       const own = c.owner;
       const tg = own.target && own.target.alive ? own.target : null;
       if (c.leader && (!c.leader.alive || c.leader.leader)) c.leader = null;
+      // the carrier is recalling its wing for the drive: whatever a craft was doing, it heads home
+      if (own.recalling && c.state !== 'dock' && c.state !== 'out') this.recover(c);
       // orientation from last frame: muzzles and engines ride on it
       _e.set(-c.vel.y * 0.01, c.heading, c.bank);
       _q.setFromEuler(_e);
@@ -265,18 +284,19 @@ export class Hangars {
         // shot out of the bay: straight out along the bay's side, clear of the hull, before it steers
         c.pos.addScaledVector(c.vel, dt);
         if (c.t > OUT[c.def.cls]) {
-          if (c.role === 'drone' || c.role === 'tender' || c.role === 'decoy') c.state = 'keep';
+          if (own.recalling) this.recover(c);
+          else if (c.role === 'drone' || c.role === 'tender' || c.role === 'decoy') c.state = 'keep';
           else if (tg) this.engage(c, tg);
           else this.formUp(c);
         }
       } else {
-        S.keep = true; S.face = NaN; S.top = c.def.speed; S.turn = 1; S.gain = 0;
+        S.keep = true; S.face = NaN; S.top = c.def.speed; S.turn = 1; S.gain = 0; S.hold = false;
         if (c.state === 'keep') this.support(c, own, t);
         else {
           // nothing to fight (or the target is gone): a strike craft forms up; with a target again it re-engages
           // (a bomber that has released goes home to rearm whatever happens)
           if (STRIKE.has(c.state) && !tg) { if (c.released) this.recover(c); else this.formUp(c); }
-          else if (tg && !c.released && (c.state === 'form' || (c.state === 'dock' && !c.final))) this.engage(c, tg);
+          else if (tg && !c.released && !own.recalling && (c.state === 'form' || (c.state === 'dock' && !c.final))) this.engage(c, tg);
           if (c.state === 'form') this.formation(c, own);
           else if (c.state === 'dock') { if (this.dock(c, own)) { this.craft.splice(i, 1); continue; } }
           else if (c.kind === 'frigate') this.frigate(c, own, tg);
@@ -284,7 +304,7 @@ export class Hangars {
           else this.strike(c, own, tg);
         }
         // far behind its carrier (it warped) with nothing to fight: it came through the drive field with it
-        if (!STRIKE.has(c.state) && c.pos.distanceToSquared(own.position) > RECALL * RECALL) {
+        if (!own.recalling && !STRIKE.has(c.state) && c.pos.distanceToSquared(own.position) > RECALL * RECALL) {
           c.pos.copy(_g); frameVel(own, _g, c.vel); c.spd = Math.hypot(c.vel.x, c.vel.z); c.heading = own.heading;
         }
         this.fly(c, dt);
@@ -322,14 +342,15 @@ export class Hangars {
       const close = Math.min(S.top, dist * (S.gain || GAIN[cls]));
       dvx = _gv.x + (dx / dist) * close; dvz = _gv.z + (dz / dist) * close;
       // never faster than the craft can fly (it can always outrun its own carrier)
-      const cap = Math.max(def.speed * 1.3, Math.hypot(_gv.x, _gv.z) + 40), m = Math.hypot(dvx, dvz);
+      const cap = Math.max(def.speed * 1.3, S.top, Math.hypot(_gv.x, _gv.z) + 40), m = Math.hypot(dvx, dvz);
       if (m > cap) { dvx *= cap / m; dvz *= cap / m; }
     } else { dvx = (dx / dist) * S.top; dvz = (dz / dist) * S.top; }
     const dsp = Math.hypot(dvx, dvz);
-    const k = clamp((c.spd - CRAWL) / CRAWL, 0, 1);
-    const nose = dsp > CRAWL ? Math.atan2(dvx, dvz) : Number.isNaN(S.face) ? c.heading : S.face;
+    // held (lined up on a bay mouth): the nose stays on `face` and the thrusters do the flying
+    const k = S.hold ? 0 : clamp((c.spd - CRAWL) / CRAWL, 0, 1);
+    const nose = dsp > CRAWL && !S.hold ? Math.atan2(dvx, dvz) : Number.isNaN(S.face) ? c.heading : S.face;
     const diff = wrapAngle(nose - c.heading);
-    const turn = def.turn * S.turn * (0.35 + 0.65 * k) * dt;
+    const turn = def.turn * S.turn * (S.hold ? 1 : 0.35 + 0.65 * k) * dt;
     c.heading = wrapAngle(c.heading + clamp(diff, -turn, turn));
     const acc = ACC[cls] * dt;
     c.spd += clamp(dsp - c.spd, -acc * 1.4, acc);
@@ -343,22 +364,77 @@ export class Hangars {
     c.bank += (-clamp(diff, -1, 1) * def.roll * k - c.bank) * Math.min(1, dt * 4);
   }
 
-  // a path that would cut through the carrier's hull goes over it: the goal is raised clear of the superstructure,
-  // and a craft right beside the hull and below the deck climbs before it crosses
-  clearHull(c, own) {
-    const D = own.dims, r = (LEN[c.kind] || 8) * c.size * 0.5, deck = D.Ht + r;
-    toLocal(own, c.pos, _a); toLocal(own, _g, _b);
-    if (_a.y > deck && _b.y > deck) return;
-    const bx = D.W * 1.3 + r, bz = D.L * 0.52 + r;
-    for (let k = 0; k <= 4; k++) {
-      const f = (k / 4) * 0.9, x = _a.x + (_b.x - _a.x) * f, z = _a.z + (_b.z - _a.z) * f, y = _a.y + (_b.y - _a.y) * f;
-      if (y < deck && Math.abs(x) < bx && Math.abs(z) < bz) {
-        _g.y = Math.max(_g.y, own.position.y + (D.top ?? D.Ht) + 6 + r);
-        const inside = Math.abs(_a.x) < bx && Math.abs(_a.z) < bz;
-        if (!inside && Math.abs(_a.x) < bx + 60 && Math.abs(_a.z) < bz + 60 && _a.y < deck) { _g.x = c.pos.x; _g.z = c.pos.z; }
-        return;
-      }
+  // The carrier's real shape, measured once from its meshes (guns included): per slice along its length, how far
+  // anything reaches out to the side and the top of the deck within the beam. Empty slices (beyond the bow and
+  // stern) reach nowhere. Cached on the ship; measured again if the hull is rebuilt.
+  profile(own) {
+    let P = own._wingProf;
+    if (P && P.body === own.body && !(P.loose && this.now > P.at + 2)) return P;
+    const D = own.dims;
+    P = { body: own.body, L: D.L, side: new Float32Array(PROF_N), deck: new Float32Array(PROF_N).fill(-1e4), n: 0, reach: null };
+    P.reach = (z) => { const i = profBin(P, z); return i < 0 || i >= PROF_N ? 0 : P.side[i]; };   // formSlot's view of it
+    const body = own.body;
+    if (body) {
+      body.updateMatrixWorld(true);
+      _im.copy(body.matrixWorld).invert();
+      body.traverse((o) => {
+        if (!o.isMesh || !o.geometry || !o.visible || o === own.shieldMesh) return;
+        const mat = o.material;
+        if (mat && (mat.blending === THREE.AdditiveBlending || (mat.transparent && mat.opacity < 0.5))) return;   // flames, glows, the shield
+        const pos = o.geometry.attributes.position;
+        if (!pos) return;
+        _mm.multiplyMatrices(_im, o.matrixWorld);
+        const take = (v) => {
+          const i = profBin(P, v.z);
+          if (i < 0 || i >= PROF_N) return;
+          const ax = Math.abs(v.x);
+          if (ax > D.W * 8) return;
+          if (ax > P.side[i]) P.side[i] = ax;
+          if (ax < D.W && v.y > P.deck[i]) P.deck[i] = v.y;
+          P.n++;
+        };
+        if (o.isInstancedMesh) {
+          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+          const bb = o.geometry.boundingBox;
+          for (let k = 0, n = Math.min(o.count, 256); k < n; k++) {
+            o.getMatrixAt(k, _m); _m.premultiply(_mm);
+            for (let j = 0; j < 8; j++) take(_v.set(j & 1 ? bb.max.x : bb.min.x, j & 2 ? bb.max.y : bb.min.y, j & 4 ? bb.max.z : bb.min.z).applyMatrix4(_m));
+          }
+        } else {
+          for (let k = 0, step = Math.max(1, Math.floor(pos.count / 6000)); k < pos.count; k += step) take(_v.fromBufferAttribute(pos, k).applyMatrix4(_mm));
+        }
+      });
     }
+    // no meshes yet (a hull still loading): the hull's nominal box, measured again in a couple of seconds
+    if (!P.n) {
+      for (let i = 0; i < PROF_N; i++) { const z = ((i + 0.5) / PROF_N - 0.5) * D.L * 1.2; if (Math.abs(z) < D.L * 0.5) { P.side[i] = D.W * 1.15; P.deck[i] = D.Ht; } }
+      P.loose = true; P.at = this.now;
+    }
+    own._wingProf = P;
+    return P;
+  }
+  sideAt(P, z) { const i = profBin(P, z); return i < 0 || i >= PROF_N ? 0 : P.side[i]; }
+  deckAt(P, z) { const i = profBin(P, z); return i < 0 || i >= PROF_N ? -1e4 : P.deck[i]; }
+
+  // a path that would cut through the carrier (its real shape, guns and all) goes over it: the goal is raised clear
+  // of the deck it would cross, and a craft right beside the hull and below its deck climbs before it crosses
+  clearHull(c, own) {
+    const P = this.profile(own), r = half(c);
+    toLocal(own, c.pos, _a); toLocal(own, _g, _b);
+    const len = Math.hypot(_b.x - _a.x, _b.z - _a.z);
+    let lift = -1e4, first = -1;
+    for (let k = 0; k <= 8; k++) {
+      const f = (k / 8) * 0.92, x = _a.x + (_b.x - _a.x) * f, z = _a.z + (_b.z - _a.z) * f, y = _a.y + (_b.y - _a.y) * f;
+      const i = profBin(P, z);
+      if (i < 0 || i >= PROF_N) continue;
+      const deck = P.deck[i];
+      if (Math.abs(x) < P.side[i] + r && y < deck + r && deck > -1e3) { if (first < 0) first = f; if (deck > lift) lift = deck; }
+    }
+    if (first < 0) return;
+    const over = own.position.y + lift + r + 4;
+    _g.y = Math.max(_g.y, over);
+    // the crossing starts right beside it and it is below the deck: up first, then across
+    if (first * len < 30 && c.pos.y < over - 3) { _g.x = c.pos.x; _g.z = c.pos.z; }
   }
 
   // into the fight: fighters, bombers and torpedo boats start a run, gunships and frigates take a station
@@ -372,11 +448,30 @@ export class Hangars {
     c.jink = (Math.random() - 0.5) * 24;               // and how high it comes in
   }
   formUp(c) { c.state = 'form'; c.formT = c.t; c.final = false; }
-  recover(c) { c.state = 'dock'; c.final = false; c.st = c.t; }
+  // home to its bay. Its place in the bay's queue goes by when it should get there, so a craft already alongside is
+  // not kept waiting by one still on its way back from a run
+  recover(c) {
+    if (c.state === 'dock') return;
+    c.state = 'dock'; c.final = false; c.st = c.t;
+    c.dseq = this.now + c.pos.distanceTo(c.owner.position) / c.def.speed;
+  }
 
-  // the station this craft keeps on its carrier, into _g and _gv
+  // ---- recall (the drive spools only with the wing aboard: nav/index.js) ----
+  // recall(ship, true): launches stop and everything the ship has out heads home and docks. Returns how many are out.
+  recall(ship, on = true) {
+    ship.recalling = !!on;
+    return on ? this.airborne(ship) : 0;
+  }
+  airborne(ship) { let n = 0; for (const c of this.craft) if (c.alive && c.owner === ship) n++; return n; }
+  // take any stragglers aboard at once (a recall that has run far too long)
+  stow(ship) { for (const c of this.craft) if (c.alive && c.owner === ship) { this.endTractor(c); c.alive = false; } }
+
+  // the station this craft keeps on its carrier, into _g and _gv: an echelon just outside the hull's real outline,
+  // drones just over its real deck
   slot(c, own) {
-    formSlot(c.kind, c.fi, c.side, c.row, own.dims, _slot);
+    const P = this.profile(own);
+    formSlot(c.kind, c.fi, c.side, c.row, own.dims, _slot, P.reach);
+    if (c.kind === 'drone') _slot.y = Math.max(_slot.y - 4, this.deckAt(P, _slot.z)) + 2.5 + half(c);
     toWorld(own, _slot.x, _slot.y, _slot.z, _g);
     frameVel(own, _g, _gv);
   }
@@ -391,33 +486,83 @@ export class Hangars {
     if (c.kind !== 'frigate' && c.t - c.formT > FORM_HOLD + c.fi * 2.2 + (c.role === 'strike' ? 0 : 3)) this.recover(c);
   }
 
-  // recovery: abeam the bay mouth, matched with the carrier, then in through the mouth at a walking pace.
-  // true when it is aboard
+  // Recovery. The craft queue along the hull's side abeam their bay mouth, matched with the carrier, one a length
+  // behind the next; the head of the queue turns its nose into the mouth and is drawn in on a tractor beam, the
+  // bay's strobes flashing, and the clamps ring as it goes in. True when it is aboard.
   dock(c, own) {
-    const dir = c.bayDir, D = own.dims;
+    const W = this.world, dir = c.bayDir, D = own.dims, r = half(c), rec = own.recalling;
     // a scripted flight has no bay mouth: it goes in through a hatch in the hull's side
     const B = c.bayPos.x || c.bayPos.z ? c.bayPos : _b.set(dir.x * D.W * 1.1, 0, 0);
+    const bx = B.x, by = B.y, bz = B.z;
+    // the approach point: just outside whatever reaches out from the hull there (guns included)
+    const off = Math.max(D.W * 0.4 + 6 + r, this.sideAt(this.profile(own), bz) - Math.abs(bx) + 3 + r);
+    // the mouth, in the world (the beam's end and the lights)
+    toWorld(own, bx, by, bz, _p);
     if (!c.final) {
-      const off = D.W * 0.4 + 14 + c.size * 4;
-      toWorld(own, B.x + dir.x * off, B.y + 2, B.z + dir.z * off, _g);
+      // my place in the queue: everyone of this bay ahead of me, a length (and a gap) each
+      let ahead = 0, q = 0;
+      for (const x of this.craft) if (x !== c && x.alive && x.owner === own && x.bay === c.bay && x.state === 'dock' && (x.final || x.dseq < c.dseq)) { ahead += half(x) * 2 + 3; q++; }
+      toWorld(own, bx + dir.x * off, by + 1, bz + dir.z * off - ahead - (q ? r : 0), _g);
       frameVel(own, _g, _gv);
+      _ap.copy(_g);   // the approach point itself (clearHull may lift the goal over the hull on the way)
       S.face = own.heading;
-      S.top = c.def.speed * (c.released ? 1.25 : 1);   // a bomber burns for home to rearm
+      S.top = c.def.speed * (rec ? HOMEWARD : c.released ? 1.25 : 1);   // a bomber burns for home to rearm
+      if (rec && c.pos.distanceToSquared(_g) > 1e6) S.top *= 1.5;      // far out on a recall: everything it has
       this.clearHull(c, own);
-      if (c.pos.distanceToSquared(_g) < 36) {
-        frameVel(own, c.pos, _h);
-        if (Math.hypot(c.vel.x - _h.x, c.vel.z - _h.z) < 20 || c.t - c.st > 25) { c.final = true; c.st = c.t; }
+      if (q === 0) {
+        this.bayLights(own, c, _p, 0.6);
+        if (c.pos.distanceToSquared(_ap) < (rec ? 64 : 30)) {
+          frameVel(own, c.pos, _h);
+          if (Math.hypot(c.vel.x - _h.x, c.vel.z - _h.z) < (rec ? 30 : 20) || c.t - c.st > 25) this.startFinal(c, own);
+        }
       }
       return false;
     }
-    toWorld(own, B.x - dir.x * 3, B.y, B.z - dir.z * 3, _g);
-    const bx = B.x;
+    // the final: nose into the mouth (held), then in on the beam at a walking pace once it is lined up
+    toWorld(own, bx - dir.x * 3, by, bz - dir.z * 3, _g);
     frameVel(own, _g, _gv);
-    S.face = own.heading; S.top = 30; S.gain = 1.4;
+    S.hold = true; S.face = own.heading - c.side * Math.PI / 2; S.gain = 1.4; S.turn = rec ? 1.6 : 1;
+    const lined = Math.abs(wrapAngle(S.face - c.heading)) < 0.35;
+    S.top = (rec ? GLIDE_RECALL : GLIDE) * (lined ? 1 : 0.12);
+    this.bayLights(own, c, _p, 1);
+    // the tractor beam: from the mouth to the craft, kept on both as they move
+    const tb = c.tb;
+    if (tb && tb.seed === c.tbSeed) { tb.a.copy(_p); tb.b.copy(c.pos); }
     toLocal(own, c.pos, _a);
-    const inside = Math.sign(_a.x) === Math.sign(bx) && Math.abs(_a.x) < Math.abs(bx) - 1;
-    if (inside || c.pos.distanceToSquared(_g) < 9 || c.t - c.st > 8) { c.alive = false; return true; }
+    const inside = Math.sign(_a.x) === Math.sign(bx || dir.x) && Math.abs(_a.x) < Math.abs(bx) - 1;
+    if (inside || c.pos.distanceToSquared(_g) < 9 || c.t - c.st > 10) {
+      // aboard: the clamps ring home, a flash in the mouth
+      this.endTractor(c);
+      const fx = W.fx;
+      fx.flares.flash(_p, r * 0.6, r * 2.4, 0xbfe8ff, 0.28, 4, 0.7, 2.2, 2);
+      fx.ring(_p, r * 1.6, TRACTOR, 18);
+      if (W.audio && W.camNear(_p, 900)) W.audio.play('dockClamp', _p, c.def.cls === 'S' ? 0.8 : 1.1, c.def.cls === 'L' ? 0.6 : c.def.cls === 'M' ? 0.8 : 1);
+      c.alive = false;
+      return true;
+    }
     return false;
+  }
+  startFinal(c, own) {
+    c.final = true; c.st = c.t;
+    const W = this.world, r = half(c);
+    c.tb = W.beams.add(_p, c.pos, TRACTOR, 0.25 + r * 0.12, 60, { style: 'tractor' });
+    c.tbSeed = c.tb.seed;
+    if (W.audio && W.camNear(_p, 900)) W.audio.play('tractor', _p, 1, c.def.cls === 'S' ? 1.15 : 0.85, own.recalling ? 2 : 3);
+  }
+  endTractor(c) { const tb = c.tb; if (tb && tb.seed === c.tbSeed) tb.age = tb.life; c.tb = null; }
+  // the bay's recovery lights: an amber strobe either end of the mouth, flashing in turn, and the mouth lit blue.
+  // Drawn by the head of the bay's queue (k: how bright: 1 once a craft is on the beam)
+  bayLights(own, c, mouth, k) {
+    const W = this.world;
+    if (!W.camNear(mouth, 1200)) return;
+    const F = W.fx.flares, ph = (this.now * 2.2) % 1, s = Math.sin(own.heading), co = Math.cos(own.heading);
+    for (let e = -1; e <= 1; e += 2) {
+      const on = (e < 0) === (ph < 0.5) ? Math.max(0, 1 - (ph % 0.5) * 6) : 0;   // a short bright blink, alternating ends
+      if (on <= 0) continue;
+      const z = e * 2.6;
+      F.add(mouth.x + z * s, mouth.y + 0.6, mouth.z + z * co, 5 * on * (0.6 + 0.4 * k), STROBE.r, STROBE.g, STROBE.b, 2.6 * on, 4, this.now * 0.5, 0.35, 0.3, 1, 0.9, 0.7, 1.4);
+    }
+    F.add(mouth.x, mouth.y, mouth.z, 6 * k, 0.48, 0.85, 1, 1.1 * k, 0, 0, 0.25, 0.18, 0.8, 0.95, 1, 1);
   }
 
   // drones, tenders and decoys keep their places on the carrier and mend it
@@ -425,30 +570,31 @@ export class Hangars {
     const W = this.world, fx = W.fx, big = c.kind === 'tender';
     const fi = c.weave ? weakestFacing(own) : -1;   // Shieldweavers mend the weakest facing too
     const mending = !c.decoy && (own.hull < own.maxHull || fi >= 0);
-    const D = own.dims, top = D.top ?? D.Ht;
+    const D = own.dims;
     if (c.decoy) {
       // between its carrier and the threat, beacon lit
       const th = own.target && own.target.alive ? own.target : null;
       if (th) {
-        const b = bearing(own.position, th.position), r = D.W * 2.6 + 40;
-        _g.set(own.position.x + Math.sin(b) * r, own.position.y + 6, own.position.z + Math.cos(b) * r);
+        const b = bearing(own.position, th.position), r = D.W * 2.6 + 30;
+        _g.set(own.position.x + Math.sin(b) * r, own.position.y + 4, own.position.z + Math.cos(b) * r);
         frameVel(own, _g, _gv);
       } else this.slot(c, own);
-      if (c.cd <= 0) { c.cd = 0.8; fx.trailPuff(c.pos, 0xd0a0ff, 6, 0.6); }
+      if (c.cd <= 0) { c.cd = 0.8; fx.trailPuff(c.pos, 0xd0a0ff, 4, 0.6); }
     } else if (c.kind === 'drone' && mending) {
-      // at work on the hull: hover a few metres off a spot, then move to the next
+      // at work on the hull: hover just off a spot on the real deck, then move to the next
       if (!c.site || t > c.next) {
         c.site ||= { x: 0, y: 0, z: 0 };
         c.next = t + 2.5 + Math.random() * 2;
-        c.site.x = c.side * D.W * (0.15 + Math.random() * 0.8);
-        c.site.y = top * (0.5 + Math.random() * 0.5) + 4;
+        c.site.x = c.side * D.W * (0.1 + Math.random() * 0.7);
         c.site.z = D.L * (Math.random() - 0.5) * 0.8;
+        const deck = this.deckAt(this.profile(own), c.site.z);
+        c.site.y = (deck > -1e3 ? deck : D.Ht) + 1.5 + half(c);
       }
       toWorld(own, c.site.x, c.site.y, c.site.z, _g);
       frameVel(own, _g, _gv);
     } else this.slot(c, own);
     // bob gently on station
-    _g.y += Math.sin(t * 1.1 + c.lane * 6.28) * (big ? 2 : 1.2);
+    _g.y += Math.sin(t * 1.1 + c.lane * 6.28) * (big ? 1.2 : 0.5);
     S.face = own.heading;
     this.clearHull(c, own);
     if (!c.decoy && c.cd <= 0 && mending) {
@@ -459,13 +605,13 @@ export class Hangars {
       own.repair(heal);
       if (fi >= 0) own.shields[fi] = Math.min(own.maxShield * 0.3, own.shields[fi] + heal * 1.5);
       // a drone beams the plate under it; a tender the superstructure
-      if (c.site && !big) toWorld(own, c.site.x * 0.7, c.site.y - 6, c.site.z, _h);
+      if (c.site && !big) toWorld(own, c.site.x, c.site.y - half(c) - 1.5, c.site.z, _h);
       else { _h.copy(own.position); _h.y += D.Ht; }
       const g = this.guns(c);
       this.at(c, g[c.volley++ % g.length], _p);
-      W.beams.add(_p, _h, fi >= 0 ? 0x7ad8ff : 0x7affb0, big ? 1.6 : 0.8, big ? 0.7 : 0.5);   // add() copies its endpoints
+      W.beams.add(_p, _h, fi >= 0 ? 0x7ad8ff : 0x7affb0, big ? 1 : 0.5, big ? 0.7 : 0.5);   // add() copies its endpoints
       // the emitter flares as it beams: green for the captain's healers, the wing colour for a hostile one
-      fx.trailPuff(_p, c.ally ? 0x7affb0 : c.color.getHex(), big ? 9 : 5, 0.35);
+      fx.trailPuff(_p, c.ally ? 0x7affb0 : c.color.getHex(), big ? 6 : 3, 0.35);
     }
     if (!mending && c.kind === 'drone') c.site = null;
   }

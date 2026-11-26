@@ -68,6 +68,17 @@ export function installNav(game) {
     return best;
   };
   const inCombat = () => nearestHostile() < WARP_CLEAR;
+  // The wing comes home before the drive spools: engaging the drive recalls every craft the ship has out
+  // (combat/Hangars.js recall: launches stop, each craft flies home at speed, queues at its bay and is drawn in on
+  // the tractor), the ship comes about meanwhile, and the spool waits until the last is aboard and the bay doors
+  // have sealed. RECALL_MAX is a backstop: anything still out then is taken aboard at once.
+  const RECALL_MAX = 30, SEALED = 1.2;
+  const hangars = () => game.world && game.world.hangars;
+  const recallWing = (on) => { const s = game.player, H = hangars(); return s && H ? H.recall(s, on) : 0; };
+  const beginRecall = () => {
+    warp.wing = recallWing(true); warp.sealedAt = warp.wing ? -1 : -9;
+    if (warp.wing && game.audio) game.audio.play('recall', null, 1);
+  };
   let refusedAt = -1e9;
   const refuse = (msg) => { const now = game.engine.time; if (now - refusedAt > 4) game.ui.toast(msg, 'bad'); refusedAt = now; };
   // a heading from a galaxy-map bearing (the jump drive points the bow at the destination system)
@@ -86,6 +97,7 @@ export function installNav(game) {
     P.credits -= cost;
     if (game.cue) game.cue('plot');
     warp = { kind: 'jump', phase: 'align', t: 0, total: 0, target: id, hops: path.length - 1, heading: jumpHeading(id), cost };
+    beginRecall();
     game.ui.toggle('galaxy', false);
     game.ui.toast(`Jump plotted · ${galaxy().systems[id].name} · coming about`, 'epic');
     return true;
@@ -99,6 +111,7 @@ export function installNav(game) {
     if (game.docked) game.undock();
     if (game.cue) game.cue('plot');
     warp = { kind: 'local', phase: 'align', t: 0, total: 0, to: pos.clone().setY(0), from: s.position.clone(), heading: Math.atan2(pos.x - s.position.x, pos.z - s.position.z) };
+    beginRecall();
     game.ui.toggle('system', false);
     return true;
   };
@@ -121,12 +134,12 @@ export function installNav(game) {
   game.isWarping = () => !!warp;
   game.warpState = () => warp;   // debug/tools
   const resetView = () => { fade.style.opacity = '0'; game.engine.camera.fov = 32; game.engine.camera.updateProjectionMatrix(); if (game.player) game.player.body.scale.set(1, 1, 1); };
-  game.cancelWarp = () => { if (!warp) return; warp = null; resetView(); };
+  game.cancelWarp = () => { if (!warp) return; warp = null; recallWing(false); resetView(); };
   // break off a spool that has not gone yet (the jump fuel is refunded)
   const abort = (why) => {
     if (!warp || warp.phase === 'go') return;
     if (warp.kind === 'jump' && warp.cost) game.data.credits += warp.cost;
-    warp = null; resetView();
+    warp = null; recallWing(false); resetView();
     if (game.cue) game.cue('warpAbort');
     if (game.player) { game.world.fx.ring(game.player.position, game.player.dims.L * 0.8, 0x7ad8ff, 30); game.player.throttle = 0.4; }
     game.ui.toast(why, 'bad');
@@ -145,12 +158,22 @@ export function installNav(game) {
   const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
   // the warning across the top of the screen: from the moment the drive is engaged (coming about, then the spool)
   // until the ship is away, or the spool is broken off
-  const SPOOL_WARNING = 'WARNING : WARP DRIVES SPOOLING UP';
-  let warned = false;
+  // (while the wing comes home it reads RECOVERING WING with the count still out, then WING ABOARD as the doors seal)
+  const SPOOL_WARNING = 'WARNING : WARP DRIVES SPOOLING UP', WING_ABOARD = 'WING ABOARD : BAY DOORS SEALED';
+  let warned = null, wingText = '', wingN = -1;
   game.engine.add({
     update(dt, t, realDt) {
       const spooling = !!warp && warp.phase !== 'go' && !!game.player && game.mode === 'space';
-      if (spooling !== warned && game.ticker) { warned = spooling; game.ticker.banner(spooling ? SPOOL_WARNING : null, { cls: 'warn' }); }
+      let text = null, cls = 'warn';
+      if (spooling) {
+        const n = warp.wing && hangars() ? hangars().airborne(game.player) : 0;
+        if (n) {
+          if (n !== wingN) { wingN = n; wingText = `RECOVERING WING : ${n} CRAFT INBOUND`; }
+          text = wingText; cls = '';
+        } else if (warp.wing || (warp.sealedAt >= 0 && warp.total - warp.sealedAt < SEALED)) { text = WING_ABOARD; cls = ''; }
+        else text = SPOOL_WARNING;
+      }
+      if (text !== warned && game.ticker) { warned = text; game.ticker.banner(text, { cls }); }
       if (!warp || !game.player || game.mode !== 'space') return;
       const s = game.player, W = game.world, fx = W.fx, inp = game.input;
       if (!s.alive) { game.cancelWarp(); return; }
@@ -169,7 +192,18 @@ export function installNav(game) {
         s.throttle = 0.2;
         comeAbout(s, off, realDt, realDt > 0 ? dt / realDt : 1);
         if (Math.random() < realDt * 4) for (const e of s.engines) { const p = e.pos.clone().applyAxisAngle(THREE.Object3D.DEFAULT_UP, s.heading).add(s.position); fx.trailPuff(p, 0x9fd8ff, e.r * 1.5, 0.4); }
-        if ((Math.abs(off) < ALIGN_TOL && warp.t > 0.8) || warp.t > ALIGN_MAX) {
+        // the wing coming home: the spool waits for the last craft and the bay doors
+        if (warp.wing) {
+          const H = hangars();
+          if (H && warp.total > RECALL_MAX) H.stow(s);
+          if (!H || !H.airborne(s)) {
+            warp.wing = 0; warp.sealedAt = warp.total;
+            if (game.audio) game.audio.play('deckSecure', null, 1);
+            fx.ring(s.position, s.dims.L * 0.7, 0x7ad8ff, 36);
+          }
+        }
+        const sealed = !warp.wing && warp.total - warp.sealedAt >= SEALED;
+        if (sealed && ((Math.abs(off) < ALIGN_TOL && warp.t > 0.8) || warp.t > ALIGN_MAX)) {
           warp.phase = 'spool'; warp.t = 0;
           if (game.audio) game.audio.play('spool', null, warp.kind === 'jump' ? 1 : 0.7);
           if (game.cue) game.cue('warpAlign');
@@ -247,6 +281,7 @@ export function installNav(game) {
   });
   function arrive() {
     const s = game.player;
+    recallWing(false);
     if (game.cue) game.cue(warp && warp.kind === 'jump' ? 'jumpArrive' : 'warpArrive');
     resetView();
     if (game.player) game.player.body.scale.set(1, 1, 1);

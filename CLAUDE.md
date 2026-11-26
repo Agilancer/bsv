@@ -104,14 +104,28 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
     climbing and go home to rearm; gunships take firing stations off the target's flank, nose on, moving every few
     seconds; escort frigates screen on the carrier-target line, broadside on. Drones ride over the deck and hop between
     work sites on the hull while it needs mending, the tender over the stern, a decoy toward the threat. With nothing
-    to fight a wing forms an echelon off its bay's quarter (`data/craft.js` `formSlot`, outside the shield bubble),
-    holds `FORM_HOLD` s, then recovers lead first, abeam the bay mouth and in (a frigate stays on escort). Formation
+    to fight a wing flies a tight echelon along the stern quarter on its bay's side (`data/craft.js` `formSlot`), the
+    lead a few metres outside the hull's real outline there (`Hangars.profile`: per slice along the hull, how far it
+    reaches out, guns included, and its deck height, measured once from the meshes; drones ride just over that deck),
+    holds `FORM_HOLD` s, then recovers. Recovery: the craft queue along the hull's side abeam their bay mouth (order by
+    ETA, `dseq`), and the head turns its nose into the mouth and is drawn in on a tractor beam (`style: 'tractor'`,
+    ends moved each frame) with amber strobes either end of the mouth (`bayLights`), the clamps ringing as it goes in
+    (synth `tractor`, `dockClamp`). A frigate stays on escort until a recall. Before the drive spools the wing comes
+    home: `game.warpTo` / `jumpTo` call `hangars.recall(ship)` (launches stop, everything flies home at `HOMEWARD`
+    speed and docks; synth `recall`), the ship comes about meanwhile, and the spool waits until the last craft is aboard
+    (`deckSecure`: the bay doors boom shut, a rising all-clear) plus `SEALED` s; the ticker banner reads RECOVERING WING :
+    n CRAFT INBOUND, then WING ABOARD, then the spool warning (`RECALL_MAX` takes stragglers aboard at once). Formation
     craft station-keep (arrive on a point moving with the carrier: `fly`), so they match its course. Do not bring back
     orbiting (craft circling a ship fast was removed on request). Measure: `node tools/wingprobe.cjs [yard] [tier]
-    [fight s] [idle s] --trace=out.png [--bays=]` (deg/s of bearing round the ship worked, distance, wing damage; tracks).
-    Craft are drawn larger than life (`DRAW` by class). Review: `tools/craft_viewer.html?line=` (+ `tools/craftshots.cjs
+    [fight s] [idle s] --trace=out.png [--bays=]` (deg/s of bearing round the ship worked, distance, wing damage, recall
+    time; tracks). Craft are drawn small enough to fit their carrier (`data/craft.js` `DRAW` by class: at most a seventh
+    of the shortest hull that berths them, test-enforced). Review: `tools/craft_viewer.html?line=` (+ `tools/craftshots.cjs
     <dir> "&line="`), in game `tools/craftscene.cjs <out.png> <yard> <tier> <faction>`.
-  - Shields you can see: `fx/materials.js` `shieldMaterial` lights each of the four facings by its own charge (`facing`
+  - Shields you can see: the bubble is fitted round the whole ship (`Ship.fitShield`, every refit: the hull sampled once,
+    each gun as far as it reaches at any training, a prow gun as mounted; grown from the standard bubble, kitPlan.js
+    `SHIELD`, along the cheapest axis until all of it is inside with `SHIELD_ROOM` to spare, centred fore and aft on
+    it). The hit model (`hitRadius`, `shipCapsule`) still uses the standard size, so balance does not move with it.
+    `fx/materials.js` `shieldMaterial` lights each of the four facings by its own charge (`facing`
     uniform; `idle` = the standing shell, always on the captain's ship, fainter on their target), and ripples a hit in
     the colour of what it absorbed (`items.js` `SHIELD_HIT` by damage type, `Ship.onShieldHit`). The overlay
     (`UI.drawShieldArcs`) draws the facings as arcs round the nav ring under the captain's ship. `Combat.damage` leaves
@@ -321,7 +335,8 @@ import map in `index.html`, three vendored in `vendor/three/` (with the addons w
   goal sells the rest. `tools/soak.cjs` reports pods / motes recovered.
 - The drive (nav/index.js) never spools with a hostile within 1800 (`WARP_CLEAR`), and breaks off (jump fuel refunded)
   if one closes in or the captain takes the helm. Phases: align (the helm comes round at the ship's own turn rate, up
-  to 9 s) -> spool (4 s of building effects) -> go (fast eased transit). The Game helm stands down while warping.
+  to 9 s; any hangar craft out are recalled and docked meanwhile, and the spool waits for them) -> spool (4 s of
+  building effects) -> go (fast eased transit). The Game helm stands down while warping.
 - The drive is used sparingly: autopilot routes call `game.autoWarp(pos)` (7500+ units and 100 s apart; false = sail).
   Shorter legs are sailed at cruise (`ship.cruiseUntil`, 1.9x, only with nothing hostile near), and the director sends
   a patrol to meet the ship after a quiet stretch under way (`PASSAGE_QUIET`). Far station errands wait for the drive

@@ -44,44 +44,57 @@ export function wingLine(craft, count, L) {
   return 'Led by ' + lead.map((p) => `a${/^[aeiou]/.test(CRAFT[p.kind].name) ? 'n' : ''} ${CRAFT[p.kind].name}`).join(' and ');
 }
 
+// How large a craft is drawn (x its Blender model, by class). A craft is drawn at most a seventh of the length of
+// the shortest hull that berths it (tests/craft.test.mjs), so a wing looks like it fits in its carrier: a fighter
+// about 5-7 long, a gunship about 10-12, an escort frigate about 21-23.
+export const DRAW = { S: 0.75, M: 0.75, L: 0.65 };
+
 // Where a craft keeps station on its carrier, in the carrier's frame (+x port, +y up, +z bow); dims = ship.dims.
 // side: +1 for a port bay, -1 starboard; row: which pair of bays (0 the first, 1 the second...); fi: the craft's
-// place among its bay's craft of the same role, lead craft first. A wing with nothing to fight forms an echelon
-// off its bay's quarter, clear of the shield bubble (Ship.js: semi-axes W x 2.3, L x 0.62) by a few lengths,
-// stepping out and aft; an escort frigate holds abeam, a little below; repair drones ride over the deck and a
-// tender above the stern. No slot moves: nothing circles the carrier.
+// place among its bay's craft of the same role, lead craft first. reach(z), when given, is how far the carrier
+// reaches out to the side at z, guns included (Hangars measures it from the hull); else the broadside guns' ~2.45 x
+// the half-beam. A wing with nothing to fight flies a tight echelon along the stern quarter on its bay's side, the
+// lead a few metres outside the hull there, each next craft a length out and back (a port and a starboard wing make
+// a V on the carrier's stern). An escort frigate holds abeam just outside the guns; repair drones ride just over the
+// deck (Hangars puts them on the hull's real height) and a tender over the stern. No slot moves: nothing circles.
 export const FORM = {
-  strike: { x: 2.1, gap: 20, y: 8, z: 0.28, out: 20, up: 2, back: 15 },
-  frigate: { x: 2.4, gap: 60, y: -6, z: 0.05 },
+  strike: { z: 0.34, clear: 3, y: 0.3, out: 6, up: 0.6, back: 7 },
+  frigate: { z: 0.12, clear: 4, y: -3 },
 };
+// half a craft's beam as drawn, by class: room to keep off the hull
+const HALF_BEAM = { S: 2.3, M: 3.6, L: 4.2 };
 export const ROLE = { fighter: 'strike', bomber: 'strike', gunship: 'strike', torpboat: 'strike', frigate: 'frigate', drone: 'drone', tender: 'tender', decoy: 'decoy' };
-export function formSlot(kind, fi, side, row, dims, out = { x: 0, y: 0, z: 0 }) {
-  const { L, W } = dims, top = dims.top ?? dims.Ht * 1.3;
+export function formSlot(kind, fi, side, row, dims, out = { x: 0, y: 0, z: 0 }, reach = null) {
+  const { L, W, Ht } = dims, hb = HALF_BEAM[(CRAFT[kind] || CRAFT.fighter).cls];
+  const at = (z) => Math.max(W, reach ? reach(z) : W * 2.45);
   switch (ROLE[kind]) {
     case 'frigate': {
-      const F = FORM.frigate;
-      out.x = side * (W * F.x + F.gap + row * 40 + fi * 50); out.y = F.y - row * 6; out.z = L * F.z - row * 30 - fi * 30;
+      const F = FORM.frigate, n = row + fi, z = -L * F.z - n * 24;
+      out.x = side * (Math.max(at(z), at(z + 12), at(z - 12)) + F.clear + hb + n * 22); out.y = F.y - row * 4; out.z = z;
       break;
     }
     case 'drone':
-      out.x = side * W * (0.35 + 0.35 * (fi % 2)); out.y = top + 5 + (fi % 2) * 2;
-      out.z = clampZ(L * (0.3 - 0.22 * fi - 0.11 * row), L);
+      out.x = side * W * (0.3 + 0.3 * (fi % 2)); out.y = Ht + 4;
+      out.z = clampZ(L * (0.3 - 0.2 * fi - 0.1 * row), L);
       break;
     case 'tender':
-      out.x = side * W * 0.8; out.y = top + 18 + row * 8 + fi * 6; out.z = -L * 0.42 - 14 - row * 20 - fi * 18;
+      out.x = side * W * 0.5; out.y = Ht + 8 + row * 5; out.z = -(L * 0.5 + 12 + (row + fi) * 12);
       break;
     case 'decoy':   // with nothing to draw fire from, astern and a little low
-      out.x = 0; out.y = -4; out.z = -L * 0.6 - 30;
+      out.x = 0; out.y = -(dims.Hb ?? Ht) - 4; out.z = -(L * 0.5 + 16);
       break;
     default: {
-      const F = FORM.strike;
-      out.x = side * (W * F.x + F.gap + fi * F.out + row * 12); out.y = top * 0.5 + F.y + fi * F.up + row * 14;
-      out.z = -L * F.z - fi * F.back - row * 28;
+      // the echelon's line starts just outside the hull at the lead's station (or wherever it is wider further aft)
+      // (the lead may be a medium craft: the rest keep a little extra room from it)
+      const F = FORM.strike, z0 = -L * F.z - row * 16, z = z0 - fi * F.back - (fi ? 4 : 0);
+      const base = Math.max(at(z0), at(z0 - 8), at(z));
+      out.x = side * (base + F.clear + hb + fi * F.out + (fi ? 2 : 0) + row * 9); out.y = Ht * F.y + fi * F.up + row * 4;
+      out.z = z;
     }
   }
   return out;
 }
-function clampZ(z, L) { return Math.max(-L * 0.45, Math.min(L * 0.45, z)); }
+function clampZ(z, L) { return Math.max(-L * 0.42, Math.min(L * 0.42, z)); }
 
 // Design lines: each is one Blender model set (tools/blender/craft_<line>.py -> assets/ships/craft/<line>.glb), a
 // design language across all eight craft. A wing flies its carrier's yard's line, so craft look like they came
