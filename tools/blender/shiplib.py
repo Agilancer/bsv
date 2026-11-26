@@ -125,6 +125,9 @@ def bulge(h, ya, yb, xo, top, bot, tag='hull'):
     ya and yb (a sponson, a blister, a flank fairing): cut_side then sinks the mount into its face."""
     i1, x1 = _cross(h, ya)
     i0, x0 = _cross(h, yb, True)
+    # never inside the section it swells from (a rounded flank can bulge past a flat housing face): the housing's
+    # section then contains the bare one, so the caps a flush neighbour hides stay hidden
+    xo = max([xo, x1, x0] + [x for x, y, _ in h[i1 + 1:i0 + 1] if yb <= y <= ya])
     return h[:i1 + 1] + [(min(x1, xo), ya, tag), (xo, top, tag), (xo, bot, tag), (min(x0, xo), yb, h[i0][2])] + h[i0 + 1:]
 
 

@@ -47,7 +47,7 @@ export function hullMaterials(yardKey, glowOverride = null, liveryKey = null, pa
   let y = lv ? { ...YARDS[yardKey], ...lv.palette } : YARDS[yardKey];
   if (glowOverride != null) y = { ...y, glow: glowOverride, window: lv?.palette.window ?? glowOverride, engine: glowOverride };
   if (pk) y = paintPalette(y, paint);
-  const scale = float(1 / 16);
+  const scale = float(1 / (y.texTile || 16));     // plate texture: one tile per 16 units, or the yard's own size
   const plate = (name, tint, rough, metal, windows = false, plain = false) => {
     const m = new THREE.MeshStandardNodeMaterial();
     const base = triplanarTexture(texture(tex(name)), null, null, scale);

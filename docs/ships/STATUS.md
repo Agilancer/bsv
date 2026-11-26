@@ -113,6 +113,28 @@ Read this first when picking the work up (new session or another model). Then `C
       truss amidships, where the shield is widest, with the biggest pair.
     - Ironhold: a lighter plate (tintMul 1.5) and fewer window lights (0.34, was 0.6): the brief asks for a light
       armour tint and little glow.
+    - Iteration 1 (review/iter1): both critics REJECT. Art director: T8 shows no delta, T6's split head and T9's
+      gun spine / split prow do not read, T10 fuses into one oval, T2's shoulders do not read, Tidewright has no
+      silhouette of its own (square arrays, short bow, low capital towers), Corsair plate too busy, gold boss rows on
+      Aurelian's grooves, Ironhold sponsons not proud, prow guns sticking out. Technical: T5's turret blisters
+      (Aurelian, Hollow) wall in the upper broadside; hidden-cap removal left see-through slits on Aurelian (a groove
+      fairing cut inside the rounded section); Corsair T10's raised decks block the body's guns; prow housings out of
+      the hull (Tidewright T4 / T8); floating collars, hangar mouths and nozzle housings; the PROFILE warp squashed
+      fixed-size parts and nozzles; the tests could not see any of it; kit-spec silent on the warp.
+      Fixed for iteration 2: `shipkit.delta` (a thick delta in the yard's own section, root chord 0.28 L aft of the
+      battery, half-span 1.7 W: the shield allows no more there; Corsair's carries a hangar gallery and its flight deck),
+      `split_head` (T6: upper and lower lobes round a deep slot open at the prow, the lower 0.8 W longer), `split_prow`
+      (T9: twin prow halves, the spinal muzzle between them short of their tips; Ironhold's blunt), side hulls stand off
+      the body (an open gap of about 0.25 W, `side_cx`, crossways 2.8 W apart) with a housing band round their
+      trench; `ynacelle` (T2: nacelles to the stern face, 1.3 W, their noses off the flank); Tidewright: long stern
+      panels, belly trusses with a long pair on T5/T6 (keels on T7/T10, two pairs on T9), a longer frigate bow tapering
+      from near its root, capital towers 1.1 W tall (as tall as the `dims.top` test allows); Corsair plate darker and
+      cool, patches 2.75x larger (`YARDS.corsair.texTile`, materials.js); Aurelian bosses plain plate; Ironhold sponsons
+      0.2 W proud; Hollow prow mounts buried further aft. Technical fixes: narrow sections get an octagonal pit and a
+      short-skirted collar; `shiplib.bulge` never cuts inside the section; the lance's prow mounts aft; block collars,
+      side-hull lips and hangar sockets on the real face; nozzle housings reach the nozzle plate (`NOZ_DEPTH`); no stern
+      warp and fixed parts move rigidly (`warpShift`); new tests (`tests/support/hullGeom.mjs`: holes, floating pieces,
+      mount margins, fan blockage against Velscour) and kit-spec section 7 step 9.
   All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
   session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 

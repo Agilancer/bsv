@@ -58,7 +58,7 @@ class Hollow(K.Style):
 
     def nozzle(self, p, x, y, r, z, n):     # a vent organ: a flared trumpet of carapace
         m = x > 1e-6
-        p.tube([(1.7 * r, 0.55 * r), (0.9 * r, 0.8 * r), (0.2 * r, 1.12 * r)], (x, y, z), 'z', 10, 'hull', mirror=m, cap_mat=('hull', 'dark'))
+        p.tube([(max(1.7 * r, K.NOZ_DEPTH), 0.55 * r), (0.9 * r, 0.8 * r), (0.2 * r, 1.12 * r)], (x, y, z), 'z', 10, 'hull', mirror=m, cap_mat=('hull', 'dark'))
         p.tube([(0.5 * r, 0.74 * r), (0.12 * r, 0.86 * r)], (x, y, z), 'z', 10, 'engine', mirror=m)
 
     def fins(self, variant, fins):
@@ -81,7 +81,7 @@ class Hollow(K.Style):
         # the body closes round a maw, lit red from within, that holds the prow weapons
         taper(p, h, z0, ln, [(0, 1, 1, 0), (0.25, 0.92, 0.94, 0), (0.5, 0.7, 0.76, 0), (0.68, 0.42, 0.5, 0), (0.72, 0.3, 0.36, 0), (0.66, 0.2, 0.24, 0)], over={4: 'dark'}, cap_mat=('hull', 'glow'))
         for x in marks:
-            p.marker('hp.pr', (x * u, 0, z0 + 0.66 * ln - 0.62 * B.S))
+            p.marker('hp.pr', (x * u, 0, z0 + 0.42 * ln - 0.62 * B.S))      # (buried where the body is still full)
         P = lambda x, y, t: (x * u, y * u, z0 + t * ln)
         p.sweep([P(0.72, -0.12, 0.3), P(0.98, -0.16, 0.55), P(0.86, -0.2, 0.8), P(0.4, -0.22, 1.0)], [0.2 * u, 0.24 * u, 0.16 * u, 0.03 * u], 6, 'hull', squash=1.3, mirror=True)    # mandibles
         p.sweep([P(0, 0.6, 0.3), P(0, 0.56, 0.6), P(0, 0.3, 0.86)], [0.3 * u, 0.24 * u, 0.04 * u], 6, 'hull', squash=0.7)       # the rostrum over the maw
@@ -89,7 +89,7 @@ class Hollow(K.Style):
     # ---- the body: bulging carapace lofts, ribs and limbs (no boxes, no straight edges)
     block_fore = ((0.06, 1.35), (0.4, 1.0), (0.75, 0.6), (0.95, 0.25))
     block_aft = ((0.1, 1.1), (0.5, 0.75), (0.85, 0.4), (0.98, 0.14))
-    side = dict(w=0.42, bow=((1.07, 0.4, 0.0), (1.0, 0.9, -0.03), (0.8, 1.35, -0.1), (0.5, 1.7, -0.2), (0.18, 1.95, -0.32)),
+    side = dict(w=0.36, gap=0.24, bow=((1.07, 0.4, 0.0), (1.0, 0.9, -0.03), (0.8, 1.35, -0.1), (0.5, 1.7, -0.2), (0.18, 1.95, -0.32)),
                 stern=((1.06, -0.5, -0.02), (0.95, -1.2, -0.12), (0.78, -2.0, -0.3), (0.62, -3.1, -0.5)))
 
     def blockp(self, u, xi, xo):            # a swollen brood flank
@@ -102,7 +102,7 @@ class Hollow(K.Style):
                 p.sweep([(-0.2 * u, 0.6 * u, z + 0.1 * u), (0.22 * u, 0.74 * u, z), (0.56 * u, 0.5 * u, z - 0.05 * u), (0.7 * u, 0.12 * u, z - 0.2 * u)], [0.16 * u, 0.15 * u, 0.11 * u, 0.02 * u], 6, 'hull')
                 p.sweep([(-0.2 * u, -0.56 * u, z + 0.1 * u), (0.22 * u, -0.7 * u, z), (0.56 * u, -0.46 * u, z - 0.05 * u), (0.68 * u, -0.1 * u, z - 0.2 * u)], [0.15 * u, 0.14 * u, 0.1 * u, 0.02 * u], 6, 'hull')
         elif variant == 'sidehull':         # a dorsal crest of spines along the brood hull
-            cx = 0.5 * u
+            cx = K.side_cx()[0] * u
             for z in (-1.1, -0.3, 0.5, 1.3):
                 p.sweep([(cx, 0.36 * u, (z + 0.3) * u), (cx + 0.02 * u, 0.62 * u, z * u), (cx + 0.05 * u, 0.8 * u, (z - 0.5) * u)], [0.16 * u, 0.1 * u, 0.02 * u], 5, 'hull')
 
@@ -144,13 +144,13 @@ class Hollow(K.Style):
         p.tube([(-0.25 * hx, 0.025 * u), (0, 0.05 * u), (0.25 * hx, 0.025 * u)], (0, dome * 0.5, hz * 0.93), 'x', 6, 'glow')
         return p
 
-    def wing(self, B):
+    def wing(self, B):                      # a carapace fin, two sickle ribs grown over it and hooked past its edge
         u = B.W
-        p = Part('appendage', 'delta', B.id)
-        for zo, k in ((0.2, 1.0), (-0.7, 0.8)):         # sickle limbs reaching forward
-            p.sweep([(-0.2 * u, 0, (zo - 0.5) * u), (0.35 * u * k, -0.05 * u, (zo + 0.1) * u), (0.64 * u * k, -0.14 * u, (zo + 0.9) * u), (0.58 * u * k, -0.26 * u, (zo + 1.7) * u)],
-                    [0.3 * u, 0.26 * u, 0.16 * u, 0.03 * u], 6, 'hull', squash=0.6)
-        det(p, 'light', (0.64 * u, -0.1 * u, 1.1 * u), 0, side='this')
+        p, st = K.delta(B)
+        for f, k in ((0.3, 1.0), (0.68, 0.9)):
+            pts = [(x * u, (yc + th * 0.42) * u, (zr + (zf - zr) * f) * u) for x, zr, zf, yc, th in st[:-1]]
+            pts.append((st[-1][0] * u * k, (st[-1][3] - 0.02) * u, (st[-1][1] + 0.02) * u))
+            p.sweep(pts, [0.12 * u, 0.11 * u, 0.09 * u, 0.06 * u, 0.015 * u], 6, 'hull', squash=0.6)
         return p
 
 

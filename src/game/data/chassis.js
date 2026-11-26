@@ -27,14 +27,14 @@ export const YARDS = {
   },
   ironhold: {
     name: 'Ironhold Foundry', short: 'IRH', blurb: 'Brick-hulled foundry ships. Thick armour, slow turns, enormous broadsides.',
-    hull: 'hull_dropship', trim: 'hull_apc', dark: 'hull_graphite', tint: 0xd8d2c4, trimTint: 0xd8c070, tintMul: 1.5,
+    hull: 'hull_dropship', trim: 'hull_apc', dark: 'hull_graphite', tint: 0xd8d2c4, trimTint: 0xd8c070, tintMul: 2.4,
     glow: 0xffc040, window: 0xffd070, engine: 0xffa030, windowDensity: 0.34,
     prow: 'blunt', castle: 'block', spires: 0, sails: 0, buttress: true, keel: 0.4, sponsons: 1.0, hullRound: 0.0, glowMul: 0.7,
     names: ['Anvil', 'Bulwark', 'Crucible', 'Rampart', 'Smelter', 'Bastion', 'Forgeheart', 'Juggernaut', 'Citadel', 'Mountain of Ironhold'],
   },
   corsair: {
     name: 'Corsair Free Union', short: 'CFU', blurb: 'Scavenged, uparmoured, bristling. Rakish raiders with too many guns.',
-    hull: 'hull_mech', trim: 'hull_apc', dark: 'hull_dropship', tint: 0xd0c8c0, trimTint: 0xff7060,
+    hull: 'hull_mech', trim: 'hull_apc', dark: 'hull_dropship', tint: 0x8c9096, trimTint: 0xff7060, texTile: 44,   // dark cool plate, big patches
     glow: 0xff3050, window: 0xff8070, engine: 0xff4060,
     prow: 'fork', castle: 'scrap', spires: 1, sails: 1, buttress: false, keel: 0.8, sponsons: 0.8, hullRound: 0.1,
     names: ['Jackal', 'Cutlass', 'Magpie', 'Blackjack', 'Harrow', 'Reaver', 'Marauder', 'Dread Pennant', 'Kingslayer', 'Black Armada'],

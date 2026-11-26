@@ -65,15 +65,15 @@ export const YARDS = ['velscour', 'aurelian', 'tidewright', 'ironhold', 'corsair
 const SECTIONS = { 3: 3, 4: 4, 5: 2, 6: 3, 8: 3, 9: 3, 10: 3 };
 // The destroyer of a yard with three broadside mounts a side runs on three battery sections, so its snout can be
 // nearly half the ship (Ironhold's has four mounts, four sections and a shorter snout).
-const DD = { 4: { sections: 3 } };
+const DD = { 4: { sections: 3 } }, KEEL = { part: 'ventral', variant: 'keel', sock: 'sock.bottom', u: 0.5 };
 export const LANG_LAYOUT = {
   // the turret yard: one more section where the class carries more turrets than the ladder has wells
   aurelian: { ...DD, 7: { sections: 4 }, 9: { sections: 4 } },
   // carriers: flight-deck pontoons on the cruiser, a second pair of hangar mouths on the heavy cruiser
   corsair: { ...DD, 6: { add: [{ part: 'appendage', variant: 'deck', sock: 'sock.side', u: 0.13, mirror: true }] }, 7: { add: [HANGAR(0.15)] } },
-  // the long-range yard: a belly truss amidships on the battleship carries its biggest collector arrays (the shield is
-  // widest there)
-  tidewright: { ...DD, 9: { add: [{ part: 'ventral', variant: 'keel', sock: 'sock.bottom', u: 0.5 }] } },
+  // the long-range yard: belly trusses amidships carry a long pair of collector arrays under the broadside (light
+  // cruiser and cruiser; the heavy cruiser and the dreadnought have their keels), the battleship's its biggest two pairs
+  tidewright: { ...DD, 5: { add: [KEEL] }, 6: { add: [KEEL] }, 9: { add: [{ part: 'ventral', variant: 'truss', sock: 'sock.bottom', u: 0.5 }] } },
   hollow: DD,
 };
 export function layoutFor(lang, tier) {
@@ -151,13 +151,15 @@ const at = (pl, p) => [pl.sx * pl.s * p[0] + pl.t[0], pl.s * p[1] + pl.t[1], pl.
 // generator); faceted yards are straight between joints, so they taper or rake linearly. Velscour and Ironhold
 // keep a constant section.
 // The plateau [p0, p1] is widened per hull to cover its broadside mounts (profileFor), so the curve works on the bow
-// and the stern; the beam amplitude is kept low where a yard has outboard dress at its ends (Hollow's mandibles and
-// tail spines, Tidewright's collector arrays), which the beam warp would draw in with the hull.
+// (and could on the stern); the beam amplitude is kept low where a yard has outboard dress at its ends (Hollow's
+// mandibles, Tidewright's collector arrays), which the beam warp would draw in with the hull. No yard warps its stern:
+// the nozzles there must stay round and match engines[].r. Fixed-size parts (detail, hangar mouths) only move with the
+// warp at their anchor; they are never scaled.
 export const PROFILE = {
-  aurelian: { p0: 0.4, p1: 0.5, fore: [0.16, 0.12, 0.12, 1.6], aft: [0.2, 0.12, 0.1, 1.6] },       // swelling amidships, drawn in both ways
-  hollow: { p0: 0.4, p1: 0.5, fore: [0.16, 0.14, 0.12, 1.6], aft: [0.2, 0.14, 0.16, 1.6] },        // a bulging body
-  tidewright: { p0: 0.12, p1: 0.3, fore: [0.06, 0.18, 0.18, 1], aft: [0.04, 0.04, 0.04, 1] },      // a long fine taper to the stem
-  corsair: { p0: 0.3, p1: 0.3, fore: [0.05, 0.2, 0, 1], aft: [0, 0, 0.18, 1] },                    // raked: the crown falls to the bow, the keel rises to the stern
+  aurelian: { p0: 0.4, p1: 0.5, fore: [0.16, 0.12, 0.12, 1.6], aft: [0, 0, 0, 1] },         // drawn in to the needle
+  hollow: { p0: 0.4, p1: 0.5, fore: [0.16, 0.14, 0.12, 1.6], aft: [0, 0, 0, 1] },           // a bulging body
+  tidewright: { p0: 0.12, p1: 0.3, fore: [0.06, 0.18, 0.18, 1], aft: [0, 0, 0, 1] },        // a long fine taper to the stem
+  corsair: { p0: 0.3, p1: 0.3, fore: [0.05, 0.2, 0, 1], aft: [0, 0, 0, 1] },                // raked: the crown falls to the bow
 };
 // the three scales at height u, into out = [kx, ky above, ky below]
 export function profileAt(pr, u, out) {
@@ -181,6 +183,13 @@ export function profileFor(pr, hardpoints, L, W, broad = null) {
   return out;
 }
 const KP = [1, 1, 1];
+// how far the warp moves a fixed-size part's anchor: the part moves with it, rigid
+function warpShift(w, t) {
+  if (!w) return null;
+  const q = t.slice();
+  warpAt(w, q);
+  return [q[0] - t[0], q[1] - t[1], q[2] - t[2]];
+}
 // warp a point of the placed ship in place (p: array, o: offset)
 function warpAt(w, p, o = 0) {
   profileAt(w.pr, (p[o + 2] - w.z0) / w.len, KP);
@@ -353,10 +362,10 @@ export function planHull(chassis, kit) {
     for (const e of engines) { e.pos = e.pos.slice(); warpAt(warp, e.pos); }
     const q = [0, 0, 0];
     placements.forEach((pl, i) => {
-      const cmd = isCommand(pl);
+      const cmd = isCommand(pl), d = pl.part.fixed ? warpShift(warp, pl.t) : null;
       for (const m of shown[i]) for (const g of Object.values(m.geo)) for (let k = 0; k < g.pos.length; k += 3) {
         q[1] = pl.s * g.pos[k + 1] + pl.t[1]; q[2] = pl.sz * g.pos[k + 2] + pl.t[2];
-        warpAt(warp, q);
+        if (d) q[1] += d[1]; else warpAt(warp, q);
         if (q[1] > top) top = q[1];
         if (!cmd && q[1] > hullTop) hullTop = q[1];
         if (q[1] < bottom) bottom = q[1];
@@ -388,7 +397,7 @@ export function bakePlan(plan, only = null) {
   let tris = 0;
   plan.placements.forEach((pl, i) => {
     if (only && !only(pl)) return;
-    const { s, sz, t, sx } = pl, kx = sx * s, warp = plan.warp;
+    const { s, sz, t, sx } = pl, kx = sx * s, dw = pl.part.fixed ? warpShift(plan.warp, t) : null, warp = dw ? null : plan.warp;
     for (const m of plan.shown[i]) for (const [mat0, g] of Object.entries(m.geo)) {
       const mat = matOf(pl, mat0);
       const P = out[mat].position, N = out[mat].normal, { pos, nrm, idx } = g;
@@ -400,7 +409,7 @@ export function bakePlan(plan, only = null) {
           const src = v + (sx < 0 ? (c === 1 ? 2 : c === 2 ? 1 : 0) : c), k = (idx ? idx[src] : src) * 3, d = o + c * 3;
           P[d] = kx * pos[k] + t[0]; P[d + 1] = s * pos[k + 1] + t[1]; P[d + 2] = sz * pos[k + 2] + t[2];
           let wx = 1, wy = 1;
-          if (warp) { warpAt(warp, P, d); wx = KP[0]; wy = P[d + 1] >= 0 ? KP[1] : KP[2]; }
+          if (warp) { warpAt(warp, P, d); wx = KP[0]; wy = P[d + 1] >= 0 ? KP[1] : KP[2]; } else if (dw) { P[d] += dw[0]; P[d + 1] += dw[1]; P[d + 2] += dw[2]; }     // (a fixed-size part moves rigid)
           if (nrm) {
             // normals go by the inverse transpose of the scale (the profile's slope along z is small: left out)
             const nx = nrm[k] / (kx * wx), ny = nrm[k + 1] / (s * wy), nz = nrm[k + 2] / sz, l = Math.hypot(nx, ny, nz) || 1;
@@ -469,13 +478,14 @@ export function kitSideProfile(plan, n = 96) {
   let zMin = Infinity, zMax = -Infinity;
   plan.placements.forEach((pl, i) => {
     if (pl.part.part === 'detail') return;
-    const cmd = isCommand(pl) ? 1 : 0;
+    const cmd = isCommand(pl) ? 1 : 0, dw = pl.part.fixed ? warpShift(plan.warp, pl.t) : null;
     for (const m of plan.shown[i]) for (const g of Object.values(m.geo)) {
       const { pos, idx } = g, cnt = idx ? idx.length : pos.length / 3, t = [];
       for (let v = 0; v < cnt; v++) {
         const k = (idx ? idx[v] : v) * 3, z = pl.sz * pos[k + 2] + pl.t[2];
         let y = pl.s * pos[k + 1] + pl.t[1];
-        if (plan.warp) { WQ[1] = y; WQ[2] = z; warpAt(plan.warp, WQ); y = WQ[1]; }
+        if (dw) y += dw[1];
+        else if (plan.warp) { WQ[1] = y; WQ[2] = z; warpAt(plan.warp, WQ); y = WQ[1]; }
         t.push(z, y); zMin = Math.min(zMin, z); zMax = Math.max(zMax, z);
         if (t.length === 6) { tri.push([...t, cmd]); t.length = 0; }
       }
