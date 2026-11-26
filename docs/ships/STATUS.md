@@ -151,8 +151,8 @@ Read this first when picking the work up (new session or another model). Then `C
    you" is out of band with both hulls (pre-existing, CLAUDE.md Balance): the gargantuan retune is a separate balance
    task. Soak gate with kit hulls: PASS (4.2 kills/min, 0.6 warps/min, no deaths, no hung goal).
 4. Enemy hulls: liveries and role kits on kit hulls, then the enemy-only languages (rustborn, silent, brood).
-5. Re-pick the title line (`src/fx/TitleScene.js`) from the new hulls; rename the sailing-ship fields
-   (`castle`, `keel`, `sails`...) in data and code.
+5. Title line: DONE (Hollow battleship lead, one uniform triple cannon on every turret and broadside mount; see
+   CLAUDE.md, `fx/`). Still to do: rename the sailing-ship fields (`castle`, `keel`, `sails`...) in data and code.
 
 ## Working rules that held up
 - One background agent per job; when two run at once, give each its own files and have it commit by

@@ -79,6 +79,25 @@
 body.planet-hud-hidden #menubar, body.planet-hud-hidden #chat, body.planet-hud-hidden #autoStatus, body.planet-hud-hidden #objectives, body.planet-hud-hidden .mbtn, body.planet-hud-hidden #pOverlay { display: none !important; }
 body.planet-hud-hidden .toast:not(.legend) { display: none; }
 
+/* planetfall / lift-off cinematic (Landing.js): letterbox, phase + telemetry, skip; the play HUD steps aside */
+#pCine { position: fixed; inset: 0; z-index: 29; pointer-events: none; }
+#planetHud.hudHidden > #pCine { display: block !important; }
+#pCine .lb { position: absolute; left: 0; right: 0; height: 10.5vh; background: #000; transition: transform 0.9s cubic-bezier(.2, .7, .2, 1); }
+#pCine .lb.top { top: 0; transform: translateY(-101%); }
+#pCine .lb.bot { bottom: 0; transform: translateY(101%); display: flex; align-items: center; justify-content: space-between; padding: 0 4vw; box-sizing: border-box; }
+#pCine.on .lb { transform: none; }
+#pCine .tl { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#pCine .ph { font-family: var(--head); font-weight: 600; font-size: clamp(11px, 1.5vw, 16px); letter-spacing: 0.32em; color: var(--white); text-shadow: 0 0 14px var(--cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#pCine .ph.in { animation: cinePh 0.7s ease-out; }
+@keyframes cinePh { from { opacity: 0; letter-spacing: 0.6em; } to { opacity: 1; letter-spacing: 0.32em; } }
+#pCine .tm { font-family: var(--font); font-size: clamp(10px, 1.2vw, 13px); letter-spacing: 0.18em; color: #8ab8d8; white-space: nowrap; }
+#pCine .skip { pointer-events: auto; background: transparent; border: 1px solid rgba(88, 200, 255, 0.35); color: #9ad0f0; font-family: var(--head); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; padding: 6px 12px; cursor: pointer; flex: none; }
+#pCine .skip:hover { border-color: var(--cyan); color: var(--white); }
+#pCine .skip kbd { font-family: var(--font); opacity: 0.6; margin-left: 6px; }
+body.planet-cine #planetHud > :not(#pCine):not(#pFade):not(#pDeath), body.planet-cine #menubar, body.planet-cine #chat, body.planet-cine #objectives,
+body.planet-cine #pOverlay, body.planet-cine #pTouch, body.planet-cine #autoStatus, body.planet-cine .mbtn, body.planet-cine #toasts { opacity: 0 !important; pointer-events: none !important; transition: opacity 0.5s; }
+body.mobile #pCine .skip kbd { display: none; }
+
 /* transitions */
 #pFade { position: fixed; inset: 0; z-index: 30; pointer-events: none; opacity: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 50%, rgba(30, 50, 110, 0.85), rgba(2, 4, 12, 0.98)); transition: opacity 0.6s; }
 #pFade.in { opacity: 1; }

@@ -237,7 +237,9 @@ export class Creatures {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * 6.28, r = e.radius + 4 + Math.random() * 4;
       const s = this.spawn(k, e.pos.x + Math.cos(a) * r, e.pos.z + Math.sin(a) * r, e.level - 1, { awake: true });
-      if (s) { s.capRoot = e; s.dmg *= kinMul; }
+      // kin answer to the summoner in health as well as damage: a call's worth of adds fights at half the boss's dps
+      // and dies as fast as that share of the fight, rather than full-health epics holding the explorer off the boss
+      if (s) { s.capRoot = e; s.dmg *= kinMul; s.hp *= kinMul; s.maxHp *= kinMul; }
       if (s) { M.pfx.ichor(s.pos, def.ichor, 6); M.pfx.dust(s.pos, 2, M.dustHex, 3, 4); M.pfx.pillar(s.pos, def.vis.glow, 10, 1, 8); }
     }
     e.glow = 1;
