@@ -64,9 +64,10 @@ def nozzle(P, at, r, depth=None, flame=2.6, segs=16, mat='dark', tint=DARK2, rin
     """an engine bell opening aft at `at` (the exit plane), the glowing throat inside it and its plume"""
     x, y, z = at
     d = depth or r * 1.1
-    P.cyl(r * 0.78, d, (x, y, z + d / 2), 'z', mat, tint, segs, r2=r, bevel=0.0)              # bell, wider aft
+    # the bell is open (a closed cap would hide the throat); the throat disc inside closes it
+    P.cyl(r * 0.78, d, (x, y, z + d / 2), 'z', mat, tint, segs, r2=r, bevel=0.0, caps=False)  # bell, wider aft
     P.torus(r * 0.97, r * 0.07, (x, y, z + 0.01), 'z', 'chrome', ring, segs, 4)                # lip
-    P.cyl(r * 0.80, 0.04, (x, y, z + d * 0.55), 'z', 'glow', WHITE, segs)                      # throat
+    P.cyl(r * 0.88, 0.04, (x, y, z + d * 0.55), 'z', 'glow', WHITE, segs)                      # throat, filling the bell
     P.cyl(r * 0.46, 0.05, (x, y, z + d * 0.50), 'z', 'lamp', 0xfff4ff, max(8, segs // 2))     # white-hot core
     if flame:
         L = r * flame

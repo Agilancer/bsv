@@ -250,7 +250,7 @@ def subq(q, u0, u1, v0, v1):
 # ---------------------------------------------------------------- the Concord's fittings
 def ring_shell(P, at, ri, ro, L, mat='hull', tint=PEARL, n=24, rot=None):
     """a short ring cowl (inner radius ri, outer ro, length L along z), its leading edge rounded"""
-    prof = [(ri, L / 2), (ri, -L / 2), (ro, -L / 2), (ro, L * 0.2), ((ri + ro) / 2, L / 2 + (ro - ri) * 0.4)]
+    prof = [(ri, L / 2), (ri, -L / 2), (ro, -L / 2), (ro * 0.985, L / 2)]
     return lathe(P, prof, at, mat, tint, n=n, rot=rot, loop=True, angle=40)
 
 
@@ -261,7 +261,7 @@ def halo(P, at, r, flame=2.6, segs=16, k=1.5, struts=4, paint=True, L=None, th=N
     P.cyl(r * 0.62, 0.02, (x, y, z - 0.012), 'z', 'glow', WHITE, max(8, segs // 2))
     R, L, th = r * k, L or r * 1.05, th or max(0.035, r * 0.13)
     zc = z + L * 0.42
-    ns = max(16, segs + 4)
+    ns = max(12, segs)
     ring_shell(P, (x, y, zc), R - th / 2, R + th / 2, L, 'hull', PEARL, ns)
     P.torus(R, th * 0.6, (x, y, zc - L / 2), 'z', 'trim', GOLD, ns, 4)
     if paint:
@@ -272,15 +272,15 @@ def halo(P, at, r, flame=2.6, segs=16, k=1.5, struts=4, paint=True, L=None, th=N
         P.strut((x + c * r * 0.82, y + s * r * 0.82, zc), (x + c * (R - th * 0.4), y + s * (R - th * 0.4), zc), L * 0.45, th * 0.55, 'trim', GOLD2)
 
 
-def lance(P, at, L, r, name='gun', props=None, collars=3, tint=CHROME):
+def lance(P, at, L, r, name='gun', props=None, collars=2, tint=CHROME, segs=6):
     """a lance barrel from `at` forward along +z: gilt breech and collars, a dark shroud, a glowing emitter"""
     x, y, z = at
-    P.cyl(r * 1.8, L * 0.16, (x, y, z + L * 0.08), 'z', 'trim', GOLD, 12)
-    P.cyl(r, L * 0.9, (x, y, z + L * 0.5), 'z', 'chrome', tint, 10, r2=r * 1.2)
+    P.cyl(r * 1.8, L * 0.16, (x, y, z + L * 0.08), 'z', 'trim', GOLD, segs)
+    P.cyl(r, L * 0.9, (x, y, z + L * 0.5), 'z', 'chrome', tint, segs, r2=r * 1.2)
     for k in range(collars):
-        P.cyl(r * 1.4, L * 0.035, (x, y, z + L * (0.34 + 0.2 * k)), 'z', 'trim', GOLD, 10)
-    P.cyl(r * 1.2, L * 0.1, (x, y, z + L * 0.95), 'z', 'dark', DARK2, 10, r2=r * 1.4)
-    P.cyl(r * 0.75, 0.02, (x, y, z + L + 0.005), 'z', 'glow', WHITE, 8)
+        P.cyl(r * 1.4, L * 0.035, (x, y, z + L * (0.36 + 0.24 * k)), 'z', 'trim', GOLD, segs)
+    P.cyl(r * 1.2, L * 0.1, (x, y, z + L * 0.95), 'z', 'dark', DARK2, segs, r2=r * 1.4)
+    P.cyl(r * 0.75, 0.02, (x, y, z + L + 0.005), 'z', 'glow', WHITE, 6)
     P.empty(name, (x, y, z + L + 0.02), props)
 
 
@@ -295,15 +295,12 @@ def canopy(P, at, L, R, sc=(1.0, 0.85), bezel=True, n=16):
         lathe(P, [(r * R * 1.08, zz * L * 1.04) for r, zz in TEAR], (x, y - R * sc[1] * 0.16, z), 'trim', GOLD, n=n, sc=sc, angle=60)
 
 
-def crown(P, S, z, R, r, nb=8, y=None, ph=0.0):
-    """the crown ring: a gilt ring standing off the hull at station z on radial brackets"""
-    hw, ht, hb, yc, p = secat(S, z)
-    yc = yc if y is None else y
-    P.torus(R, r, (0, yc, z), 'z', 'trim', GOLD, 40, 6)
+def crown(P, S, z, L=0.5, gap=0.18, th=0.08, nb=8, n=24, at=(0, 0, 0)):
+    """the crown ring: a gilt collar standing a hand's breadth off the hull at station z on radial brackets"""
+    band(P, S, z - L / 2, z + L / 2, 'trim', GOLD, n, off=gap, th=th, at=at)
     for i in range(nb):
-        a = (i + 0.5 + ph) / nb * TAU
-        root = hpt(S, z, a, -0.05)
-        P.strut(root, (math.cos(a) * (R - r * 0.5), yc + math.sin(a) * (R - r * 0.5), z), r * 1.4, r * 2.2, 'trim', GOLD2)
+        a = (i + 0.5) / nb * TAU
+        P.strut(hpt(S, z, a, -0.03, at), hpt(S, z, a, gap + 0.01, at), L * 0.55, 0.06, 'trim', GOLD2)
 
 
 def windows(P, S, z0, z1, a, n, s=0.1, at=(0, 0, 0)):
@@ -317,35 +314,32 @@ def turret(P, at, s=1.0, blen=2.0, flip=1, nb=2):
     """a smooth lance turret: barbette, gilt race, a long dome with a paint cap, nb lances"""
     x, y, z = at
     f = flip
-    P.cyl(0.74 * s, 0.14 * s, (x, y + 0.07 * s * f, z), 'y', 'dark', DARK2, 20)
-    P.torus(0.75 * s, 0.045 * s, (x, y + 0.14 * s * f, z), 'y', 'trim', GOLD, 24, 4)
+    P.cyl(0.74 * s, 0.14 * s, (x, y + 0.07 * s * f, z), 'y', 'dark', DARK2, 16)
+    P.torus(0.75 * s, 0.045 * s, (x, y + 0.14 * s * f, z), 'y', 'trim', GOLD, 14, 3)
     base = (x, y + 0.14 * s * f, z)
     lathe(P, [(0.66 * s, 0.0), (0.64 * s, 0.15 * s), (0.53 * s, 0.33 * s), (0.31 * s, 0.45 * s), (0.0, 0.50 * s)], base,
-          'hull', PEARL2, n=18, rot=(-90 * f, 0, 0), sc=(1.0, 1.25))
-    lathe(P, [(0.36 * s, 0.415 * s), (0.31 * s, 0.457 * s), (0.17 * s, 0.497 * s), (0.0, 0.512 * s)], base,
-          'paint', WHITE, n=18, rot=(-90 * f, 0, 0), sc=(1.0, 1.25))
+          'hull', PEARL2, n=12, rot=(-90 * f, 0, 0), sc=(1.0, 1.25))
+    lathe(P, [(0.36 * s, 0.415 * s), (0.25 * s, 0.474 * s), (0.0, 0.512 * s)], base,
+          'paint', WHITE, n=12, rot=(-90 * f, 0, 0), sc=(1.0, 1.25))
     yb = y + 0.36 * s * f
-    P.box(0.34 * s * nb + 0.12 * s, 0.24 * s, 0.34 * s, (x, yb, z + 0.6 * s), 'dark', DARK2, 0.02)
+    P.box(0.34 * s * nb + 0.12 * s, 0.24 * s, 0.34 * s, (x, yb, z + 0.6 * s), 'dark', DARK2, 0.0)
     for k in range(nb):
         lance(P, (x + (k - (nb - 1) / 2) * 0.34 * s, yb, z + 0.62 * s), blen, 0.055 * s, collars=2)
 
 
 def pdmount(P, at, s=1.0):
     x, y, z = at
-    P.cyl(0.30 * s, 0.14 * s, (x, y + 0.04 * s, z), 'y', 'dark', DARK2, 14)
-    P.torus(0.30 * s, 0.03 * s, (x, y + 0.11 * s, z), 'y', 'trim', GOLD, 16, 4)
-    P.sphere(0.24 * s, (x, y + 0.14 * s, z), 'hull', PEARL2, (1, 0.8, 1.1), segs=12)
+    P.cyl(0.30 * s, 0.14 * s, (x, y + 0.04 * s, z), 'y', 'trim', GOLD, 10)
+    P.sphere(0.24 * s, (x, y + 0.14 * s, z), 'hull', PEARL2, (1, 0.8, 1.1), segs=8)
     lance(P, (x, y + 0.2 * s, z + 0.12 * s), 0.85 * s, 0.035 * s, name='pd', collars=1)
 
 
-def dish(P, at, R, rot, tint=PEARL2, name='gun'):
+def dish(P, at, R, rot, tint=PEARL2, name='gun', n=16):
     """a beam dish facing local +z (turned by rot): pearl shell, dark bowl, gilt rim, green feed on three struts"""
-    lathe(P, [(0, -0.30 * R), (0.55 * R, -0.24 * R), (0.95 * R, -0.06 * R), (R, 0.06 * R), (0.95 * R, 0.09 * R),
-              (0.55 * R, -0.05 * R), (0, -0.11 * R)], at, 'hull', tint, n=20, rot=rot)
-    lathe(P, [(0.93 * R, 0.10 * R), (0.55 * R, -0.03 * R), (0.03 * R, -0.09 * R), (0.03 * R, -0.12 * R),
-              (0.55 * R, -0.06 * R), (0.93 * R, 0.07 * R)], at, 'dark', DARK2, n=20, rot=rot, loop=True)
-    lathe(P, [(R * 1.02, 0.03 * R), (R * 1.02, 0.11 * R), (R * 0.9, 0.11 * R), (R * 0.9, 0.08 * R)], at, 'trim', GOLD, n=24, rot=rot, loop=True)
-    lathe(P, [(0.2 * R, -0.02 * R), (0.2 * R, -0.06 * R), (0.0, -0.06 * R)], at, 'lamp', GREEN, n=12, rot=rot)
+    lathe(P, [(0, -0.30 * R), (0.6 * R, -0.22 * R), (R, 0.06 * R), (0.92 * R, 0.09 * R), (0, -0.11 * R)], at, 'hull', tint, n=n, rot=rot)
+    lathe(P, [(0.9 * R, 0.10 * R), (0.04 * R, -0.08 * R), (0.04 * R, -0.12 * R), (0.9 * R, 0.06 * R)], at, 'dark', DARK2, n=n, rot=rot, loop=True)
+    lathe(P, [(R * 1.02, 0.03 * R), (R * 1.02, 0.11 * R), (R * 0.9, 0.11 * R), (R * 0.9, 0.08 * R)], at, 'trim', GOLD, n=n, rot=rot, loop=True)
+    lathe(P, [(0.2 * R, -0.03 * R), (0.0, -0.03 * R)], at, 'lamp', GREEN, n=10, rot=rot)
     # the feed: three struts to a green emitter at the focus
     M = rotm(rot)
     c = V(at)
@@ -354,7 +348,7 @@ def dish(P, at, R, rot, tint=PEARL2, name='gun'):
         a = k / 3 * TAU + 0.5
         rim = c + M @ V((math.cos(a) * 0.9 * R, math.sin(a) * 0.9 * R, 0.08 * R))
         P.strut(tuple(rim), tuple(focus), 0.035 * R, 0.035 * R, 'trim', GOLD2)
-    P.sphere(0.09 * R, tuple(focus), 'lamp', GREEN, segs=10)
+    P.sphere(0.09 * R, tuple(focus), 'lamp', GREEN, segs=8)
     if name:
         P.empty(name, tuple(focus + M @ V((0, 0, 0.1 * R))))
 
@@ -375,10 +369,10 @@ def rotm(rot):
 def arm(P, sh, el, wr, w=0.07, s=1.0):
     """an articulated manipulator: gilt joints, pearl links, a two-finger claw"""
     for j in (sh, el):
-        P.sphere(w * 1.15, j, 'trim', GOLD, segs=8)
+        P.sphere(w * 1.15, j, 'trim', GOLD, segs=6)
     P.strut(sh, el, w, w, 'hull', PEARL2)
     P.strut(el, wr, w * 0.85, w * 0.85, 'hull', PEARL2)
-    P.sphere(w, wr, 'dark', DARK2, segs=8)
+    P.sphere(w, wr, 'dark', DARK2, segs=6)
     d = (V(wr) - V(el)).normalized()
     for k in (-1, 1):
         tip = V(wr) + d * 0.22 * s + V((k * 0.07 * s, 0, 0))
@@ -450,7 +444,7 @@ def fighter(P):
         P.sphere(0.035, (hx, hy - 0.15, hz - 0.6), 'dark', DARK2, segs=6)
     # the halo drive astern: a broad ring cowl round the main nozzle
     lathe(P, [(0.45, -2.6), (0.50, -2.75), (0.50, -3.1), (0.40, -3.2), (0.0, -3.2)], (0, 0, 0), 'hull', PEARL3, n=20)
-    halo(P, (0, 0, -3.45), 0.36, flame=3.0, segs=18, k=2.45, struts=4, L=0.62, th=0.1)
+    halo(P, (0, 0, -3.45), 0.36, flame=3.0, segs=22, k=2.45, struts=4, L=0.62, th=0.1)
     lamp(P, (0, 0.55, -2.95), STROBE, 0.04)
     greebles(P, rng, -0.12, 0.12, 0.55, -2.2, -1.0, 3, 0.04, 0.1)
 
@@ -493,7 +487,7 @@ def bomber(P):
         band(P, TS, 2.12, 2.28, 'trim', GOLD, 16, at=at)
         band(P, TS, -1.9, -1.75, 'paint', WHITE, 16, at=at)
         P.sphere(0.05, (tx, ty, 3.42), 'glow', WHITE, segs=6)
-        P.cyl(0.13, 0.04, (tx, ty, -2.77), 'z', 'glow', WHITE, 10)
+        P.cyl(0.12, 0.12, (tx, ty, -2.79), 'z', 'dark', DARK, 10, r2=0.15)
         for zz in (1.15, -1.05):     # cradle clamps
             band(P, TS, zz - 0.09, zz + 0.09, 'trim', GOLD, 16, off=0.008, th=0.04, at=at)
         blade(P, [((sx * 0.9, -0.1, 1.55), (sx * 0.95, -0.1, -1.55), 0.16),
@@ -514,7 +508,7 @@ def bomber(P):
         P.cyl(0.12, 0.3, (sx * 0.22, -0.66, 2.35), 'z', 'paint', WHITE, 10, r2=0.03)
     # engine block: three nozzles inside a crown ring
     band(P, S, -3.3, -3.05, 'paint', WHITE)
-    crown(P, S, -3.55, 1.32, 0.075, 8)
+    crown(P, S, -3.5, 0.42, 0.15, 0.07, 8, 20)
     nozzle(P, (0, 0.08, -4.45), 0.5, flame=3.0, segs=18, ring=GOLD)
     P.cyl(0.31, 0.02, (0, 0.08, -4.462), 'z', 'glow', WHITE, 12)
     for sx in (1, -1):
@@ -530,36 +524,33 @@ def drone(P):
     S = [(0.95, 0, 0, 0, 0, 2), (0.88, 0.20, 0.17, 0.17, 0, 2), (0.72, 0.36, 0.30, 0.29, 0, 2), (0.48, 0.46, 0.38, 0.37, 0, 2),
          (0.18, 0.50, 0.42, 0.40, 0, 2), (-0.15, 0.48, 0.40, 0.39, 0, 2), (-0.48, 0.40, 0.33, 0.33, 0, 2),
          (-0.75, 0.29, 0.25, 0.25, 0, 2), (-0.92, 0.20, 0.18, 0.18, 0, 2)]
-    hull(P, S, 'hull', PEARL, 18)
-    patch(P, S, -0.62, 0.52, UP - 0.55, UP + 0.55, 'paint', WHITE, nz=5, na=4, off=0.004, th=0.01)
-    band(P, S, 0.60, 0.66, 'trim', GOLD, 18)
-    band(P, S, -0.70, -0.66, 'trim', GOLD, 18)
-    for a in (0.0, math.pi):
-        patch(P, S, -0.6, 0.55, a - 0.05, a + 0.05, 'trim', GOLD, nz=4, na=1, off=0.003, th=0.01)
+    hull(P, S, 'hull', PEARL, 16)
+    patch(P, S, -0.62, 0.52, UP - 0.55, UP + 0.55, 'paint', WHITE, nz=4, na=4, off=0.004, th=0.01)
+    band(P, S, 0.60, 0.66, 'trim', GOLD, 16)
+    band(P, S, -0.70, -0.66, 'trim', GOLD, 16)
     # crown sensor ringed in green
-    P.cyl(0.13, 0.06, (0, 0.425, -0.12), 'y', 'dark', DARK2, 14)
-    P.torus(0.13, 0.022, (0, 0.46, -0.12), 'y', 'lamp', GREEN, 16, 4)
-    P.sphere(0.065, (0, 0.47, -0.12), 'glow', WHITE, segs=8)
-    P.cyl(0.012, 0.32, (-0.14, 0.52, -0.45), 'y', 'chrome', GOLD, 5)
+    P.cyl(0.13, 0.06, (0, 0.425, -0.12), 'y', 'dark', DARK2, 12)
+    P.torus(0.13, 0.022, (0, 0.46, -0.12), 'y', 'lamp', GREEN, 12, 4)
+    P.sphere(0.065, (0, 0.47, -0.12), 'glow', WHITE, segs=6)
+    P.cyl(0.012, 0.32, (-0.14, 0.52, -0.45), 'y', 'chrome', GOLD, 4)
     lamp(P, (-0.14, 0.69, -0.45), STROBE, 0.03)
     # the mending lens on a short gilt neck
-    P.cyl(0.08, 0.2, (0, 0, 1.0), 'z', 'trim', GOLD, 10)
-    lathe(P, [(0.0, -0.06), (0.2, -0.02), (0.24, 0.05), (0.2, 0.06), (0.0, 0.02)], (0, 0, 1.12), 'hull', PEARL2, n=16)
-    P.cyl(0.16, 0.02, (0, 0, 1.16), 'z', 'lamp', GREEN, 14)
-    P.torus(0.235, 0.022, (0, 0, 1.17), 'z', 'trim', GOLD, 16, 4)
-    P.sphere(0.05, (0, 0, 1.22), 'lamp', GREEN, segs=8)
+    P.cyl(0.08, 0.2, (0, 0, 1.0), 'z', 'trim', GOLD, 8)
+    lathe(P, [(0.0, -0.06), (0.2, -0.02), (0.24, 0.05), (0.2, 0.06), (0.0, 0.02)], (0, 0, 1.12), 'hull', PEARL2, n=14)
+    P.cyl(0.16, 0.02, (0, 0, 1.16), 'z', 'lamp', GREEN, 12)
+    P.torus(0.235, 0.022, (0, 0, 1.17), 'z', 'trim', GOLD, 14, 4)
+    P.sphere(0.05, (0, 0, 1.22), 'lamp', GREEN, segs=6)
     P.empty('gun', (0, 0, 1.27))
     # two caliper arms reaching forward round the lens
     for sx in (1, -1):
         pts = spline([(sx * 0.38, 0.0, 0.12), (sx * 0.70, -0.02, 0.36), (sx * 0.78, -0.04, 0.78), (sx * 0.58, -0.05, 1.12),
                       (sx * 0.30, -0.05, 1.32)], 3)
         m = len(pts)
-        sweep(P, pts, [(0.085 - 0.04 * k / (m - 1), 0.065 - 0.028 * k / (m - 1), 2.2) for k in range(m)], 'hull', PEARL2, n=8)
-        sweep(P, [tuple(V(p) + V((0, 0.05 - 0.02 * k / (m - 1), 0))) for k, p in enumerate(pts[2:-2])],
-              [(0.03, 0.012, 2)] * (m - 4), 'paint', WHITE, n=6)
-        P.sphere(0.08, (sx * 0.38, 0.0, 0.12), 'trim', GOLD, segs=10)
-        tip = pts[-1]
-        P.sphere(0.045, tip, 'trim', GOLD, segs=8)
+        sweep(P, pts, [(0.1 - 0.045 * k / (m - 1), 0.075 - 0.03 * k / (m - 1), 2.2) for k in range(m)], 'hull', PEARL2, n=8)
+        sweep(P, [tuple(V(p) + V((0, 0.062 - 0.024 * k / (m - 1), 0))) for k, p in enumerate(pts[2:-2])],
+              [(0.03, 0.012, 2)] * (m - 4), 'paint', WHITE, n=4)
+        P.sphere(0.08, (sx * 0.38, 0.0, 0.12), 'trim', GOLD, segs=8)
+        P.sphere(0.045, pts[-1], 'trim', GOLD, segs=6)
         nav(P, (sx * 0.84, -0.02, 0.72), sx, 0.035)
         rcs(P, (sx * 0.41, 0.02, -0.5), 0.08, sx)
         arm(P, (sx * 0.14, -0.33, 0.5), (sx * 0.24, -0.46, 0.74), (sx * 0.12, -0.42, 0.98), 0.04, 0.5)
@@ -571,31 +562,31 @@ def drone(P):
 def decoy(P):
     S = [(2.55, 0, 0, 0, 0, 2), (2.25, 0.08, 0.08, 0.08, 0, 2), (1.55, 0.2, 0.2, 0.19, 0, 2.2), (0.5, 0.30, 0.30, 0.28, 0, 2.3),
          (-0.8, 0.34, 0.32, 0.30, 0, 2.3), (-2.0, 0.33, 0.30, 0.30, 0, 2.3), (-2.75, 0.27, 0.25, 0.25, 0, 2.2), (-3.02, 0.23, 0.22, 0.22, 0, 2.1)]
-    hull(P, S, 'hull', PEARL, 16)
+    hull(P, S, 'hull', PEARL, 14)
     for a in (0.0, math.pi):
-        patch(P, S, -2.8, 2.0, a - 0.05, a + 0.05, 'trim', GOLD, nz=6, na=1, off=0.003, th=0.01)
-    patch(P, S, 0.4, 2.0, UP - 0.4, UP + 0.4, 'paint', WHITE, nz=4, na=2)
+        patch(P, S, -2.8, 2.0, a - 0.05, a + 0.05, 'trim', GOLD, nz=4, na=1, off=0.003, th=0.01)
+    patch(P, S, 0.4, 2.0, UP - 0.4, UP + 0.4, 'paint', WHITE, nz=3, na=2)
     patch(P, S, -2.85, -1.6, UP - 0.4, UP + 0.4, 'paint', WHITE, nz=2, na=2)
     for z in (1.9, -2.55):
-        band(P, S, z, z + 0.1, 'trim', GOLD, 16)
+        band(P, S, z, z + 0.1, 'trim', GOLD, 14)
     # the antenna lance forward, its emitter tip the decoy's beacon
     P.cyl(0.028, 1.35, (0, 0, 3.2), 'z', 'chrome', GOLD, 6, r2=0.055)
     for z in (2.8, 3.25, 3.65):
-        P.cyl(0.07, 0.04, (0, 0, z), 'z', 'trim', GOLD, 8)
-    P.sphere(0.075, (0, 0, 3.92), 'glow', WHITE, segs=8)
+        P.cyl(0.07, 0.04, (0, 0, z), 'z', 'trim', GOLD, 6)
+    P.sphere(0.075, (0, 0, 3.92), 'glow', WHITE, segs=6)
     for k in range(3):
         a = k / 3 * TAU + UP
         P.strut((math.cos(a) * 0.04, math.sin(a) * 0.04, 3.75), (math.cos(a) * 0.16, math.sin(a) * 0.16, 4.02), 0.02, 0.02, 'chrome', GOLD)
     P.empty('gun', (0, 0, 4.0))
     # the phased-array disc, tilted forward on a pylon: dark face, emitter rings, painted rim, gilt edge
-    at, rot = (0, 0.80, -0.55), (-72, 0, 0)
-    lathe(P, [(0, 0.06), (0.6, 0.05), (1.32, 0.03), (1.42, 0.0), (1.36, -0.05), (0.5, -0.08), (0, -0.11)], at, 'hull', PEARL2, n=32, rot=rot)
-    lathe(P, [(1.26, 0.035), (1.26, 0.075), (0.0, 0.085)], at, 'dark', SAIL, n=32, rot=rot)
-    for r0, r1 in ((0.34, 0.40), (0.68, 0.73), (0.98, 1.02)):
-        lathe(P, [(r0, 0.07), (r0, 0.095), (r1, 0.095), (r1, 0.07)], at, 'glow', WHITE, n=32, rot=rot, loop=True)
-    lathe(P, [(1.27, 0.04), (1.27, 0.09), (1.37, 0.07), (1.37, 0.03)], at, 'paint', WHITE, n=32, rot=rot, loop=True)
-    lathe(P, [(1.36, -0.03), (1.36, 0.08), (1.47, 0.03), (1.47, -0.02)], at, 'trim', GOLD, n=32, rot=rot, loop=True)
-    lathe(P, [(0.16, 0.08), (0.12, 0.2), (0.0, 0.24)], at, 'glow', WHITE, n=12, rot=rot)
+    at, rot, n = (0, 0.80, -0.55), (-72, 0, 0), 20
+    lathe(P, [(0, 0.06), (0.7, 0.05), (1.36, 0.02), (1.4, -0.02), (0.6, -0.08), (0, -0.11)], at, 'hull', PEARL2, n=n, rot=rot)
+    lathe(P, [(1.26, 0.035), (1.26, 0.075), (0.0, 0.085)], at, 'dark', SAIL, n=n, rot=rot)
+    for r0, r1 in ((0.43, 0.46), (0.87, 0.895)):
+        lathe(P, [(r0, 0.07), (r0, 0.095), (r1, 0.095), (r1, 0.07)], at, 'glow', WHITE, n=n, rot=rot, loop=True)
+    lathe(P, [(1.27, 0.04), (1.27, 0.09), (1.37, 0.07), (1.37, 0.03)], at, 'paint', WHITE, n=n, rot=rot, loop=True)
+    lathe(P, [(1.36, -0.03), (1.36, 0.08), (1.47, 0.03), (1.47, -0.02)], at, 'trim', GOLD, n=n, rot=rot, loop=True)
+    lathe(P, [(0.16, 0.08), (0.12, 0.2), (0.0, 0.24)], at, 'glow', WHITE, n=10, rot=rot)
     M = rotm(rot)
     c = V(at)
     for k in range(6):   # radial ribs across the back
@@ -604,7 +595,7 @@ def decoy(P):
                 0.05, 0.05, 'trim', PEARL3)
     under = c + M @ V((0, 0, -0.1))
     P.strut((0, 0.25, -0.25), tuple(under), 0.17, 0.13, 'hull', PEARL2)
-    P.torus(0.12, 0.03, (0, 0.30, -0.3), 'y', 'trim', GOLD, 12, 4)
+    P.torus(0.12, 0.03, (0, 0.30, -0.3), 'y', 'trim', GOLD, 10, 4)
     for sx in (1, -1):   # trailing whiskers from the disc's rim
         root = c + M @ V((sx * 0.85, 1.05, -0.02))
         tip = (sx * 1.15, root.y - 0.25, -3.1)
@@ -615,13 +606,12 @@ def decoy(P):
           (-1.7, 0.07, 0.07, 0.07, 0, 2)]
     for sx in (1, -1):
         at = (sx * 0.62, -0.18, 0.2)
-        hull(P, JP, 'hull', PEARL2, 10, at=at)
-        band(P, JP, -0.3, -0.15, 'trim', GOLD, 10, at=at)
+        hull(P, JP, 'hull', PEARL2, 8, at=at)
+        band(P, JP, -0.3, -0.15, 'trim', GOLD, 8, at=at)
         P.sphere(0.045, (sx * 0.62, -0.18, 0.76), 'glow', WHITE, segs=6)
         blade(P, [((sx * 0.2, -0.1, 0.0), (sx * 0.2, -0.1, -0.9), 0.06), ((sx * 0.58, -0.16, -0.15), (sx * 0.58, -0.16, -0.85), 0.05)], 'hull', PEARL3)
-        rcs(P, (sx * 0.28, 0.05, 1.5), 0.08, sx)
     lamp(P, (0, 0.27, -2.6), STROBE, 0.04)
-    halo(P, (0, 0, -3.27), 0.22, flame=2.6, segs=14, k=1.7, struts=4)
+    halo(P, (0, 0, -3.27), 0.22, flame=2.6, segs=10, k=1.7, struts=4)
 
 
 # ---------------------------------------------------------------- gunship (medium)
@@ -630,68 +620,89 @@ def gunship(P):
     S = [(7.70, 0, 0, 0, 0.0, 2), (7.20, 0.18, 0.15, 0.13, 0.0, 2.1), (6.00, 0.62, 0.45, 0.38, 0.03, 2.3),
          (4.20, 1.15, 0.78, 0.62, 0.08, 2.4), (2.00, 1.55, 0.98, 0.78, 0.10, 2.5), (-0.50, 1.72, 1.05, 0.86, 0.10, 2.6),
          (-3.20, 1.70, 1.02, 0.88, 0.08, 2.6), (-5.20, 1.55, 0.95, 0.86, 0.05, 2.5), (-6.30, 1.40, 0.90, 0.82, 0.03, 2.4)]
-    hull(P, S, 'hull', PEARL, 22)
+    hull(P, S, 'hull', PEARL, 18)
     for a in (0.0, math.pi):
-        patch(P, S, -6.1, 6.8, a - 0.03, a + 0.03, 'trim', GOLD, nz=12, na=1, off=0.004, th=0.016)
-    band(P, S, 6.55, 6.7, 'trim', GOLD)
-    # chevron stripes converging on the prow, a spine stripe aft
+        patch(P, S, -6.1, 6.8, a - 0.03, a + 0.03, 'trim', GOLD, nz=10, na=1, off=0.004, th=0.016)
+    band(P, S, 6.55, 6.7, 'trim', GOLD, 16)
+    # chevron stripes converging on the prow, a spine stripe pair aft, plate breaks on the shoulders
     for sx in (1, -1):
-        patch(P, S, 4.6, 6.6, (UP - sx * 0.66, UP - sx * 0.46), (UP - sx * 0.12, UP + sx * 0.02), 'paint', WHITE, nz=5, na=2)
+        patch(P, S, 4.6, 6.6, (UP - sx * 0.66, UP - sx * 0.46), (UP - sx * 0.12, UP + sx * 0.02), 'paint', WHITE, nz=4, na=2)
         patch(P, S, -5.9, -3.9, UP - sx * 0.42, UP - sx * 0.3, 'paint', WHITE, nz=3, na=1)
-    windows(P, S, -4.6, 3.0, 0.32, 9, 0.09)
+        for z0, z1 in ((3.4, 1.0), (0.7, -2.0)):
+            patch(P, S, z0, z1, UP - sx * 1.25, UP - sx * 0.78, 'hull', PEARL2, nz=2, na=2, off=0.004, th=0.02)
+    windows(P, S, -4.6, 3.0, 0.32, 7, 0.09)
     # raked bridge fairing with its wrap-round glazing
     BR = [(3.0, 0, 0, 0, 0.95, 2), (2.4, 0.38, 0.22, 0.15, 0.98, 2.2), (1.2, 0.72, 0.45, 0.2, 1.02, 2.4), (-0.4, 0.78, 0.5, 0.2, 1.05, 2.4),
           (-1.6, 0.52, 0.38, 0.2, 1.02, 2.3), (-2.4, 0.2, 0.15, 0.15, 0.98, 2.0)]
-    hull(P, BR, 'hull', PEARL2, 18)
-    patch(P, BR, 1.35, 2.35, 0.35, math.pi - 0.35, 'glass', GLASS, nz=3, na=8, off=0.004, th=0.01)
-    patch(P, BR, -2.2, 0.9, UP - 0.12, UP + 0.12, 'paint', WHITE, nz=4, na=1, off=0.004)
+    hull(P, BR, 'hull', PEARL2, 14)
+    patch(P, BR, 1.35, 2.35, 0.35, math.pi - 0.35, 'glass', GLASS, nz=2, na=6, off=0.004, th=0.01)
+    patch(P, BR, -2.2, 0.9, UP - 0.12, UP + 0.12, 'paint', WHITE, nz=3, na=1, off=0.004)
     P.cyl(0.03, 1.1, (-0.35, 1.95, -1.1), 'y', 'chrome', GOLD, 6)
     lamp(P, (-0.35, 2.52, -1.1), STROBE, 0.06)
-    P.sphere(0.26, (0.4, 1.5, -0.9), 'hull', PEARL3, (1, 0.7, 1), segs=12)
-    P.torus(0.26, 0.03, (0.4, 1.5, -0.9), 'y', 'trim', GOLD, 16, 4)
-    # lance turrets: forward dorsal, aft dorsal on a barbette, chin
+    P.sphere(0.26, (0.4, 1.5, -0.9), 'hull', PEARL3, (1, 0.7, 1), segs=10)
+    P.torus(0.26, 0.03, (0.4, 1.5, -0.9), 'y', 'trim', GOLD, 12, 4)
+    # lance turrets: forward dorsal, aft dorsal superfiring on a barbette
     turret(P, (0, 0.84, 4.25), 1.0, 2.2)
-    P.cyl(0.66, 0.4, (0, 1.2, -3.1), 'y', 'hull', PEARL3, 20)
+    P.cyl(0.66, 0.4, (0, 1.2, -3.1), 'y', 'hull', PEARL3, 16)
     turret(P, (0, 1.4, -3.1), 0.9, 1.9)
-    turret(P, (0, -0.66, 2.7), 0.8, 1.6, flip=-1)
     # missile pods on canted pylon vanes, halo drives astern of each pod
     PD = [(1.62, 0.36, 0.36, 0.36, 0, 2), (1.45, 0.44, 0.44, 0.44, 0, 2), (1.1, 0.47, 0.47, 0.47, 0, 2), (-1.3, 0.46, 0.46, 0.46, 0, 2),
           (-1.8, 0.38, 0.38, 0.38, 0, 2), (-2.05, 0.30, 0.30, 0.30, 0, 2)]
     for sx in (1, -1):
         px, py, pz = sx * 3.05, -0.32, -0.4
         at = (px, py, pz)
-        hull(P, PD, 'hull', PEARL, 18, at=at)
-        band(P, PD, 0.7, 1.05, 'paint', WHITE, 18, at=at)
-        band(P, PD, 1.15, 1.25, 'trim', GOLD, 18, at=at)
-        band(P, PD, -1.45, -1.35, 'trim', GOLD, 18, at=at)
-        P.cyl(0.37, 0.05, (px, py, pz + 1.63), 'z', 'dark', DARK, 18)
+        hull(P, PD, 'hull', PEARL, 14, at=at)
+        band(P, PD, 0.7, 1.05, 'paint', WHITE, 14, at=at)
+        band(P, PD, -1.45, -1.35, 'trim', GOLD, 14, at=at)
+        P.torus(0.4, 0.04, (px, py, pz + 1.6), 'z', 'trim', GOLD, 14, 3)
+        P.cyl(0.37, 0.05, (px, py, pz + 1.63), 'z', 'dark', DARK, 14)
         for k in range(7):
             cx, cy = (0.0, 0.0) if k == 6 else (math.cos(k / 6 * TAU) * 0.235, math.sin(k / 6 * TAU) * 0.235)
-            P.cyl(0.085, 0.05, (px + cx, py + cy, pz + 1.66), 'z', 'dark', DARK2, 10)
-            P.cyl(0.06, 0.13, (px + cx, py + cy, pz + 1.72), 'z', 'paint', WHITE, 8, r2=0.015)
+            P.cyl(0.085, 0.05, (px + cx, py + cy, pz + 1.66), 'z', 'dark', DARK2, 6)
+            P.cyl(0.06, 0.13, (px + cx, py + cy, pz + 1.72), 'z', 'paint', WHITE, 6, r2=0.015)
         P.empty('msl', (px, py, pz + 1.8))
-        halo(P, (px, py, pz - 2.22), 0.26, flame=2.6, segs=14, k=1.55, struts=3)
+        halo(P, (px, py, pz - 2.22), 0.26, flame=2.6, segs=10, k=1.55, struts=3)
         blade(P, [((sx * 1.35, 0.02, 1.4), (sx * 1.55, 0.02, -1.55), 0.2), ((sx * 2.25, -0.16, 0.75), (sx * 2.35, -0.16, -1.1), 0.13),
                   ((sx * 2.75, -0.28, 0.6), (sx * 2.75, -0.28, -1.25), 0.11)], 'hull', PEARL2)
+        tube(P, [(sx * 1.6, 0.03, 1.1), (sx * 2.25, -0.155, 0.62), (sx * 2.7, -0.27, 0.48)], 0.035, 0.03, 'trim', GOLD, 6)
         for k in range(5):   # radiator slats on the vane
             z = 0.35 - k * 0.32
-            P.box(0.55, 0.03, 0.12, (sx * 2.0, 0.0, z), 'dark', DARK2, 0.0, rot=(0, 0, -sx * 10))
+            P.box(0.55, 0.04, 0.12, (sx * 2.0, -0.05, z), 'dark', DARK2, 0.0, rot=(0, 0, -sx * 10))
         nav(P, (px + sx * 0.5, py, pz + 0.5), sx, 0.08)
         rcs(P, (sx * 0.6, 0.15, 5.6), 0.18, sx)
         rcs(P, (sx * 1.42, 0.45, -5.3), 0.2, sx)
-    # stern: crown ring, a big centre nozzle and two flanking ones
-    band(P, S, -5.45, -5.2, 'paint', WHITE)
-    crown(P, S, -5.8, 2.05, 0.1, 8)
-    nozzle(P, (0, 0.05, -6.75), 0.62, flame=3.0, segs=20, ring=GOLD)
+    # stern: crown collar, a big centre nozzle and two flanking ones
+    band(P, S, -5.2, -4.95, 'paint', WHITE, 18)
+    crown(P, S, -5.75, 0.5, 0.2, 0.09, 8, 22)
+    nozzle(P, (0, 0.05, -6.75), 0.62, flame=3.0, segs=18, ring=GOLD)
     P.cyl(0.38, 0.02, (0, 0.05, -6.762), 'z', 'glow', WHITE, 12)
     for sx in (1, -1):
-        nozzle(P, (sx * 1.05, -0.05, -6.65), 0.40, flame=2.8, segs=16, ring=GOLD)
+        nozzle(P, (sx * 1.05, -0.05, -6.65), 0.40, flame=2.8, segs=12, ring=GOLD)
         P.cyl(0.25, 0.02, (sx * 1.05, -0.05, -6.662), 'z', 'glow', WHITE, 10)
     lamp(P, (0, -0.8, -5.8), STROBE, 0.07)
-    # underside: hatch, keel strake
+    # underside: hatch, keel strake, a sensor blister
     P.box(1.2, 0.04, 1.6, (0, -0.79, -1.8), 'dark', DARK2, 0.0)
-    P.box(0.3, 0.15, 6.0, (0, -0.78, -2.0), 'trim', PEARL3, 0.03)
-    greebles(P, rng, -0.9, 0.9, 1.07, -5.6, -4.0, 10, 0.1, 0.3)
+    P.box(0.3, 0.15, 6.0, (0, -0.78, -2.0), 'trim', PEARL3, 0.0)
+    P.sphere(0.22, (0, -0.72, 3.0), 'glow', WHITE, (1, 0.6, 1.3), segs=8)
+    greebles(P, rng, -0.9, 0.9, 1.07, -5.6, -4.0, 8, 0.1, 0.3)
+
+
+def sail(P, root, sx, span, ch, droop=16, sw=0.22, cells=(0.5,), boom=0.05, nb=6):
+    """a solar-collector sail: a framed panel of cells on two gilt booms, deployed outboard from `root` and lit
+    along its hinge; returns the panel's point function Pt(t along the span, k across the chord)"""
+    dr = math.radians(droop)
+    u = V((sx * math.cos(dr), -math.sin(dr), -sw)).normalized()
+    R0 = V(root)
+    Pt = lambda t, k: R0 + u * (t * span) + V((0, 0, k * ch))
+    q = (Pt(0.16, -1), Pt(1.0, -1), Pt(1.0, 1), Pt(0.16, 1))
+    slab(P, q, 0.04, 'dark', SAIL)
+    for t in tuple(cells) + (0.975,):
+        slab(P, subq(q, t - 0.022, min(1.0, t + 0.022), 0, 1), 0.06, 'trim', GOLD)
+    slab(P, subq(q, 0.0, 0.035, 0, 1), 0.06, 'glow', WHITE)
+    slab(P, [p + V((0, 0.032, 0)) for p in subq(q, 0.84, 0.94, 0.05, 0.95)], 0.012, 'paint', WHITE)
+    for k in (-1.0, 1.0):
+        tube(P, [tuple(Pt(-0.06, k * 0.98)), tuple(Pt(1.0, k * 0.98))], boom, boom * 0.8, 'trim', GOLD, nb)
+    return Pt
 
 
 # ---------------------------------------------------------------- torpedo boat (medium)
@@ -701,40 +712,42 @@ def torpboat(P):
     S = [(8.05, 0.80, 0.78, 0.78, 0.0, 2.2), (7.20, 0.74, 0.72, 0.72, 0.0, 2.2), (4.50, 0.72, 0.70, 0.70, 0.0, 2.2),
          (2.60, 0.80, 0.76, 0.74, 0.02, 2.3), (0.80, 1.05, 0.95, 0.85, 0.06, 2.4), (-2.50, 1.18, 1.02, 0.90, 0.08, 2.5),
          (-5.50, 1.15, 1.00, 0.90, 0.06, 2.5), (-7.00, 1.02, 0.92, 0.86, 0.03, 2.4), (-7.50, 0.92, 0.85, 0.80, 0.0, 2.3)]
-    hull(P, S, 'hull', PEARL, 22)
+    hull(P, S, 'hull', PEARL, 18)
     for a in (0.0, math.pi):
-        patch(P, S, -7.3, 7.6, a - 0.03, a + 0.03, 'trim', GOLD, nz=14, na=1, off=0.004, th=0.016)
+        patch(P, S, -7.3, 2.4, a - 0.03, a + 0.03, 'trim', GOLD, nz=8, na=1, off=0.004, th=0.016)
     # the trumpet mouth: gilt lip, dark bore, the warhead's nose glowing inside
-    lathe(P, [(0.62, 7.9), (0.64, 8.25), (0.92, 8.56), (1.06, 8.55), (1.02, 8.42), (0.84, 7.95)], (0, 0, 0), 'hull', PEARL2, n=28, loop=True)
-    P.torus(0.99, 0.055, (0, 0, 8.56), 'z', 'trim', GOLD, 28, 6)
-    P.cyl(0.64, 0.05, (0, 0, 7.95), 'z', 'dark', DARK, 20)
-    lathe(P, [(0.38, 7.95), (0.34, 8.15), (0.2, 8.32), (0.0, 8.4)], (0, 0, 0), 'paint', WHITE, n=16)
-    P.torus(0.5, 0.035, (0, 0, 8.05), 'z', 'glow', WHITE, 20, 4)
+    lathe(P, [(0.62, 7.9), (0.64, 8.25), (0.92, 8.56), (1.06, 8.55), (1.02, 8.42), (0.84, 7.95)], (0, 0, 0), 'hull', PEARL2, n=24, loop=True)
+    P.torus(0.99, 0.055, (0, 0, 8.56), 'z', 'trim', GOLD, 24, 4)
+    P.cyl(0.64, 0.05, (0, 0, 7.95), 'z', 'dark', DARK, 18)
+    lathe(P, [(0.38, 7.95), (0.34, 8.15), (0.2, 8.32), (0.0, 8.4)], (0, 0, 0), 'paint', WHITE, n=14)
+    P.torus(0.5, 0.035, (0, 0, 8.05), 'z', 'glow', WHITE, 18, 4)
     # coils along the tube: gilt collars and glowing rings in the wing's colour
     for k in range(4):
         z = 7.1 - k * 1.05
-        band(P, S, z, z + 0.14, 'trim', GOLD)
+        band(P, S, z, z + 0.14, 'trim', GOLD, 18)
         if k < 3:
-            band(P, S, z - 0.55, z - 0.47, 'glow', WHITE, off=0.006, th=0.014)
-    patch(P, S, 3.2, 6.9, UP - 0.1, UP + 0.1, 'paint', WHITE, nz=5, na=1)
+            band(P, S, z - 0.55, z - 0.47, 'glow', WHITE, 18, off=0.006, th=0.014)
+    patch(P, S, 3.2, 6.9, UP - 0.1, UP + 0.1, 'paint', WHITE, nz=4, na=1)
+    for sx in (1, -1):
+        for z0, z1 in ((0.4, -2.2), (-2.5, -5.2)):
+            patch(P, S, z0, z1, UP - sx * 1.2, UP - sx * 0.75, 'hull', PEARL2, nz=2, na=2, off=0.004, th=0.02)
     # drum magazines along the flanks, six warheads round a lit core on each face
     MS = [(3.30, 0.60, 0.60, 0.60, 0, 2), (3.12, 0.66, 0.66, 0.66, 0, 2), (-1.6, 0.66, 0.66, 0.66, 0, 2), (-2.1, 0.56, 0.56, 0.56, 0, 2),
           (-2.4, 0.40, 0.40, 0.40, 0, 2)]
     for sx in (1, -1):
         mx, my = sx * 1.45, -0.30
         at = (mx, my, 0)
-        hull(P, MS, 'hull', PEARL2, 22, at=at)
-        band(P, MS, 2.85, 3.0, 'trim', GOLD, 22, at=at)
-        band(P, MS, 1.7, 2.15, 'paint', WHITE, 22, at=at)
-        band(P, MS, -1.4, -1.28, 'trim', GOLD, 22, at=at)
-        P.cyl(0.56, 0.05, (mx, my, 3.31), 'z', 'dark', DARK2, 22)
+        hull(P, MS, 'hull', PEARL2, 16, at=at)
+        band(P, MS, 1.7, 2.15, 'paint', WHITE, 16, at=at)
+        band(P, MS, -1.4, -1.28, 'trim', GOLD, 16, at=at)
+        P.torus(0.6, 0.04, (mx, my, 3.3), 'z', 'trim', GOLD, 16, 4)
+        P.cyl(0.56, 0.05, (mx, my, 3.31), 'z', 'dark', DARK2, 16)
         for i in range(6):
             t = i / 6 * TAU + 0.5
             cx, cy = mx + math.cos(t) * 0.37, my + math.sin(t) * 0.37
-            P.cyl(0.13, 0.06, (cx, cy, 3.34), 'z', 'dark', DARK, 10)
-            P.cyl(0.095, 0.18, (cx, cy, 3.40), 'z', 'paint', WHITE, 8, r2=0.02)
-        P.cyl(0.13, 0.08, (mx, my, 3.35), 'z', 'glow', WHITE, 12)
-        P.torus(0.6, 0.04, (mx, my, 3.3), 'z', 'trim', GOLD, 22, 4)
+            P.cyl(0.13, 0.06, (cx, cy, 3.34), 'z', 'dark', DARK, 8)
+            P.cyl(0.095, 0.18, (cx, cy, 3.40), 'z', 'paint', WHITE, 6, r2=0.02)
+        P.cyl(0.13, 0.08, (mx, my, 3.35), 'z', 'glow', WHITE, 8)
         P.empty('msl', (mx, my, 3.48))
         nav(P, (mx + sx * 0.68, my, 0.6), sx, 0.08)
         rcs(P, (sx * 0.66, 0.35, 6.6), 0.16, sx)
@@ -742,36 +755,23 @@ def torpboat(P):
     # raised crew fairing with its glazing
     CP = [(-0.6, 0, 0, 0, 0.95, 2), (-1.3, 0.45, 0.32, 0.2, 1.0, 2.3), (-2.8, 0.70, 0.50, 0.2, 1.05, 2.4), (-4.6, 0.62, 0.45, 0.2, 1.0, 2.3),
           (-5.6, 0.25, 0.2, 0.2, 0.95, 2.0), (-5.9, 0, 0, 0, 0.92, 2)]
-    hull(P, CP, 'hull', PEARL2, 18)
-    patch(P, CP, -1.95, -1.1, 0.35, math.pi - 0.35, 'glass', GLASS, nz=2, na=8, off=0.004, th=0.01)
-    patch(P, CP, -5.3, -2.1, UP - 0.14, UP + 0.14, 'paint', WHITE, nz=4, na=1, off=0.004)
-    windows(P, CP, -4.4, -2.4, 0.25, 4, 0.08)
+    hull(P, CP, 'hull', PEARL2, 14)
+    patch(P, CP, -1.95, -1.1, 0.35, math.pi - 0.35, 'glass', GLASS, nz=2, na=6, off=0.004, th=0.01)
+    patch(P, CP, -5.3, -2.1, UP - 0.14, UP + 0.14, 'paint', WHITE, nz=3, na=1, off=0.004)
+    windows(P, CP, -4.4, -2.4, 0.25, 3, 0.08)
     P.cyl(0.025, 0.9, (0.3, 1.85, -4.4), 'y', 'chrome', GOLD, 6)
     lamp(P, (0.3, 2.32, -4.4), STROBE, 0.06)
-    # solar-collector sails aft: framed panels on gilt booms, deployed outboard and down
+    # solar-collector sails aft
     for sx in (1, -1):
-        dr, sw, span, ch = math.radians(16), 0.22, 3.1, 1.0
-        u = V((sx * math.cos(dr), -math.sin(dr), -sw)).normalized()
-        R0 = V((sx * 0.95, 0.25, -4.7))
-        Pt = lambda t, k: R0 + u * (t * span) + V((0, 0, k * ch))
-        q = (Pt(0.18, -1), Pt(1.0, -1), Pt(1.0, 1), Pt(0.18, 1))
-        slab(P, q, 0.035, 'dark', SAIL)
-        for v0, v1 in ((0.0, 0.05), (0.95, 1.0)):
-            slab(P, subq(q, 0, 1, v0, v1), 0.05, 'trim', GOLD)
-        for t in (0.38, 0.64, 0.97):
-            slab(P, subq(q, t - 0.02, min(1.0, t + 0.02), 0, 1), 0.05, 'trim', GOLD)
-        slab(P, subq(q, 0.0, 0.03, 0, 1), 0.05, 'glow', WHITE)
-        slab(P, [p + V((0, 0.03, 0)) for p in subq(q, 0.88, 0.96, 0.06, 0.94)], 0.012, 'paint', WHITE)
-        for k in (-0.55, 0.55):
-            tube(P, [tuple(Pt(-0.05, k)), tuple(Pt(1.02, k))], 0.05, 0.035, 'trim', GOLD2, 6)
-        nav(P, tuple(Pt(1.03, 0)), sx, 0.07)
-    # twin halo drives
-    crown(P, S, -6.6, 1.55, 0.07, 8)
+        Pt = sail(P, (sx * 0.95, 0.25, -4.75), sx, 3.1, 1.0, 16, 0.22)
+        nav(P, tuple(Pt(0.995, 0) + V((0, 0.05, 0))), sx, 0.06)
+    # twin halo drives under a crown collar
+    crown(P, S, -6.55, 0.45, 0.16, 0.08, 8, 20)
     for sx in (1, -1):
-        halo(P, (sx * 0.78, 0.0, -7.95), 0.45, flame=3.0, segs=18, k=1.5, struts=4)
+        halo(P, (sx * 0.78, 0.0, -7.95), 0.45, flame=3.0, segs=14, k=1.5, struts=4)
     lamp(P, (0, -0.85, -7.0), STROBE, 0.06)
-    greebles(P, rng, -0.5, 0.5, 1.04, -7.0, -6.1, 5, 0.08, 0.25)
-    P.box(0.25, 0.12, 9.0, (0, -0.88, -1.5), 'trim', PEARL3, 0.02)
+    greebles(P, rng, -0.5, 0.5, 1.04, -7.0, -6.1, 4, 0.08, 0.25)
+    P.box(0.25, 0.12, 9.0, (0, -0.88, -1.5), 'trim', PEARL3, 0.0)
 
 
 # ---------------------------------------------------------------- tender (medium)
@@ -780,17 +780,17 @@ def tender(P):
     S = [(3.30, 0, 0, 0, 0.10, 2), (3.00, 0.40, 0.30, 0.25, 0.10, 2.2), (2.20, 0.92, 0.68, 0.55, 0.10, 2.4),
          (1.00, 1.22, 0.88, 0.70, 0.10, 2.5), (-0.60, 1.28, 0.92, 0.75, 0.08, 2.6), (-2.20, 1.18, 0.88, 0.75, 0.05, 2.5),
          (-3.20, 1.00, 0.78, 0.70, 0.02, 2.4), (-3.55, 0.88, 0.70, 0.64, 0.0, 2.3)]
-    hull(P, S, 'hull', PEARL, 22)
+    hull(P, S, 'hull', PEARL, 18)
     for a in (0.0, math.pi):
-        patch(P, S, -3.4, 2.9, a - 0.035, a + 0.035, 'trim', GOLD, nz=8, na=1, off=0.004, th=0.014)
-    canopy(P, (0, 0.82, 1.55), 1.8, 0.42, (1.2, 0.6))
+        patch(P, S, -3.4, 2.9, a - 0.035, a + 0.035, 'trim', GOLD, nz=6, na=1, off=0.004, th=0.014)
+    canopy(P, (0, 0.82, 1.55), 1.8, 0.42, (1.2, 0.6), n=14)
     for sx in (1, -1):
-        patch(P, S, -3.3, -0.2, UP - sx * 0.55, UP - sx * 0.4, 'paint', WHITE, nz=4, na=1)
-    windows(P, S, -2.8, 1.6, 0.3, 6, 0.08)
+        patch(P, S, -3.3, -0.2, UP - sx * 0.55, UP - sx * 0.4, 'paint', WHITE, nz=3, na=1)
+    windows(P, S, -2.8, 1.6, 0.3, 5, 0.08)
     # the mending dome on the crown, ringed in green
-    lathe(P, [(0.42, 0.0), (0.38, 0.14), (0.22, 0.26), (0.0, 0.3)], (0, 0.92, -1.2), 'hull', PEARL2, n=18, rot=(-90, 0, 0))
-    P.torus(0.42, 0.04, (0, 0.95, -1.2), 'y', 'lamp', GREEN, 20, 4)
-    P.sphere(0.1, (0, 1.22, -1.2), 'glow', WHITE, segs=8)
+    lathe(P, [(0.42, 0.0), (0.38, 0.14), (0.22, 0.26), (0.0, 0.3)], (0, 0.92, -1.2), 'hull', PEARL2, n=14, rot=(-90, 0, 0))
+    P.torus(0.42, 0.04, (0, 0.95, -1.2), 'y', 'lamp', GREEN, 16, 4)
+    P.sphere(0.1, (0, 1.22, -1.2), 'glow', WHITE, segs=6)
     P.cyl(0.03, 1.0, (-0.5, 1.4, -2.2), 'y', 'chrome', GOLD, 6)
     lamp(P, (-0.5, 1.92, -2.2), STROBE, 0.06)
     # four curving arms, a beam dish at each tip (the fore pair look ahead, the aft pair up)
@@ -800,22 +800,22 @@ def tender(P):
                 pts = [(sx * 0.95, 0.0, 0.9), (sx * 2.0, 0.05, 1.25), (sx * 3.15, -0.05, 2.0), (sx * 4.0, -0.18, 2.7), (sx * 4.35, -0.26, 3.05)]
             else:
                 pts = [(sx * 0.95, 0.0, -1.5), (sx * 2.0, 0.05, -1.85), (sx * 3.05, -0.05, -2.35), (sx * 3.8, -0.18, -2.62), (sx * 4.1, -0.26, -2.7)]
-            path = spline(pts, 3)
+            path = spline(pts, 2)
             m = len(path)
-            sweep(P, path, [(0.26 - 0.1 * k / (m - 1), 0.2 - 0.07 * k / (m - 1), 2.3) for k in range(m)], 'hull', PEARL2, n=12)
-            sweep(P, [tuple(V(p) + V((0, 0.18 - 0.07 * k / (m - 1), 0))) for k, p in enumerate(path)][2:-2],
-                  [(0.07, 0.014, 2)] * (m - 4), 'paint', WHITE, n=6)
+            sweep(P, path, [(0.26 - 0.1 * k / (m - 1), 0.2 - 0.07 * k / (m - 1), 2.3) for k in range(m)], 'hull', PEARL2, n=10)
+            sweep(P, [tuple(V(p) + V((0, 0.18 - 0.07 * k / (m - 1), 0))) for k, p in enumerate(path)][1:-1],
+                  [(0.07, 0.014, 2)] * (m - 2), 'paint', WHITE, n=4)
             fr = frames(path)
-            for j in (2, m - 3):
+            for j in (1, m - 2):
                 c, t, sd, uu = fr[j]
                 r0 = 0.26 - 0.1 * j / (m - 1)
-                P.torus(r0 * 1.02, 0.035, tuple(c), 'z', 'trim', GOLD, 14, 4, rot=(0, math.degrees(math.atan2(t.x, t.z)), 0))
+                P.torus(r0 * 1.02, 0.035, tuple(c), 'z', 'trim', GOLD, 12, 4, rot=(0, math.degrees(math.atan2(t.x, t.z)), 0))
             tip = V(path[-1])
             if fore:
-                dish(P, tuple(tip + V((0, 0.12, 0.32))), 0.78, (-38, -sx * 18, 0))
+                dish(P, tuple(tip + V((0, 0.12, 0.32))), 0.78, (-38, -sx * 18, 0), n=14)
             else:
-                dish(P, tuple(tip + V((0, 0.34, 0))), 0.72, (-90, 0, 0))
-            nav(P, tuple(tip + V((sx * 0.35, -0.1, 0))), sx, 0.08)
+                dish(P, tuple(tip + V((0, 0.34, 0))), 0.72, (-90, 0, 0), n=14)
+            nav(P, tuple(tip + V((sx * 0.16, 0.0, -0.12))), sx, 0.06)
     # manipulators under the bow
     for sx in (1, -1):
         arm(P, (sx * 0.45, -0.55, 2.1), (sx * 0.75, -0.95, 2.75), (sx * 0.35, -0.95, 3.45), 0.1, 1.0)
@@ -823,11 +823,11 @@ def tender(P):
         rcs(P, (sx * 0.95, 0.3, -3.0), 0.15, sx)
     P.box(0.9, 0.05, 1.3, (0, -0.66, 0.2), 'dark', DARK2, 0.0)
     P.box(0.8, 0.04, 0.06, (0, -0.68, 0.9), 'lamp', WIN, 0.0)
-    # stern: two halo drives under a crown ring
-    crown(P, S, -3.05, 1.45, 0.07, 8)
+    # stern: two halo drives behind a crown collar
+    crown(P, S, -3.0, 0.45, 0.16, 0.08, 8, 20)
     for sx in (1, -1):
-        halo(P, (sx * 0.62, 0.0, -3.92), 0.36, flame=2.8, segs=16, k=1.5, struts=4)
-    greebles(P, rng, -0.5, 0.5, 0.98, -0.7, 0.2, 5, 0.07, 0.2)
+        halo(P, (sx * 0.62, 0.0, -3.92), 0.36, flame=2.8, segs=12, k=1.5, struts=4)
+    greebles(P, rng, -0.5, 0.5, 0.98, -0.7, 0.2, 4, 0.07, 0.2)
 
 
 # ---------------------------------------------------------------- frigate (large)
@@ -835,102 +835,111 @@ def frigate(P):
     rng = random.Random(379)
     # the spinal lance comes first: the frigate's heavy main gun
     P.empty('gun', (0, 0.0, 17.15), {'heavy': 1})
-    S = [(14.70, 0.25, 0.25, 0.25, 0.0, 2), (13.60, 0.70, 0.58, 0.52, 0.0, 2.2), (11.20, 1.40, 1.05, 0.90, 0.04, 2.35),
-         (7.80, 2.10, 1.50, 1.25, 0.08, 2.5), (3.50, 2.55, 1.78, 1.48, 0.10, 2.6), (-1.50, 2.72, 1.88, 1.58, 0.10, 2.6),
-         (-6.50, 2.72, 1.88, 1.62, 0.08, 2.6), (-10.50, 2.58, 1.82, 1.60, 0.05, 2.55), (-12.40, 2.50, 1.78, 1.58, 0.02, 2.55),
-         (-14.30, 2.62, 1.72, 1.55, 0.0, 2.6)]
-    hull(P, S, 'hull', PEARL, 24)
+    S = [(14.70, 0.25, 0.25, 0.25, 0.0, 2), (13.60, 0.68, 0.56, 0.50, 0.0, 2.2), (11.20, 1.32, 1.00, 0.86, 0.04, 2.35),
+         (7.80, 1.95, 1.42, 1.20, 0.08, 2.5), (3.50, 2.35, 1.70, 1.42, 0.10, 2.6), (-1.50, 2.50, 1.80, 1.52, 0.10, 2.6),
+         (-6.50, 2.50, 1.80, 1.56, 0.08, 2.6), (-10.50, 2.38, 1.74, 1.55, 0.05, 2.55), (-12.40, 2.30, 1.70, 1.52, 0.02, 2.55),
+         (-14.30, 2.42, 1.64, 1.50, 0.0, 2.6)]
+    hull(P, S, 'hull', PEARL, 18)
     for a in (0.0, math.pi):
-        patch(P, S, -14.1, 13.6, a - 0.025, a + 0.025, 'trim', GOLD, nz=18, na=1, off=0.005, th=0.02)
+        patch(P, S, -14.1, 13.4, a - 0.025, a + 0.025, 'trim', GOLD, nz=16, na=1, off=0.005, th=0.02)
     # the lance housing and its barrel: glowing coils, gilt collars, a crowned muzzle
-    lathe(P, [(0.0, 12.6), (0.52, 13.0), (0.52, 15.2), (0.44, 15.9), (0.0, 16.0)], (0, 0, 0), 'hull', PEARL2, n=20)
+    lathe(P, [(0.0, 12.6), (0.52, 13.0), (0.52, 15.2), (0.44, 15.9), (0.0, 16.0)], (0, 0, 0), 'hull', PEARL2, n=16)
     for z in (13.5, 14.2, 14.9):
-        P.torus(0.53, 0.05, (0, 0, z), 'z', 'glow', WHITE, 20, 4)
-        P.torus(0.54, 0.04, (0, 0, z + 0.3), 'z', 'trim', GOLD, 20, 4)
-    P.cyl(0.26, 1.4, (0, 0, 16.4), 'z', 'chrome', CHROME, 14, r2=0.3)
-    P.cyl(0.36, 0.3, (0, 0, 16.95), 'z', 'trim', GOLD, 14, r2=0.3)
-    P.cyl(0.2, 0.03, (0, 0, 17.11), 'z', 'glow', WHITE, 12)
-    band(P, S, 13.2, 13.4, 'trim', GOLD, 24)
-    # chevrons on the bow, the spine stripe, a hull plate on each flank
+        P.torus(0.53, 0.05, (0, 0, z), 'z', 'glow', WHITE, 14, 3)
+        P.torus(0.54, 0.04, (0, 0, z + 0.3), 'z', 'trim', GOLD, 14, 3)
+    P.cyl(0.26, 1.4, (0, 0, 16.4), 'z', 'chrome', CHROME, 12, r2=0.3)
+    P.cyl(0.36, 0.3, (0, 0, 16.95), 'z', 'trim', GOLD, 12, r2=0.3)
+    P.cyl(0.2, 0.03, (0, 0, 17.11), 'z', 'glow', WHITE, 10)
+    band(P, S, 13.2, 13.4, 'trim', GOLD, 20)
+    # chevrons on the bow, a broad band astern, plate breaks along the shoulders
     for sx in (1, -1):
-        patch(P, S, 8.6, 12.6, (UP - sx * 0.7, UP - sx * 0.5), (UP - sx * 0.12, UP - sx * 0.0), 'paint', WHITE, nz=6, na=2)
-        patch(P, S, 9.2, 10.6, sx * 0.0 + (0.18 if sx > 0 else math.pi - 0.42), (0.42 if sx > 0 else math.pi - 0.18), 'paint', WHITE, nz=2, na=2)
-    patch(P, S, -12.8, -11.0, UP - 0.9, UP + 0.9, 'paint', WHITE, nz=2, na=8)
-    windows(P, S, -11.5, 9.0, 0.22, 16, 0.12)
-    windows(P, S, -9.0, 6.0, -0.18, 10, 0.1)
-    # raked two-tier bridge tower
-    TW = [(-1.2, 0, 0, 0, 1.75, 2), (-2.2, 0.70, 0.55, 0.30, 1.85, 2.3), (-4.2, 1.25, 1.10, 0.30, 1.95, 2.4), (-6.8, 1.30, 1.25, 0.30, 2.0, 2.4),
-          (-8.8, 1.00, 1.05, 0.30, 1.95, 2.3), (-10.2, 0.45, 0.55, 0.30, 1.85, 2.1), (-10.8, 0, 0, 0, 1.80, 2)]
-    hull(P, TW, 'hull', PEARL2, 20)
+        patch(P, S, 9.6, 13.0, (UP - sx * 0.95, UP - sx * 0.6), (UP - sx * 0.2, UP + sx * 0.02), 'paint', WHITE, nz=5, na=2)
+        for z0, z1 in ((7.4, 3.9), (3.6, 0.2), (-11.0, -12.4)):
+            patch(P, S, z0, z1, UP - sx * 1.12, UP - sx * 0.66, 'hull', PEARL2, nz=1, na=2, off=0.004, th=0.025)
+    patch(P, S, -13.1, -12.65, UP - 1.0, UP + 1.0, 'paint', WHITE, nz=1, na=8)
+    windows(P, S, -11.0, 8.0, 0.2, 11, 0.12)
+    # swept blade strakes along the lower flanks, edged in gold, painted along their crest
+    zs = [11.8, 9.0, 5.0, 1.0, -3.0, -7.0, -10.5, -12.8, -14.15]
+    ws = [0.03, 0.45, 0.95, 1.25, 1.45, 1.6, 1.6, 1.35, 0.8]
+    for sx in (1, -1):
+        st, edge, strip = [], [], []
+        for z, w in zip(zs, ws):
+            hw, yc = secat(S, z)[0], secat(S, z)[3] - 0.05
+            root, outer = V((sx * (hw - 0.3), yc, z)), V((sx * (hw + w + 0.05), yc - 0.06, z))
+            th = 0.3 if w > 0.2 else 0.18
+            st.append((tuple(root), tuple(outer), th))
+            edge.append(tuple(outer))
+            ch = outer - root
+            strip.append((tuple(root + ch * 0.56 + V((0, th / 2 * 0.81 + 0.012, 0))), tuple(root + ch * 0.8 + V((0, th / 2 * 0.4 + 0.012, 0))), 0.02))
+        blade(P, st, 'hull', PEARL2)
+        tube(P, edge, 0.05, 0.05, 'trim', GOLD, 4)
+        blade(P, strip[2:-2], 'paint', WHITE)
+        for k in (2, 6):   # point defence on the strakes
+            (rx, ry, rz), (ox, oy, oz), th = st[k]
+            pdmount(P, (rx + (ox - rx) * 0.45, ry + th / 2 * 0.85, rz), 1.1)
+        nav(P, tuple(V(edge[4]) + V((sx * 0.08, 0, 0))), sx, 0.14)
+        rcs(P, hpt(S, -13.4, 0.6 if sx > 0 else math.pi - 0.6), 0.3, sx)
+    # lance batteries: long fairings hugging the bow shoulders, a lance from each
+    for sx in (1, -1):
+        a = 0.55 if sx > 0 else math.pi - 0.55
+        path = [hpt(S, z, a, 0.06) for z in (3.6, 5.5, 7.5, 9.6, 10.6)]
+        sweep(P, path, [(0.08, 0.06, 2), (0.3, 0.22, 2.3), (0.32, 0.24, 2.3), (0.3, 0.22, 2.3), (0.26, 0.2, 2.3)], 'hull', PEARL3, n=8)
+        x, y, z = path[-1]
+        P.cyl(0.2, 0.05, (x, y, z + 0.01), 'z', 'dark', DARK, 10)
+        lance(P, (x, y, z - 0.3), 2.0, 0.07)
+    # the spine deck from the barbette to the tower: gold-edged, painted along its crest, vents on its shoulders
+    DS = [(4.3, 0, 0, 0, 1.72, 2), (3.7, 0.45, 0.2, 0.2, 1.8, 2.6), (-0.6, 0.58, 0.26, 0.2, 1.86, 2.8), (-1.8, 0.52, 0.24, 0.2, 1.9, 2.8)]
+    hull(P, DS, 'hull', PEARL3, 12)
+    patch(P, DS, -1.6, 3.5, UP - 0.25, UP + 0.25, 'paint', WHITE, nz=4, na=2, off=0.004)
+    for sx in (1, -1):
+        patch(P, DS, -1.7, 3.6, (0.05 if sx > 0 else math.pi - 0.15), (0.15 if sx > 0 else math.pi - 0.05), 'trim', GOLD, nz=4, na=1, off=0.003, th=0.012)
+        for k in range(4):
+            patch(P, DS, 2.6 - k * 0.9, 2.1 - k * 0.9, UP - sx * 0.95, UP - sx * 0.55, 'dark', DARK, nz=1, na=1, off=0.002, th=0.01)
+    # raked two-tier bridge tower and its mast
+    TW = [(-1.0, 0, 0, 0, 1.75, 2), (-2.2, 0.75, 0.60, 0.30, 1.85, 2.3), (-4.4, 1.35, 1.25, 0.30, 2.0, 2.4), (-7.0, 1.40, 1.40, 0.30, 2.05, 2.4),
+          (-9.2, 1.05, 1.15, 0.30, 1.95, 2.3), (-10.6, 0.45, 0.55, 0.30, 1.85, 2.1), (-11.2, 0, 0, 0, 1.80, 2)]
+    hull(P, TW, 'hull', PEARL2, 18)
     for a in (0.3, math.pi - 0.3):
-        patch(P, TW, -9.6, -2.6, a - 0.03, a + 0.03, 'trim', GOLD, nz=6, na=1, off=0.004, th=0.016)
-    windows(P, TW, -9.0, -3.2, 0.42, 8, 0.1)
-    CB = [(-3.6, 0, 0, 0, 3.0, 2), (-4.2, 0.5, 0.32, 0.2, 3.05, 2.3), (-5.2, 0.85, 0.55, 0.2, 3.1, 2.4), (-6.8, 0.8, 0.55, 0.2, 3.1, 2.4),
-          (-7.8, 0.45, 0.35, 0.2, 3.05, 2.2), (-8.3, 0, 0, 0, 3.0, 2)]
-    hull(P, CB, 'hull', PEARL, 18)
-    patch(P, CB, -4.9, -4.2, 0.3, math.pi - 0.3, 'glass', GLASS, nz=2, na=8, off=0.004, th=0.01)
-    patch(P, CB, -7.6, -5.2, UP - 0.25, UP + 0.25, 'paint', WHITE, nz=3, na=2, off=0.004)
-    P.cyl(0.07, 2.4, (0, 4.6, -6.6), 'y', 'chrome', GOLD, 8)
-    P.box(2.2, 0.08, 0.08, (0, 5.2, -6.6), 'trim', GOLD, 0.0)
+        patch(P, TW, -10.0, -2.6, a - 0.03, a + 0.03, 'trim', GOLD, nz=5, na=1, off=0.004, th=0.016)
+    windows(P, TW, -9.2, -3.4, 0.45, 6, 0.1)
+    CB = [(-3.4, 0, 0, 0, 3.2, 2), (-4.0, 0.55, 0.35, 0.2, 3.25, 2.3), (-5.0, 0.95, 0.62, 0.2, 3.3, 2.4), (-6.9, 0.9, 0.62, 0.2, 3.3, 2.4),
+          (-8.0, 0.5, 0.4, 0.2, 3.25, 2.2), (-8.6, 0, 0, 0, 3.2, 2)]
+    hull(P, CB, 'hull', PEARL, 16)
+    patch(P, CB, -4.7, -4.0, 0.3, math.pi - 0.3, 'glass', GLASS, nz=2, na=6, off=0.004, th=0.01)
+    patch(P, CB, -7.7, -5.2, UP - 0.25, UP + 0.25, 'paint', WHITE, nz=3, na=2, off=0.004)
+    P.cyl(0.07, 2.8, (0, 5.1, -7.0), 'y', 'chrome', GOLD, 8)
+    P.box(2.8, 0.07, 0.07, (0, 5.5, -7.0), 'trim', GOLD, 0.0)
+    P.box(1.7, 0.06, 0.06, (0, 6.1, -7.0), 'trim', GOLD, 0.0)
     for sx in (1, -1):
-        lamp(P, (sx * 1.1, 5.2, -6.6), NAV_P if sx > 0 else NAV_S, 0.08)
-    dish(P, (0, 4.4, -5.9), 0.42, (-30, 0, 0), PEARL2, name=None)
-    lamp(P, (0, 5.85, -6.6), STROBE, 0.1)
-    greebles(P, rng, -1.0, 1.0, 3.55, -7.6, -6.0, 6, 0.12, 0.3)
+        nav(P, (sx * 1.42, 5.5, -7.0), sx, 0.08)
+    P.sphere(0.34, (0, 3.95, -6.0), 'hull', PEARL3, (1, 0.7, 1), segs=10)
+    P.torus(0.34, 0.03, (0, 3.95, -6.0), 'y', 'trim', GOLD, 12, 3)
+    lamp(P, (0, 6.55, -7.0), STROBE, 0.1)
+    greebles(P, rng, -0.8, 0.8, 3.75, -7.6, -6.4, 5, 0.1, 0.3)
     # lance turrets: two dorsal (the second superfiring on its barbette), one ventral
-    turret(P, (0, 1.38, 9.0), 1.15, 2.6)
-    P.cyl(0.85, 0.55, (0, 1.95, 5.4), 'y', 'hull', PEARL3, 22)
-    P.torus(0.86, 0.04, (0, 1.75, 5.4), 'y', 'paint', WHITE, 22, 4)
-    turret(P, (0, 2.2, 5.4), 1.15, 2.6)
-    turret(P, (0, -1.38, 4.0), 1.1, 2.4, flip=-1)
-    # point defence on the chine shoulders
+    turret(P, (0, 1.36, 8.8), 1.3, 2.8)
+    P.cyl(0.98, 0.55, (0, 1.95, 5.1), 'y', 'hull', PEARL3, 16)
+    P.torus(0.99, 0.04, (0, 2.0, 5.1), 'y', 'paint', WHITE, 16, 3)
+    turret(P, (0, 2.2, 5.1), 1.3, 2.8)
+    turret(P, (0, -1.38, 3.8), 1.2, 2.5, flip=-1)
+    # the solar sails amidships, on gilt booms from the flanks
     for sx in (1, -1):
-        for z in (6.2, -11.2):
-            a = 0.42 if sx > 0 else math.pi - 0.42
-            x, y, zz = hpt(S, z, a, -0.05)
-            pdmount(P, (x, y, zz), 1.1)
-        nav(P, hpt(S, 11.0, 0.0 if sx > 0 else math.pi, 0.05), sx, 0.14)
-        rcs(P, hpt(S, 12.0, 0.6 if sx > 0 else math.pi - 0.6), 0.28, sx)
-        rcs(P, hpt(S, -12.8, 0.6 if sx > 0 else math.pi - 0.6), 0.3, sx)
-    # the solar sails: canted gilt masts on the shoulders, each spreading a crescent-edged sail aft
-    for sx in (1, -1):
-        root = V(hpt(S, -0.2, 0.62 if sx > 0 else math.pi - 0.62, -0.1))
-        el = math.radians(52)
-        d = V((sx * math.cos(el), math.sin(el), -0.08)).normalized()
-        Lm = 5.6
-        tube(P, [tuple(root), tuple(root + d * Lm)], 0.1, 0.06, 'trim', GOLD, 8)
-        P.sphere(0.2, tuple(root + d * 0.15), 'trim', GOLD2, segs=10)
-        st = []
-        for k in range(7):
-            t = 0.12 + 0.88 * k / 6
-            le = root + d * (t * Lm) + V((0, 0, -0.14))
-            chord = 3.5 - 1.6 * t
-            bow = 0.55 * math.sin(math.pi * t)
-            te = le + V((0, 0, -(chord - bow)))
-            st.append((tuple(le), tuple(te), 0.06))
-        blade(P, st, 'dark', SAIL, up=(-sx, 1, 0))
-        for k in (2, 4, 6):   # gilt battens across the sail
-            le, te, _ = st[k]
-            tube(P, [le, te], 0.03, 0.025, 'trim', GOLD, 5)
-        tube(P, [tuple(V(s[1])) for s in st], 0.03, 0.03, 'paint', WHITE, 5)
-        tube(P, [tuple(V(s[0]) + V((0, 0, 0.06))) for s in st], 0.035, 0.035, 'glow', WHITE, 5)
-        lamp(P, tuple(root + d * (Lm + 0.12)), STROBE, 0.08)
-    # engine bank inside the crown ring
-    band(P, S, -13.6, -13.25, 'paint', WHITE, 24)
-    crown(P, S, -12.9, 3.25, 0.15, 10)
-    nozzle(P, (0, 0.2, -14.95), 0.9, flame=3.0, segs=22, ring=GOLD)
-    P.cyl(0.56, 0.02, (0, 0.2, -14.962), 'z', 'glow', WHITE, 16)
+        root = hpt(S, -0.8, 0.34 if sx > 0 else math.pi - 0.34, -0.1)
+        Pt = sail(P, root, sx, 5.2, 1.55, 8, 0.18, (0.42, 0.7), 0.07, 5)
+        lamp(P, tuple(Pt(0.995, 0) + V((0, 0.06, 0))), STROBE, 0.07)
+    # engine bank inside the crown collar
+    crown(P, S, -13.0, 0.7, 0.22, 0.12, 10, 24)
+    nozzle(P, (0, 0.2, -14.95), 0.9, flame=3.0, segs=16, ring=GOLD)
+    P.cyl(0.56, 0.02, (0, 0.2, -14.962), 'z', 'glow', WHITE, 14)
     for sx in (1, -1):
         for (x, y, r) in ((1.75, 0.35, 0.6), (0.95, -1.05, 0.5)):
-            nozzle(P, (sx * x, y, -14.9), r, flame=2.8, segs=18, ring=GOLD)
-            P.cyl(r * 0.62, 0.02, (sx * x, y, -14.912), 'z', 'glow', WHITE, 12)
+            nozzle(P, (sx * x, y, -14.9), r, flame=2.8, segs=10, ring=GOLD)
+            P.cyl(r * 0.62, 0.02, (sx * x, y, -14.912), 'z', 'glow', WHITE, 10)
     lamp(P, (0, -1.6, -13.5), STROBE, 0.1)
     # underside: keel, hangar door, sensor blisters
-    P.box(0.6, 0.35, 20.0, (0, -1.6, -1.5), 'trim', PEARL3, 0.05)
+    P.box(0.6, 0.35, 20.0, (0, -1.6, -1.5), 'trim', PEARL3, 0.0)
     P.box(2.6, 0.05, 3.4, (0, -1.6, -6.0), 'dark', DARK, 0.0)
     P.box(2.3, 0.04, 0.12, (0, -1.63, -4.4), 'lamp', WIN, 0.0)
-    for z in (9.0, -9.5):
-        P.sphere(0.45, (1.2, -1.45, z), 'hull', PEARL3, (1, 0.6, 1.3), segs=12)
 
 
 BUILD = {'fighter': fighter, 'bomber': bomber, 'drone': drone, 'decoy': decoy, 'gunship': gunship,

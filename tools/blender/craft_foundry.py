@@ -1,4 +1,25 @@
 # Craft line "foundry": brutalist industrial, flown by the Ironhold Foundry and the Rival Companies' security fleets.
+# Brick hulls of warm sand plate layered two and three deep, gunmetal machinery left in the open (hydraulic rams,
+# conduits, lattice frames, roll cages), bolt rows along the plate edges, slit viewports in heavy frames, hazard
+# striping, chevrons and block stencils in the wing's paint; and on every craft the same engine: a square bank of
+# nozzles, each in its own cell of a gunmetal grid, radiator fin stacks down the block's flanks. See craftlib.py.
+#   fighter   hammerhead interceptor: a transverse armour brick with a bolted glacis, cannon housings at its two
+#             ends and the cab on top, an exposed spine with shock rams back to a 2x2 engine block (an I from above)
+#   bomber    ordnance hauler: armoured cab, keel spine, two heavy torpedoes in open roll-cage cradles on its
+#             flanks (warheads painted), a third in the belly release rail, a 3x2 bank and two sustainers
+#   drone     armoured cube in a bumper cage, the green repair cross on its roof, an emitter head on a hydraulic
+#             boom, two manipulator arms folded under it, a 2x2 bank
+#   decoy     unmanned signal truss: a square lattice girder carrying a transmitter drum, a ventral dish, a heavy
+#             emitter block bristling with antenna whips, dipole outriggers, a power module with radiators aft
+#   gunship   armoured brick escort: glacis prow, a twin gunhouse ahead of a stepped bridge, two casemates a side,
+#             missile containers (3x3 cells) on hydraulic arms outboard aft, radiator banks, a raised 3x2 bank
+#   torpboat  a square-section launch tube running the length of the boat and far out ahead of it, braced by
+#             collars; magazine containers on both flanks with loader rams to the tube, a bridge block aft
+#   tender    flying dry-dock: two pontoon hulls joined by girders round an open repair bay, a hazard-striped gantry
+#             crane over it lowering an emitter on a telescoping ram, docking clamps, beam dishes and bow cranes
+#   frigate   a small warship: visor prow round a box-cased spinal driver, two dorsal gunhouses (one superfiring)
+#             and one ventral, broadside casemates with point defence on their roofs, a stepped citadel between
+#             radiator banks, reactor containers aft and an engine block wider than the hull
 import math, random
 from craftlib import *
 
@@ -184,7 +205,7 @@ def turret(P, at, w, d, h, n, length, r, bar=0.12, flip=1, tint=SAND3, rot_paint
     P.box(w * 0.8, h * 0.5, 0.06, (x, yc, z + d / 2 - 0.02), 'dark', GUN, 0.0)            # mantlet
     for i in range(n):
         bx = x + (i - (n - 1) / 2) * w * 0.34
-        barrel(P, (bx, yc, z + d / 2 - 0.05), length, r, tint=STEEL)
+        gun(P, (bx, yc, z + d / 2 - 0.05), length, r, segs=8)
 
 
 # ---------------------------------------------------------------- fighter
@@ -193,7 +214,14 @@ def fighter(P):
     P.box(3.3, 0.9, 1.9, (0, 0.0, 2.45), 'hull', SAND, 0.1, taper=(0.94, 0.62), shear=(0, -0.3))
     P.box(2.5, 0.2, 1.0, (0, 0.52, 2.1), 'hull', SAND2, 0.05)
     hazard(P, (0, 0.63, 2.3), 2.2, 0.36)
-    bolts(P, (-1.1, 0.62, 1.68), (1.1, 0.62, 1.68), 9)
+    bolts(P, (-1.1, 0.62, 1.68), (1.1, 0.62, 1.68), 7)
+    a = math.radians(36)
+    for y, w in ((-0.18, 2.9), (0.2, 2.7)):                                           # glacis strakes
+        z = 3.4 - (y + 0.45) / 0.9 * 0.66 + 0.035 * math.cos(a)
+        P.box(w, 0.26, 0.07, (0, y + 0.035 * math.sin(a), z), 'trim', SAND3, 0.0, rot=(-36, 0, 0))
+    for y in (-0.18, 0.2):
+        z = 3.4 - (y + 0.45) / 0.9 * 0.66 + 0.075 * math.cos(a)
+        bolts(P, (-1.1, y + 0.075 * math.sin(a), z), (1.1, y + 0.075 * math.sin(a), z), 6, 'z', s=0.03)
     P.box(3.0, 0.3, 0.9, (0, -0.52, 2.5), 'trim', SAND3, 0.05)                         # belly armour
     # the armoured cab: a block with a slit visor and side ports, an armoured hatch
     P.box(1.05, 0.5, 1.2, (0, 0.85, 1.95), 'hull', SAND, 0.07, taper=(0.82, 0.7), shear=(0, -0.12))
@@ -208,11 +236,10 @@ def fighter(P):
         gx = sx * 1.92
         P.box(0.62, 0.74, 2.4, (gx, -0.02, 2.65), 'hull', SAND2, 0.08)
         P.box(0.14, 0.02, 2.0, (gx, 0.355, 2.6), 'paint', WHITE, 0.0)
-        bolts(P, (gx + 0.19, 0.35, 1.7), (gx + 0.19, 0.35, 3.6), 5)
-        bolts(P, (gx - 0.19, 0.35, 1.7), (gx - 0.19, 0.35, 3.6), 5)
+        bolts(P, (gx + 0.19, 0.35, 1.7), (gx + 0.19, 0.35, 3.6), 4)
+        bolts(P, (gx - 0.19, 0.35, 1.7), (gx - 0.19, 0.35, 3.6), 4)
         P.cyl(0.18, 0.6, (gx, 0.0, 4.1), 'z', 'dark', GUN, 10)
-        for z in (3.92, 4.28):
-            P.cyl(0.2, 0.06, (gx, 0.0, z), 'z', 'trim', IRON, 10)
+        P.cyl(0.2, 0.06, (gx, 0.0, 4.28), 'z', 'trim', IRON, 10)
         barrel(P, (gx, 0.0, 3.85), 0.9, 0.09, tint=STEEL)
         P.box(0.2, 0.2, 0.9, (gx + sx * 0.36, -0.15, 2.4), 'dark', GUN2, 0.0)          # ammo feed
         rcs(P, (gx, -0.52, 1.7), 0.15, sx)
@@ -230,16 +257,16 @@ def fighter(P):
         piston(P, (sx * 0.95, 0.05, 1.5), (sx * 1.05, 0.05, -1.45), 0.11)
     P.cyl(0.36, 2.4, (0, -0.58, 0.0), 'z', 'hull', SAND3, 12)                          # belly tank
     for z in (-1.25, 1.25):
-        P.sphere(0.36, (0, -0.58, z), 'hull', SAND3, (1, 1, 0.5), segs=10)
+        P.sphere(0.36, (0, -0.58, z), 'hull', SAND3, (1, 1, 0.5), segs=8)
     for z in (-0.6, 0.6):
-        P.torus(0.37, 0.035, (0, -0.58, z), 'z', 'dark', GUN, 10, 4)
+        P.cyl(0.375, 0.07, (0, -0.58, z), 'z', 'dark', GUN, 12, caps=False)
     # the engine block: a square 2x2 bank, a stepped armour roof, radiator fins down the flanks, chevrons
     P.box(2.7, 1.5, 2.5, (0, 0.0, -2.68), 'hull', SAND, 0.1, taper=(0.92, 1.0))
     P.box(2.2, 0.24, 2.0, (0, 0.85, -2.85), 'hull', SAND2, 0.06, taper=(0.95, 0.85), shear=(0, -0.1))
     chevrons(P, (0, 0.975, -2.05), 1.4, 2, 0.38)
     vents(P, (0, 0.98, -3.3), 1.5, 0.7, 5)
     P.box(2.8, 0.12, 0.3, (0, 0.62, -1.55), 'trim', SAND3, 0.02)                        # front lip
-    bolts(P, (-1.1, 0.68, -1.55), (1.1, 0.68, -1.55), 7)
+    bolts(P, (-1.1, 0.68, -1.55), (1.1, 0.68, -1.55), 5)
     for sx in (1, -1):
         P.box(0.12, 1.0, 1.0, (sx * 1.35, -0.1, -2.1), 'trim', SAND3, 0.0)
         bolts(P, (sx * 1.415, 0.3, -2.5), (sx * 1.415, 0.3, -1.7), 3, 'x')
@@ -291,7 +318,7 @@ def bomber(P):
             P.box(1.6, 0.12, 0.16, (sx * 1.45, 0.62, z), 'trim', IRON, 0.0)
             P.box(0.12, 1.26, 0.16, (ox, 0.05, z), 'trim', IRON, 0.0)
             P.box(1.6, 0.12, 0.16, (sx * 1.45, -0.52, z), 'trim', IRON, 0.0)
-            P.torus(0.52, 0.035, (tx, 0.05, z), 'z', 'dark', GUN, 10, 4)
+            P.cyl(0.525, 0.08, (tx, 0.05, z), 'z', 'dark', GUN, 12, caps=False)
         P.box(0.12, 0.12, 5.5, (ox, 0.62, -0.25), 'trim', IRON, 0.0)
         P.box(0.12, 0.12, 5.5, (ox, -0.52, -0.25), 'trim', IRON, 0.0)
         P.box(0.04, 0.03, 4.0, (ox, 0.69, 0.1), 'paint', WHITE, 0.0)
@@ -309,11 +336,11 @@ def bomber(P):
     P.box(3.8, 0.22, 2.0, (0, 1.06, -4.1), 'hull', SAND2, 0.05)
     chevrons(P, (0, 1.175, -3.25), 2.6, 2, 0.45, t=0.14)
     vents(P, (0, 1.18, -4.55), 2.4, 0.9, 7)
-    bolts(P, (-1.7, 1.17, -4.95), (1.7, 1.17, -4.95), 10)
+    bolts(P, (-1.7, 1.17, -4.95), (1.7, 1.17, -4.95), 8)
     for sx in (1, -1):
         P.box(0.14, 1.3, 2.1, (sx * 2.25, -0.05, -4.1), 'trim', SAND3, 0.0)
         P.box(0.06, 0.3, 1.9, (sx * 2.33, 0.35, -4.1), 'paint', WHITE, 0.0)
-        bolts(P, (sx * 2.33, -0.45, -5.0), (sx * 2.33, -0.45, -3.2), 6, 'x')
+        bolts(P, (sx * 2.33, -0.45, -5.0), (sx * 2.33, -0.45, -3.2), 5, 'x')
         nozzle(P, (sx * 1.75, -0.25, -5.36), 0.27, flame=2.4, segs=12)
         rcs(P, (sx * 2.25, 0.9, -3.0), 0.16, sx)
     bank(P, (0, 0.1, -5.4), 3, 2, 0.34, flame=2.8, segs=12)
@@ -380,81 +407,83 @@ def drone(P):
 
 # ---------------------------------------------------------------- decoy
 def decoy(P):
-    # an unmanned signal truss: a square lattice girder carrying a transmitter drum, a ventral dish and a forward
-    # emitter array bristling with antennas; a power module and radiators aft. No cockpit, nothing wing-like.
-    a, z0, z1, nb = 0.38, -1.5, 2.5, 5
+    # an unmanned signal truss: a square lattice girder carrying a transmitter drum, a ventral dish and a heavy
+    # forward emitter block bristling with antennas; a power module and radiators aft. No cockpit, nothing wing-like.
+    a, z0, z1, nb = 0.4, -1.4, 2.4, 4
     L = z1 - z0
     for sx in (1, -1):
         for sy in (1, -1):
-            P.box(0.09, 0.09, L, (sx * a, sy * a, (z0 + z1) / 2), 'trim', IRON, 0.0)
-        P.box(0.04, 0.012, L - 0.2, (sx * a, a + 0.05, (z0 + z1) / 2), 'paint', WHITE, 0.0)
+            P.box(0.12, 0.12, L, (sx * a, sy * a, (z0 + z1) / 2), 'trim', IRON, 0.0)
+        P.box(0.05, 0.012, L - 0.3, (sx * a, a + 0.066, (z0 + z1) / 2), 'paint', WHITE, 0.0)
     for i in range(nb + 1):
         z = z0 + i * L / nb
         for s in (1, -1):
-            P.box(2 * a, 0.07, 0.07, (0, s * a, z), 'trim', IRON, 0.0)
-            P.box(0.07, 2 * a, 0.07, (s * a, 0, z), 'trim', IRON, 0.0)
+            P.box(2 * a, 0.09, 0.09, (0, s * a, z), 'trim', IRON, 0.0)
+            if i in (0, nb):
+                P.box(0.09, 2 * a, 0.09, (s * a, 0, z), 'trim', IRON, 0.0)
     for i in range(nb):
         za, zb = z0 + i * L / nb, z0 + (i + 1) * L / nb
         f = 1 if i % 2 else -1
         for s in (1, -1):
-            P.strut((-a * f, s * a, za), (a * f, s * a, zb), 0.05, 0.05, 'dark', GUN2)
-            P.strut((s * a, -a * f, za), (s * a, a * f, zb), 0.05, 0.05, 'dark', GUN2)
-    P.cyl(0.12, L, (0, 0.0, (z0 + z1) / 2), 'z', 'chrome', STEEL, 8)                  # power trunk
-    P.cyl(0.08, L, (0.18, -0.12, (z0 + z1) / 2), 'z', 'dark', GUN, 6)
+            P.strut((-a * f, s * a, za), (a * f, s * a, zb), 0.06, 0.06, 'dark', GUN2)
+            P.strut((s * a, -a * f, za), (s * a, a * f, zb), 0.06, 0.06, 'dark', GUN2)
+    P.cyl(0.13, L, (0, 0.0, (z0 + z1) / 2), 'z', 'chrome', STEEL, 8)                  # power trunk
     # the transmitter drum on top: emitter slots round its rim, a sensor dome
-    dy = a + 0.05
-    P.box(0.5, 0.12, 0.5, (0, dy, 0.6), 'dark', GUN, 0.0)
-    P.cyl(0.72, 0.42, (0, dy + 0.27, 0.6), 'y', 'hull', SAND2, 16)
-    P.cyl(0.74, 0.08, (0, dy + 0.2, 0.6), 'y', 'paint', WHITE, 16)
-    P.cyl(0.6, 0.06, (0, dy + 0.5, 0.6), 'y', 'dark', GUN2, 16)
-    for k in range(12):
-        t = math.radians(k * 30 + 15)
-        P.box(0.12, 0.16, 0.03, (math.sin(t) * 0.725, dy + 0.34, 0.6 + math.cos(t) * 0.725), 'glow', WHITE, 0.0, rot=(0, k * 30 + 15, 0))
-    P.sphere(0.22, (0, dy + 0.55, 0.6), 'hull', SAND, (1, 0.7, 1), segs=10)
-    P.sphere(0.07, (0, dy + 0.62, 0.78), 'glow', WHITE, segs=6)
+    dy, dz = a + 0.06, 0.5
+    P.box(0.5, 0.12, 0.5, (0, dy, dz), 'dark', GUN, 0.0)
+    P.cyl(0.72, 0.42, (0, dy + 0.27, dz), 'y', 'hull', SAND2, 16)
+    P.cyl(0.74, 0.08, (0, dy + 0.2, dz), 'y', 'paint', WHITE, 16)
+    P.cyl(0.6, 0.06, (0, dy + 0.5, dz), 'y', 'dark', GUN2, 16)
+    for k in range(10):
+        t = math.radians(k * 36 + 18)
+        P.box(0.14, 0.14, 0.03, (math.sin(t) * 0.725, dy + 0.34, dz + math.cos(t) * 0.725), 'glow', WHITE, 0.0, rot=(0, k * 36 + 18, 0))
+    P.sphere(0.22, (0, dy + 0.55, dz), 'hull', SAND, (1, 0.7, 1), segs=8)
+    P.sphere(0.06, (0, dy + 0.62, dz + 0.17), 'glow', WHITE, segs=6)
     # ventral dish on a pylon
-    P.box(0.16, 0.4, 0.16, (0, -a - 0.2, 1.2), 'dark', GUN, 0.0)
-    P.cyl(0.62, 0.22, (0, -a - 0.5, 1.2), 'y', 'trim', SAND3, 16, r2=0.18, rot=(-35, 0, 0))
-    P.cyl(0.5, 0.03, (0, -a - 0.62, 1.29), 'y', 'dark', GUN2, 14, rot=(-35, 0, 0))
-    rod(P, (0, -a - 0.5, 1.2), (0, -a - 0.95, 1.55), 0.025)
-    P.sphere(0.05, (0, -a - 0.95, 1.55), 'glow', WHITE, segs=6)
-    # the forward emitter array: a framed plate of glowing tiles, antenna whips splayed from its corners
-    P.box(1.1, 1.1, 0.2, (0, 0, z1 + 0.1), 'hull', SAND2, 0.04)
-    for i in range(3):
-        for j in range(3):
-            P.box(0.24, 0.24, 0.03, ((i - 1) * 0.3, (j - 1) * 0.3, z1 + 0.21), 'glow', WHITE, 0.0)
+    P.box(0.16, 0.4, 0.16, (0, -a - 0.2, 1.3), 'dark', GUN, 0.0)
+    P.cyl(0.62, 0.22, (0, -a - 0.5, 1.3), 'y', 'trim', SAND3, 14, r2=0.18, rot=(-35, 0, 0))
+    P.cyl(0.5, 0.03, (0, -a - 0.62, 1.39), 'y', 'dark', GUN2, 14, rot=(-35, 0, 0))
+    rod(P, (0, -a - 0.5, 1.3), (0, -a - 0.95, 1.65), 0.025, segs=6)
+    P.box(0.07, 0.07, 0.07, (0, -a - 0.95, 1.65), 'glow', WHITE, 0.0)
+    # the forward emitter block: an armoured box, a grille face with four emitters, antenna whips from its corners
+    P.box(1.25, 1.25, 0.5, (0, 0, z1 + 0.2), 'hull', SAND2, 0.06)
+    hazard(P, (0, 0.635, z1 + 0.2), 1.0, 0.3)
+    P.box(1.0, 1.0, 0.04, (0, 0, z1 + 0.46), 'dark', GUN, 0.0)
+    for i in (-1, 1):
+        for j in (-1, 1):
+            P.box(0.24, 0.24, 0.03, (i * 0.24, j * 0.24, z1 + 0.48), 'glow', WHITE, 0.0)
     for sx in (1, -1):
         for sy in (1, -1):
-            b = (sx * 0.48, sy * 0.48, z1 + 0.2)
-            e = (sx * 0.95, sy * 0.8, z1 + 1.1)
-            rod(P, b, e, 0.022, segs=6)
-            P.sphere(0.04, e, 'glow', WHITE, segs=6)
-    rod(P, (0, 0, z1 + 0.2), (0, 0, z1 + 1.35), 0.04, segs=6)
-    for z in (z1 + 0.6, z1 + 0.95):
-        P.cyl(0.09, 0.05, (0, 0, z), 'z', 'dark', GUN, 8)
-    P.sphere(0.07, (0, 0, z1 + 1.37), 'glow', WHITE, segs=8)
-    P.empty('gun', (0, 0, z1 + 1.42))
-    # dipole masts on outriggers amidships
+            b = (sx * 0.5, sy * 0.5, z1 + 0.42)
+            e = (sx * 1.0, sy * 0.85, z1 + 1.25)
+            rod(P, b, e, 0.024, segs=6)
+            P.box(0.07, 0.07, 0.07, e, 'glow', WHITE, 0.0)
+    rod(P, (0, 0, z1 + 0.45), (0, 0, z1 + 1.45), 0.045, segs=6)
+    for z in (z1 + 0.75, z1 + 1.1):
+        P.cyl(0.1, 0.05, (0, 0, z), 'z', 'dark', GUN, 8)
+    P.sphere(0.07, (0, 0, z1 + 1.47), 'glow', WHITE, segs=6)
+    P.empty('gun', (0, 0, z1 + 1.52))
+    # dipole masts on outriggers ahead of the drum, nav lights on their tips
     for sx in (1, -1):
-        P.box(0.9, 0.08, 0.1, (sx * (a + 0.45), 0.0, 1.7), 'trim', IRON, 0.0)
-        rod(P, (sx * 0.85, -0.75, 1.7), (sx * 0.85, 0.75, 1.7), 0.022, segs=6)
-        P.box(0.12, 0.12, 0.12, (sx * 0.85, 0.0, 1.7), 'dark', GUN, 0.0)
-        nav(P, (sx * 0.85, 0.78, 1.7), sx, 0.045)
-        lamp(P, (sx * 0.85, -0.78, 1.7), STROBE, 0.04)
+        P.box(0.9, 0.09, 0.12, (sx * (a + 0.45), 0.0, 1.6), 'trim', IRON, 0.0)
+        rod(P, (sx * 0.88, -0.75, 1.6), (sx * 0.88, 0.75, 1.6), 0.024, segs=6)
+        P.box(0.14, 0.14, 0.14, (sx * 0.88, 0.0, 1.6), 'dark', GUN, 0.0)
+        nav(P, (sx * 0.88, 0.78, 1.6), sx, 0.045)
     # the power module aft: an armoured box, radiator fins down both flanks, a 2x1 bank
-    P.box(1.35, 1.15, 1.6, (0, 0.0, -2.25), 'hull', SAND, 0.08)
-    P.box(1.05, 0.14, 1.3, (0, 0.64, -2.3), 'hull', SAND2, 0.03)
-    hazard(P, (0, 0.72, -1.85), 0.95, 0.24)
-    vents(P, (0, 0.72, -2.55), 0.8, 0.5, 4)
+    P.box(1.5, 1.3, 1.7, (0, 0.0, -2.25), 'hull', SAND, 0.08)
+    P.box(1.2, 0.14, 1.4, (0, 0.71, -2.3), 'hull', SAND2, 0.03)
+    hazard(P, (0, 0.79, -1.85), 1.1, 0.26)
+    vents(P, (0, 0.79, -2.55), 0.9, 0.5, 4)
+    bolts(P, (-0.6, 0.66, -1.42), (0.6, 0.66, -1.42), 4)
     for sx in (1, -1):
-        fins(P, sx * 0.67, 0.0, -2.9, -1.6, 6, 0.85, sx)
-        rcs(P, (sx * 0.55, 0.62, -1.55), 0.12, sx)
-    bank(P, (0, 0.0, -3.128), 2, 1, 0.26, flame=2.6, segs=12)
+        fins(P, sx * 0.75, 0.0, -3.0, -1.5, 5, 0.95, sx)
+    P.cyl(0.016, 0.45, (-0.4, 1.0, -2.8), 'y', 'chrome', STEEL, 6)
+    lamp(P, (-0.4, 1.24, -2.8), STROBE, 0.04)
+    bank(P, (0, 0.0, -3.181), 2, 1, 0.27, flame=2.6, segs=10)
 
 
 # ---------------------------------------------------------------- gunship (medium)
 def gunship(P):
-    rng = random.Random(404)
     # the hull: an armoured brick, a blunt glacis prow, a deck slab, belt armour standing proud along the flanks
     P.box(3.9, 1.8, 9.6, (0, 0.0, -1.2), 'hull', SAND, 0.15)
     P.box(3.6, 1.6, 2.6, (0, -0.05, 4.85), 'hull', SAND2, 0.12, taper=(0.9, 0.45), shear=(0, -0.55))
@@ -462,8 +491,8 @@ def gunship(P):
     P.box(3.5, 0.3, 9.0, (0, -1.0, -1.2), 'trim', SAND3, 0.06)                          # keel plate
     for sx in (1, -1):
         P.box(0.2, 1.0, 8.6, (sx * 2.02, -0.1, -1.0), 'trim', SAND3, 0.04)
-        bolts(P, (sx * 2.125, 0.3, -5.0), (sx * 2.125, 0.3, 3.0), 12, 'x')
-        bolts(P, (sx * 2.125, -0.5, -5.0), (sx * 2.125, -0.5, 3.0), 12, 'x')
+        bolts(P, (sx * 2.125, 0.3, -5.0), (sx * 2.125, 0.3, 3.0), 9, 'x')
+        bolts(P, (sx * 2.125, -0.5, -5.0), (sx * 2.125, -0.5, 3.0), 9, 'x')
         P.box(0.12, 0.02, 7.0, (sx * 1.5, 1.18, -1.4), 'paint', WHITE, 0.0)
         windows(P, (sx * 1.96, 0.62, -0.5), (sx * 1.96, 0.62, 1.9), 5, 'x', 0.09)
     hazard(P, (0, 0.765, 4.3), 2.6, 0.5)
@@ -478,7 +507,7 @@ def gunship(P):
     P.cyl(0.03, 1.0, (-0.4, 2.9, -0.4), 'y', 'chrome', STEEL, 6)
     lamp(P, (-0.4, 3.42, -0.4), STROBE, 0.07)
     # the forward turret: a twin gunhouse on the deck ahead of the bridge
-    turret(P, (0, 0.9, 2.75), 1.3, 1.4, 0.55, 2, 1.9, 0.09, bar=0.3)
+    turret(P, (0, 0.9, 2.85), 1.7, 1.8, 0.66, 2, 2.4, 0.11, bar=0.28)
     # casemates standing proud of the belt, two a side, a heavy gun in each
     for sx in (1, -1):
         for z in (1.6, -1.6):
@@ -486,7 +515,6 @@ def gunship(P):
             P.box(0.5, 0.02, 1.0, (sx * 2.3, 0.565, z - 0.1), 'dark', GUN, 0.0)
             barrel(P, (sx * 2.35, 0.15, z + 0.72), 1.1, 0.09, tint=STEEL)
         nav(P, (sx * 2.15, 0.5, 4.0), sx, 0.09)
-        rcs(P, (sx * 1.6, 0.55, 5.4), 0.2, sx)
     # missile pods: armoured containers on hydraulic arms outboard aft, a 3x3 cell face, hazard roofs
     for sx in (1, -1):
         px, pz = sx * 3.45, -3.4
@@ -513,7 +541,7 @@ def gunship(P):
     for sx in (1, -1):
         fins(P, sx * 1.95, 0.15, -7.4, -5.9, 5, 1.8, sx)
         rcs(P, (sx * 1.95, 1.2, -5.9), 0.2, sx)
-    bank(P, (0, 0.15, -7.63), 3, 2, 0.46, flame=3.0, segs=14)
+    bank(P, (0, 0.15, -7.63), 3, 2, 0.46, flame=3.0, segs=12)
     lamp(P, (0, 1.75, -7.2), STROBE, 0.07)
     # underside: a hatch, skids
     P.box(1.6, 0.06, 1.8, (0, -1.18, -1.0), 'dark', GUN2, 0.0)
@@ -586,55 +614,57 @@ def tender(P):
         P.box(1.8, 1.8, 1.6, (px, -0.05, 4.0), 'hull', SAND2, 0.1, taper=(0.9, 0.45), shear=(0, -0.4))
         P.box(1.5, 0.22, 6.2, (px, 1.1, -0.6), 'hull', SAND2, 0.04)
         P.box(0.12, 0.02, 5.6, (px + sx * 0.5, 1.22, -0.6), 'paint', WHITE, 0.0)
-        bolts(P, (px - sx * 0.55, 1.215, -3.4), (px - sx * 0.55, 1.215, 2.2), 9)
-        windows(P, (px + sx * 0.96, 0.45, -2.6), (px + sx * 0.96, 0.45, 2.4), 7, 'x', 0.09)
+        bolts(P, (px - sx * 0.55, 1.215, -3.2), (px - sx * 0.55, 1.215, 2.2), 5)
+        windows(P, (px + sx * 0.96, 0.45, -2.4), (px + sx * 0.96, 0.45, 2.4), 6, 'x', 0.09)
         P.box(0.2, 1.0, 6.4, (px + sx * 0.98, -0.25, -0.5), 'trim', SAND3, 0.03)
-        bolts(P, (px + sx * 1.09, -0.6, -3.4), (px + sx * 1.09, -0.6, 2.4), 9, 'x')
+        bolts(P, (px + sx * 1.09, -0.6, -3.2), (px + sx * 1.09, -0.6, 2.4), 6, 'x')
         # spares containers stacked on the pontoon aft
         P.box(1.2, 0.7, 1.5, (px, 1.56, -2.6), 'trim', SAND3, 0.04)
         P.box(0.9, 0.02, 1.2, (px, 1.92, -2.6), 'paint', WHITE, 0.0)
         ribs(P, px + sx * 0.6, 1.25, 1.85, -3.3, -1.9, 4, sx)
+        # docking clamps reaching into the bay: rams out of the pontoon's inner face, gunmetal pads
+        for z in (1.3, -1.6):
+            piston(P, (px - sx * 0.95, 0.1, z), (px - sx * 1.75, 0.1, z), 0.11, segs=6)
+            P.box(0.18, 0.8, 0.6, (px - sx * 1.85, 0.1, z), 'dark', GUN2, 0.0)
+            P.box(0.04, 0.02, 0.5, (px - sx * 1.85, 0.51, z), 'paint', WHITE, 0.0)
         # engines: a 1x2 bank in each pontoon
-        bank(P, (px, 0.0, -4.33), 1, 2, 0.38, flame=2.8, segs=14)
+        bank(P, (px, 0.0, -4.33), 1, 2, 0.38, flame=2.8, segs=12)
         nav(P, (px + sx * 1.0, 0.75, 3.2), sx, 0.1)
         rcs(P, (px + sx * 0.98, 0.7, -3.6), 0.2, sx)
-        rcs(P, (px + sx * 0.98, 0.7, 2.6), 0.2, sx)
     # the forward and aft crossbeams: box girders with a command cab forward and a power module aft
     P.box(6.2, 1.0, 1.4, (0, 0.2, 3.1), 'hull', SAND2, 0.08)
-    hazard(P, (0, 0.71, 3.55), 5.6, 0.34)
+    for sx in (1, -1):
+        hazard(P, (sx * 2.15, 0.71, 3.1), 1.6, 0.5)
     P.box(6.2, 1.0, 1.4, (0, 0.2, -3.2), 'hull', SAND2, 0.08)
-    hazard(P, (0, 0.71, -2.75), 5.6, 0.34)
-    for zf in (2.38, -2.48):
-        for sx in (1, -1):
-            for k in range(3):
-                P.strut((sx * (0.4 + k * 0.9), -0.3, zf), (sx * (0.85 + k * 0.9), 0.7, zf), 0.08, 0.08, 'dark', GUN2)
+    hazard(P, (0, 0.71, -2.75), 5.6, 0.34, t=0.14)
     P.box(1.9, 1.0, 1.5, (0, 1.2, 3.2), 'hull', SAND, 0.1, taper=(0.86, 0.75), shear=(0, -0.1))
     visor(P, (0, 1.22, 3.92), 1.3, 0.2, rx=-25, mull=3)
-    windows(P, (0.92, 1.2, 2.7), (0.92, 1.2, 3.5), 3, 'x', 0.08)
-    windows(P, (-0.92, 1.2, 2.7), (-0.92, 1.2, 3.5), 3, 'x', 0.08)
+    windows(P, (0.92, 1.2, 2.8), (0.92, 1.2, 3.4), 2, 'x', 0.08)
+    windows(P, (-0.92, 1.2, 2.8), (-0.92, 1.2, 3.4), 2, 'x', 0.08)
     P.cyl(0.03, 0.9, (0.5, 2.1, 2.9), 'y', 'chrome', STEEL, 6)
     lamp(P, (0.5, 2.57, 2.9), STROBE, 0.07)
     P.box(2.2, 1.3, 1.6, (0, 0.4, -3.4), 'hull', SAND, 0.1)
-    vents(P, (0, 1.06, -3.4), 1.8, 1.2, 6)
+    vents(P, (0, 1.06, -3.5), 1.8, 1.0, 4)
     bank(P, (0, 0.4, -4.308), 2, 1, 0.36, flame=2.6, segs=12)
     # the gantry crane: two posts on the pontoons, a hazard-striped beam across, a trolley with a telescoping
-    # emitter arm hanging into the bay
+    # emitter arm hanging into the bay, its green ring showing round the head
     for sx in (1, -1):
         P.box(0.5, 1.9, 0.7, (sx * 3.75, 2.05, -0.2), 'trim', SAND3, 0.05)
-        piston(P, (sx * 3.6, 1.25, 1.0), (sx * 3.65, 2.6, 0.12), 0.08)
+        piston(P, (sx * 3.6, 1.25, 1.0), (sx * 3.65, 2.6, 0.12), 0.08, segs=6)
     P.box(8.0, 0.5, 0.7, (0, 3.2, -0.2), 'hull', SAND2, 0.05)
-    hazard(P, (0, 3.46, -0.2), 7.4, 0.5)
-    P.box(0.9, 0.5, 1.0, (0, 2.85, -0.2), 'dark', GUN2, 0.04)
-    piston(P, (0, 2.6, -0.2), (0, 0.9, -0.2), 0.14)
-    P.box(0.6, 0.4, 0.6, (0, 0.75, -0.2), 'dark', GUN2, 0.03)
-    P.cyl(0.24, 0.12, (0, 0.5, -0.2), 'y', 'dark', GUN, 12)
-    P.cyl(0.18, 0.04, (0, 0.43, -0.2), 'y', 'lamp', GREEN, 12)
-    P.empty('gun', (0, 0.4, -0.2))
+    hazard(P, (0, 3.46, -0.2), 7.4, 0.5, t=0.15)
+    P.box(0.9, 0.5, 1.1, (0, 2.85, -0.2), 'dark', GUN2, 0.04)
+    piston(P, (0, 2.6, -0.2), (0, 1.05, -0.2), 0.15)
+    P.box(0.8, 0.45, 0.8, (0, 0.82, -0.2), 'dark', GUN2, 0.04)
+    P.cyl(0.46, 0.07, (0, 0.6, -0.2), 'y', 'lamp', GREEN, 14)
+    P.cyl(0.3, 0.16, (0, 0.5, -0.2), 'y', 'dark', GUN, 12)
+    P.cyl(0.2, 0.04, (0, 0.41, -0.2), 'y', 'lamp', GREEN, 12)
+    P.empty('gun', (0, 0.38, -0.2))
     # beam dishes on the forward girder, green lenses
     for sx in (1, -1):
         dx = sx * 1.9
         P.box(0.5, 0.5, 0.4, (dx, 0.2, 3.9), 'dark', GUN, 0.02)
-        P.cyl(0.55, 0.3, (dx, 0.2, 4.2), 'z', 'trim', SAND3, 16, r2=0.25)
+        P.cyl(0.55, 0.3, (dx, 0.2, 4.2), 'z', 'trim', SAND3, 14, r2=0.25)
         P.cyl(0.44, 0.04, (dx, 0.2, 4.35), 'z', 'dark', GUN2, 14)
         P.cyl(0.2, 0.04, (dx, 0.2, 4.37), 'z', 'lamp', GREEN, 12)
         for k in range(3):
@@ -653,99 +683,106 @@ def tender(P):
         P.box(0.2, 0.2, 0.2, wr, 'dark', GUN, 0.0)
         for k in (-1, 1):
             P.strut(wr, (wr[0] + k * 0.15, wr[1] - 0.15, wr[2] + 0.3), 0.06, 0.06, 'chrome', STEEL)
-        P.sphere(0.07, (wr[0], wr[1] - 0.08, wr[2] + 0.1), 'lamp', GREEN, segs=6)
+        P.box(0.08, 0.08, 0.08, (wr[0], wr[1] - 0.08, wr[2] + 0.12), 'lamp', GREEN, 0.0)
 
 
 # ---------------------------------------------------------------- frigate (large)
 def frigate(P):
-    rng = random.Random(808)
     # the spinal driver, created first: a box-cased mass driver through the visor prow, its muzzle block ahead
     P.box(1.9, 1.7, 6.6, (0, -0.4, 13.9), 'trim', SAND3, 0.1)
     P.box(2.3, 2.1, 1.0, (0, -0.4, 17.2), 'hull', SAND2, 0.12)
+    P.box(1.4, 0.02, 0.5, (0, 0.66, 17.1), 'paint', WHITE, 0.0)
     P.cyl(0.6, 0.1, (0, -0.4, 17.72), 'z', 'dark', GUN, 16)
     P.torus(0.6, 0.07, (0, -0.4, 17.75), 'z', 'glow', WHITE, 16, 4)
     P.cyl(0.36, 0.05, (0, -0.4, 17.7), 'z', 'glow', WHITE, 12)
     P.empty('gun', (0, -0.4, 17.85), {'heavy': 1})
-    for z in (12.4, 14.2, 16.0):
-        P.box(2.15, 1.95, 0.4, (0, -0.4, z), 'dark', GUN2, 0.04)
+    for z in (14.4, 16.0):
+        P.box(2.15, 1.95, 0.4, (0, -0.4, z), 'dark', GUN2, 0.0)
     for sx in (1, -1):
-        P.box(0.12, 0.12, 6.0, (sx * 0.6, 0.48, 14.0), 'chrome', STEEL, 0.0)
+        P.box(0.12, 0.12, 4.6, (sx * 0.6, 0.48, 14.6), 'chrome', STEEL, 0.0)
     # the hull: a long armour brick, a blunt visor prow with a row of tube mouths, a deck slab, belts
-    P.box(7.4, 4.2, 23.6, (0, 0.0, -2.6), 'hull', SAND, 0.25)
-    P.box(6.8, 3.8, 5.2, (0, -0.1, 11.7), 'hull', SAND2, 0.2, taper=(0.88, 0.5), shear=(0, -1.15))
+    P.box(6.8, 4.2, 23.6, (0, 0.0, -2.6), 'hull', SAND, 0.25)
+    P.box(6.2, 3.8, 5.2, (0, -0.1, 11.7), 'hull', SAND2, 0.2, taper=(0.88, 0.5), shear=(0, -1.15))
     for sx in (1, -1):
-        for k in range(2):
-            x = sx * (1.7 + k * 0.95)
+        for x in (sx * 1.65, sx * 2.45):
             P.box(0.66, 0.66, 0.12, (x, -0.95, 13.62), 'dark', GUN, 0.02, rot=(-33, 0, 0))
             P.cyl(0.24, 0.06, (x, -0.92, 13.67), 'z', 'glow', WHITE, 10, rot=(-33, 0, 0))
-    hazard(P, (0, 1.81, 10.6), 4.6, 0.7)
+    hazard(P, (0, 1.81, 10.6), 4.2, 0.7)
     chevrons(P, (0, 2.12, 9.0), 2.6, 2, 0.55, t=0.22, ang=35)
-    P.box(6.6, 0.45, 19.2, (0, 2.3, -2.6), 'hull', SAND2, 0.08)
-    for k in range(5):
-        seam(P, (0, 2.535, 4.6 - k * 3.3), 6.2, 0.06)
+    P.box(6.0, 0.45, 19.2, (0, 2.3, -2.6), 'hull', SAND2, 0.08)
+    for k in range(4):
+        seam(P, (0, 2.535, -0.6 - k * 3.0), 5.6, 0.06)
     for sx in (1, -1):
-        P.box(0.35, 2.2, 20.0, (sx * 3.78, -0.3, -3.0), 'trim', SAND3, 0.06)
-        P.box(0.25, 0.02, 16.0, (sx * 3.05, 2.535, -2.6), 'paint', WHITE, 0.0)
-        bolts(P, (sx * 3.96, 0.6, -12.5), (sx * 3.96, 0.6, 6.5), 22, 'x', s=0.05)
-        bolts(P, (sx * 3.96, -1.2, -12.5), (sx * 3.96, -1.2, 6.5), 22, 'x', s=0.05)
-        windows(P, (sx * 3.72, 1.45, -11.0), (sx * 3.72, 1.45, 7.0), 14, 'x', 0.13)
-        nav(P, (sx * 3.25, 0.0, 10.5), sx, 0.15)
-        rcs(P, (sx * 3.15, 0.6, 11.0), 0.3, sx)
-        rcs(P, (sx * 3.95, 1.4, -13.6), 0.3, sx)
-    P.box(6.8, 0.5, 22.0, (0, -2.25, -2.6), 'trim', SAND3, 0.08)                         # keel
-    # the citadel: stepped armour tiers, window rows, the bridge visor, a mast with dishes
-    P.box(4.6, 1.8, 7.0, (0, 3.4, -5.6), 'hull', SAND, 0.15)
-    P.box(3.4, 1.4, 4.4, (0, 4.95, -5.3), 'hull', SAND2, 0.12)
-    P.box(2.6, 1.0, 2.4, (0, 6.1, -4.6), 'hull', SAND, 0.1, taper=(0.9, 0.8), shear=(0, -0.1))
-    visor(P, (0, 6.12, -3.56), 2.0, 0.28, rx=-19, mull=4)
-    visor(P, (0, 4.98, -3.08), 2.8, 0.22, rx=0, mull=5)
+        P.box(0.25, 0.02, 18.0, (sx * 2.7, 2.535, -2.6), 'paint', WHITE, 0.0)
+        P.box(0.3, 2.4, 20.0, (sx * 3.45, -0.3, -3.0), 'trim', SAND3, 0.06)
+        bolts(P, (sx * 3.61, 0.75, -12.5), (sx * 3.61, 0.75, 6.5), 9, 'x', s=0.05)
+        bolts(P, (sx * 3.61, -1.35, -12.5), (sx * 3.61, -1.35, 6.5), 9, 'x', s=0.05)
+        windows(P, (sx * 3.42, 1.45, -11.0), (sx * 3.42, 1.45, 7.0), 10, 'x', 0.13)
+    P.box(6.2, 0.5, 22.0, (0, -2.25, -2.6), 'trim', SAND3, 0.08)                         # keel
+    # broadside casemates standing proud of the belt, two a side: twin heavy guns each, a point-defence mount on the roof
     for sx in (1, -1):
-        windows(P, (sx * 2.32, 3.6, -8.6), (sx * 2.32, 3.6, -2.6), 10, 'x', 0.12)
-        windows(P, (sx * 1.72, 5.05, -7.2), (sx * 1.72, 5.05, -3.4), 7, 'x', 0.11)
-        bolts(P, (sx * 2.33, 2.85, -8.8), (sx * 2.33, 2.85, -2.4), 10, 'x', s=0.05)
-    P.box(3.0, 0.03, 1.4, (0, 5.66, -6.6), 'paint', WHITE, 0.0)
-    marks(P, (0, 4.31, -8.4), ((0.5, 0.9), (0.5, 0.9), (1.0, 0.9)))
-    P.box(0.5, 2.2, 0.5, (0, 7.6, -5.2), 'dark', GUN2, 0.04)
-    P.cyl(0.07, 2.6, (0, 9.9, -5.2), 'y', 'chrome', STEEL, 8)
-    P.cyl(0.8, 0.2, (0, 8.0, -4.75), 'y', 'trim', SAND3, 14, r2=0.15, rot=(25, 0, 0))
-    for sx in (1, -1):
-        P.strut((0, 8.6, -5.2), (sx * 1.1, 8.6, -5.2), 0.1, 0.1, 'trim', IRON)
-        P.box(0.12, 0.6, 0.6, (sx * 1.15, 8.6, -5.2), 'dark', GUN, 0.0)
-    lamp(P, (0, 11.25, -5.2), STROBE, 0.13)
-    greebles(P, rng, -1.3, 1.3, 5.65, -7.3, -6.2, 6, 0.25, 0.5, tints=(IRON, GUN2, SAND3))
-    # turrets: two dorsal gunhouses forward (the second raised on a barbette), one ventral aft
-    turret(P, (0, 2.52, 5.6), 2.0, 2.3, 0.9, 2, 3.2, 0.16)
-    P.box(2.6, 0.9, 2.6, (0, 2.95, 1.6), 'hull', SAND3, 0.1)
-    turret(P, (0, 3.4, 1.6), 2.0, 2.3, 0.9, 2, 3.2, 0.16)
-    turret(P, (0, -2.5, -5.0), 2.0, 2.3, 0.9, 2, 3.0, 0.15, flip=-1)
-    # casemate sponsons with point-defence mounts, two a side
-    for sx in (1, -1):
-        for z in (6.5, -11.0):
-            P.box(1.4, 1.2, 2.6, (sx * 4.3, 1.0, z), 'hull', SAND2, 0.1)
-            P.box(0.9, 0.02, 1.8, (sx * 4.3, 1.61, z), 'paint', WHITE, 0.0)
-            P.cyl(0.4, 0.2, (sx * 4.35, 1.7, z), 'y', 'dark', GUN2, 12)
-            P.box(0.6, 0.4, 0.6, (sx * 4.35, 2.0, z), 'trim', IRON, 0.05)
+        for z in (3.4, -5.6):
+            P.box(1.7, 2.3, 4.2, (sx * 4.1, 0.45, z), 'hull', SAND2, 0.14)
+            P.box(1.3, 0.25, 3.6, (sx * 4.1, 1.7, z), 'hull', SAND, 0.0)
+            hazard(P, (sx * 4.1, 1.83, z + 1.3), 1.1, 0.4)
             for k in (-1, 1):
-                barrel(P, (sx * 4.35 + k * 0.12, 2.0, z + 0.3), 1.0, 0.05, tint=STEEL, name='pd')
+                P.box(0.06, 0.6, 0.8, (sx * 4.96, 0.35, z + k * 0.95 + 0.2), 'dark', GUN, 0.0)
+                gun(P, (sx * 4.75, 0.35, z + k * 0.95 + 0.2), 2.2, 0.16, yaw=sx * 20, segs=6)
+            P.cyl(0.42, 0.18, (sx * 4.1, 1.91, z - 0.9), 'y', 'dark', GUN2, 10)
+            P.sphere(0.36, (sx * 4.1, 2.05, z - 0.9), 'trim', IRON, (1, 0.75, 1), segs=8)
+            gun(P, (sx * 4.1, 2.1, z - 0.7), 1.0, 0.06, name='pd', segs=6)
+        nav(P, (sx * 4.97, 1.3, 5.45), sx, 0.15)
+    # turrets: two dorsal gunhouses forward (the second superfiring on a barbette), one ventral aft
+    turret(P, (0, 2.52, 5.4), 2.7, 3.0, 1.1, 2, 4.0, 0.2)
+    P.box(3.2, 1.1, 3.2, (0, 3.07, 1.2), 'hull', SAND3, 0.12)
+    bolts(P, (-1.3, 3.62, -0.3), (1.3, 3.62, -0.3), 6, s=0.05)
+    turret(P, (0, 3.62, 1.2), 2.7, 3.0, 1.1, 2, 4.0, 0.2)
+    turret(P, (0, -2.5, -4.0), 2.7, 3.0, 1.0, 2, 3.6, 0.18, flip=-1)
+    # the citadel: stepped armour tiers, window rows, the bridge visor, a mast with dishes
+    P.box(4.4, 1.8, 7.0, (0, 3.4, -6.2), 'hull', SAND, 0.15)
+    P.box(3.2, 1.4, 4.4, (0, 4.95, -5.9), 'hull', SAND2, 0.12)
+    P.box(2.6, 1.0, 2.4, (0, 6.1, -5.2), 'hull', SAND, 0.1, taper=(0.9, 0.8), shear=(0, -0.1))
+    visor(P, (0, 6.12, -4.16), 2.0, 0.28, rx=-19, mull=4)
+    visor(P, (0, 4.98, -3.68), 2.6, 0.22, rx=0, mull=5)
+    for sx in (1, -1):
+        windows(P, (sx * 2.22, 3.6, -9.2), (sx * 2.22, 3.6, -3.2), 8, 'x', 0.12)
+        windows(P, (sx * 1.62, 5.05, -7.6), (sx * 1.62, 5.05, -4.2), 6, 'x', 0.11)
+        bolts(P, (sx * 2.23, 2.85, -9.4), (sx * 2.23, 2.85, -3.0), 6, 'x', s=0.05)
+    P.box(2.8, 0.03, 1.2, (0, 5.66, -7.3), 'paint', WHITE, 0.0)
+    marks(P, (0, 4.31, -9.0), ((0.5, 0.9), (0.5, 0.9), (1.0, 0.9)))
+    P.box(0.5, 2.2, 0.5, (0, 7.6, -5.8), 'dark', GUN2, 0.04)
+    P.cyl(0.07, 2.6, (0, 9.9, -5.8), 'y', 'chrome', STEEL, 8)
+    P.cyl(0.8, 0.2, (0, 8.0, -5.35), 'y', 'trim', SAND3, 14, r2=0.15, rot=(25, 0, 0))
+    for sx in (1, -1):
+        P.strut((0, 8.6, -5.8), (sx * 1.1, 8.6, -5.8), 0.1, 0.1, 'trim', IRON)
+        P.box(0.12, 0.6, 0.6, (sx * 1.15, 8.6, -5.8), 'dark', GUN, 0.0)
+    lamp(P, (0, 11.25, -5.8), STROBE, 0.13)
     # radiator banks flanking the citadel
     for sx in (1, -1):
-        P.box(0.8, 0.3, 8.0, (sx * 2.85, 2.68, -6.2), 'hull', SAND3, 0.04)
-        for k in range(12):
-            P.box(0.66, 0.26, 0.24, (sx * 2.85, 2.9, -9.9 + k * 0.67), 'dark', GUN2, 0.0)
+        P.box(0.6, 0.3, 8.0, (sx * 2.65, 2.68, -6.4), 'hull', SAND3, 0.04)
+        for k in range(11):
+            P.box(0.5, 0.26, 0.26, (sx * 2.65, 2.9, -9.9 + k * 0.7), 'dark', GUN2, 0.0)
+    # after deck: two armoured reactor containers, ribbed and painted
+    for sx in (1, -1):
+        P.box(2.3, 1.1, 1.7, (sx * 1.35, 2.62, -13.1), 'trim', SAND3, 0.06)
+        P.box(1.9, 0.02, 0.3, (sx * 1.35, 3.18, -13.1), 'paint', WHITE, 0.0)
+        ribs(P, sx * 2.5, 2.2, 3.0, -13.8, -12.4, 4, sx)
     # underside: hangar door, sensor blisters
     P.box(3.4, 0.06, 4.0, (0, -2.52, 2.5), 'dark', GUN, 0.0)
     P.box(3.0, 0.04, 0.2, (0, -2.55, 4.4), 'lamp', WIN, 0.0)
     for z in (9.0, -10.0):
-        P.sphere(0.6, (1.8, -2.45, z), 'hull', SAND3, (1, 0.6, 1), segs=10)
-    # the engine block: a 3x2 bank of big nozzles in a heavy frame, fin stacks, a stepped roof, chevrons
-    P.box(8.4, 5.6, 2.6, (0, 0.2, -15.7), 'hull', SAND, 0.18)
-    P.box(7.6, 0.35, 2.2, (0, 3.15, -15.7), 'hull', SAND2, 0.06)
-    hazard(P, (0, 3.34, -15.1), 6.6, 0.6)
-    vents(P, (0, 3.34, -16.2), 6.0, 0.9, 8)
+        P.sphere(0.6, (1.8, -2.45, z), 'hull', SAND3, (1, 0.6, 1), segs=8)
+    # the engine block: wider than the hull, a 3x2 bank of big nozzles in a heavy frame, fin stacks, a hazard roof
+    P.box(9.4, 6.0, 2.8, (0, 0.3, -15.6), 'hull', SAND, 0.2)
+    P.box(8.6, 0.4, 2.4, (0, 3.5, -15.6), 'hull', SAND2, 0.06)
+    hazard(P, (0, 3.71, -14.95), 7.4, 0.6)
+    vents(P, (0, 3.72, -16.1), 6.8, 1.0, 7)
     for sx in (1, -1):
-        fins(P, sx * 4.2, 0.2, -16.8, -14.6, 6, 4.0, sx, d=0.08)
-    bank(P, (0, 0.15, -17.32), 3, 2, 1.0, flame=3.0, segs=18)
-    lamp(P, (0, 3.6, -16.7), STROBE, 0.12)
+        fins(P, sx * 4.7, 0.3, -16.9, -14.4, 6, 4.4, sx, d=0.08)
+        rcs(P, (sx * 4.5, 3.0, -14.1), 0.3, sx)
+    bank(P, (0, 0.3, -17.324), 3, 2, 1.08, flame=3.0, segs=14)
+    P.cyl(0.06, 0.6, (0, 4.0, -16.7), 'y', 'chrome', STEEL, 6)
+    lamp(P, (0, 4.35, -16.7), STROBE, 0.12)
 
 
 BUILD = {'fighter': fighter, 'bomber': bomber, 'drone': drone, 'decoy': decoy, 'gunship': gunship,

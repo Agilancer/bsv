@@ -3,8 +3,9 @@
 # down to the bow; one flank always carries more than the other (an extra gun pod, the offset cockpit or bridge, a
 # big salvaged engine beside a smaller one). Plates do not match: pale plate, darker steel and weathered rust
 # patches, dark weld seams between them, bolt rows, ammo boxes strapped on. Prows fork into uneven tines or hook
-# into claws; spikes and rams lean forward. The wing's colour is worn as three diagonal claw slashes across the
-# back (read from above) and a stripe along the prow tines.
+# into claws; spikes and rams lean forward, and so do the cabs and bridges, whose armoured brows jut out over their
+# slit glass. Crude armour skirts hang from the chines, engines are ribbed salvaged cans. The wing's colour is worn
+# as three diagonal claw slashes across the back (read from above) and a stripe along the prow tines.
 #   fighter   hooked-mandible interceptor: two uneven claw tines with guns slung under them, a cockpit offset to
 #             port, a heavy cannon pod bolted to the starboard flank, one big salvaged engine beside a small one
 #   bomber    blunt boarding ram: a chisel ram with teeth ahead of a broad armoured box, torpedoes carried open
@@ -12,19 +13,22 @@
 #             its rail, a three-nozzle mismatched stern
 #   drone     scavenger crab: a squat hexagonal body with one big grapple claw and one small welding arm, the
 #             green mending emitter on a forward boom, a lopsided pair of thrusters
-#   decoy     jammer spar: an open truss spine carrying a salvaged dish on a port outrigger, a tilted emitter
-#             array to starboard and a crown of raked antennae on the emitter head; a reactor drum aft
+#   decoy     jammer spar: an open truss spine carrying a salvaged dish on a port outrigger, a leaning jammer
+#             mast ringed with emitter coils to starboard and a crown of raked antennae on the emitter head; a
+#             reactor drum aft with a main engine and a small vernier
 #   gunship   crescent-horned escort: two uneven horns and a grapple claw at the bow, a bridge block offset to
-#             port, a dorsal twin turret to starboard and a chin turret, a box missile pod to port and a drum pod
-#             to starboard, two big engines and a small one
-#   torpboat  harpoon boat: the main torpedo tube runs as a huge armoured barrel down the starboard side, the crew
-#             hull is welded to its port flank on open frames; a box magazine to port, a drum magazine over the
-#             tube's breech
-#   tender    salvage tug: a squat armoured hull with a heavy grapple crane on the starboard bow and a lighter
-#             mending arm to port, green beam dishes on the arms and a dorsal mast, a towing frame aft
+#             port, a dorsal twin turret to starboard, a single gun aft and a chin turret, a box missile pod to port
+#             and a drum pod to starboard, ragged skirts (longer to starboard), two big engines and a small one
+#   torpboat  harpoon boat: the main torpedo tube runs as a huge armoured barrel down the starboard side, horns
+#             round its mouth; the crew hull is welded to its port flank on open frames; a box magazine strapped to
+#             port, a drum magazine over the tube's breech
+#   tender    salvage tug: a squat armoured hull behind a fendered push plate, a heavy grapple crane on the
+#             starboard bow and a lighter mending arm to port, green emitters on both arms and a big beam dish on a
+#             dorsal mast, a towing frame over the stern
 #   frigate   corsair warship: a raked hexagon with a fork prow (the starboard tine shorter) round the heavy
-#             spinal gun, a command tower offset to port on a weld collar, turrets fore and aft, point defence on
-#             sponsons, boarding tubes, a mismatched engine bank with one huge salvaged engine
+#             spinal gun, a stepped command tower offset to port on a weld collar, turrets fore, aft and ventral,
+#             point defence on sponsons and the tower, boarding clamps to port and a radiator array to starboard, an
+#             open machinery trench aft, a mismatched engine bank with one huge salvaged engine
 import math, random
 from craftlib import *
 
@@ -82,7 +86,7 @@ def facet(P, secs, z, d, sx, up, mat, tint, frac=0.72, t=0.035, slide=0.5, x0=0.
     P.box(L * frac, t, d, (x0 + sx * cx, cy, z), mat, tint, bevel, rot=(0, 0, rz if sx > 0 else -rz))
 
 
-def skirt(P, secs, z0, z1, sx, n, rng, tints=(PALE2, STEEL, RUST2), drop=0.5, ang=22, x0=0.0, t=0.07):
+def skirt(P, secs, z0, z1, sx, n, rng, tints=(PALE2, STEEL, RUST2), drop=0.5, ang=22, x0=0.0, t=0.07, nb=3):
     """crude armour skirt: n plates hung from the chine, out and down, of uneven drop and tone, bolted along the top"""
     L = (z1 - z0) / n
     a = math.radians(ang)
@@ -93,7 +97,8 @@ def skirt(P, secs, z0, z1, sx, n, rng, tints=(PALE2, STEEL, RUST2), drop=0.5, an
         cx = hw + math.sin(a) * h / 2 - 0.03
         cy = yc - math.cos(a) * h / 2 + 0.03
         P.box(t, h, L * 1.04, (x0 + sx * cx, cy, z), 'trim', tints[i % len(tints)], 0.01, rot=(0, 0, sx * ang))
-        bolts(P, (x0 + sx * (hw + 0.05), yc - 0.07, z - L * 0.35), (x0 + sx * (hw + 0.05), yc - 0.07, z + L * 0.35), 3, s=min(0.08, t))
+        if nb:
+            bolts(P, (x0 + sx * (hw + 0.05), yc - 0.07, z - L * 0.35), (x0 + sx * (hw + 0.05), yc - 0.07, z + L * 0.35), nb, s=min(0.08, t))
 
 
 def cab(P, at, w, h, d, lean=0.4, tint=STEEL, taper=(0.8, 0.75), glass=0.62, mat='hull', bevel=0.05):
@@ -123,14 +128,20 @@ def spike(P, base, tip, r, tint=CHROME, mat='chrome'):
     seg(P, base, tip, (r, r), (0.012, 0.012), mat, tint, n=4)
 
 
-def slashes(P, at, L, ang=38, w=0.09, gap=0.26, n=3, h=0.025):
-    """the line's marking: three diagonal claw slashes in the wing's colour, laid on a level surface at at[1]"""
+def slashes(P, at, L, ang=38, w=0.09, gap=0.26, n=3, h=0.025, secs=None):
+    """the line's marking: three diagonal claw slashes in the wing's colour, laid on a level surface at at[1], or
+    (secs given) each one on a hex hull's top flat, following its slope"""
     x, y, z = at
     for i in range(n):
         o = (i - (n - 1) / 2) * gap
         f = 1.0 - 0.18 * abs(i - (n - 1) / 2)
-        P.box(w, h, L * f, (x + o * math.cos(math.radians(ang)), y + h / 2, z - o * math.sin(math.radians(ang))),
-              'paint', WHITE, 0.0, rot=(0, ang, 0))
+        cx, cz = x + o * math.cos(math.radians(ang)), z - o * math.sin(math.radians(ang))
+        cy, pitch = y, 0.0
+        if secs:
+            cy = top(secs, cz) - 0.006
+            slope = (top(secs, cz + 0.5) - top(secs, cz - 0.5))
+            pitch = -math.degrees(math.atan(slope * math.cos(math.radians(ang))))
+        P.box(w, h, L * f, (cx, cy + h / 2, cz), 'paint', WHITE, 0.0, rot=(pitch, ang, 0))
 
 
 def bolts(P, a, b, n, s=0.045, tint=CHROME):
@@ -165,7 +176,7 @@ def salvage_engine(P, at, r, L, tint=RUST, ribs=3, flame=2.6, segs=16, cap=True)
     zc = z + d + L / 2 - 0.02
     P.cyl(r * 1.13, L, (x, y, zc), 'z', 'hull', tint, segs, r2=r * 1.06)
     for k in range(ribs):
-        P.torus(r * 1.15, r * 0.06, (x, y, z + d + 0.12 + k * (L - 0.24) / max(1, ribs - 1)), 'z', 'dark', DARK2, segs, 4)
+        P.cyl(r * 1.18, r * 0.12, (x, y, z + d + 0.12 + k * (L - 0.24) / max(1, ribs - 1)), 'z', 'dark', DARK2, segs)
     if cap:
         P.cyl(r * 0.9, 0.08, (x, y, z + d + L), 'z', 'dark', DARK, segs)
     nozzle(P, at, r, flame=flame, segs=segs)
@@ -191,7 +202,7 @@ def fighter(P):
         weld(P, (sx * 0.62, top(H, -0.15) - 0.13, -0.15), 0.42, 0.04)
     P.box(0.5, 0.04, 0.7, (-0.18, top(H, -1.9) + 0.01, -1.9), 'trim', RUST, 0.01)
     weld(P, (0, top(H, -0.2) + 0.012, -0.2), 0.9, 0.035)
-    slashes(P, (-0.06, top(H, -0.95) + 0.005, -0.95), 0.86, ang=40, w=0.12, gap=0.25)
+    slashes(P, (-0.06, 0, -0.95), 0.86, ang=40, w=0.12, gap=0.25, secs=H)
     # the mandibles: two hooked claw tines, the port one longer, guns slung under each
     for sx, (el, tip, gz) in ((1, ((1.06, -0.08, 3.05), (0.60, -0.12, 4.75), 2.55)), (-1, ((-1.0, -0.08, 2.8), (-0.66, -0.12, 4.15), 2.35))):
         root = (sx * 0.46, -0.04, 1.65)
@@ -296,7 +307,7 @@ def bomber(P):
     # dorsal turret offset to starboard
     turret(P, (-0.42, top(H, -1.2), -1.2), 0.85, side=-1)
     # the deck: claw slashes, a rust patch, welds and a radiator
-    slashes(P, (0.1, top(H, 0.6) - 0.01, 0.6), 1.05, ang=40, gap=0.28, w=0.11)
+    slashes(P, (0.1, 0, 0.6), 1.05, ang=40, gap=0.28, w=0.11, secs=H)
     P.box(0.7, 0.04, 0.9, (0.25, top(H, -2.6) + 0.01, -2.6), 'trim', RUST, 0.01)
     weld(P, (0, top(H, -0.3) + 0.015, -0.3), 1.2, 0.04)
     P.box(0.9, 0.14, 1.1, (0.55, top(H, -2.7) + 0.07, -2.7), 'trim', STEEL2, 0.02)
@@ -341,7 +352,7 @@ def drone(P):
     hexhull(P, H, tint=PALE)
     facet(P, H, -0.25, 0.7, 1, True, 'trim', RUST, 0.7)
     facet(P, H, 0.1, 0.8, -1, False, 'trim', STEEL, 0.7)
-    slashes(P, (-0.02, top(H, -0.3) - 0.005, -0.3), 0.42, ang=40, w=0.06, gap=0.14)
+    slashes(P, (-0.02, 0, -0.3), 0.42, ang=40, w=0.06, gap=0.14, secs=H)
     weld(P, (0, top(H, 0.35) + 0.01, 0.35), 0.5, 0.03)
     # the mending emitter on a forward boom: a dish, its green lens and three focusing prongs
     P.cyl(0.10, 0.55, (0, -0.02, 0.98), 'z', 'dark', DARK2, 8)
@@ -503,7 +514,7 @@ def gunship(P):
     turret(P, (-0.72, top(H, -0.9), -0.9), 1.05, side=-1, L=1.9)
     turret(P, (0.75, top(H, -4.4), -4.4), 0.7, side=1, n=1, L=1.5)
     # deck: the claw slashes, a rust patch, vents, machinery
-    slashes(P, (-0.25, top(H, -2.85) - 0.01, -2.85), 1.5, ang=40, w=0.15, gap=0.38)
+    slashes(P, (-0.25, 0, -2.85), 1.5, ang=40, w=0.15, gap=0.38, secs=H)
     P.box(1.0, 0.05, 1.3, (-0.6, top(H, -5.0) + 0.01, -5.0), 'trim', RUST, 0.01)
     P.box(0.9, 0.12, 1.5, (0.75, top(H, -5.6) + 0.04, -5.6), 'trim', STEEL2, 0.02)
     vents(P, (0.75, top(H, -5.6) + 0.1, -5.6), 0.75, 1.3, 7)
@@ -552,8 +563,8 @@ def gunship(P):
         rcs(P, (sx * 1.45, 0.45, 4.3), 0.2, sx)
         rcs(P, (sx * 1.75, 0.5, -5.4), 0.2, sx)
     P.box(1.5, 0.06, 2.0, (0, bottom(H, -1.5) - 0.02, -1.5), 'dark', DARK2, 0.0)
-    skirt(P, H, -5.4, -1.6, 1, 4, rng, (PALE2, STEEL, RUST2, STEEL2), drop=0.75, ang=24)
-    skirt(P, H, -5.6, 2.2, -1, 6, rng, (STEEL, RUST2, PALE2), drop=0.8, ang=22)
+    skirt(P, H, -5.4, -1.6, 1, 3, rng, (PALE2, STEEL, RUST2), drop=0.75, ang=24, nb=2)
+    skirt(P, H, -5.6, 2.2, -1, 5, rng, (STEEL, RUST2, PALE2), drop=0.8, ang=22, nb=2)
 
 
 # ---------------------------------------------------------------- torpedo boat (medium)
@@ -621,7 +632,7 @@ def torpboat(P):
         P.box(0.04, 0.09, 0.2, (hx + 0.9, C[2][3] + 0.1, -3.6 + k * 0.85), 'lamp', WIN, 0.0)
     P.cyl(0.025, 1.0, (hx + 0.2, ct + 1.05, 1.8), 'y', 'chrome', CHROME, 6)
     lamp(P, (hx + 0.2, ct + 1.58, 1.8), STROBE, 0.07)
-    slashes(P, (hx, top(C, -0.9) - 0.01, -0.9), 0.8, ang=40, w=0.11, gap=0.24)
+    slashes(P, (hx, 0, -0.9), 0.8, ang=40, w=0.11, gap=0.24, secs=C)
     turret(P, (hx, top(C, -3.3), -3.3), 0.72, side=1, L=1.5)
     greebles(P, rng, hx - 0.35, hx + 0.35, top(C, 0.6), 0.2, 1.0, 3, 0.07, 0.22, (MACH, DARK2, STEEL))
     # the box magazine strapped to the port flank, four torpedo noses showing
@@ -677,7 +688,7 @@ def tender(P):
     for x in (0.62, -0.75):
         spike(P, (x, -0.06, 3.45), (x * 1.05, -0.08, 4.15), 0.13, STEEL, 'trim')
     bolts(P, (-0.95, 0.56, 3.3), (0.95, 0.56, 3.3), 7)
-    slashes(P, (-0.35, top(H, -0.9) - 0.01, -0.9), 1.15, ang=40, w=0.13, gap=0.32)
+    slashes(P, (-0.35, 0, -0.9), 1.15, ang=40, w=0.13, gap=0.32, secs=H)
     weld(P, (0, top(H, 0.05) + 0.015, 0.05), 1.6, 0.05)
     P.box(0.9, 0.05, 1.0, (0.55, top(H, -2.4) + 0.01, -2.4), 'trim', RUST, 0.01)
     greebles(P, rng, -1.0, 0.1, top(H, 1.4), 0.6, 2.0, 5, 0.1, 0.28, (MACH, DARK2, STEEL))
@@ -778,10 +789,17 @@ def frigate(P):
     P.box(1.6, 0.08, 2.4, (-1.0, top(H, -1.6) + 0.03, -1.6), 'trim', RUST, 0.01)
     P.box(1.3, 0.08, 3.0, (-1.2, top(H, -7.0) + 0.03, -7.0), 'trim', RUST2, 0.01)
     P.box(1.1, 0.08, 1.8, (1.1, top(H, 9.6) + 0.03, 9.6), 'trim', RUST, 0.01)
-    slashes(P, (-0.4, top(H, 2.6) - 0.02, 2.6), 2.6, ang=40, w=0.28, gap=0.68)
+    slashes(P, (-0.3, 0, 2.5), 3.2, ang=40, w=0.42, gap=0.95, secs=H)
     for z in (-9.6, -3.4, 4.4):
         weld(P, (0, top(H, z) + 0.02, z), 3.8, 0.08)
-    greebles(P, rng, -1.6, 1.6, top(H, -12.6), -13.8, -11.0, 10, 0.25, 0.6, (MACH, DARK2, STEEL))
+    greebles(P, rng, 0.2, 1.8, top(H, -12.6), -13.8, -11.0, 6, 0.25, 0.6, (MACH, DARK2, STEEL))
+    # an open machinery trench on the aft deck: exposed frames over a dark well, a conduit along it
+    tzc = -11.4
+    P.box(1.5, 0.1, 5.2, (-1.0, top(H, tzc) + 0.02, tzc), 'dark', DARK, 0.0)
+    for k in range(6):
+        P.box(1.7, 0.22, 0.16, (-1.0, top(H, tzc) + 0.12, tzc - 2.3 + k * 0.92), 'trim', STEEL2, 0.0)
+    P.cyl(0.12, 5.0, (-1.35, top(H, tzc) + 0.1, tzc), 'z', 'chrome', CHROME, 8)
+    P.cyl(0.09, 5.0, (-0.75, top(H, tzc) + 0.08, tzc), 'z', 'trim', RUST2, 8)
     # the command tower, offset to port on a weld collar
     tz, tt = -4.2, top(H, -4.2)
     P.box(3.5, 0.3, 6.4, (1.5, tt + 0.12, tz), 'dark', WELD, 0.03)
@@ -792,11 +810,11 @@ def frigate(P):
         for k in range(7):
             P.box(0.05, 0.1, 0.24, (1.5 + sx * 1.40, tt + 1.25, tz - 1.9 + k * 0.62), 'lamp', WIN, 0.0)
     P.box(0.2, 0.04, 2.0, (0.85, tt + 3.37, tz + 0.85), 'paint', WHITE, 0.0)
-    P.cyl(0.09, 2.4, (1.75, tt + 4.5, tz + 0.4), 'y', 'chrome', CHROME, 8)
-    P.cyl(0.65, 0.2, (1.75, tt + 4.6, tz + 0.4), 'y', 'dark', MACH, 14, r2=0.15, rot=(24, 0, 0))
-    P.strut((1.75, tt + 4.1, tz + 0.4), (2.85, tt + 4.5, tz + 0.4), 0.08, 0.08, 'chrome', CHROME)
-    P.cyl(0.34, 0.12, (2.9, tt + 4.5, tz + 0.4), 'x', 'dark', MACH, 12, r2=0.06)
-    lamp(P, (1.75, tt + 5.75, tz + 0.4), STROBE, 0.13)
+    P.cyl(0.09, 1.7, (1.75, tt + 4.15, tz + 0.4), 'y', 'chrome', CHROME, 8)
+    P.cyl(0.65, 0.2, (1.75, tt + 4.2, tz + 0.4), 'y', 'dark', MACH, 14, r2=0.15, rot=(24, 0, 0))
+    P.strut((1.75, tt + 3.8, tz + 0.4), (2.85, tt + 4.1, tz + 0.4), 0.08, 0.08, 'chrome', CHROME)
+    P.cyl(0.34, 0.12, (2.9, tt + 4.1, tz + 0.4), 'x', 'dark', MACH, 12, r2=0.06)
+    lamp(P, (1.75, tt + 5.05, tz + 0.4), STROBE, 0.13)
     P.cyl(0.42, 0.3, (1.5, tt + 2.3, tz + 2.45), 'y', 'dark', DARK2, 12)
     P.sphere(0.34, (1.5, tt + 2.5, tz + 2.45), 'dark', MACH, (1, 0.75, 1), segs=10)
     barrel(P, (1.5, tt + 2.55, tz + 2.65), 1.2, 0.06, name='pd')
@@ -819,7 +837,8 @@ def frigate(P):
             a = math.radians(45 + k * 90)
             b = (5.3, -0.55 + math.sin(a) * 0.62, z + math.cos(a) * 0.62)
             spike(P, b, (5.85, -0.55 + math.sin(a) * 0.42, z + math.cos(a) * 0.42), 0.1, STEEL, 'trim')
-        lamp(P, (5.34, -0.55, z), WIN, 0.1)
+        P.cyl(0.4, 0.06, (5.33, -0.55, z), 'x', 'dark', DARK, 10)
+        P.box(0.05, 0.08, 0.5, (5.36, -0.55, z), 'trim', MACH, 0.0)
     # a radiator array to starboard aft: three vanes stepped out on a boom
     P.strut((-3.9, -0.3, -11.2), (-5.4, -0.3, -11.2), 0.4, 0.4, 'dark', DARK)
     for k, (x, z) in enumerate(((-4.6, -10.2), (-5.4, -11.2), (-4.6, -12.2))):
