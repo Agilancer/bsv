@@ -921,8 +921,7 @@ def frigate(P):
     H = [(-14.0, 3.4, 2.1, 0.3), (-8.0, 4.0, 2.35, 0.25), (4.0, 3.8, 2.25, 0.15), (10.0, 3.0, 1.8, 0.0), (12.4, 2.5, 1.45, -0.1)]
     # the heavy spinal gun through the hammerhead: the first gun
     barrel(P, (0.3, 0.0, 12.9), 4.6, 0.38, glowtip=True)
-    for z in (15.3, 16.1):
-        P.torus(0.45, 0.07, (0.3, 0.0, z), 'z', 'glow', WHITE, 14, 4)
+    P.torus(0.45, 0.07, (0.3, 0.0, 15.6), 'z', 'glow', WHITE, 14, 4)
     hexhull(P, H)
     tz = -10.8
     patchwork(P, H, rng, -14.0, 12.4, faces=(0, 2), step=(1.6, 3.0))
@@ -981,7 +980,7 @@ def frigate(P):
     dome(P, (-1.6, top(H, -11.4), -11.4), 1.25, 'rotary', L=2.0, side=-1)
     dome(P, (0.6, bottom(H, 0.0), 0.0), 1.2, 'twin', L=2.0, flip=-1)
     # point defence on sponsons
-    for (s, z) in ((1, 5.6), (-1, -2.2), (1, -10.4)):
+    for (s, z) in ((1, 5.6), (-1, -2.2)):
         x = s * 4.0
         P.box(1.3, 0.7, 2.2, (x, 0.75, z), 'trim', GUN2, 0.06, taper=(0.9, 0.85))
         P.cyl(0.4, 0.26, (x + s * 0.1, 1.22, z), 'y', 'dark', DARK2, 12)
@@ -1015,9 +1014,8 @@ def frigate(P):
     slot_grid(P, (-2.3, 1.05, -15.3), 2, 2, 0.72, 0.46, L=1.0)
     salvage_engine(P, (-2.3, -1.15, -15.3), 0.8, 1.1, tint=STEEL2, ribs=2, segs=16)
     lamp(P, (-2.3, 2.0, -14.4), STROBE, 0.13)
-    for s in (1, -1):
-        rcs(P, (s * 2.6, 0.7, 10.6), 0.3, s)
-        rcs(P, (s * 3.6, 1.0, -13.2), 0.3, s)
+    rcs(P, (2.6, 0.7, 10.6), 0.3, 1)
+    rcs(P, (-3.6, 1.0, -13.2), 0.3, -1)
     # underside: a hangar door, a keel
     P.box(3.0, 0.08, 4.0, (0, bottom(H, 5.0) - 0.04, 5.0), 'dark', DARK, 0.0)
     P.box(2.6, 0.06, 0.22, (0, bottom(H, 5.0) - 0.07, 6.9), 'lamp', WIN, 0.0)
