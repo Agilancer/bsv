@@ -1,0 +1,31 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Title viewer</title>
+<base href="../">
+<style>html,body{margin:0;background:#000;overflow:hidden;color:#9cf;font:12px monospace}#info{position:fixed;left:8px;top:8px;white-space:pre}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.webgpu.js","three/webgpu":"./vendor/three/three.webgpu.js","three/tsl":"./vendor/three/three.tsl.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head><body><div id="info"></div>
+<script type="module">
+// The title backdrop without the logo and menu, for reviewing the battle line (src/fx/TitleScene.js).
+//   ?line=id,id,...   another line (lead first; chassis ids)      ?t=seconds  start the camera this far round
+//   ?hide             no info text            ?freeze  the clock stands still (seek moves it)
+// Scripted renders: window.__title.seek(t) puts the line and the camera where they are t seconds in.
+import { Engine } from './src/engine/Engine.js';
+import { preload } from './src/engine/Assets.js';
+import { initMaterials } from './src/fx/materials.js';
+import { loadKits } from './src/game/ship/kitAssembler.js';
+import { TitleScene } from './src/fx/TitleScene.js';
+const q = new URLSearchParams(location.search);
+const e = await new Engine(document.body).init();
+await Promise.all([preload(['hull_naval', 'hull_graphite', 'hull_gold', 'hull_glacier', 'hull_dropship', 'hull_apc', 'hull_mech', 'hull_alien', 'glow_alien']), loadKits()]);
+initMaterials(e);
+const title = new TitleScene(e, q.get('line') ? { line: q.get('line').split(',') } : {});
+const start = title.ships.map((s) => s.g.position.z);
+if (q.has('freeze')) { const up = title.update.bind(title); title.update = (dt, t, realDt) => up(dt, t, 0); }
+const seek = (t) => { title.ships.forEach((s, i) => { s.g.position.z = start[i] + 22 * t; }); title.t = t; title.update(0, 0, 0); };
+if (q.has('t')) seek(+q.get('t'));
+const info = document.getElementById('info');
+if (!q.has('hide')) e.add({ update() { info.textContent = `${e.backend} ${e.fps.toFixed(0)} fps  t ${title.t.toFixed(1)}`; } });
+window.__title = { scene: title, seek };
+e.start();
+window.__ready = true;
+</script></body></html>

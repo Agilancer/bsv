@@ -91,8 +91,8 @@ Read this first when picking the work up (new session or another model). Then `C
    on commit 1480cb8 to compare before blaming the rework. Still never run since the rework: `node tools/duel.cjs 5,15,30,50 --gate`,
    `node tools/soak.cjs 10 --gate` (broadside mounts moved inboard; time-to-kill may have shifted).
 4. Enemy hulls: liveries and role kits on kit hulls, then the enemy-only languages (rustborn, silent, brood).
-5. Re-pick the title line (`src/fx/TitleScene.js`) from the new hulls; rename the sailing-ship fields
-   (`castle`, `keel`, `sails`...) in data and code.
+5. Title line: DONE (Hollow battleship lead, one uniform triple cannon on every turret and broadside mount; see
+   CLAUDE.md, `fx/`). Still to do: rename the sailing-ship fields (`castle`, `keel`, `sails`...) in data and code.
 
 ## Working rules that held up
 - One background agent per job; when two run at once, give each its own files and have it commit by
