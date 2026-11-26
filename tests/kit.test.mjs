@@ -9,7 +9,7 @@ import { hullPlan, sideProfile } from '../src/game/ship/hullPlan.js';
 import { KIT_PROFILES } from '../src/game/ship/kitProfiles.js';
 import { BANDS, CLASS_LAYOUT, YARDS, layoutFor, PITCH_FLOOR, STRETCH, bandFor, indexKit, planHull, bakePlan, shieldLevel, waistFill, pickSpread, isCommand, kitSideProfile } from '../src/game/ship/kitPlan.js';
 import * as KP from '../src/game/ship/kitPlan.js';
-import { visibleOpenEdges, loosePieces, mountMargins, fanBlock } from './support/hullGeom.mjs';
+import { visibleOpenEdges, loosePieces, mountMargins, fanBlock, backFaces } from './support/hullGeom.mjs';
 
 const load = (lang) => indexKit(JSON.parse(fs.readFileSync(new URL(`../assets/ships/kits/${lang}.json`, import.meta.url))));
 const KITS = Object.fromEntries(YARDS.map((y) => [y, load(y)]));      // the six player yards
@@ -287,6 +287,14 @@ test('no hole shows: every open edge of a baked hull lies on another face or is 
   for (const { c, plan } of built) {
     const v = visibleOpenEdges(KP, plan);
     assert.equal(v.length, 0, `${c.id}: ${v.length} open edges show, e.g. ${JSON.stringify(v.slice(0, 3))} (W)`);
+  }
+});
+
+test('no face shows inside out: a face wound inwards is culled and opens a hole into the hull', () => {
+  // (a sliver or two of a well's cut showing through a casemate passes: an inverted tube face reads ~100 rays)
+  for (const { c, plan } of built) {
+    const h = backFaces(KP, plan);
+    assert.ok(h.length <= 4, `${c.id}: ${h.length} rays see a face from behind, e.g. ${JSON.stringify(h.slice(0, 3))} (W)`);
   }
 });
 

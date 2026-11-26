@@ -10,6 +10,7 @@ from shipkit import prof, pscale, subquad, edge
 
 class Ironhold(K.Style):
     lang, hood, blk, t6m = 'ironhold', False, 1.04, True
+    slotlit = False             # (amber only on the running lights and the gun mouths)
     tower_k = (0.94, 0.93, 0.16)
     prow_n = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2, 9: 2, 10: 3}
     split_taper = [(0, 1, 1, 0), (0.8, 0.97, 0.97, 0), (1.0, 0.86, 0.86, 0)]    # the battleship's prow halves: two blunt blocks
@@ -55,7 +56,7 @@ class Ironhold(K.Style):
     # ---- the body: chamfered-rectangle armour bricks, blunt at both ends, radiator banks on every roof
     block_fore = ((0.55, 0.3), (0.94, 0.1))
     block_aft = ((0.6, 0.24), (0.95, 0.08))
-    side = dict(w=0.33, gap=0.36, wi=0.3, ht=0.5, hb=0.55, bow=((0.96, 0.3, 0.0), (0.74, 0.55, -0.03)), stern=((0.98, -0.6, -0.04), (0.9, -1.25, -0.14), (0.86, -3.1, -0.3)))
+    side = dict(w=0.33, gap=0.36, wi=0.3, kb=0.6, ht=0.5, hb=0.55, bow=((0.96, 0.3, 0.0), (0.74, 0.55, -0.03)), stern=((0.98, -0.6, -0.04), (0.9, -1.25, -0.14), (0.86, -3.1, -0.3)))
 
     def radiators(self, p, B, x, y, z0, z1, w=0.2, mirror=True):
         """A radiator bank: a long low block with a row of dark fins standing in it."""

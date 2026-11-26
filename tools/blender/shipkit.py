@@ -34,6 +34,7 @@ class Style:
     wing = sidehull = nacelle = None    # appendages a yard swaps for its own: fn(B) -> Part
     hangars5, side5 = (0.72,), None             # the five-nozzle block's hangar mouths and side socket
     collars = True              # gold collars and top plates on battery blocks and side hulls
+    slotlit = True              # the cruiser's split head: its slot's floor lit in the yard's glow
     def extra_parts(self): return []
     def blockp(self, u, xi, xo): return None    # a battery block's section, when not the faceted one
     def app(self, p, B, variant): pass          # dress an appendage the yard takes from the ladder
@@ -1042,7 +1043,9 @@ def sidehull(B=C):
     cx = cx * u                                    # centreline of the side hull, relative to the socket on the beam
     ki = sd.get('wi', w) / w                       # the inboard half drawn in (a wider gap to the body), the outboard as drawn
     hs = lambda k=1.0, ky=None: pscale(B.std(w, sd.get('ht', 0.62), sd.get('hb', 0.66)), k, ky)
-    ring = lambda hh, z, dx=0.0: [(x * (ki if x < 0 else 1.0) + cx + dx, y, zz) for x, y, zz in shiplib.pring(hh, z)[0]]
+    kb = sd.get('kb', 1.0)                         # and its beam drawn in toward the waterline: the inboard face is short
+    inb = lambda hh: [(-x * ki, y * (kb if j in (1, 2) else 1.0)) for j, (x, y, _) in enumerate(hh[-2:0:-1])]
+    ring = lambda hh, z, dx=0.0: [(x + cx + dx, y, z) for x, y, _ in hh] + [(x + cx + dx, y, z) for x, y in inb(hh)]
     xo = cx + w * u
     td = min(0.6, w * (1 + ki) - (0.12 if ki == 1 else 0.08)) * u     # the trench's depth: the gunhouse inside, a wall left inboard
     xb = xo - td
@@ -1065,7 +1068,7 @@ def sidehull(B=C):
             # a bay: the trench is cut on the outboard side only
             hh = cutp(hfull)
             pts_a, tags = shiplib.pring(hfull, a)
-            ra = [(x + cx, y, a) for x, y, _ in hh] + [(-x * ki + cx, y, a) for x, y, _ in hfull[-2:0:-1]]
+            ra = [(x + cx, y, a) for x, y, _ in hh] + [(x + cx, y, a) for x, y in inb(hfull)]
             rb = [(x, y, b) for x, y, _ in ra]
             tg = [t for _, _, t in hh[:-1]] + ['hull'] * (len(hfull) - 1)
             p.loft([ra, rb], lambda r, i: tg[i])
@@ -1098,8 +1101,9 @@ def sidehull(B=C):
     for sm in p.solids[-1:]:
         sm[0].verts[:] = [(x + cx, y, z) for x, y, z in sm[0].verts]
     if ki < 1:              # the gap to the body: the side hull's inboard crown edge lit between the crossways
+        hin = [hfull[0]] + [(-x, y, 'hull') for x, y in inb(hfull)[::-1]] + [hfull[-1]]
         yE = hfull[0][1] * 0.86
-        p.box('glow', 0.025 * u, 0.025 * u, 2.5 * u, (cx - xat(hfull, yE) * ki + 0.006 * u, yE, zc0))
+        p.box('glow', 0.025 * u, 0.025 * u, 2.5 * u, (cx - xat(hin, yE) + 0.006 * u, yE, zc0))
     det(p, 'pd', (cx, hfull[0][1] + 0.07 * u, za_ + 0.3 * u), zf - za_ - 0.6 * u, side='this')
     det(p, 'light', (xo, hfull[2][1], zf + 0.3 * u), 0, side='this')
     det(p, 'light', (xo - 0.12 * u, hfull[2][1], za_ - 0.6 * u), 0, side='this')
@@ -1241,8 +1245,10 @@ def snout_face(p, B, h, z0, z1, marks, kx=0.8, ky=0.8, face='dark', tubes=True, 
     u, ln = B.W, z1 - z0
     zf, dp = z1 - 0.02 * u, 0.12 * u
     hn = pscale(h, kx, ky, -0.02 * u)
-    taper(p, h, z0, ln, [(0, 1, 1, 0), (0.5, 0.93, 0.93, -0.01 * u), (0.82, 0.86, 0.87, -0.015 * u), ((zf - z0) / ln, kx, ky, -0.02 * u)], caps=(False, False))
-    p.hloft([(hn, zf), (pscale(hn, 0.84), zf), (pscale(hn, 0.84), zf - dp)], over={0: 'trim', 1: 'dark'}, cap_mat=('hull', face), caps=(False, True))
+    # one solid from the snout's root to the recessed face (a face lofted on its own is a hollow cup, which the
+    # outward winding turns inside out: the face would be culled from the front)
+    stn = [(pscale(h, k1, k2, yo), z0 + t * ln) for t, k1, k2, yo in [(0, 1, 1, 0), (0.5, 0.93, 0.93, -0.01 * u), (0.82, 0.86, 0.87, -0.015 * u)]]
+    p.hloft(stn + [(hn, zf), (pscale(hn, 0.84), zf), (pscale(hn, 0.84), zf - dp)], over={3: 'trim', 4: 'dark'}, cap_mat=('hull', face), caps=(False, True))
     yc = (hn[0][1] + hn[-1][1]) / 2
     for x in marks:         # (the launchers sunk behind the face: their muzzles never show through it)
         p.marker('hp.pr', (x * u, yc, zf - dp - 0.62 * B.S - 0.35 * u))
@@ -1319,7 +1325,7 @@ def split_head(p, B, hh, z0, z1, marks):
     xs = xat(hf, 0.0) * 0.9
     yc = (lo + hi) / 2
     p.box('glow', xs * 1.2, (hi - lo) * 0.45, 0.02 * u, (0, yc, z0 + 0.012 * u))      # the slot, lit at its back
-    for sx in (-1, 1) if not grown else ():                                             # and along its floor, out onto the lower lobe
+    for sx in (-1, 1) if Y.slotlit and not grown else ():                               # and along its floor, out onto the lower lobe
         za, zb = z0 + 0.1 * u, z1 - 0.3 * u
         p.box('glow', 0.03 * u, 0.012 * u, zb - za, (sx * xs * 0.42, lo + 0.004 * u, (za + zb) / 2))
     if not grown:

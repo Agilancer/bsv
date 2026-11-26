@@ -315,9 +315,12 @@ already in the scene keep their mesh until they respawn.
     the baked art
   - triangle and glow budgets met (glow share = `glow` area over the area of all baked faces)
   - geometry (`tests/support/hullGeom.mjs`): no open edge shows (each lies on another face or is enclosed: hidden caps
-    are left out of the kits, `shiplib.Part.body`); no piece of structure floats; broadside gunhouses within 0.03 W of
-    their warped housing and prow housings within 0.2 W of the hull section; no class blocks its broadside fans more
-    than the Velscour hull of the class (+12% of the rays)
+    are left out of the kits, `shiplib.Part.body`); no face shows wound inside out (rays from the six axis directions:
+    a face met from behind with no front face within 0.25 W after it opens a hole once back faces are culled; a part
+    lofted as a hollow cup on its own is turned inside out by the outward winding, so a recessed face is lofted with
+    its body); no piece of structure floats; broadside gunhouses within 0.03 W of their warped housing and prow
+    housings within 0.18 W of the hull section; no class blocks its broadside fans more than the Velscour hull of the
+    class (+12% of the rays), nor any battery row more than the same Velscour row (+4 of 45 rays)
 - **Review set:** all ten player classes for the six player yards; for enemy use, one design per size
   band and per role kit of each faction (`tools/viewer.html?enemy=<size>&faction=<f>`).
 - **Renders:** `tools/viewer.html?yard=<lang>&fit&webgl`, the play camera and the title camera, reviewed

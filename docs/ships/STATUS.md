@@ -152,7 +152,11 @@ Read this first when picking the work up (new session or another model). Then `C
       (Tidewright's tube mouths lit teal); Ironhold plate is light steel (`hull_glacier` tinted, no tintMul), its trim
       dull bronze on graphite, window lights pale; T10 side hulls of Ironhold / Corsair / Hollow are lower (crown below
       the body's beam line on Ironhold) with their inboard halves drawn in (`side.wi`: gap 0.34-0.39 W, the trench
-      still 0.55 W deep for the gunhouse) and a lit inboard crown edge. `kitSideProfile` writes no -0.
+      still 0.55 W deep for the gunhouse; Ironhold's inboard beam drawn in too, `side.kb`) and a lit inboard crown edge.
+      `kitSideProfile` writes no -0. Found on the way: the T4 tube face (Aurelian, Tidewright, Hollow) was lofted as a
+      cup of its own, which the outward winding turned inside out, so from the front it was culled and the launchers
+      inside showed (the orange bar); it is now lofted with the snout, and a new test (`hullGeom.backFaces`: rays from
+      the six axis directions must meet a face from its front) catches any face that opens a hole that way.
   All five are a first pass (one render look each, no critic loop). Renders of this pass were written to the
   session scratchpad (`yards2/<lang>_lineup.png`, `<lang>_10.png`); re-render with the viewer to review.
 
